@@ -1,0 +1,10 @@
+anthropic
+fastapi
+uvicorn[standard]
+sse-starlette
+python-multipart
+python-dotenv
+mss
+pillow
+requests
+jinja2
