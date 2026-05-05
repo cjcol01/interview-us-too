@@ -6,3 +6,4 @@ venv/
 *.egg-info/
 dist/
 last_screenshot.png
+users.db

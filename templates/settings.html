@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Settings</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #141414;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid #222;
+      position: sticky;
+      top: 0;
+    }
+
+    .back-btn {
+      background: none;
+      border: none;
+      color: #555;
+      cursor: pointer;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      border-radius: 4px;
+      transition: color 0.15s;
+      text-decoration: none;
+    }
+    .back-btn:hover { color: #aaa; }
+
+    h1 { font-size: 0.9rem; font-weight: 600; color: #bbb; }
+
+    main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .section {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .section-title {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #444;
+      padding: 12px 14px 6px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-top: 1px solid #1a1a1a;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .row:first-of-type { border-top: none; }
+
+    .row-value {
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    .empty-note {
+      color: #333;
+      font-size: 0.85rem;
+      font-style: italic;
+      padding: 20px 14px;
+      text-align: center;
+    }
+
+    .action-row {
+      text-decoration: none;
+      color: #5b9bd5;
+      border-top: 1px solid #1a1a1a;
+      display: flex;
+      padding: 12px 14px;
+      font-size: 0.9rem;
+      transition: background 0.1s;
+    }
+    .action-row:hover { background: #1a1a1a; }
+    .action-row.upgrade { color: #4caf50; }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="back-btn" href="/app" aria-label="Back">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </a>
+    <h1>Settings</h1>
+  </header>
+
+  <main>
+    <div class="section">
+      <div class="section-title">Account</div>
+      <div class="row">
+        <span>Name</span>
+        <span class="row-value">{{ full_name }}</span>
+      </div>
+      <div class="row">
+        <span>Username</span>
+        <span class="row-value">{{ username }}</span>
+      </div>
+      <div class="row">
+        <span>Email</span>
+        <span class="row-value">{{ email }}</span>
+      </div>
+      <div class="row">
+        <span>Plan</span>
+        <span class="row-value">{{ account_level }}</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Billing</div>
+      {% if account_level == 'Paid' %}
+      <div class="row">
+        <span>Status</span>
+        <span class="row-value" style="color:#4caf50;">Active</span>
+      </div>
+      <a class="row action-row" href="/billing/portal">Manage subscription &rsaquo;</a>
+      {% else %}
+      <div class="row">
+        <span>Status</span>
+        <span class="row-value">{{ account_level }}</span>
+      </div>
+      <a class="row action-row upgrade" href="/billing/checkout">Upgrade to Paid &rsaquo;</a>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Preferences</div>
+      <div class="empty-note">More settings coming soon.</div>
+    </div>
+  </main>
+</body>
+</html>
