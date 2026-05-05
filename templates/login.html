@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 360px;
+    }
+
+    h1 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #bbb;
+      margin-bottom: 22px;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #222;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 8px;
+      font-size: 0.85rem;
+      color: #555;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .tab.active { color: #5b9bd5; border-bottom-color: #5b9bd5; }
+
+    .form { display: none; flex-direction: column; gap: 12px; }
+    .form.active { display: flex; }
+
+    label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #555;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    input {
+      width: 100%;
+      background: #0d0d0d;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 10px 12px;
+      color: #e0e0e0;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #3a5f8a; }
+
+    button[type=submit] {
+      background: #1e3a5f;
+      color: #7eb8f7;
+      border: 1px solid #2a4f7a;
+      border-radius: 8px;
+      padding: 11px;
+      width: 100%;
+      font-size: 0.95rem;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: background 0.15s;
+    }
+    button[type=submit]:active { background: #163050; }
+    button[type=submit]:disabled { opacity: 0.5; cursor: default; }
+
+    .error-msg {
+      font-size: 0.82rem;
+      color: #e06c75;
+      min-height: 1.2em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Screen Monitor</h1>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('login')">Login</div>
+      <div class="tab" onclick="switchTab('register')">Register</div>
+    </div>
+
+    <form id="login-form" class="form active" method="post" onsubmit="handleSubmit(event, 'login')">
+      <div>
+        <label>Username</label>
+        <input type="text" name="username" autocomplete="username" required>
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required>
+      </div>
+      <div id="login-error" class="error-msg"></div>
+      <button type="submit">Login</button>
+    </form>
+
+    <form id="register-form" class="form" method="post" onsubmit="handleSubmit(event, 'register')">
+      <div>
+        <label>Full Name</label>
+        <input type="text" name="full_name" autocomplete="name" required>
+      </div>
+      <div>
+        <label>Username</label>
+        <input type="text" name="username" autocomplete="username" required>
+      </div>
+      <div>
+        <label>Email</label>
+        <input type="email" name="email" autocomplete="email" required>
+      </div>
+      <div>
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="new-password" required>
+      </div>
+      <div id="register-error" class="error-msg"></div>
+      <button type="submit">Create Account</button>
+    </form>
+  </div>
+
+  <script>
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach((t, i) =>
+        t.classList.toggle('active', (i === 0) === (tab === 'login'))
+      );
+      document.getElementById('login-form').classList.toggle('active', tab === 'login');
+      document.getElementById('register-form').classList.toggle('active', tab === 'register');
+      document.getElementById('login-error').textContent = '';
+      document.getElementById('register-error').textContent = '';
+    }
+
+    async function handleSubmit(e, action) {
+      e.preventDefault();
+      const form = e.target;
+      const btn = form.querySelector('button[type=submit]');
+      const errEl = document.getElementById(action + '-error');
+      const data = Object.fromEntries(new FormData(form));
+
+      btn.disabled = true;
+      errEl.textContent = '';
+
+      try {
+        const res = await fetch('/auth/' + action, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          errEl.textContent = json.detail || 'Something went wrong.';
+        } else {
+          window.location.href = '/app';
+        }
+      } catch (err) {
+        errEl.textContent = 'Network error: ' + err.message;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

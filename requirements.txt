@@ -1,4 +1,9 @@
 anthropic
+keyboard
+sqlalchemy
+stripe
+passlib[bcrypt]
+python-jose[cryptography]
 fastapi
 uvicorn[standard]
 sse-starlette
