@@ -1,15 +1,16 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
 
 from database import Base
 
 
 class AccountLevel(str, enum.Enum):
-    free = "free"
-    trial = "trial"
-    paid = "paid"
+    free      = "free"
+    trial     = "trial"
+    paid      = "paid"
+    unlimited = "unlimited"
 
 
 class User(Base):
@@ -29,3 +30,13 @@ class User(Base):
     api_token          = Column(String, nullable=True, unique=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True)
+
+
+class InterviewSession(Base):
+    __tablename__ = "interview_sessions"
+
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    ended_at   = Column(DateTime, nullable=True)

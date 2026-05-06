@@ -194,6 +194,110 @@ def test_stripe_connection():
 test("Stripe API connection", test_stripe_connection)
 
 
+print(f"\n{BOLD}-- Interview sessions ------------------------------{RESET}")
+
+def _make_test_user(db):
+    from models import AccountLevel, User
+    from auth import hash_password
+    import secrets
+    tag = secrets.token_hex(4)
+    u = User(
+        username=f"_sess_test_{tag}",
+        email=f"_sess_{tag}@test.internal",
+        full_name="Session Test",
+        password_hash=hash_password("testpass"),
+        account_level=AccountLevel.trial,
+        api_token=secrets.token_urlsafe(32),
+    )
+    db.add(u)
+    db.commit()
+    db.refresh(u)
+    return u
+
+def test_session_created_on_first_capture():
+    from database import SessionLocal, init_db
+    from models import InterviewSession
+    from server import _get_or_create_session
+    init_db()
+    db = SessionLocal()
+    try:
+        u = _make_test_user(db)
+        session = _get_or_create_session(db, u.id)
+        assert session.id is not None
+        assert session.user_id == u.id
+        assert session.ended_at is None
+        from datetime import datetime, timedelta
+        assert session.expires_at > datetime.utcnow()
+        assert session.expires_at < datetime.utcnow() + timedelta(hours=3)
+    finally:
+        db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+        db.close()
+
+def test_session_reused_within_window():
+    from database import SessionLocal, init_db
+    from models import InterviewSession
+    from server import _get_or_create_session
+    init_db()
+    db = SessionLocal()
+    try:
+        u = _make_test_user(db)
+        s1 = _get_or_create_session(db, u.id)
+        s2 = _get_or_create_session(db, u.id)
+        assert s1.id == s2.id, "should reuse the active session"
+    finally:
+        db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+        db.close()
+
+def test_new_session_created_after_expiry():
+    from database import SessionLocal, init_db
+    from models import InterviewSession
+    from server import _get_or_create_session
+    from datetime import datetime, timedelta
+    init_db()
+    db = SessionLocal()
+    try:
+        u = _make_test_user(db)
+        s1 = _get_or_create_session(db, u.id)
+        # force expiry
+        s1.expires_at = datetime.utcnow() - timedelta(seconds=1)
+        db.commit()
+        s2 = _get_or_create_session(db, u.id)
+        assert s2.id != s1.id, "should create a new session after expiry"
+    finally:
+        db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+        db.close()
+
+def test_session_duration_is_2h30m():
+    from database import SessionLocal, init_db
+    from models import InterviewSession
+    from server import _get_or_create_session, SESSION_DURATION
+    from datetime import timedelta
+    assert SESSION_DURATION == timedelta(hours=2, minutes=30)
+    init_db()
+    db = SessionLocal()
+    try:
+        u = _make_test_user(db)
+        s = _get_or_create_session(db, u.id)
+        delta = s.expires_at - s.started_at
+        assert delta == SESSION_DURATION
+    finally:
+        db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
+        db.delete(u)
+        db.commit()
+        db.close()
+
+test("Session created on first hotkey press", test_session_created_on_first_capture)
+test("Active session reused within 2.5hr window", test_session_reused_within_window)
+test("New session created after expiry", test_new_session_created_after_expiry)
+test("Session duration is exactly 2h30m", test_session_duration_is_2h30m)
+
+
 print(f"\n{BOLD}-- Server imports ----------------------------------{RESET}")
 
 def test_server_imports():

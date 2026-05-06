@@ -1,9 +1,21 @@
-async function doCapture() {
-  const { server_url, api_token, complexity, enabled } = await chrome.storage.local.get([
-    'server_url', 'api_token', 'complexity', 'enabled',
-  ]);
+async function fetchAccountLevel() {
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+  try {
+    const resp = await fetch(`${server_url}/api/me`, {
+      headers: { 'Authorization': `Bearer ${api_token}` },
+    });
+    if (resp.ok) {
+      const { account_level } = await resp.json();
+      await chrome.storage.local.set({ is_unlimited: account_level === 'unlimited' });
+    }
+  } catch {}
+}
 
-  if (!enabled) return;
+async function doCapture() {
+  const { server_url, api_token, complexity } = await chrome.storage.local.get([
+    'server_url', 'api_token', 'complexity',
+  ]);
 
   if (!api_token || !server_url) {
     chrome.action.openPopup().catch(() => {});
@@ -46,6 +58,73 @@ async function doCapture() {
   }
 }
 
-chrome.commands.onCommand.addListener((command) => {
-  if (command === 'capture') doCapture();
+async function flashDisabled() {
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+  await fetch(`${server_url}/api/notify/disabled`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${api_token}` },
+  }).catch(() => {});
+}
+
+async function notifyEnabled() {
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+  await fetch(`${server_url}/api/notify/enabled`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${api_token}` },
+  }).catch(() => {});
+}
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'capture') {
+    const { enabled, is_unlimited } = await chrome.storage.local.get(['enabled', 'is_unlimited']);
+    if (!enabled) {
+      if (!is_unlimited) {
+        await chrome.storage.local.set({ last_disabled_press: Date.now() });
+        await flashDisabled();
+      }
+      return;
+    }
+    doCapture();
+  } else if (command === 'toggle') {
+    const { enabled } = await chrome.storage.local.get(['enabled']);
+    const next = !enabled;
+    await chrome.storage.local.set({ enabled: next });
+    if (next) await notifyEnabled();
+  }
 });
+
+function makeIconImageData(size, enabled) {
+  const canvas = new OffscreenCanvas(size, size);
+  const ctx = canvas.getContext('2d');
+  const r = Math.round(size * 0.2);
+  ctx.fillStyle = '#1e1e1e';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, size, size, r);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, Math.round(size * 0.3), 0, Math.PI * 2);
+  ctx.fillStyle = enabled ? '#4a8c55' : '#8c4a4a';
+  ctx.fill();
+  return ctx.getImageData(0, 0, size, size);
+}
+
+function updateIcon(enabled) {
+  chrome.action.setIcon({
+    imageData: {
+      16: makeIconImageData(16, enabled),
+      32: makeIconImageData(32, enabled),
+    },
+  }).catch(() => {});
+}
+
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.enabled !== undefined) {
+    updateIcon(changes.enabled.newValue ?? false);
+  }
+});
+
+chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
+
+fetchAccountLevel();

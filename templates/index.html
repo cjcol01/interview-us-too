@@ -273,9 +273,45 @@
       margin-top: 10px;
     }
 
+    #disabled-toast {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1e1010;
+      border: 1px solid #8b2020;
+      border-radius: 10px;
+      padding: 14px 18px;
+      max-width: 320px;
+      width: calc(100% - 32px);
+      z-index: 100;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    }
+    #disabled-toast.visible { display: block; }
+    #disabled-toast p {
+      font-size: 0.88rem;
+      color: #e07070;
+      line-height: 1.55;
+      margin: 0;
+    }
+    #disabled-toast kbd {
+      background: #2a1010;
+      border: 1px solid #5a2020;
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #e09090;
+    }
+
   </style>
 </head>
 <body>
+  <div id="disabled-toast">
+    <p>Interview assistant not started. To start discreetly, press <kbd>Ctrl+Shift+9</kbd>, then <kbd>Ctrl+Shift+Y</kbd> to capture a screenshot for analysis.</p>
+  </div>
+
   <header>
     <div class="header-left">
       <h1>Screen Monitor</h1>
@@ -410,6 +446,15 @@
             statusEl.className = 'live';
           } else if (data.type === 'settings') {
             applySettings(data);
+          } else if (data.type === 'disabled') {
+            const toast = document.getElementById('disabled-toast');
+            toast.classList.add('visible');
+            clearTimeout(toast._hide);
+            toast._hide = setTimeout(() => toast.classList.remove('visible'), 6000);
+          } else if (data.type === 'enabled') {
+            const toast = document.getElementById('disabled-toast');
+            clearTimeout(toast._hide);
+            toast.classList.remove('visible');
           }
         } catch {}
       };

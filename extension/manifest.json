@@ -13,7 +13,7 @@
     "default_title": "Interview Assistant"
   },
   "content_scripts": [{
-    "matches": ["http://localhost:*/*"],
+    "matches": ["<all_urls>"],
     "js": ["content.js"]
   }],
   "commands": {
@@ -23,6 +23,13 @@
         "mac": "MacCtrl+Shift+Y"
       },
       "description": "Capture current tab and analyze"
+    },
+    "toggle": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+9",
+        "mac": "MacCtrl+Shift+9"
+      },
+      "description": "Toggle interview assistant on/off"
     }
   }
 }
