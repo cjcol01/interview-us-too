@@ -1,4 +1,4 @@
-# Interview Assistant
+# Interview Prep tool
 
 A real-time coding interview prep tool. A Chrome extension captures your screen and sends it to a self-hosted server, which uses Claude to analyse the question and return a solution at your chosen complexity level — from a simple naive approach up to optimal with trade-off explanations.
 
