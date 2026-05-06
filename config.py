@@ -7,6 +7,8 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", 8000))
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
+if SECRET_KEY == "change-me-in-production":
+    raise RuntimeError("SECRET_KEY env var is not set — add a secure random value to .env")
 
 STRIPE_SECRET_KEY     = os.getenv("STRIPE_SECRET_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
