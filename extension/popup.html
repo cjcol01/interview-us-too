@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interview Assistant</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Interview Assistant</h1>
+
+    <div class="field">
+      <label for="server_url">Server URL</label>
+      <input type="url" id="server_url" placeholder="https://yourdomain.com" spellcheck="false">
+    </div>
+
+    <div class="field">
+      <label for="api_token">API Token</label>
+      <div class="input-row">
+        <input type="password" id="api_token" placeholder="Paste from Settings page" spellcheck="false">
+        <button id="toggle_token" class="icon-btn" title="Show/hide token">&#128065;</button>
+      </div>
+    </div>
+
+    <div class="row-between">
+      <label>Complexity</label>
+      <div class="stepper">
+        <button id="complexity_down">&#8722;</button>
+        <span id="complexity_val">2</span>
+        <button id="complexity_up">&#43;</button>
+      </div>
+    </div>
+
+    <button id="save" class="primary">Save settings</button>
+
+    <div id="status" class="status"></div>
+
+    <p class="hint">Hotkey&nbsp;<kbd>Ctrl+Shift+Y</kbd></p>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

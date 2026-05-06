@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Verify your email</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d0d;
+      color: #e0e0e0;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #141414;
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+    .icon { font-size: 2.4rem; margin-bottom: 16px; }
+    h1 { font-size: 1.1rem; font-weight: 600; color: #ddd; margin-bottom: 10px; }
+    p { font-size: 0.88rem; color: #666; line-height: 1.6; margin-bottom: 24px; }
+    .email { color: #5b9bd5; }
+    button {
+      background: #1e3a5f;
+      color: #7eb8f7;
+      border: 1px solid #2a4f7a;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 10px;
+      transition: background 0.15s;
+    }
+    button:hover { background: #163050; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .logout {
+      font-size: 0.78rem;
+      color: #444;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+      width: auto;
+    }
+    .logout:hover { color: #888; background: none; }
+    .msg { font-size: 0.8rem; min-height: 1.2em; margin-bottom: 12px; }
+    .msg.ok  { color: #4caf50; }
+    .msg.err { color: #e06c75; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">&#9993;</div>
+    <h1>Check your email</h1>
+    <p>We sent a verification link to <span class="email">{{ email }}</span>. Click it to activate your account.</p>
+    <div id="msg" class="msg"></div>
+    <button id="resend-btn" onclick="resend()">Resend verification email</button>
+    <form method="post" action="/auth/logout" style="display:contents">
+      <button type="submit" class="logout">Sign out</button>
+    </form>
+  </div>
+  <script>
+    async function resend() {
+      const btn = document.getElementById('resend-btn');
+      const msg = document.getElementById('msg');
+      btn.disabled = true;
+      msg.textContent = '';
+      msg.className = 'msg';
+      try {
+        const res = await fetch('/auth/resend-verification', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          msg.textContent = 'Email sent!';
+          msg.className = 'msg ok';
+        } else {
+          msg.textContent = data.detail || 'Something went wrong.';
+          msg.className = 'msg err';
+        }
+      } catch {
+        msg.textContent = 'Network error.';
+        msg.className = 'msg err';
+      }
+      setTimeout(() => { btn.disabled = false; }, 30000);
+    }
+  </script>
+</body>
+</html>

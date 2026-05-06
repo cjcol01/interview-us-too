@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import Cookie, Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from models import User
 
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
+_bearer = HTTPBearer()
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -46,4 +48,17 @@ def get_optional_user(
 def get_current_user(user: Optional[User] = Depends(get_optional_user)) -> User:
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
+    return user
+
+
+def get_user_by_token(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+    db: Session = Depends(get_db),
+) -> User:
+    user = db.query(User).filter(
+        User.api_token == credentials.credentials,
+        User.is_active == True,
+    ).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid API token")
     return user

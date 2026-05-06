@@ -231,6 +231,13 @@
       font-size: 0.9rem;
     }
 
+    #analysis.analysing::before {
+      content: 'Analysing...';
+      color: #c8a000;
+      font-style: italic;
+      font-size: 0.9rem;
+    }
+
     #analysis pre {
       border: 1px solid #2a2a2a;
       border-radius: 6px;
@@ -351,7 +358,7 @@
         phEl.style.display = 'none';
       }
       analysisEl.innerHTML = data.analysis ? marked.parse(data.analysis) : '';
-      analysisEl.classList.toggle('empty', !data.analysis);
+      analysisEl.className = data.analysis ? '' : 'empty';
       tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
       badgeEl.textContent = data.monitor || '';
       badgeEl.className = data.monitor || '';
@@ -387,11 +394,20 @@
       es.onmessage = e => {
         try {
           const data = JSON.parse(e.data);
-          if (data.type === 'capture') {
-            statusEl.textContent = 'working...';
+          if (data.type === 'working') {
+            statusEl.textContent = 'analysing...';
             statusEl.className = 'working';
+            analysisEl.innerHTML = '';
+            analysisEl.className = 'analysing';
+            imgEl.src = '/screenshot?t=' + data.capture_id;
+            imgEl.classList.remove('hidden');
+            phEl.style.display = 'none';
+            badgeEl.textContent = data.monitor || '';
+            badgeEl.className = data.monitor || '';
+          } else if (data.type === 'capture') {
             applyCapture(data);
-            setTimeout(() => { statusEl.textContent = 'live'; statusEl.className = 'live'; }, 600);
+            statusEl.textContent = 'live';
+            statusEl.className = 'live';
           } else if (data.type === 'settings') {
             applySettings(data);
           }

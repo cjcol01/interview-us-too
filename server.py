@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import secrets
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
@@ -10,44 +11,40 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
-import keyboard
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-
-templates = Jinja2Templates(directory="templates")
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from auth import create_token, get_current_user, get_optional_user, hash_password, verify_password
-from capture import SCREENSHOT_PATH, screenshot
-from config import (
-    AI_PROMPT, ANTHROPIC_API_KEY,
-    HOTKEY_COMPLEXITY_DOWN, HOTKEY_COMPLEXITY_UP,
-    HOTKEY_LEFT, HOTKEY_RIGHT,
-    SERVER_HOST, SERVER_PORT,
-)
+from auth import create_token, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import create_checkout_session, create_portal_session, handle_webhook_event
+from config import AI_PROMPT, ANTHROPIC_API_KEY, BASE_URL, SERVER_HOST, SERVER_PORT
+from mailer import send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, User
 
+templates = Jinja2Templates(directory="templates")
+SCREENSHOTS_DIR = Path("screenshots")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _loop
     init_db()
-    _loop = asyncio.get_event_loop()
-    keyboard.add_hotkey(HOTKEY_LEFT, _make_capture_handler(1), suppress=True)
-    keyboard.add_hotkey(HOTKEY_RIGHT, _make_capture_handler(2), suppress=True)
-    keyboard.add_hotkey(HOTKEY_COMPLEXITY_UP, lambda: adjust_complexity(1), suppress=True)
-    keyboard.add_hotkey(HOTKEY_COMPLEXITY_DOWN, lambda: adjust_complexity(-1), suppress=True)
-    print(f"[ready] {HOTKEY_LEFT}=left  {HOTKEY_RIGHT}=right")
-    print(f"[ready] {HOTKEY_COMPLEXITY_UP}=complexity+  {HOTKEY_COMPLEXITY_DOWN}=complexity-")
-    print(f"[ready] open on phone: http://<your-pc-ip>:{SERVER_PORT}")
+    SCREENSHOTS_DIR.mkdir(exist_ok=True)
+    print(f"[ready] http://localhost:{SERVER_PORT}")
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 COMPLEXITY_MIN = 1
@@ -60,18 +57,40 @@ COMPLEXITY_SUFFIX = {
 
 
 @dataclass
-class AppSettings:
+class UserSettings:
     complexity: int = 2
 
 
-settings = AppSettings()
-capture_state = {"analysis": "", "timestamp": "", "capture_id": 0, "monitor": ""}
-subscribers: list[asyncio.Queue] = []
-_loop: asyncio.AbstractEventLoop | None = None
+# Per-user state — keyed by user.id
+_subscribers:    dict[int, list[asyncio.Queue]] = {}
+_capture_states: dict[int, dict]                = {}
+_settings:       dict[int, UserSettings]        = {}
+
+
+def _capture_state(user_id: int) -> dict:
+    if user_id not in _capture_states:
+        _capture_states[user_id] = {"analysis": "", "timestamp": "", "capture_id": 0, "monitor": ""}
+    return _capture_states[user_id]
+
+
+def _user_settings(user_id: int) -> UserSettings:
+    if user_id not in _settings:
+        _settings[user_id] = UserSettings()
+    return _settings[user_id]
+
+
+def _screenshot_path(user_id: int) -> Path:
+    return SCREENSHOTS_DIR / f"{user_id}.png"
+
+
+async def broadcast(user_id: int, event_type: str, data: dict):
+    payload = json.dumps({"type": event_type, **data})
+    for q in _subscribers.get(user_id, []):
+        await q.put(payload)
 
 
 # ---------------------------------------------------------------------------
-# Auth schemas
+# Schemas
 # ---------------------------------------------------------------------------
 
 class LoginRequest(BaseModel):
@@ -86,63 +105,11 @@ class RegisterRequest(BaseModel):
     password: str
 
 
-# ---------------------------------------------------------------------------
-# Core capture logic
-# ---------------------------------------------------------------------------
+class CaptureRequest(BaseModel):
+    image: str        # base64 PNG, optionally prefixed with "data:image/png;base64,"
+    complexity: int = 2
+    monitor: str = "browser"
 
-async def broadcast(event_type: str, data: dict):
-    payload = json.dumps({"type": event_type, **data})
-    for q in subscribers:
-        await q.put(payload)
-
-
-async def capture_and_analyze(monitor_index: int):
-    loop = asyncio.get_event_loop()
-    img_bytes = await loop.run_in_executor(None, lambda: screenshot(monitor_index))
-    img_b64 = base64.standard_b64encode(img_bytes).decode()
-
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[settings.complexity]
-
-    response = await loop.run_in_executor(
-        None,
-        lambda: client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
-                    {"type": "text", "text": prompt},
-                ],
-            }],
-        ),
-    )
-
-    capture_state["analysis"] = response.content[0].text
-    capture_state["timestamp"] = time.strftime("%H:%M:%S")
-    capture_state["capture_id"] += 1
-    capture_state["monitor"] = "left" if monitor_index == 1 else "right"
-
-    await broadcast("capture", capture_state)
-
-
-def adjust_complexity(delta: int):
-    settings.complexity = max(COMPLEXITY_MIN, min(COMPLEXITY_MAX, settings.complexity + delta))
-    print(f"[complexity] {settings.complexity}")
-    if _loop:
-        asyncio.run_coroutine_threadsafe(broadcast("settings", asdict(settings)), _loop)
-
-
-def _make_capture_handler(monitor_index: int):
-    def handler():
-        if _loop:
-            asyncio.run_coroutine_threadsafe(capture_and_analyze(monitor_index), _loop)
-    return handler
-
-
-# ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Auth routes
@@ -151,7 +118,7 @@ def _make_capture_handler(monitor_index: int):
 @app.get("/login")
 async def login_page(user: Optional[User] = Depends(get_optional_user)):
     if user:
-        return RedirectResponse("/")
+        return RedirectResponse("/app")
     return HTMLResponse(Path("templates/login.html").read_text())
 
 
@@ -192,10 +159,36 @@ async def auth_register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    verify_token = secrets.token_urlsafe(32)
+    user.verify_token = verify_token
+    db.commit()
+    send_verification_email(user.email, verify_token)
+
     token = create_token(user.id)
     response = JSONResponse({"status": "ok", "username": user.username})
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     return response
+
+
+@app.post("/auth/resend-verification")
+async def resend_verification(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.email_verified:
+        raise HTTPException(status_code=400, detail="Email already verified.")
+    user.verify_token = secrets.token_urlsafe(32)
+    db.commit()
+    send_verification_email(user.email, user.verify_token)
+    return {"status": "ok"}
+
+
+@app.get("/verify")
+async def verify_email(token: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.verify_token == token).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
+    user.email_verified = True
+    user.verify_token = None
+    db.commit()
+    return RedirectResponse("/app")
 
 
 @app.post("/auth/logout")
@@ -206,7 +199,7 @@ async def auth_logout():
 
 
 # ---------------------------------------------------------------------------
-# Protected app routes
+# App routes
 # ---------------------------------------------------------------------------
 
 @app.get("/")
@@ -218,40 +211,115 @@ async def landing():
 async def index(user: Optional[User] = Depends(get_optional_user)):
     if not user:
         return RedirectResponse("/login")
+    if not user.email_verified:
+        return RedirectResponse("/verify-pending")
     return HTMLResponse(Path("templates/index.html").read_text())
 
 
-@app.get("/settings")
-async def settings_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+@app.get("/verify-pending")
+async def verify_pending(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if not user:
         return RedirectResponse("/login")
+    if user.email_verified:
+        return RedirectResponse("/app")
+    return templates.TemplateResponse(request=request, name="verify_pending.html", context={
+        "email": user.email,
+    })
+
+
+@app.get("/settings")
+async def settings_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    if not user:
+        return RedirectResponse("/login")
+    if not user.api_token:
+        user.api_token = secrets.token_urlsafe(32)
+        db.commit()
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
         "email": user.email,
         "account_level": user.account_level.value.capitalize(),
+        "api_token": user.api_token,
+        "base_url": BASE_URL,
     })
-
-
-@app.get("/screenshot")
-async def get_screenshot(user: User = Depends(get_current_user)):
-    if not os.path.exists(SCREENSHOT_PATH):
-        return HTMLResponse("not ready", status_code=404)
-    return FileResponse(SCREENSHOT_PATH, media_type="image/png")
 
 
 @app.get("/latest")
 async def get_latest(user: User = Depends(get_current_user)):
-    return {"capture": capture_state, "settings": asdict(settings)}
+    return {"capture": _capture_state(user.id), "settings": asdict(_user_settings(user.id))}
+
+
+@app.get("/screenshot")
+async def get_screenshot(user: User = Depends(get_current_user)):
+    path = _screenshot_path(user.id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="No screenshot yet")
+    return FileResponse(path, media_type="image/png")
 
 
 @app.post("/settings/complexity/{direction}")
 async def change_complexity(direction: str, user: User = Depends(get_current_user)):
+    s = _user_settings(user.id)
     if direction == "up":
-        adjust_complexity(1)
+        s.complexity = min(COMPLEXITY_MAX, s.complexity + 1)
     elif direction == "down":
-        adjust_complexity(-1)
-    return asdict(settings)
+        s.complexity = max(COMPLEXITY_MIN, s.complexity - 1)
+    await broadcast(user.id, "settings", asdict(s))
+    return asdict(s)
+
+
+# ---------------------------------------------------------------------------
+# Capture API — called by browser extension
+# ---------------------------------------------------------------------------
+
+@app.post("/api/capture")
+async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token)):
+    img_b64 = body.image
+    if "," in img_b64:
+        img_b64 = img_b64.split(",", 1)[1]
+
+    _screenshot_path(user.id).write_bytes(base64.b64decode(img_b64))
+
+    state = _capture_state(user.id)
+    state["capture_id"] += 1
+    state["monitor"] = body.monitor
+    await broadcast(user.id, "working", {"capture_id": state["capture_id"], "monitor": body.monitor})
+
+    complexity = max(COMPLEXITY_MIN, min(COMPLEXITY_MAX, body.complexity))
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity]
+
+    loop = asyncio.get_event_loop()
+    response = await loop.run_in_executor(
+        None,
+        lambda: client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        ),
+    )
+
+    state["analysis"] = response.content[0].text
+    state["timestamp"] = time.strftime("%H:%M:%S")
+
+    await broadcast(user.id, "capture", state)
+    return {"status": "ok", "capture_id": state["capture_id"]}
+
+
+@app.post("/api/token/regenerate")
+async def regenerate_api_token(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.api_token = secrets.token_urlsafe(32)
+    db.commit()
+    return {"token": user.api_token}
 
 
 # ---------------------------------------------------------------------------
@@ -293,20 +361,27 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
     return Response(status_code=200)
 
 
+# ---------------------------------------------------------------------------
+# SSE stream
+# ---------------------------------------------------------------------------
+
 @app.get("/stream")
 async def stream(user: User = Depends(get_current_user)):
     q: asyncio.Queue = asyncio.Queue()
-    subscribers.append(q)
+    _subscribers.setdefault(user.id, []).append(q)
+
+    state = _capture_state(user.id)
+    s = _user_settings(user.id)
 
     async def gen():
         try:
-            yield f"data: {json.dumps({'type': 'capture', **capture_state})}\n\n"
-            yield f"data: {json.dumps({'type': 'settings', **asdict(settings)})}\n\n"
+            yield f"data: {json.dumps({'type': 'capture', **state})}\n\n"
+            yield f"data: {json.dumps({'type': 'settings', **asdict(s)})}\n\n"
             while True:
                 data = await q.get()
                 yield f"data: {data}\n\n"
         finally:
-            subscribers.remove(q)
+            _subscribers[user.id].remove(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Interview Assistant",
+  "version": "1.0",
+  "description": "Capture your screen and get AI analysis on your phone.",
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Interview Assistant"
+  },
+  "content_scripts": [{
+    "matches": ["http://localhost:*/*"],
+    "js": ["content.js"]
+  }],
+  "commands": {
+    "capture": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "MacCtrl+Shift+Y"
+      },
+      "description": "Capture current tab and analyze"
+    }
+  }
+}
