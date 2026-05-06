@@ -127,4 +127,14 @@ chrome.storage.onChanged.addListener((changes) => {
 
 chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
 
+chrome.runtime.onInstalled.addListener(async ({ reason }) => {
+  if (reason === 'install') {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) continue;
+      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] }).catch(() => {});
+    }
+  }
+});
+
 fetchAccountLevel();

@@ -30,6 +30,7 @@ def init_db():
             ("api_token",          "VARCHAR"),
             ("verify_token",       "VARCHAR"),
             ("email_verified",     "BOOLEAN DEFAULT 0"),
+            ("setup_complete",     "BOOLEAN DEFAULT 0"),
         ]
         for col, definition in migrations:
             if col not in existing:
