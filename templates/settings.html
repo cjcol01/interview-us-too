@@ -146,9 +146,74 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Preferences</div>
-      <div class="empty-note">More settings coming soon.</div>
+      <div class="section-title">Browser Extension</div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+        <p style="font-size:0.82rem;color:#666;line-height:1.5;">Open this page in the browser where the extension is installed, then click below.</p>
+        <button id="connect-btn" onclick="connectExtension()" style="background:#0e2e0e;border:1px solid #1e4a1e;border-radius:8px;color:#4caf50;cursor:pointer;padding:10px 18px;font-size:0.9rem;font-weight:600;width:100%;">Connect Extension</button>
+        <p id="connect-status" style="font-size:0.78rem;color:#444;min-height:1em;"></p>
+      </div>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:8px;border-top:1px solid #1a1a1a;">
+        <span style="font-size:0.75rem;color:#444;">Manual fallback — API token</span>
+        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+          <code id="api-token" style="font-size:0.7rem;color:#5b9bd5;background:#0d0d0d;padding:6px 10px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ api_token }}</code>
+          <button onclick="copyText('api-token', this)" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#888;cursor:pointer;padding:5px 10px;font-size:0.75rem;white-space:nowrap;">Copy</button>
+        </div>
+        <button id="regen-btn" onclick="regenToken()" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#666;cursor:pointer;padding:5px 12px;font-size:0.75rem;align-self:flex-end;">Regenerate token</button>
+      </div>
     </div>
   </main>
+
+  <script>
+    function connectExtension() {
+      const btn = document.getElementById('connect-btn');
+      const status = document.getElementById('connect-status');
+
+      btn.disabled = true;
+      btn.textContent = 'Connecting...';
+      status.textContent = '';
+      status.style.color = '#444';
+
+      const timeout = setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Connect Extension';
+        status.textContent = 'Extension not detected — use the manual token below.';
+        status.style.color = '#e57373';
+      }, 2000);
+
+      document.addEventListener('interview-ace:connected', () => {
+        clearTimeout(timeout);
+        btn.disabled = false;
+        btn.textContent = 'Connected!';
+        btn.style.background = '#0a1e0a';
+        status.textContent = 'Extension configured. You can close this page.';
+        status.style.color = '#4caf50';
+      }, { once: true });
+
+      document.dispatchEvent(new CustomEvent('interview-ace:connect', {
+        detail: { token: '{{ api_token }}', serverUrl: window.location.origin }
+      }));
+    }
+
+    function copyText(id, btn) {
+      const text = document.getElementById(id).textContent.trim();
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        btn.style.color = '#4caf50';
+        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+      });
+    }
+
+    async function regenToken() {
+      const btn = document.getElementById('regen-btn');
+      btn.textContent = 'Regenerating…';
+      btn.disabled = true;
+      const resp = await fetch('/api/token/regenerate', { method: 'POST' });
+      const data = await resp.json();
+      document.getElementById('api-token').textContent = data.token;
+      btn.textContent = 'Regenerate token';
+      btn.disabled = false;
+    }
+  </script>
 </body>
 </html>

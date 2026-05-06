@@ -24,6 +24,13 @@ def init_db():
     inspector = inspect(engine)
     existing = {c["name"] for c in inspector.get_columns("users")}
     with engine.begin() as conn:
-        for col in ("stripe_customer_id", "stripe_sub_id"):
+        migrations = [
+            ("stripe_customer_id", "VARCHAR"),
+            ("stripe_sub_id",      "VARCHAR"),
+            ("api_token",          "VARCHAR"),
+            ("verify_token",       "VARCHAR"),
+            ("email_verified",     "BOOLEAN DEFAULT 0"),
+        ]
+        for col, definition in migrations:
             if col not in existing:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} VARCHAR"))
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))

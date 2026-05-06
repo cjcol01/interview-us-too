@@ -26,3 +26,6 @@ class User(Base):
     last_login         = Column(DateTime, nullable=True)
     stripe_customer_id = Column(String, nullable=True, unique=True)
     stripe_sub_id      = Column(String, nullable=True, unique=True)
+    api_token          = Column(String, nullable=True, unique=True)
+    email_verified     = Column(Boolean, default=False, nullable=False)
+    verify_token       = Column(String, nullable=True)

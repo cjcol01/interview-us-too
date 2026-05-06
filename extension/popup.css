@@ -1,0 +1,129 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 290px;
+  background: #0d0d0d;
+  color: #e0e0e0;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+}
+
+.container {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 0.82rem;
+  color: #666;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #555;
+}
+
+input {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 7px 10px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+}
+input:focus { border-color: #3a3a3a; }
+
+.input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.input-row input { flex: 1; }
+
+button {
+  background: #1e1e1e;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  color: #bbb;
+  cursor: pointer;
+  padding: 6px 11px;
+  font-size: 12px;
+  transition: background 0.1s;
+}
+button:hover { background: #282828; }
+
+button.primary {
+  background: #0e2e0e;
+  border-color: #1e4a1e;
+  color: #4caf50;
+  width: 100%;
+  padding: 8px;
+}
+button.primary:hover { background: #133313; }
+
+.icon-btn {
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper button {
+  padding: 4px 10px;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.stepper span {
+  min-width: 18px;
+  text-align: center;
+  font-size: 1rem;
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.status {
+  font-size: 0.72rem;
+  color: #444;
+  min-height: 14px;
+}
+.status.ok  { color: #4caf50; }
+.status.err { color: #e57373; }
+
+.hint {
+  font-size: 0.68rem;
+  color: #2e2e2e;
+}
+
+kbd {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: monospace;
+  color: #555;
+}

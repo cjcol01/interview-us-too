@@ -1,5 +1,5 @@
 anthropic
-keyboard
+resend
 sqlalchemy
 stripe
 passlib[bcrypt]
@@ -9,7 +9,5 @@ uvicorn[standard]
 sse-starlette
 python-multipart
 python-dotenv
-mss
-pillow
 requests
 jinja2
