@@ -17,7 +17,7 @@ def get_db():
 
 
 def init_db():
-    from models import User  # noqa: F401 — ensures table is registered
+    from models import InterviewSession, User  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data

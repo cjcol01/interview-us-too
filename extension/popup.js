@@ -89,10 +89,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       statusEl.textContent = last_capture ? `Last capture: ${last_capture}` : '';
       statusEl.className = 'status ok';
     }, 1500);
+
+    try {
+      const resp = await fetch(`${url}/api/me`, { headers: { 'Authorization': `Bearer ${tok}` } });
+      if (resp.ok) {
+        const { account_level } = await resp.json();
+        await chrome.storage.local.set({ is_unlimited: account_level === 'unlimited' });
+      }
+    } catch {}
   });
 
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.last_capture) showStatus(`Last capture: ${changes.last_capture.newValue}`);
     if (changes.last_error?.newValue) showStatus(changes.last_error.newValue, true);
+    if (changes.enabled !== undefined) {
+      isEnabled = changes.enabled.newValue ?? false;
+      applyEnabledState();
+      if (isEnabled) {
+        statusEl.textContent = '';
+        statusEl.className = 'status';
+      }
+    }
+    if (changes.last_disabled_press) {
+      showStatus('Interview assistant not started. Press Ctrl+Shift+9 to start discreetly, then Ctrl+Shift+Y to capture.', true);
+    }
   });
 });

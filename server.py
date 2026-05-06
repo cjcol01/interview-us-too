@@ -6,7 +6,7 @@ import secrets
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -24,7 +24,7 @@ from billing import create_checkout_session, create_portal_session, handle_webho
 from config import AI_PROMPT, ANTHROPIC_API_KEY, BASE_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_verification_email
 from database import get_db, init_db
-from models import AccountLevel, User
+from models import AccountLevel, InterviewSession, User
 
 templates = Jinja2Templates(directory="templates")
 SCREENSHOTS_DIR = Path("screenshots")
@@ -46,6 +46,8 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+SESSION_DURATION = timedelta(hours=2, minutes=30)
 
 COMPLEXITY_MIN = 1
 COMPLEXITY_MAX = 3
@@ -77,6 +79,25 @@ def _user_settings(user_id: int) -> UserSettings:
     if user_id not in _settings:
         _settings[user_id] = UserSettings()
     return _settings[user_id]
+
+
+def _get_or_create_session(db: Session, user_id: int) -> InterviewSession:
+    now = datetime.utcnow()
+    session = db.query(InterviewSession).filter(
+        InterviewSession.user_id == user_id,
+        InterviewSession.expires_at > now,
+        InterviewSession.ended_at == None,  # noqa: E711
+    ).first()
+    if not session:
+        session = InterviewSession(
+            user_id=user_id,
+            started_at=now,
+            expires_at=now + SESSION_DURATION,
+        )
+        db.add(session)
+        db.commit()
+        db.refresh(session)
+    return session
 
 
 def _screenshot_path(user_id: int) -> Path:
@@ -285,9 +306,11 @@ async def change_complexity(direction: str, user: User = Depends(require_subscri
 # ---------------------------------------------------------------------------
 
 @app.post("/api/capture")
-async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token)):
+async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
+    if user.account_level != AccountLevel.unlimited:
+        _get_or_create_session(db, user.id)
     img_b64 = body.image
     if "," in img_b64:
         img_b64 = img_b64.split(",", 1)[1]
@@ -323,6 +346,27 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
 
     await broadcast(user.id, "capture", state)
     return {"status": "ok", "capture_id": state["capture_id"]}
+
+
+@app.get("/api/me")
+async def api_me(user: User = Depends(get_user_by_token)):
+    return {"account_level": user.account_level.value}
+
+
+@app.post("/api/notify/disabled")
+async def notify_disabled(user: User = Depends(get_user_by_token)):
+    if user.account_level in (AccountLevel.free, AccountLevel.unlimited):
+        return {"status": "ok"}
+    await broadcast(user.id, "disabled", {})
+    return {"status": "ok"}
+
+
+@app.post("/api/notify/enabled")
+async def notify_enabled(user: User = Depends(get_user_by_token)):
+    if user.account_level in (AccountLevel.free, AccountLevel.unlimited):
+        return {"status": "ok"}
+    await broadcast(user.id, "enabled", {})
+    return {"status": "ok"}
 
 
 @app.post("/api/token/regenerate")
