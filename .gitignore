@@ -7,3 +7,4 @@ venv/
 dist/
 last_screenshot.png
 users.db
+/screenshots/
