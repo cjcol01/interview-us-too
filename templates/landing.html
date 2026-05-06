@@ -407,8 +407,12 @@
       <a href="#how-it-works">How it works</a>
       <a href="#features">Features</a>
       <a href="#pricing">Pricing</a>
+      {% if user %}
+      <a class="btn btn-primary" href="/app">Go to app</a>
+      {% else %}
       <a class="btn btn-outline" href="/login">Sign in</a>
       <a class="btn btn-primary" href="/login">Get started</a>
+      {% endif %}
     </div>
   </nav>
 
@@ -418,7 +422,11 @@
     <h1>Stop blanking.<br><span>Start acing.</span></h1>
     <p>You know the material. But the moment someone's watching, your mind goes blank. InterviewAce puts the answers where only you can see them &mdash; your phone.</p>
     <div class="hero-cta">
+      {% if user %}
+      <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
+      {% else %}
       <a class="btn btn-primary btn-lg" href="/login">Start for free</a>
+      {% endif %}
       <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
     </div>
     <div class="hero-scroll">
@@ -567,15 +575,16 @@
     <div class="container">
       <div class="section-label">Pricing</div>
       <h2>Start free. Pay when it matters.</h2>
-      <p class="section-sub">Try a free 10-minute trial session with no card needed. Add a card to unlock your first full session free. After that:</p>
+      <p class="section-sub">Try a free 10-minute trial session with no card needed. Upgrade when you're ready.</p>
 
       <div class="pricing-grid">
         <div class="plan">
           <div class="plan-name">Sessions</div>
-          <div class="plan-price">£15 <span>/ 3 sessions</span></div>
+          <div class="plan-price">£2 <span>/ 2 sessions</span></div>
+          <div style="font-size:0.72rem;color:#a78bfa;margin-bottom:4px;">Introductory offer &mdash; usually £15 for 3 sessions</div>
           <div class="plan-desc">Buy sessions when you need them. No subscription.</div>
           <ul class="plan-features">
-            <li>3 full 2.5 hour sessions</li>
+            <li>2 full 2.5 hour sessions</li>
             <li>All AI features</li>
             <li>Sessions never expire</li>
           </ul>
@@ -598,7 +607,11 @@
       </div>
 
       <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-top:28px;">
+        {% if user %}
+        <a href="/app" style="color:var(--accent);text-decoration:none;">Go to your dashboard &rarr;</a>
+        {% else %}
         No card needed to try &mdash; <a href="/login" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
+        {% endif %}
       </p>
     </div>
   </section>
@@ -608,7 +621,11 @@
     <div class="section-label">Get started today</div>
     <h2>Your next interview<br>doesn't have to be a gamble.</h2>
     <p>Join developers who stopped leaving it to chance.</p>
+    {% if user %}
+    <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
+    {% else %}
     <a class="btn btn-primary btn-lg" href="/login">Create your free account</a>
+    {% endif %}
   </div>
 
   <!-- Footer -->
@@ -616,8 +633,13 @@
     <a class="logo" href="/">InterviewAce</a>
     <p>&copy; 2026 InterviewAce. All rights reserved.</p>
     <div style="display:flex;gap:20px;">
+      {% if user %}
+      <a href="/app" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Dashboard</a>
+      <a href="/settings" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Settings</a>
+      {% else %}
       <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
       <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
+      {% endif %}
     </div>
   </footer>
 
