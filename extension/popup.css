@@ -119,6 +119,78 @@ button.primary:hover { background: #133313; }
   color: #2e2e2e;
 }
 
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.confirm-overlay.hidden { display: none; }
+
+.confirm-box {
+  background: #1a1a1a;
+  border: 1px solid #2e2e2e;
+  border-radius: 10px;
+  padding: 18px 16px 14px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.confirm-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.confirm-body {
+  font-size: 0.75rem;
+  color: #777;
+  line-height: 1.55;
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 2px;
+}
+
+.confirm-btn {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+}
+.confirm-btn.ok {
+  background: #0e2e0e;
+  border-color: #1e4a1e;
+  color: #4caf50;
+}
+.confirm-btn.ok:hover { background: #133313; }
+
+.toggle-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  border-radius: 8px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.toggle-btn.off {
+  background: #1a1a1a;
+  border-color: #2e2e2e;
+  color: #444;
+}
+.toggle-btn.on {
+  background: #0e2e0e;
+  border-color: #1e4a1e;
+  color: #4caf50;
+}
+
 kbd {
   background: #1a1a1a;
   border: 1px solid #2e2e2e;

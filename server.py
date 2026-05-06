@@ -83,6 +83,12 @@ def _screenshot_path(user_id: int) -> Path:
     return SCREENSHOTS_DIR / f"{user_id}.png"
 
 
+def require_subscription(user: User = Depends(get_current_user)) -> User:
+    if user.account_level == AccountLevel.free:
+        raise HTTPException(status_code=403, detail="Subscription required")
+    return user
+
+
 async def broadcast(user_id: int, event_type: str, data: dict):
     payload = json.dumps({"type": event_type, **data})
     for q in _subscribers.get(user_id, []):
@@ -119,7 +125,7 @@ class CaptureRequest(BaseModel):
 async def login_page(user: Optional[User] = Depends(get_optional_user)):
     if user:
         return RedirectResponse("/app")
-    return HTMLResponse(Path("templates/login.html").read_text())
+    return HTMLResponse(Path("templates/login.html").read_text(encoding="utf-8"))
 
 
 @app.post("/auth/login")
@@ -204,7 +210,7 @@ async def auth_logout():
 
 @app.get("/")
 async def landing():
-    return HTMLResponse(Path("templates/landing.html").read_text())
+    return HTMLResponse(Path("templates/landing.html").read_text(encoding="utf-8"))
 
 
 @app.get("/app")
@@ -213,7 +219,9 @@ async def index(user: Optional[User] = Depends(get_optional_user)):
         return RedirectResponse("/login")
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
-    return HTMLResponse(Path("templates/index.html").read_text())
+    if user.account_level == AccountLevel.free:
+        return RedirectResponse("/settings")
+    return HTMLResponse(Path("templates/index.html").read_text(encoding="utf-8"))
 
 
 @app.get("/verify-pending")
@@ -249,12 +257,12 @@ async def settings_page(
 
 
 @app.get("/latest")
-async def get_latest(user: User = Depends(get_current_user)):
+async def get_latest(user: User = Depends(require_subscription)):
     return {"capture": _capture_state(user.id), "settings": asdict(_user_settings(user.id))}
 
 
 @app.get("/screenshot")
-async def get_screenshot(user: User = Depends(get_current_user)):
+async def get_screenshot(user: User = Depends(require_subscription)):
     path = _screenshot_path(user.id)
     if not path.exists():
         raise HTTPException(status_code=404, detail="No screenshot yet")
@@ -262,7 +270,7 @@ async def get_screenshot(user: User = Depends(get_current_user)):
 
 
 @app.post("/settings/complexity/{direction}")
-async def change_complexity(direction: str, user: User = Depends(get_current_user)):
+async def change_complexity(direction: str, user: User = Depends(require_subscription)):
     s = _user_settings(user.id)
     if direction == "up":
         s.complexity = min(COMPLEXITY_MAX, s.complexity + 1)
@@ -278,6 +286,8 @@ async def change_complexity(direction: str, user: User = Depends(get_current_use
 
 @app.post("/api/capture")
 async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token)):
+    if user.account_level == AccountLevel.free:
+        raise HTTPException(status_code=403, detail="Subscription required")
     img_b64 = body.image
     if "," in img_b64:
         img_b64 = img_b64.split(",", 1)[1]
@@ -366,7 +376,7 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.get("/stream")
-async def stream(user: User = Depends(get_current_user)):
+async def stream(user: User = Depends(require_subscription)):
     q: asyncio.Queue = asyncio.Queue()
     _subscribers.setdefault(user.id, []).append(q)
 

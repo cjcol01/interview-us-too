@@ -1,7 +1,9 @@
 async function doCapture() {
-  const { server_url, api_token, complexity } = await chrome.storage.local.get([
-    'server_url', 'api_token', 'complexity',
+  const { server_url, api_token, complexity, enabled } = await chrome.storage.local.get([
+    'server_url', 'api_token', 'complexity', 'enabled',
   ]);
+
+  if (!enabled) return;
 
   if (!api_token || !server_url) {
     chrome.action.openPopup().catch(() => {});
