@@ -30,6 +30,7 @@ class User(Base):
     api_token          = Column(String, nullable=True, unique=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True)
+    setup_complete     = Column(Boolean, default=False, nullable=False)
 
 
 class InterviewSession(Base):

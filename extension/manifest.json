@@ -3,7 +3,7 @@
   "name": "Interview Assistant",
   "version": "1.0",
   "description": "Capture your screen and get AI analysis on your phone.",
-  "permissions": ["activeTab", "storage", "tabs"],
+  "permissions": ["activeTab", "storage", "tabs", "scripting"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js"

@@ -1,7 +1,7 @@
 import stripe
 from sqlalchemy.orm import Session
 
-from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
 from models import AccountLevel, User
 
 stripe.api_key = STRIPE_SECRET_KEY
@@ -16,16 +16,31 @@ def get_or_create_customer(user: User, db: Session) -> str:
     return customer.id
 
 
-def create_checkout_session(user: User, db: Session) -> str:
+def create_checkout_session(user: User, db: Session, plan: str = "subscription") -> str:
     customer_id = get_or_create_customer(user, db)
-    session = stripe.checkout.Session.create(
-        customer=customer_id,
-        payment_method_types=["card"],
-        line_items=[{"price": STRIPE_PRICE_ID, "quantity": 1}],
-        mode="subscription",
-        success_url=f"{BASE_URL}/billing/success",
-        cancel_url=f"{BASE_URL}/settings",
-    )
+
+    if plan == "sessions":
+        price_id = STRIPE_SESSIONS_PRICE_ID or STRIPE_PRICE_ID
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="payment",
+            success_url=f"{BASE_URL}/billing/success",
+            cancel_url=f"{BASE_URL}/pricing",
+        )
+    else:
+        price_id = STRIPE_SUB_PRICE_ID or STRIPE_PRICE_ID
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            payment_method_types=["card"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            subscription_data={"trial_period_days": 7},
+            success_url=f"{BASE_URL}/billing/success",
+            cancel_url=f"{BASE_URL}/pricing",
+        )
+
     return session.url
 
 

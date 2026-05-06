@@ -273,6 +273,161 @@
       margin-top: 10px;
     }
 
+    #trial-start-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #trial-start-overlay.visible { display: flex; }
+
+    .trial-start-modal {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 32px 24px;
+      max-width: 340px;
+      width: 100%;
+      text-align: center;
+    }
+    .trial-start-modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; }
+    .trial-start-modal .ts-sub { font-size: 0.85rem; color: #555; margin-bottom: 18px; line-height: 1.55; }
+    .ts-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      background: #1a0a0a;
+      border: 1px solid #5a1e1e;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    .ts-warning svg { flex-shrink: 0; margin-top: 1px; }
+    .ts-warning p { font-size: 0.78rem; color: #e07070; line-height: 1.5; margin: 0; }
+    .ts-warning strong { color: #f09090; }
+    #ts-start-btn {
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 13px 20px;
+      width: 100%;
+      box-shadow: 0 0 20px rgba(108,99,255,0.35);
+      margin-bottom: 10px;
+    }
+    #ts-start-btn:disabled { opacity: 0.5; cursor: default; }
+    .ts-footer { font-size: 0.75rem; color: #444; }
+    .ts-footer a { color: #555; text-decoration: none; }
+    .ts-footer a:hover { color: #888; }
+
+    #ts-warning-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #ts-warning-overlay.visible { display: flex; }
+    .ts-wm {
+      background: #141414;
+      border: 1px solid #5a1e1e;
+      border-radius: 14px;
+      padding: 28px 24px;
+      max-width: 340px;
+      width: 100%;
+    }
+    .ts-wm-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .ts-wm h3 { font-size: 1rem; font-weight: 700; color: #f09090; margin-bottom: 10px; }
+    .ts-wm p { font-size: 0.85rem; color: #888; line-height: 1.6; margin-bottom: 20px; }
+    .ts-wm p strong { color: #ccc; }
+    .ts-wm-actions { display: flex; flex-direction: column; gap: 8px; }
+    #ts-wm-confirm {
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 12px;
+      width: 100%;
+    }
+    #ts-wm-cancel {
+      background: none;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      color: #666;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 10px;
+      width: 100%;
+    }
+    #ts-wm-cancel:hover { color: #aaa; border-color: #444; }
+
+    #trial-bar {
+      background: #1a1400;
+      border-bottom: 1px solid #3a2800;
+      padding: 8px 14px;
+      font-size: 0.8rem;
+      color: #c8a000;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    #trial-bar.visible { display: flex; }
+
+    #trial-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    #trial-overlay.visible { display: flex; }
+
+    .trial-modal {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 36px 28px;
+      max-width: 340px;
+      width: 100%;
+      text-align: center;
+    }
+    .trial-modal .modal-icon { font-size: 2.4rem; margin-bottom: 14px; }
+    .trial-modal h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .trial-modal p { font-size: 0.88rem; color: #666; margin-bottom: 24px; line-height: 1.6; }
+    .upgrade-btn {
+      display: block;
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      color: #fff;
+      text-decoration: none;
+      padding: 13px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      margin-bottom: 14px;
+      box-shadow: 0 0 20px rgba(108,99,255,0.3);
+    }
+    .trial-modal .modal-footer { font-size: 0.75rem; color: #444; }
+    .trial-modal .modal-footer a { color: #555; text-decoration: none; }
+    .trial-modal .modal-footer a:hover { color: #888; }
+
     #disabled-toast {
       display: none;
       position: fixed;
@@ -308,6 +463,49 @@
   </style>
 </head>
 <body>
+  <!-- Trial not-started overlay (shown on second device before starting) -->
+  <div id="trial-start-overlay">
+    <div class="trial-start-modal">
+      <div style="font-size:2rem;margin-bottom:12px;">&#9200;</div>
+      <h2>Start your trial</h2>
+      <p class="ts-sub">Your 10-minute free trial hasn't started yet. When you're ready with a problem open on your other screen, tap below.</p>
+      <div class="ts-warning">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e07070" stroke-width="2.2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <p><strong>Practice only.</strong> 10 minutes is not enough for a real interview — use this to test the setup.</p>
+      </div>
+      <button id="ts-start-btn" onclick="tsShowWarning()">Start 10-minute trial</button>
+      <p class="ts-footer">No card required &nbsp;&middot;&nbsp; <a href="/auth/logout">sign out</a></p>
+      <p class="ts-footer" style="margin-top:8px;"><a href="/onboarding">Haven't connected the extension on your computer? Go to setup &rarr;</a></p>
+    </div>
+  </div>
+
+  <!-- Warning confirmation for second-device start -->
+  <div id="ts-warning-overlay">
+    <div class="ts-wm">
+      <div class="ts-wm-icon">&#9888;&#65039;</div>
+      <h3>Trial is for practice only</h3>
+      <p>Your free trial lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
+      <div class="ts-wm-actions">
+        <button id="ts-wm-confirm" onclick="tsConfirmStart()">Got it — start practice trial</button>
+        <button id="ts-wm-cancel" onclick="tsCloseWarning()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trial expired overlay -->
+  <div id="trial-overlay">
+    <div class="trial-modal">
+      <div class="modal-icon">&#9200;</div>
+      <h2>Trial ended</h2>
+      <p>Your 10-minute free trial has ended. See tips for using the full product, then decide if you want to continue.</p>
+      <a href="/trial-end" class="upgrade-btn">What's next &rarr;</a>
+      <p class="modal-footer">or <a href="/auth/logout">sign out</a></p>
+    </div>
+  </div>
+
   <div id="disabled-toast">
     <p>Interview assistant not started. To start discreetly, press <kbd>Ctrl+Shift+9</kbd>, then <kbd>Ctrl+Shift+Y</kbd> to capture a screenshot for analysis.</p>
   </div>
@@ -345,6 +543,12 @@
       </div>
     </div>
   </header>
+
+  <!-- Trial countdown bar (shown for trial users only) -->
+  <div id="trial-bar">
+    <span>Free trial &mdash; <strong id="trial-time"></strong> remaining</span>
+    <a href="/trial-end" style="color:#5b9bd5;text-decoration:none;font-size:0.75rem;white-space:nowrap;">End trial &rarr;</a>
+  </div>
 
   <main>
     <div id="screenshot-wrap" class="mini" onclick="toggleImage()">
@@ -455,6 +659,8 @@
             const toast = document.getElementById('disabled-toast');
             clearTimeout(toast._hide);
             toast.classList.remove('visible');
+          } else if (data.type === 'trial_expired') {
+            showTrialExpired();
           }
         } catch {}
       };
@@ -483,7 +689,92 @@
       }
     });
 
+    // ── Trial countdown & start ──────────────────────────────────────────────
+
+    let _trialSecs = 0;
+    let _trialTick = null;
+
+    function showTrialExpired() {
+      clearInterval(_trialTick);
+      _trialTick = null;
+      document.getElementById('trial-overlay').classList.add('visible');
+      document.getElementById('trial-bar').classList.remove('visible');
+    }
+
+    function _fmtTime(s) {
+      const m = Math.floor(s / 60);
+      return m + ':' + String(s % 60).padStart(2, '0');
+    }
+
+    function _tickTrial() {
+      if (_trialSecs <= 0) { showTrialExpired(); return; }
+      document.getElementById('trial-time').textContent = _fmtTime(_trialSecs);
+      _trialSecs--;
+    }
+
+    function _startCountdown(seconds) {
+      _trialSecs = seconds;
+      const bar = document.getElementById('trial-bar');
+      bar.classList.add('visible');
+      document.getElementById('trial-time').textContent = _fmtTime(_trialSecs);
+      _trialSecs--;
+      _trialTick = setInterval(_tickTrial, 1000);
+      setInterval(async () => {
+        try {
+          const r = await fetch('/api/trial/status');
+          const d = await r.json();
+          if (d.expired || d.seconds_remaining <= 0) { showTrialExpired(); }
+          else { _trialSecs = d.seconds_remaining; }
+        } catch {}
+      }, 30000);
+    }
+
+    async function initTrial() {
+      try {
+        const resp = await fetch('/api/trial/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.is_trial) return;
+        if (!data.started) {
+          document.getElementById('trial-start-overlay').classList.add('visible');
+          return;
+        }
+        if (data.expired || data.seconds_remaining <= 0) { showTrialExpired(); return; }
+        _startCountdown(data.seconds_remaining);
+      } catch {}
+    }
+
+    // Second-device start flow
+    function tsShowWarning() {
+      document.getElementById('ts-warning-overlay').classList.add('visible');
+    }
+    function tsCloseWarning() {
+      document.getElementById('ts-warning-overlay').classList.remove('visible');
+    }
+    async function tsConfirmStart() {
+      const btn = document.getElementById('ts-wm-confirm');
+      btn.disabled = true;
+      btn.textContent = 'Starting...';
+      try {
+        const resp = await fetch('/api/trial/start', { method: 'POST' });
+        if (resp.ok || resp.status === 400) {
+          document.getElementById('trial-start-overlay').classList.remove('visible');
+          document.getElementById('ts-warning-overlay').classList.remove('visible');
+          const r = await fetch('/api/trial/status');
+          const d = await r.json();
+          if (d.started && !d.expired) _startCountdown(d.seconds_remaining);
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Got it — start practice trial';
+        }
+      } catch {
+        btn.disabled = false;
+        btn.textContent = 'Got it — start practice trial';
+      }
+    }
+
     connect();
+    initTrial();
   </script>
 </body>
 </html>

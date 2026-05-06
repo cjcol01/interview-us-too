@@ -48,6 +48,7 @@ app.add_middleware(
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 SESSION_DURATION = timedelta(hours=2, minutes=30)
+TRIAL_DURATION   = timedelta(minutes=10)
 
 COMPLEXITY_MIN = 1
 COMPLEXITY_MAX = 3
@@ -81,7 +82,7 @@ def _user_settings(user_id: int) -> UserSettings:
     return _settings[user_id]
 
 
-def _get_or_create_session(db: Session, user_id: int) -> InterviewSession:
+def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESSION_DURATION) -> InterviewSession:
     now = datetime.utcnow()
     session = db.query(InterviewSession).filter(
         InterviewSession.user_id == user_id,
@@ -92,7 +93,7 @@ def _get_or_create_session(db: Session, user_id: int) -> InterviewSession:
         session = InterviewSession(
             user_id=user_id,
             started_at=now,
-            expires_at=now + SESSION_DURATION,
+            expires_at=now + duration,
         )
         db.add(session)
         db.commit()
@@ -215,6 +216,8 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     user.email_verified = True
     user.verify_token = None
     db.commit()
+    if user.account_level == AccountLevel.trial:
+        return RedirectResponse("/onboarding")
     return RedirectResponse("/app")
 
 
@@ -242,7 +245,30 @@ async def index(user: Optional[User] = Depends(get_optional_user)):
         return RedirectResponse("/verify-pending")
     if user.account_level == AccountLevel.free:
         return RedirectResponse("/settings")
+    if user.account_level == AccountLevel.trial and not user.setup_complete:
+        return RedirectResponse("/onboarding")
     return HTMLResponse(Path("templates/index.html").read_text(encoding="utf-8"))
+
+
+@app.get("/onboarding")
+async def onboarding_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    if not user:
+        return RedirectResponse("/login")
+    if not user.email_verified:
+        return RedirectResponse("/verify-pending")
+    if user.account_level != AccountLevel.trial:
+        return RedirectResponse("/app")
+    if not user.api_token:
+        user.api_token = secrets.token_urlsafe(32)
+        db.commit()
+    return templates.TemplateResponse(request=request, name="onboarding.html", context={
+        "api_token": user.api_token,
+        "base_url": BASE_URL,
+    })
 
 
 @app.get("/verify-pending")
@@ -254,6 +280,20 @@ async def verify_pending(request: Request, user: Optional[User] = Depends(get_op
     return templates.TemplateResponse(request=request, name="verify_pending.html", context={
         "email": user.email,
     })
+
+
+@app.get("/trial-end")
+async def trial_end(user: Optional[User] = Depends(get_optional_user)):
+    if not user:
+        return RedirectResponse("/login")
+    return HTMLResponse(Path("templates/trial_end.html").read_text(encoding="utf-8"))
+
+
+@app.get("/pricing")
+async def pricing_page(user: Optional[User] = Depends(get_optional_user)):
+    if not user:
+        return RedirectResponse("/login")
+    return HTMLResponse(Path("templates/pricing.html").read_text(encoding="utf-8"))
 
 
 @app.get("/settings")
@@ -305,11 +345,69 @@ async def change_complexity(direction: str, user: User = Depends(require_subscri
 # Capture API — called by browser extension
 # ---------------------------------------------------------------------------
 
+@app.post("/api/setup/complete")
+async def setup_complete(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.setup_complete = True
+    if not user.api_token:
+        user.api_token = secrets.token_urlsafe(32)
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/trial/start")
+async def trial_start(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.account_level != AccountLevel.trial:
+        raise HTTPException(status_code=400, detail="Not a trial account")
+    existing = db.query(InterviewSession).filter(
+        InterviewSession.user_id == user.id
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Trial already used")
+    user.setup_complete = True
+    session = _get_or_create_session(db, user.id, TRIAL_DURATION)
+    db.commit()
+    return {
+        "started_at": session.started_at.isoformat(),
+        "expires_at": session.expires_at.isoformat(),
+        "seconds_remaining": int(TRIAL_DURATION.total_seconds()),
+    }
+
+
+@app.get("/api/trial/status")
+async def trial_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.account_level != AccountLevel.trial:
+        return {"is_trial": False}
+    session = db.query(InterviewSession).filter(
+        InterviewSession.user_id == user.id,
+        InterviewSession.ended_at == None,  # noqa: E711
+    ).order_by(InterviewSession.started_at.desc()).first()
+    if not session:
+        return {"is_trial": True, "started": False, "seconds_remaining": 0}
+    now = datetime.utcnow()
+    remaining = max(0, (session.expires_at - now).total_seconds())
+    return {
+        "is_trial": True,
+        "started": True,
+        "seconds_remaining": int(remaining),
+        "expired": remaining == 0,
+    }
+
+
 @app.post("/api/capture")
 async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
-    if user.account_level != AccountLevel.unlimited:
+    if user.account_level == AccountLevel.trial:
+        now = datetime.utcnow()
+        session = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if not session:
+            await broadcast(user.id, "trial_expired", {})
+            raise HTTPException(status_code=403, detail="trial_expired")
+    elif user.account_level != AccountLevel.unlimited:
         _get_or_create_session(db, user.id)
     img_b64 = body.image
     if "," in img_b64:
@@ -377,8 +475,8 @@ async def regenerate_api_token(user: User = Depends(get_current_user), db: Sessi
 # ---------------------------------------------------------------------------
 
 @app.get("/billing/checkout")
-async def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    url = create_checkout_session(user, db)
+async def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
+    url = create_checkout_session(user, db, plan=plan)
     return RedirectResponse(url)
 
 

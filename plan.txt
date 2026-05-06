@@ -1,0 +1,43 @@
+TODO
+====
+
+HOSTING
+- Choose a host (Railway, Render, Fly.io, or VPS) and deploy
+- Set up environment variables on the host
+- Configure production database (migrate from SQLite to Postgres for production)
+- Set up SSL / HTTPS
+
+DOMAIN & EMAIL
+- Buy a domain (interviewace.co or similar)
+- Point domain to host
+- Set up professional email (e.g. support@interviewace.co) via Resend, Cloudflare, or Google Workspace
+- Update BASE_URL and FROM_EMAIL in .env once live
+
+STRIPE
+- Create STRIPE_SESSIONS_PRICE_ID in Stripe dashboard (one-time, £2 for 2 sessions) and add to .env
+- Create STRIPE_SUB_PRICE_ID in Stripe dashboard (subscription, £25/month with 7-day trial) and add to .env
+- Sessions plan: after successful one-time payment, server needs to increment a session count on the user
+  and set account_level accordingly — currently only subscription upgrades account_level via webhook
+- Add a cancel subscription button in settings (currently only accessible via Stripe portal link)
+
+CONTACT
+- Add a contact form or mailto link somewhere accessible (landing page footer, settings, pricing page)
+- Decide on support channel — email only, or a simple form that emails support@interviewace.co
+
+LANDING PAGE
+- Remove stale copy: "Add a card to unlock your first full session free" (no longer accurate)
+- Update pricing section on landing page to match the new £2/2 sessions + £25/month subscription offers
+
+SETTINGS PAGE
+- account_level shows "Trial" even after the trial session has expired — could show "Trial (expired)"
+  by passing trial status into the settings template and checking it there
+
+ROUTING
+- /app currently redirects AccountLevel.free users to /settings — should go to /pricing instead
+
+BACKEND
+- No session count tracking yet for the sessions plan (paid users get sessions but nothing enforces or counts them)
+
+CHROME EXTENSION
+- Publish to Chrome Web Store (requires developer account, $5 one-time fee, review process)
+- Or keep as sideloaded for now and provide install instructions
