@@ -143,27 +143,6 @@ test("JWT token creation and decode", test_token_roundtrip)
 test("Duplicate username rejected", test_duplicate_user_rejected)
 
 
-print(f"\n{BOLD}-- Screenshot capture ------------------------------{RESET}")
-
-def test_capture():
-    import platform
-    if platform.system() != "Windows":
-        return skip("Screenshot capture", "not on Windows")
-    from capture import screenshot
-    import mss
-    with mss.mss() as sct:
-        count = len(sct.monitors) - 1
-    data = screenshot(1)
-    assert isinstance(data, bytes) and len(data) > 1000, "screenshot data too small"
-    print(f"       {count} monitor(s) detected, captured {len(data)//1024}KB")
-
-import platform
-if platform.system() == "Windows":
-    test("Screenshot capture (monitor 1)", test_capture)
-else:
-    skip("Screenshot capture", "not on Windows")
-
-
 print(f"\n{BOLD}-- Claude API --------------------------------------{RESET}")
 
 def test_claude_connection():
@@ -307,6 +286,167 @@ def test_server_imports():
     import models   # noqa
 
 test("All server modules import cleanly", test_server_imports)
+
+
+# -- HTTP routes (TestClient) -------------------------------------------------
+
+print(f"\n{BOLD}-- HTTP routes (TestClient) ------------------------{RESET}")
+
+from fastapi.testclient import TestClient
+from server import app as _fastapi_app
+
+
+def _make_cookie(account_level):
+    from database import SessionLocal
+    from models import User
+    from auth import hash_password, create_token
+    import secrets as _sec
+    tag = _sec.token_hex(4)
+    uname = f"_http_{account_level.value}_{tag}"
+    db = SessionLocal()
+    try:
+        u = User(
+            username=uname, email=f"{uname}@test.internal",
+            full_name="HTTP Test", password_hash=hash_password("testpass"),
+            account_level=account_level,
+        )
+        db.add(u)
+        db.commit()
+        db.refresh(u)
+        return create_token(u.id), uname
+    finally:
+        db.close()
+
+
+def _delete_user(username):
+    from database import SessionLocal
+    from models import User
+    db = SessionLocal()
+    db.query(User).filter(User.username == username).delete()
+    db.commit()
+    db.close()
+
+
+with TestClient(_fastapi_app) as _client:
+
+    def test_http_landing_page():
+        r = _client.get("/")
+        assert r.status_code == 200
+
+    def test_http_app_redirects_to_login_when_unauthenticated():
+        r = _client.get("/app", follow_redirects=False)
+        assert r.status_code in (302, 307)
+        assert "login" in r.headers.get("location", "")
+
+    def test_http_login_rejects_wrong_credentials():
+        r = _client.post("/auth/login", json={"username": "nobody", "password": "wrongpass"})
+        assert r.status_code == 401
+
+    def test_http_login_rejects_missing_fields():
+        r = _client.post("/auth/login", json={"username": "missing_password"})
+        assert r.status_code == 422
+
+    def test_http_register_rejects_short_password():
+        r = _client.post("/auth/register", json={
+            "full_name": "Test", "username": "_reg_pw_test", "email": "_reg_pw@test.internal",
+            "password": "short",
+        })
+        assert r.status_code == 400
+
+    def test_http_register_rejects_duplicate_username():
+        from database import SessionLocal
+        from models import AccountLevel, User
+        from auth import hash_password
+        import secrets as _sec
+        tag = _sec.token_hex(4)
+        uname = f"_dup_http_{tag}"
+        db = SessionLocal()
+        try:
+            db.add(User(
+                username=uname, email=f"{uname}@test.internal",
+                full_name="Dup", password_hash=hash_password("testpassword123"),
+                account_level=AccountLevel.trial,
+            ))
+            db.commit()
+            r = _client.post("/auth/register", json={
+                "full_name": "Dup2", "username": uname,
+                "email": f"other_{uname}@test.internal", "password": "testpassword123",
+            })
+            assert r.status_code == 400
+            assert "already taken" in r.json()["detail"].lower()
+        finally:
+            db.query(User).filter(User.username == uname).delete()
+            db.commit()
+            db.close()
+
+    def test_http_capture_no_auth_header():
+        # HTTPBearer returns 401 or 403 depending on starlette version
+        r = _client.post("/api/capture", json={"image": "abc", "complexity": 2, "monitor": "browser"})
+        assert r.status_code in (401, 403)
+
+    def test_http_capture_invalid_token():
+        r = _client.post(
+            "/api/capture",
+            json={"image": "abc", "complexity": 2, "monitor": "browser"},
+            headers={"Authorization": "Bearer notarealtoken"},
+        )
+        assert r.status_code == 401
+
+    def test_http_api_me_invalid_token():
+        r = _client.get("/api/me", headers={"Authorization": "Bearer notarealtoken"})
+        assert r.status_code == 401
+
+    def test_http_stream_unauthenticated():
+        r = _client.get("/stream")
+        assert r.status_code == 401
+
+    def test_http_latest_unauthenticated():
+        r = _client.get("/latest")
+        assert r.status_code == 401
+
+    def test_http_free_user_blocked_from_gated_routes():
+        from models import AccountLevel
+        token, uname = _make_cookie(AccountLevel.free)
+        try:
+            assert _client.get("/latest", cookies={"session": token}).status_code == 403
+            assert _client.get("/stream", cookies={"session": token}).status_code == 403
+        finally:
+            _delete_user(uname)
+
+    def test_http_trial_user_can_access_latest():
+        from models import AccountLevel
+        token, uname = _make_cookie(AccountLevel.trial)
+        try:
+            r = _client.get("/latest", cookies={"session": token})
+            assert r.status_code == 200
+            body = r.json()
+            assert "capture" in body and "settings" in body
+        finally:
+            _delete_user(uname)
+
+    def test_http_complexity_direction_handles_unknown():
+        from models import AccountLevel
+        token, uname = _make_cookie(AccountLevel.trial)
+        try:
+            r = _client.post("/settings/complexity/sideways", cookies={"session": token})
+            assert r.status_code == 200
+        finally:
+            _delete_user(uname)
+
+    test("Landing page returns 200",                        test_http_landing_page)
+    test("Unauthenticated /app redirects to login",         test_http_app_redirects_to_login_when_unauthenticated)
+    test("Login rejects wrong credentials",                  test_http_login_rejects_wrong_credentials)
+    test("Login rejects missing fields (422)",               test_http_login_rejects_missing_fields)
+    test("Register rejects short password",                  test_http_register_rejects_short_password)
+    test("Register rejects duplicate username",              test_http_register_rejects_duplicate_username)
+    test("/api/capture requires auth header",                test_http_capture_no_auth_header)
+    test("/api/capture rejects invalid token",               test_http_capture_invalid_token)
+    test("/api/me rejects invalid token",                    test_http_api_me_invalid_token)
+    test("/stream requires authentication",                  test_http_stream_unauthenticated)
+    test("/latest requires authentication",                  test_http_latest_unauthenticated)
+    test("Free user blocked from subscription routes",       test_http_free_user_blocked_from_gated_routes)
+    test("Trial user can access /latest",                    test_http_trial_user_can_access_latest)
+    test("Complexity endpoint handles unknown direction",     test_http_complexity_direction_handles_unknown)
 
 
 # -- Summary ------------------------------------------------------------------

@@ -16,7 +16,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import create_token, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
@@ -134,7 +134,7 @@ class RegisterRequest(BaseModel):
 
 class CaptureRequest(BaseModel):
     image: str        # base64 PNG, optionally prefixed with "data:image/png;base64,"
-    complexity: int = 2
+    complexity: int = Field(default=2, ge=1, le=3)
     monitor: str = "browser"
 
 
@@ -322,23 +322,19 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
     state["monitor"] = body.monitor
     await broadcast(user.id, "working", {"capture_id": state["capture_id"], "monitor": body.monitor})
 
-    complexity = max(COMPLEXITY_MIN, min(COMPLEXITY_MAX, body.complexity))
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity]
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity]
 
-    loop = asyncio.get_event_loop()
-    response = await loop.run_in_executor(
-        None,
-        lambda: client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
-                    {"type": "text", "text": prompt},
-                ],
-            }],
-        ),
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        messages=[{
+            "role": "user",
+            "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
+                {"type": "text", "text": prompt},
+            ],
+        }],
     )
 
     state["analysis"] = response.content[0].text
