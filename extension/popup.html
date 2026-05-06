@@ -6,8 +6,21 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <div id="confirm-overlay" class="confirm-overlay hidden">
+    <div class="confirm-box">
+      <p class="confirm-title">Start a session?</p>
+      <p class="confirm-body">Each time you press <kbd>Ctrl+Shift+Y</kbd> it will send your screen to the AI and consume one token from your plan.</p>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="confirm-btn">Cancel</button>
+        <button id="confirm-ok" class="confirm-btn ok">Got it, turn on</button>
+      </div>
+    </div>
+  </div>
+
   <div class="container">
     <h1>Interview Assistant</h1>
+
+    <button id="toggle_enabled" class="toggle-btn off">OFF</button>
 
     <div class="field">
       <label for="server_url">Server URL</label>

@@ -53,13 +53,13 @@
     }
 
     .nav-links { display: flex; align-items: center; gap: 24px; }
-    .nav-links a {
+    .nav-links a:not(.btn) {
       color: var(--muted);
       text-decoration: none;
       font-size: 0.9rem;
       transition: color 0.2s;
     }
-    .nav-links a:hover { color: var(--text); }
+    .nav-links a:not(.btn):hover { color: var(--text); }
 
     .btn {
       display: inline-flex;
@@ -454,7 +454,7 @@
         <div class="pain-card">
           <div class="pain-icon">&#128081;</div>
           <h3>One mistake ends it</h3>
-          <p>One bad day, one anxiety spike, one blank moment &mdash; and months of prep go to waste. The stakes are too high to leave to chance.</p>
+          <p>One bad day, one anxiety spike, one blank moment - and months of prep go to waste. The stakes are too high to leave to chance.</p>
         </div>
       </div>
     </div>
@@ -472,7 +472,7 @@
           <div class="step-num">1</div>
           <div>
             <h3>Press a hidden hotkey</h3>
-            <p>A discreet key combination captures your screen instantly. Intercepted at the OS level &mdash; completely invisible to any screen-monitoring software or browser.</p>
+            <p>A discreet key combination captures your screen instantly. Intercepted at the OS level - completely invisible to any screen-monitoring software or browser.</p>
           </div>
         </div>
         <div class="step">
@@ -503,11 +503,23 @@
         <div class="feature">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+              <path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
+              <rect x="1" y="6" width="14" height="12" rx="2"/>
+            </svg>
+          </div>
+          <h3>Works on live calls and recorded tests</h3>
+          <h4>Zoom, Teams, HireVue, Kira, and more</h4>
+          <p>On a live video call the answer goes straight to your phone. On recorded tests, where the platform flags tab switching and copy-pasting - you never do either, so there's nothing to detect.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
           </div>
           <h3>Instant AI response</h3>
-          <p>Results appear on your phone in seconds, just glance down.</p>
+          <h4>Under 5 seconds</h4>
+          <p>Powered by Claude AI. The answer streams to your phone with syntax-highlighted code, time and space complexity, and a concise explanation - formatted to read at a glance.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">
@@ -518,6 +530,15 @@
           <h3>Phone-only display</h3>
           <h4>Also available on a second monitor or laptop</h4>
           <p>The answer never touches your interview screen. It streams directly to your phone browser over your local network.</p>
+        </div>
+        <div class="feature">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+          </div>
+          <h3>Undetectable by design</h3>
+          <p>Hotkeys intercepted at OS level. No browser extensions. No window switching. Screen capture software sees nothing unusual.</p>
         </div>
         <div class="feature">
           <div class="feature-icon">
@@ -537,24 +558,6 @@
           <h3>Auto language detection</h3>
           <p>Automatically detects Python, JavaScript, Java, C++, and more from your screen</p>
         </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <rect x="2" y="4" width="20" height="14" rx="2"/><rect x="8" y="4" width="8" height="14"/>
-            </svg>
-          </div>
-          <h3>Dual monitor support</h3>
-          <p>Capture your left or right monitor independently. Perfect for setups where the problem is on one screen and your code on another.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-          </div>
-          <h3>Undetectable by design</h3>
-          <p>Hotkeys intercepted at OS level. No browser extensions. No window switching. Screen capture software sees nothing unusual.</p>
-        </div>
       </div>
     </div>
   </section>
@@ -563,38 +566,40 @@
   <section id="pricing">
     <div class="container">
       <div class="section-label">Pricing</div>
-      <h2>Simple, honest pricing.</h2>
-      <p class="section-sub">Start free. Upgrade when you're ready.</p>
+      <h2>Start free. Pay when it matters.</h2>
+      <p class="section-sub">Try a free 10-minute trial session with no card needed. Add a card to unlock your first full session free. After that:</p>
 
       <div class="pricing-grid">
         <div class="plan">
-          <div class="plan-name">Free</div>
-          <div class="plan-price">$0 <span>/ month</span></div>
-          <div class="plan-desc">Get started, no card required.</div>
+          <div class="plan-name">Sessions</div>
+          <div class="plan-price">£15 <span>/ 3 sessions</span></div>
+          <div class="plan-desc">Buy sessions when you need them. No subscription.</div>
           <ul class="plan-features">
-            <li>5 captures per day</li>
-            <li>Basic AI analysis</li>
-            <li>Phone browser viewing</li>
-            <li>Single monitor capture</li>
+            <li>3 full 2.5 hour sessions</li>
+            <li>All AI features</li>
+            <li>Sessions never expire</li>
           </ul>
-          <a class="btn btn-outline" href="/login" style="width:100%;justify-content:center;">Get started free</a>
+          <a class="btn btn-outline" href="/login" style="width:100%;justify-content:center;">Get started</a>
         </div>
 
         <div class="plan featured">
           <div class="plan-badge">Most popular</div>
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">$9 <span>/ month</span></div>
-          <div class="plan-desc">Everything you need to ace your interviews.</div>
+          <div class="plan-name">Unlimited</div>
+          <div class="plan-price">£25 <span>/ month</span></div>
+          <div class="plan-desc">For active job seekers. Unlimited sessions, cancel anytime.</div>
           <ul class="plan-features">
-            <li>Unlimited captures</li>
-            <li>Full AI analysis + complexity levels</li>
+            <li>Unlimited sessions</li>
+            <li>All AI features</li>
             <li>Dual monitor support</li>
-            <li>Syntax-highlighted code</li>
-            <li>Priority response speed</li>
+            <li>Cancel anytime</li>
           </ul>
-          <a class="btn btn-primary" href="/login" style="width:100%;justify-content:center;">Start Pro</a>
+          <a class="btn btn-primary" href="/login" style="width:100%;justify-content:center;">Start unlimited</a>
         </div>
       </div>
+
+      <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-top:28px;">
+        No card needed to try &mdash; <a href="/login" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
+      </p>
     </div>
   </section>
 

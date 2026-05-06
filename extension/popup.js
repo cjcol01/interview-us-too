@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const { server_url, api_token, complexity, last_capture, last_error } =
-    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error']);
+  const { server_url, api_token, complexity, last_capture, last_error, enabled } =
+    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error', 'enabled']);
 
   const serverInput   = document.getElementById('server_url');
   const tokenInput    = document.getElementById('api_token');
@@ -8,9 +8,43 @@ document.addEventListener('DOMContentLoaded', async () => {
   const complexityVal = document.getElementById('complexity_val');
   const saveBtn       = document.getElementById('save');
   const statusEl      = document.getElementById('status');
+  const enabledBtn      = document.getElementById('toggle_enabled');
+  const confirmOverlay  = document.getElementById('confirm-overlay');
+  const confirmOk       = document.getElementById('confirm-ok');
+  const confirmCancel   = document.getElementById('confirm-cancel');
 
   if (server_url) serverInput.value = server_url;
   if (api_token)  tokenInput.value  = api_token;
+
+  let isEnabled = enabled ?? false;
+
+  function applyEnabledState() {
+    enabledBtn.textContent = isEnabled ? 'ON' : 'OFF';
+    enabledBtn.className = 'toggle-btn ' + (isEnabled ? 'on' : 'off');
+  }
+
+  applyEnabledState();
+
+  enabledBtn.addEventListener('click', () => {
+    if (!isEnabled) {
+      confirmOverlay.classList.remove('hidden');
+    } else {
+      isEnabled = false;
+      chrome.storage.local.set({ enabled: false });
+      applyEnabledState();
+    }
+  });
+
+  confirmOk.addEventListener('click', async () => {
+    confirmOverlay.classList.add('hidden');
+    isEnabled = true;
+    await chrome.storage.local.set({ enabled: true });
+    applyEnabledState();
+  });
+
+  confirmCancel.addEventListener('click', () => {
+    confirmOverlay.classList.add('hidden');
+  });
 
   let comp = complexity ?? 2;
   complexityVal.textContent = comp;
