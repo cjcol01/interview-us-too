@@ -31,6 +31,9 @@ class User(Base):
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True)
     setup_complete     = Column(Boolean, default=False, nullable=False)
+    sessions_remaining = Column(Integer, default=0, nullable=False, server_default="0")
+    intro_redeemed     = Column(Boolean, default=False, nullable=False, server_default="0")
+    intro_declined     = Column(Boolean, default=False, nullable=False, server_default="0")
 
 
 class InterviewSession(Base):
@@ -41,3 +44,11 @@ class InterviewSession(Base):
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     ended_at   = Column(DateTime, nullable=True)
+
+
+class IntroCardFingerprint(Base):
+    __tablename__ = "intro_card_fingerprints"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    fingerprint = Column(String, unique=True, nullable=False, index=True)
+    used_at     = Column(DateTime, default=datetime.utcnow, nullable=False)

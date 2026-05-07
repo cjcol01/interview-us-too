@@ -14,11 +14,12 @@ DOMAIN & EMAIL
 - Update BASE_URL and FROM_EMAIL in .env once live
 
 STRIPE
-- Create STRIPE_SESSIONS_PRICE_ID in Stripe dashboard (one-time, £2 for 2 sessions) and add to .env
-- Create STRIPE_SUB_PRICE_ID in Stripe dashboard (subscription, £25/month with 7-day trial) and add to .env
-- Sessions plan: after successful one-time payment, server needs to increment a session count on the user
-  and set account_level accordingly — currently only subscription upgrades account_level via webhook
+- Create STRIPE_SESSIONS_PRICE_ID in Stripe dashboard (one-time, £2 for 2 sessions) and add to .env ✅
+- Create STRIPE_SUB_PRICE_ID in Stripe dashboard (subscription, £25/month with 7-day trial) and add to .env ✅
+- Sessions plan: after successful one-time payment, server needs to increment a session count on the user ✅
+  and set account_level accordingly — currently only subscription upgrades account_level via webhook ✅
 - Add a cancel subscription button in settings (currently only accessible via Stripe portal link)
+- enable card fingerprinting before prod 
 
 CONTACT
 - Add a contact form or mailto link somewhere accessible (landing page footer, settings, pricing page)

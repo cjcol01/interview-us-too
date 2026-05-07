@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment — InterviewAce</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #080810;
+      color: #e2e2f0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+    }
+    .card {
+      background: #0f0f1a;
+      border: 1px solid #1e1e2e;
+      border-radius: 16px;
+      padding: 40px 32px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .icon { font-size: 2.4rem; line-height: 1; }
+    h1 { font-size: 1.25rem; font-weight: 800; }
+    p { font-size: 0.9rem; color: #6b6b8a; line-height: 1.6; }
+    p strong { color: #e2e2f0; }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 3px solid #1e1e2e;
+      border-top-color: #6c63ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      border-radius: 9px;
+      font-weight: 700;
+      font-size: 0.9rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      margin-top: 4px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid #1e1e2e;
+      color: #6b6b8a;
+    }
+    .success { border-color: #00d4aa; }
+    .declined { border-color: #f87171; }
+    .success h1 { color: #00d4aa; }
+    .declined h1 { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="spinner" id="spinner"></div>
+    <h1 id="title">Processing payment…</h1>
+    <p id="body">Confirming your order, hang on a second.</p>
+  </div>
+
+  <script>
+    const card  = document.getElementById('card');
+    const spinner = document.getElementById('spinner');
+    const title = document.getElementById('title');
+    const body  = document.getElementById('body');
+
+    let attempts = 0;
+    const MAX = 12;
+
+    async function poll() {
+      try {
+        const res = await fetch('/api/billing/status');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+
+        if (data.intro_declined) {
+          showDeclined();
+          return;
+        }
+        if (data.account_level === 'paid' || data.account_level === 'unlimited') {
+          showSuccess(data.account_level, data.sessions_remaining);
+          return;
+        }
+      } catch (_) {}
+
+      attempts++;
+      if (attempts >= MAX) {
+        showTimeout();
+        return;
+      }
+      setTimeout(poll, 1000);
+    }
+
+    function showSuccess(level, sessions) {
+      spinner.remove();
+      card.classList.add('success');
+      title.textContent = 'You\'re all set!';
+      if (level === 'unlimited') {
+        body.innerHTML = 'Your free week has started. <strong>Unlimited sessions</strong> — good luck out there.';
+      } else {
+        body.innerHTML = `<strong>${sessions} session${sessions !== 1 ? 's' : ''}</strong> added to your account. Each session lasts 2.5 hours.`;
+      }
+      const btn = document.createElement('a');
+      btn.href = '/app';
+      btn.className = 'btn btn-primary';
+      btn.textContent = 'Open InterviewAce →';
+      card.appendChild(btn);
+    }
+
+    function showDeclined() {
+      spinner.remove();
+      card.classList.add('declined');
+      title.textContent = 'Intro offer already used';
+      body.innerHTML = 'This card has already redeemed the intro offer on another account. Your payment has been <strong>fully refunded</strong> — nothing was charged.<br><br>You can still get sessions with the regular pack.';
+      const btn = document.createElement('a');
+      btn.href = '/billing/checkout?plan=sessions_pack';
+      btn.className = 'btn btn-primary';
+      btn.textContent = 'Get 3 sessions — £15';
+      card.appendChild(btn);
+      const back = document.createElement('a');
+      back.href = '/pricing';
+      back.className = 'btn btn-secondary';
+      back.textContent = 'Back to pricing';
+      card.appendChild(back);
+    }
+
+    function showTimeout() {
+      spinner.remove();
+      title.textContent = 'Still processing…';
+      body.innerHTML = 'This is taking longer than expected. Check your <strong>email from Stripe</strong> — if you were charged, your sessions will appear shortly. <a href="/settings" style="color:#6c63ff">Go to settings</a>.';
+    }
+
+    poll();
+  </script>
+</body>
+</html>

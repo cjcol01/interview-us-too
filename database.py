@@ -17,7 +17,7 @@ def get_db():
 
 
 def init_db():
-    from models import InterviewSession, User  # noqa: F401 — ensures tables are registered
+    from models import IntroCardFingerprint, InterviewSession, User  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -29,8 +29,11 @@ def init_db():
             ("stripe_sub_id",      "VARCHAR"),
             ("api_token",          "VARCHAR"),
             ("verify_token",       "VARCHAR"),
-            ("email_verified",     "BOOLEAN DEFAULT 0"),
-            ("setup_complete",     "BOOLEAN DEFAULT 0"),
+            ("email_verified",      "BOOLEAN DEFAULT 0"),
+            ("setup_complete",      "BOOLEAN DEFAULT 0"),
+            ("sessions_remaining",  "INTEGER DEFAULT 0"),
+            ("intro_redeemed",      "BOOLEAN DEFAULT 0"),
+            ("intro_declined",      "BOOLEAN DEFAULT 0"),
         ]
         for col, definition in migrations:
             if col not in existing:

@@ -3,34 +3,48 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Settings</title>
+  <title>Settings — InterviewAce</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #080810;
+      --surface: #0f0f1a;
+      --border:  #1e1e2e;
+      --accent:  #6c63ff;
+      --accent2: #00d4aa;
+      --text:    #e2e2f0;
+      --muted:   #6b6b8a;
+      --danger:  #f87171;
+    }
 
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
-      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
     }
 
     header {
-      background: #141414;
+      background: rgba(8,8,16,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       padding: 10px 14px;
       display: flex;
       align-items: center;
       gap: 10px;
-      border-bottom: 1px solid #222;
+      border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
+      z-index: 10;
     }
 
     .back-btn {
       background: none;
       border: none;
-      color: #555;
+      color: var(--muted);
       cursor: pointer;
       padding: 4px;
       display: flex;
@@ -39,62 +53,255 @@
       transition: color 0.15s;
       text-decoration: none;
     }
-    .back-btn:hover { color: #aaa; }
+    .back-btn:hover { color: var(--text); }
 
-    h1 { font-size: 0.9rem; font-weight: 600; color: #bbb; }
-
-    main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-
-    .section {
-      background: #141414;
-      border: 1px solid #222;
-      border-radius: 10px;
-      overflow: hidden;
+    .logo {
+      font-size: 0.95rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
-    .section-title {
-      font-size: 0.65rem;
+    main {
+      flex: 1;
+      padding: 20px 16px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 540px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .section-label {
+      font-size: 0.62rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #444;
-      padding: 12px 14px 6px;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      padding: 0 4px;
+      margin-bottom: -8px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
     }
 
     .row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 14px;
-      border-top: 1px solid #1a1a1a;
-      font-size: 0.9rem;
-      color: #ccc;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      color: var(--text);
+      gap: 12px;
     }
-    .row:first-of-type { border-top: none; }
+    .row:last-child { border-bottom: none; }
 
-    .row-value {
-      font-size: 0.85rem;
-      color: #555;
+    .row-label { color: var(--muted); flex-shrink: 0; }
+    .row-value { font-size: 0.85rem; color: var(--muted); text-align: right; }
+
+    /* ── Plan badges ── */
+    .badge-paid {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(0,212,170,0.1);
+      border: 1px solid rgba(0,212,170,0.3);
+      border-radius: 20px;
+      color: var(--accent2);
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 10px;
     }
 
-    .empty-note {
-      color: #333;
-      font-size: 0.85rem;
-      font-style: italic;
-      padding: 20px 14px;
-      text-align: center;
+    .badge-unlimited {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(139,92,246,0.2));
+      border: 1px solid rgba(108,99,255,0.4);
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 4px 12px;
+      background-clip: padding-box;
+      position: relative;
+    }
+    .badge-unlimited span {
+      background: linear-gradient(135deg, var(--accent), #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .badge-unlimited::before {
+      content: '✦';
+      font-size: 0.6rem;
+      color: var(--accent);
     }
 
+    /* ── Action rows ── */
     .action-row {
-      text-decoration: none;
-      color: #5b9bd5;
-      border-top: 1px solid #1a1a1a;
       display: flex;
-      padding: 12px 14px;
-      font-size: 0.9rem;
-      transition: background 0.1s;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.88rem;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.12s;
+      background: none;
+      border-left: none;
+      border-right: none;
+      border-top: none;
+      width: 100%;
+      text-align: left;
     }
-    .action-row:hover { background: #1a1a1a; }
-    .action-row.upgrade { color: #4caf50; }
+    .action-row:last-child { border-bottom: none; }
+    .action-row:hover { background: rgba(255,255,255,0.03); }
+
+    .action-row.upgrade {
+      color: var(--accent2);
+    }
+    .action-row.upgrade-sub {
+      color: var(--accent);
+    }
+    .action-row.cancel {
+      color: var(--danger);
+    }
+    .action-row.signout {
+      color: var(--danger);
+    }
+    .action-row .chevron {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    /* ── Extension section ── */
+    .ext-connected {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 16px;
+      font-size: 0.85rem;
+      color: var(--accent2);
+      border-bottom: 1px solid var(--border);
+    }
+    .ext-connected .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent2);
+      flex-shrink: 0;
+    }
+    .ext-connected .reconnect {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .ext-connected .reconnect:hover { color: var(--text); }
+
+    #connect-row {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    #connect-row p {
+      font-size: 0.8rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    #connect-btn {
+      background: rgba(0,212,170,0.08);
+      border: 1px solid rgba(0,212,170,0.25);
+      border-radius: 9px;
+      color: var(--accent2);
+      cursor: pointer;
+      padding: 11px 16px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      width: 100%;
+      transition: background 0.15s;
+    }
+    #connect-btn:hover { background: rgba(0,212,170,0.13); }
+    #connect-status { font-size: 0.76rem; color: var(--muted); min-height: 1em; }
+
+    /* ── Fallback dropdown ── */
+    .fallback-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 16px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      border-bottom: 1px solid var(--border);
+      transition: color 0.12s;
+      list-style: none;
+    }
+    .fallback-toggle:last-child { border-bottom: none; }
+    .fallback-toggle:hover { color: var(--text); }
+    .fallback-toggle .arrow { transition: transform 0.2s; display: inline-block; }
+    details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
+
+    .fallback-body {
+      padding: 12px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .fallback-body:last-child { border-bottom: none; }
+    .fallback-body p {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .token-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .token-row code {
+      font-size: 0.68rem;
+      color: #7b9fd4;
+      background: var(--bg);
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .btn-sm {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 5px 10px;
+      font-size: 0.72rem;
+      white-space: nowrap;
+      transition: color 0.12s;
+    }
+    .btn-sm:hover { color: var(--text); }
+    .regen-row { display: flex; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -104,96 +311,163 @@
         <polyline points="15 18 9 12 15 6"/>
       </svg>
     </a>
-    <h1>Settings</h1>
+    <span class="logo">InterviewAce</span>
   </header>
 
   <main>
-    <div class="section">
-      <div class="section-title">Account</div>
+
+    <!-- Account -->
+    <div class="section-label">Account</div>
+    <div class="card">
       <div class="row">
-        <span>Name</span>
+        <span class="row-label">Name</span>
         <span class="row-value">{{ full_name }}</span>
       </div>
       <div class="row">
-        <span>Username</span>
+        <span class="row-label">Username</span>
         <span class="row-value">{{ username }}</span>
       </div>
       <div class="row">
-        <span>Email</span>
+        <span class="row-label">Email</span>
         <span class="row-value">{{ email }}</span>
       </div>
       <div class="row">
-        <span>Plan</span>
-        <span class="row-value">{{ account_level }}</span>
+        <span class="row-label">Plan</span>
+        <span>
+          {% if account_level == 'unlimited' %}
+            <span class="badge-unlimited"><span>Unlimited</span></span>
+          {% elif account_level == 'paid' %}
+            <span class="badge-paid">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }} left</span>
+          {% else %}
+            <span style="font-size:0.85rem;color:var(--muted);">{{ account_level|capitalize }}</span>
+          {% endif %}
+        </span>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Billing</div>
-      {% if account_level == 'Paid' %}
-      <div class="row">
-        <span>Status</span>
-        <span class="row-value" style="color:#4caf50;">Active</span>
-      </div>
-      <a class="row action-row" href="/billing/portal">Manage subscription &rsaquo;</a>
+    <!-- Billing -->
+    <div class="section-label">Billing</div>
+    <div class="card">
+      {% if account_level == 'unlimited' %}
+        <div class="row">
+          <span class="row-label">Status</span>
+          <span style="font-size:0.82rem;color:var(--accent);font-weight:600;">Active subscription</span>
+        </div>
+        <a class="action-row cancel" href="/billing/portal">
+          Cancel subscription <span class="chevron">›</span>
+        </a>
+      {% elif account_level == 'paid' %}
+        <div class="row">
+          <span class="row-label">Sessions</span>
+          <span class="row-value">{{ sessions_remaining }} remaining</span>
+        </div>
+        <a class="action-row upgrade" href="/pricing">
+          Top up sessions <span class="chevron">›</span>
+        </a>
+        <a class="action-row upgrade-sub" href="/billing/checkout?plan=subscription">
+          Upgrade to Unlimited <span class="chevron">›</span>
+        </a>
       {% else %}
-      <div class="row">
-        <span>Status</span>
-        <span class="row-value">{{ account_level }}</span>
-      </div>
-      <a class="row action-row upgrade" href="/billing/checkout">Upgrade to Paid &rsaquo;</a>
+        <a class="action-row upgrade" href="/pricing">
+          Upgrade plan <span class="chevron">›</span>
+        </a>
       {% endif %}
     </div>
 
-    <div class="section">
-      <div class="section-title">Account Actions</div>
+    <!-- Extension -->
+    <div class="section-label">Browser Extension</div>
+    <div class="card">
+
+      <!-- Connected state (shown by JS if extension responds) -->
+      <div id="ext-connected" class="ext-connected" style="display:none;">
+        <span class="dot"></span>
+        Extension connected
+        <button class="reconnect" onclick="showConnect()">reconnect</button>
+      </div>
+
+      <!-- Connect row (shown if not connected) -->
+      <div id="connect-row">
+        <p>Open this page in the browser where your extension is installed, then click below.</p>
+        <button id="connect-btn" onclick="connectExtension()">Connect Extension</button>
+        <p id="connect-status"></p>
+      </div>
+
+      <!-- API token fallback -->
+      <details id="fallback-details">
+        <summary class="fallback-toggle">
+          Not working? Try the manual token <span class="arrow">›</span>
+        </summary>
+        <div class="fallback-body">
+          <p>Paste this token into the extension popup along with your server URL.</p>
+          <div class="token-row">
+            <code id="api-token">{{ api_token }}</code>
+            <button class="btn-sm" onclick="copyText('api-token', this)">Copy</button>
+          </div>
+          <div class="regen-row">
+            <button class="btn-sm" id="regen-btn" onclick="regenToken()">Regenerate token</button>
+          </div>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- Actions -->
+    <div class="card">
       <form action="/auth/logout" method="post">
-        <button type="submit" class="action-row" style="width:100%;background:none;border:none;cursor:pointer;color:#e57373;text-align:left;">Sign out &rsaquo;</button>
+        <button type="submit" class="action-row signout">
+          Sign out <span class="chevron">›</span>
+        </button>
       </form>
     </div>
 
-    <div class="section">
-      <div class="section-title">Browser Extension</div>
-      <div class="row" style="flex-direction:column;align-items:flex-start;gap:10px;">
-        <p style="font-size:0.82rem;color:#666;line-height:1.5;">Open this page in the browser where the extension is installed, then click below.</p>
-        <button id="connect-btn" onclick="connectExtension()" style="background:#0e2e0e;border:1px solid #1e4a1e;border-radius:8px;color:#4caf50;cursor:pointer;padding:10px 18px;font-size:0.9rem;font-weight:600;width:100%;">Connect Extension</button>
-        <p id="connect-status" style="font-size:0.78rem;color:#444;min-height:1em;"></p>
-      </div>
-      <div class="row" style="flex-direction:column;align-items:flex-start;gap:8px;border-top:1px solid #1a1a1a;">
-        <span style="font-size:0.75rem;color:#444;">Manual fallback — API token</span>
-        <div style="display:flex;align-items:center;gap:8px;width:100%;">
-          <code id="api-token" style="font-size:0.7rem;color:#5b9bd5;background:#0d0d0d;padding:6px 10px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ api_token }}</code>
-          <button onclick="copyText('api-token', this)" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#888;cursor:pointer;padding:5px 10px;font-size:0.75rem;white-space:nowrap;">Copy</button>
-        </div>
-        <button id="regen-btn" onclick="regenToken()" style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:6px;color:#666;cursor:pointer;padding:5px 12px;font-size:0.75rem;align-self:flex-end;">Regenerate token</button>
-      </div>
-    </div>
   </main>
 
   <script>
+    // Ping extension on load — show connected state if it responds
+    let extensionDetected = false;
+
+    const pingTimeout = setTimeout(() => {
+      if (!extensionDetected) showConnect();
+    }, 700);
+
+    document.addEventListener('interview-ace:connected', () => {
+      extensionDetected = true;
+      clearTimeout(pingTimeout);
+      showConnected();
+    }, { once: true });
+
+    document.dispatchEvent(new CustomEvent('interview-ace:connect', {
+      detail: { token: '{{ api_token }}', serverUrl: window.location.origin }
+    }));
+
+    function showConnected() {
+      document.getElementById('ext-connected').style.display = 'flex';
+      document.getElementById('connect-row').style.display = 'none';
+    }
+
+    function showConnect() {
+      document.getElementById('ext-connected').style.display = 'none';
+      document.getElementById('connect-row').style.display = 'flex';
+    }
+
     function connectExtension() {
       const btn = document.getElementById('connect-btn');
       const status = document.getElementById('connect-status');
-
       btn.disabled = true;
-      btn.textContent = 'Connecting...';
+      btn.textContent = 'Connecting…';
       status.textContent = '';
-      status.style.color = '#444';
 
       const timeout = setTimeout(() => {
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
-        status.textContent = 'Extension not detected — use the manual token below.';
-        status.style.color = '#e57373';
+        status.textContent = 'Extension not detected — try the manual token below.';
+        status.style.color = 'var(--danger)';
+        document.getElementById('fallback-details').open = true;
       }, 2000);
 
       document.addEventListener('interview-ace:connected', () => {
         clearTimeout(timeout);
-        btn.disabled = false;
-        btn.textContent = 'Connected!';
-        btn.style.background = '#0a1e0a';
-        status.textContent = 'Extension configured. You can close this page.';
-        status.style.color = '#4caf50';
+        showConnected();
       }, { once: true });
 
       document.dispatchEvent(new CustomEvent('interview-ace:connect', {
@@ -202,11 +476,10 @@
     }
 
     function copyText(id, btn) {
-      const text = document.getElementById(id).textContent.trim();
-      navigator.clipboard.writeText(text).then(() => {
+      navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(() => {
         const orig = btn.textContent;
         btn.textContent = 'Copied!';
-        btn.style.color = '#4caf50';
+        btn.style.color = 'var(--accent2)';
         setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
       });
     }

@@ -170,6 +170,53 @@
       box-shadow: 0 0 32px rgba(108,99,255,0.15);
     }
 
+    /* ── Intro deal card (full-width hero) ── */
+    .intro-deal {
+      grid-column: 1 / -1;
+      border-color: var(--accent2);
+      background: linear-gradient(160deg, rgba(0,212,170,0.07), var(--surface));
+      box-shadow: 0 0 28px rgba(0,212,170,0.12);
+      flex-direction: row;
+      align-items: center;
+      gap: 24px;
+    }
+    @media (max-width: 520px) {
+      .intro-deal { flex-direction: column; align-items: stretch; }
+    }
+
+    .intro-left { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+    .deal-tag {
+      display: inline-block;
+      background: rgba(0,212,170,0.12);
+      border: 1px solid rgba(0,212,170,0.3);
+      border-radius: 6px;
+      color: var(--accent2);
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      width: fit-content;
+    }
+
+    .intro-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-width: 170px;
+    }
+    @media (max-width: 520px) {
+      .intro-right { min-width: unset; }
+    }
+
+    .intro-features {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+
     .plan-top {
       display: flex;
       align-items: flex-start;
@@ -207,7 +254,7 @@
 
     .price-was {
       font-size: 0.75rem;
-      color: #2e2e3e;
+      color: #3a3a52;
       text-decoration: line-through;
     }
 
@@ -293,6 +340,15 @@
     }
     .cta-sessions:hover { border-color: var(--accent); color: var(--text); }
 
+    .cta-intro {
+      background: linear-gradient(135deg, #00c49a, var(--accent2));
+      color: #04110e;
+      font-weight: 800;
+      box-shadow: 0 0 20px rgba(0,212,170,0.3);
+      width: 100%;
+    }
+    .cta-intro:hover { box-shadow: 0 0 30px rgba(0,212,170,0.5); }
+
     .plan-fine {
       font-size: 0.7rem;
       color: #2e2e3e;
@@ -333,49 +389,76 @@
 
     <div class="plans-grid">
 
-      <!-- Sessions card -->
+      {% if not intro_redeemed %}
+      <!-- Intro deal — full-width hero card -->
+      <div class="plan-card intro-deal">
+        <div class="intro-left">
+          <span class="deal-tag">New member deal</span>
+          <div>
+            <div class="plan-name">First-time offer</div>
+            <div class="plan-price">
+              <span class="price-main">£2</span>
+              <span class="price-suffix">for 2 sessions</span>
+              <span class="price-was">£10 regular</span>
+            </div>
+          </div>
+          <p class="plan-desc">One-time purchase — no subscription, no renewal, no card saved after checkout.</p>
+          <div class="intro-features">
+            <div class="feature"><span class="feature-icon"></span>2 full sessions (2.5 hrs each)</div>
+            <div class="feature"><span class="feature-icon"></span>AI analysis on every capture</div>
+          </div>
+        </div>
+        <div class="intro-right">
+          <a class="plan-cta cta-intro" href="/billing/checkout?plan=sessions">
+            Claim deal — £2
+          </a>
+          <p class="plan-fine">Single payment · No auto-renewal</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Sessions pack card -->
       <div class="plan-card">
         <div>
           <div class="plan-top">
             <div>
-              <div class="plan-name">Sessions</div>
+              <div class="plan-name">Sessions pack</div>
               <div class="plan-price">
-                <span class="price-main">£2</span>
-                <span class="price-suffix">for 2 sessions</span>
-                <span class="price-was">was £10</span>
+                <span class="price-main">£15</span>
+                <span class="price-suffix">for 3 sessions</span>
               </div>
             </div>
-            <span class="badge purple">Intro offer</span>
+            <span class="badge purple">Pay as you go</span>
           </div>
         </div>
 
         <p class="plan-desc">
-          Pay once, no commitment. Try it before you subscribe.
+          Top up whenever you need. No subscription required.
         </p>
 
         <div class="plan-features">
           <div class="feature">
-            <span class="feature-icon">✓</span>
-            2 full sessions
+            <span class="feature-icon"></span>
+            3 full sessions
           </div>
           <div class="feature">
             <span class="feature-icon"></span>
             2.5 hrs per session
           </div>
           <div class="feature">
-            <span class="feature-icon">✓</span>
+            <span class="feature-icon"></span>
             AI analysis on every capture
           </div>
           <div class="feature">
-            <span class="feature-icon">✓</span>
+            <span class="feature-icon"></span>
             No card saved — one-time payment
           </div>
         </div>
 
-        <a class="plan-cta cta-sessions" href="/billing/checkout?plan=sessions">
-          Get 2 sessions — £2
+        <a class="plan-cta cta-sessions" href="/billing/checkout?plan=sessions_pack">
+          Get 3 sessions — £15
         </a>
-        <p class="plan-fine">One-time. No auto-renewal.</p>
+        <p class="plan-fine">Single payment · No auto-renewal</p>
       </div>
 
       <!-- Subscription card -->
@@ -401,7 +484,7 @@
 
           <div class="plan-features">
             <div class="feature">
-              <span class="feature-icon">✓</span>
+              <span class="feature-icon"></span>
               Unlimited sessions
             </div>
             <div class="feature">
@@ -409,11 +492,11 @@
               Unlimited time per session
             </div>
             <div class="feature">
-              <span class="feature-icon">✓</span>
+              <span class="feature-icon"></span>
               7-day free trial, no charge upfront
             </div>
             <div class="feature">
-              <span class="feature-icon">✓</span>
+              <span class="feature-icon"></span>
               Cancel before 7 days — pay nothing
             </div>
           </div>

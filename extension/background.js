@@ -50,8 +50,21 @@ async function doCapture() {
     if (resp.ok) {
       await chrome.storage.local.set({ last_capture: new Date().toLocaleTimeString(), last_error: '' });
     } else {
-      const msg = await resp.text();
-      await chrome.storage.local.set({ last_error: `Server error ${resp.status}: ${msg}` });
+      const body = await resp.text();
+      let msg;
+      try {
+        const json = JSON.parse(body);
+        if (json.detail === 'sessions_exhausted') {
+          msg = 'No sessions remaining — visit InterviewAce to top up.';
+        } else if (json.detail === 'trial_expired') {
+          msg = 'Trial expired — visit InterviewAce to continue.';
+        } else {
+          msg = `Error ${resp.status}: ${json.detail ?? body}`;
+        }
+      } catch {
+        msg = `Error ${resp.status}: ${body}`;
+      }
+      await chrome.storage.local.set({ last_error: msg });
     }
   } catch (e) {
     await chrome.storage.local.set({ last_error: `Network error: ${e.message}` });
@@ -80,10 +93,8 @@ chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'capture') {
     const { enabled, is_unlimited } = await chrome.storage.local.get(['enabled', 'is_unlimited']);
     if (!enabled) {
-      if (!is_unlimited) {
-        await chrome.storage.local.set({ last_disabled_press: Date.now() });
-        await flashDisabled();
-      }
+      await chrome.storage.local.set({ last_disabled_press: Date.now() });
+      if (!is_unlimited) await flashDisabled();
       return;
     }
     doCapture();

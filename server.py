@@ -290,10 +290,13 @@ async def trial_end(user: Optional[User] = Depends(get_optional_user)):
 
 
 @app.get("/pricing")
-async def pricing_page(user: Optional[User] = Depends(get_optional_user)):
+async def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if not user:
         return RedirectResponse("/login")
-    return HTMLResponse(Path("templates/pricing.html").read_text(encoding="utf-8"))
+    return templates.TemplateResponse(request=request, name="pricing.html", context={
+        "intro_redeemed": user.intro_redeemed,
+        "sessions_remaining": user.sessions_remaining,
+    })
 
 
 @app.get("/settings")
@@ -311,7 +314,8 @@ async def settings_page(
         "full_name": user.full_name,
         "username": user.username,
         "email": user.email,
-        "account_level": user.account_level.value.capitalize(),
+        "account_level": user.account_level.value,
+        "sessions_remaining": user.sessions_remaining,
         "api_token": user.api_token,
         "base_url": BASE_URL,
     })
@@ -398,17 +402,39 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
     if user.account_level == AccountLevel.trial:
-        now = datetime.utcnow()
-        session = db.query(InterviewSession).filter(
-            InterviewSession.user_id == user.id,
-            InterviewSession.expires_at > now,
-            InterviewSession.ended_at == None,  # noqa: E711
-        ).first()
-        if not session:
-            await broadcast(user.id, "trial_expired", {})
-            raise HTTPException(status_code=403, detail="trial_expired")
-    elif user.account_level != AccountLevel.unlimited:
-        _get_or_create_session(db, user.id)
+        if user.sessions_remaining > 0:
+            user.account_level = AccountLevel.paid
+            db.commit()
+        else:
+            now = datetime.utcnow()
+            session = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not session:
+                await broadcast(user.id, "trial_expired", {})
+                raise HTTPException(status_code=403, detail="trial_expired")
+    if user.account_level == AccountLevel.paid:
+        if user.stripe_sub_id:
+            # Subscriber set to 'paid' by old webhook code — correct to unlimited
+            user.account_level = AccountLevel.unlimited
+            db.commit()
+        else:
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not active:
+                if user.sessions_remaining <= 0:
+                    user.account_level = AccountLevel.free
+                    db.commit()
+                    raise HTTPException(status_code=403, detail="sessions_exhausted")
+                user.sessions_remaining -= 1
+                db.commit()
+            _get_or_create_session(db, user.id)
     img_b64 = body.image
     if "," in img_b64:
         img_b64 = img_b64.split(",", 1)[1]
@@ -489,13 +515,19 @@ async def billing_portal(user: User = Depends(get_current_user)):
 
 
 @app.get("/billing/success")
-async def billing_success():
-    return HTMLResponse("""
-        <html><head><meta http-equiv="refresh" content="2;url=/settings"></head>
-        <body style="background:#0d0d0d;color:#4caf50;font-family:system-ui;display:flex;align-items:center;
-        justify-content:center;height:100vh;font-size:1.1rem;">
-        Payment successful! Redirecting...</body></html>
-    """)
+async def billing_success(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.refresh(user)
+    return templates.TemplateResponse(request=request, name="billing_success.html", context={})
+
+
+@app.get("/api/billing/status")
+async def billing_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    db.refresh(user)
+    return {
+        "account_level": user.account_level.value,
+        "sessions_remaining": user.sessions_remaining,
+        "intro_declined": user.intro_declined,
+    }
 
 
 @app.post("/billing/webhook")
