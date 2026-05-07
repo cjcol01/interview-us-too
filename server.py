@@ -233,8 +233,8 @@ async def auth_logout():
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-async def landing():
-    return HTMLResponse(Path("templates/landing.html").read_text(encoding="utf-8"))
+async def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
+    return templates.TemplateResponse(request=request, name="landing.html", context={"user": user})
 
 
 @app.get("/app")
@@ -244,7 +244,7 @@ async def index(user: Optional[User] = Depends(get_optional_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if user.account_level == AccountLevel.free:
-        return RedirectResponse("/settings")
+        return RedirectResponse("/pricing")
     if user.account_level == AccountLevel.trial and not user.setup_complete:
         return RedirectResponse("/onboarding")
     return HTMLResponse(Path("templates/index.html").read_text(encoding="utf-8"))
