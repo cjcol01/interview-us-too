@@ -27,6 +27,9 @@ CONTACT
 LANDING PAGE
 - Remove stale copy: "Add a card to unlock your first full session free" (no longer accurate)
 - Update pricing section on landing page to match the new £2/2 sessions + £25/month subscription offers
+- change sign in buttons dynamically to show sign in /out 
+- handle navigation around the website better - navbar etc
+ 
 
 SETTINGS PAGE
 - account_level shows "Trial" even after the trial session has expired — could show "Trial (expired)"
@@ -41,3 +44,14 @@ BACKEND
 CHROME EXTENSION
 - Publish to Chrome Web Store (requires developer account, $5 one-time fee, review process)
 - Or keep as sideloaded for now and provide install instructions
+
+Adverts/ marketing
+Linkedin
+discord
+reddit
+direct ads
+tiktok 
+instagram
+
+reviews
+trustpilot 
