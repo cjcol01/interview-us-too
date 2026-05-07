@@ -17,7 +17,7 @@ def get_db():
 
 
 def init_db():
-    from models import IntroCardFingerprint, InterviewSession, User  # noqa: F401 — ensures tables are registered
+    from models import IntroCardFingerprint, InterviewSession, Referral, User  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -35,7 +35,18 @@ def init_db():
             ("intro_redeemed",      "BOOLEAN DEFAULT 0"),
             ("intro_declined",      "BOOLEAN DEFAULT 0"),
             ("sub_cancel_at",       "DATETIME"),
+            ("referral_code",       "VARCHAR"),
+            ("referred_by_id",      "INTEGER"),
         ]
         for col, definition in migrations:
             if col not in existing:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
+    # backfill referral codes for any existing users that don't have one
+    db = SessionLocal()
+    try:
+        from auth import generate_unique_referral_code
+        for u in db.query(User).filter(User.referral_code == None).all():  # noqa: E711
+            u.referral_code = generate_unique_referral_code(db)
+        db.commit()
+    finally:
+        db.close()

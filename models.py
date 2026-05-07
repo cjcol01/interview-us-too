@@ -35,6 +35,28 @@ class User(Base):
     intro_redeemed     = Column(Boolean, default=False, nullable=False, server_default="0")
     intro_declined     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_cancel_at      = Column(DateTime, nullable=True)
+    referral_code      = Column(String, nullable=True, unique=True, index=True)
+    referred_by_id     = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+
+class ReferralStatus(str, enum.Enum):
+    signed_up  = "signed_up"
+    intro      = "intro"
+    subscribed = "subscribed"
+
+
+class Referral(Base):
+    __tablename__ = "referrals"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    referrer_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    referee_id     = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    status         = Column(Enum(ReferralStatus), default=ReferralStatus.signed_up, nullable=False)
+    intro_credited = Column(Boolean, default=False, nullable=False)
+    sub_credited   = Column(Boolean, default=False, nullable=False)
+    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+    intro_at       = Column(DateTime, nullable=True)
+    sub_at         = Column(DateTime, nullable=True)
 
 
 class InterviewSession(Base):

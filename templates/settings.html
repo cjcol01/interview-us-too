@@ -184,6 +184,47 @@
       font-size: 0.8rem;
     }
 
+    /* ── Referral code entry ── */
+    .ref-form { padding: 12px 16px; border-top: 1px solid var(--border); }
+    .ref-form-row { display: flex; gap: 8px; margin-top: 8px; }
+    .ref-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color 0.15s;
+      min-width: 0;
+    }
+    .ref-input:focus { border-color: var(--accent); }
+    .ref-input::placeholder { color: var(--muted); }
+    .ref-apply-btn {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: box-shadow 0.15s;
+    }
+    .ref-apply-btn:hover { box-shadow: 0 0 16px rgba(108,99,255,0.4); }
+    .ref-feedback {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      padding: 8px 10px;
+      border-radius: 7px;
+      line-height: 1.5;
+    }
+    .ref-feedback.success { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.2); color: var(--accent2); }
+    .ref-feedback.error   { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2); color: #ff6b6b; }
+    .ref-feedback.applied { font-size: 0.78rem; color: var(--muted); padding: 10px 16px; }
+
     /* ── Extension section ── */
     .ext-connected {
       display: flex;
@@ -381,6 +422,33 @@
         <a class="action-row upgrade" href="/pricing">
           Upgrade plan <span class="chevron">›</span>
         </a>
+      {% endif %}
+    </div>
+
+    <!-- Referral -->
+    <div class="section-label">Refer &amp; Earn</div>
+    <div class="card">
+      <a class="action-row upgrade" href="/referral">
+        Share your link, earn up to £5 per friend <span class="chevron">›</span>
+      </a>
+      {% if ref_success %}
+        <div class="ref-feedback success">Referral applied — £5 off your first subscription at checkout.</div>
+      {% elif is_referred %}
+        <div class="ref-feedback applied">&#10003; Referral applied — £5 off your first subscription.</div>
+      {% else %}
+        <div class="ref-form">
+          <div style="font-size:0.78rem;color:var(--muted);">Have a friend's referral code or link?</div>
+          <form action="/referral/apply" method="post">
+            <input type="hidden" name="source" value="settings">
+            <div class="ref-form-row">
+              <input class="ref-input" type="text" name="code" placeholder="Code or full link" maxlength="200" autocomplete="off" required>
+              <button class="ref-apply-btn" type="submit">Apply</button>
+            </div>
+          </form>
+          {% if ref_error_msg %}
+            <div class="ref-feedback error">{{ ref_error_msg }}</div>
+          {% endif %}
+        </div>
       {% endif %}
     </div>
 

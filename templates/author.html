@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Author &mdash; InterviewAce</title>
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #080810;
+      --surface:  #0f0f1a;
+      --border:   #1e1e2e;
+      --accent:   #6c63ff;
+      --accent2:  #00d4aa;
+      --text:     #e2e2f0;
+      --muted:    #6b6b8a;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 40px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-decoration: none;
+    }
+
+    main {
+      flex: 1;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 72px 24px 96px;
+      width: 100%;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(108,99,255,0.1);
+      border: 1px solid rgba(108,99,255,0.3);
+      border-radius: 999px;
+      padding: 5px 14px;
+      font-size: 0.78rem;
+      color: #a78bfa;
+      margin-bottom: 28px;
+      letter-spacing: 0.04em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      margin-bottom: 52px;
+    }
+
+    .commission-notice {
+      background: linear-gradient(135deg, rgba(108,99,255,0.08), rgba(0,212,170,0.04));
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 40px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .commission-notice strong { color: var(--text); }
+
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    @media (max-width: 540px) {
+      .info-grid { grid-template-columns: 1fr; }
+    }
+
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 24px;
+      transition: border-color 0.2s;
+    }
+    .info-card:hover { border-color: rgba(108,99,255,0.35); }
+
+    .info-card-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .info-card-value {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .info-card-value a {
+      color: var(--accent2);
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .info-card-value a:hover { opacity: 0.75; }
+
+    .stack-section { margin-bottom: 40px; }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    .verify-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+    }
+
+    .verify-block h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .verify-block p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.7;
+      margin-bottom: 20px;
+    }
+
+    .contact-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(108,99,255,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(108,99,255,0.45); }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 24px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer p { font-size: 0.82rem; color: var(--muted); }
+
+    @media (max-width: 640px) {
+      nav { padding: 14px 20px; }
+      main { padding: 48px 20px 72px; }
+      footer { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <a class="logo" href="/">InterviewAce</a>
+  </nav>
+
+  <main>
+    <div class="badge">Developer verification</div>
+    <h1>Built by <span>CJ Coleman</span></h1>
+    <p class="subtitle">
+      This page exists as a portfolio reference for employers. It verifies ownership of this project and provides contact details for anyone who wants to get in touch.
+    </p>
+
+    <div class="commission-notice">
+      <strong>Commission notice:</strong> This project was designed and built on commission. The product, branding, and business logic belong to the client. This page is solely for developer attribution and is not linked from any public part of the site.
+    </div>
+
+    <div class="section-label">About the developer</div>
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-label">Name</div>
+        <div class="info-card-value">CJ Coleman</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Email</div>
+        <div class="info-card-value"><a href="mailto:cj2014999@hotail.com">cj2014999@hotail.com</a></div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">GitHub</div>
+        <div class="info-card-value"><a href="https://github.com/cjcol01" target="_blank" rel="noopener">github.com/cjcol01</a></div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-label">Built</div>
+        <div class="info-card-value">2025 &ndash; 2026</div>
+      </div>
+    </div>
+
+    <div class="stack-section">
+      <div class="section-label">Tech stack</div>
+      <div class="tag-list">
+        <span class="tag">Python</span>
+        <span class="tag">FastAPI</span>
+        <span class="tag">SQLAlchemy</span>
+        <span class="tag">Jinja2</span>
+        <span class="tag">Anthropic Claude API</span>
+        <span class="tag">Stripe</span>
+        <span class="tag">Server-Sent Events</span>
+        <span class="tag">Chrome Extension (Manifest V3)</span>
+        <span class="tag">HTML / CSS / Vanilla JS</span>
+        <span class="tag">SQLite</span>
+        <span class="tag">Uvicorn</span>
+      </div>
+    </div>
+
+    <div class="stack-section">
+      <div class="section-label">What was built</div>
+      <div class="tag-list">
+        <span class="tag">Full-stack web application</span>
+        <span class="tag">User auth &amp; email verification</span>
+        <span class="tag">Subscription billing (Stripe)</span>
+        <span class="tag">AI screenshot analysis</span>
+        <span class="tag">Real-time SSE streaming</span>
+        <span class="tag">Browser extension</span>
+        <span class="tag">Referral system</span>
+        <span class="tag">Transactional email</span>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="verify-block">
+      <h2>For employers</h2>
+      <p>
+        I wrote every line of this project &mdash; backend, frontend, extension, billing integration, and AI pipeline. Feel free to reach out if you'd like to discuss the work, ask for a code walkthrough, or have any questions about my process.
+      </p>
+      <div class="contact-row">
+        <a class="btn btn-primary" href="mailto:cjcoleman267@gmail.com">Email me</a>
+        <a class="btn btn-outline" href="https://github.com/cjcol01" target="_blank" rel="noopener">GitHub &rarr;</a>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <a class="logo" href="/">InterviewAce</a>
+    <p>&copy; 2026 InterviewAce. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>

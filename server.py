@@ -12,19 +12,20 @@ from typing import Optional
 
 import anthropic
 import uvicorn
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, Response
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth import create_token, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
+from auth import create_token, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, BASE_URL, SERVER_HOST, SERVER_PORT
+from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
-from models import AccountLevel, InterviewSession, User
+from models import AccountLevel, InterviewSession, Referral, ReferralStatus, User
 
 templates = Jinja2Templates(directory="templates")
 SCREENSHOTS_DIR = Path("screenshots")
@@ -168,7 +169,11 @@ async def auth_login(body: LoginRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/register")
-async def auth_register(body: RegisterRequest, db: Session = Depends(get_db)):
+async def auth_register(
+    body: RegisterRequest,
+    db: Session = Depends(get_db),
+    ref: Optional[str] = Cookie(default=None),
+):
     if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already taken.")
     if db.query(User).filter(User.email == body.email).first():
@@ -187,6 +192,14 @@ async def auth_register(body: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
+    user.referral_code = generate_unique_referral_code(db)
+
+    if ref:
+        referrer = db.query(User).filter(User.referral_code == ref).first()
+        if referrer and referrer.id != user.id:
+            user.referred_by_id = referrer.id
+            db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
+
     verify_token = secrets.token_urlsafe(32)
     user.verify_token = verify_token
     db.commit()
@@ -195,6 +208,7 @@ async def auth_register(body: RegisterRequest, db: Session = Depends(get_db)):
     token = create_token(user.id)
     response = JSONResponse({"status": "ok", "username": user.username})
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    response.delete_cookie("ref")
     return response
 
 
@@ -299,11 +313,117 @@ async def pricing_page(request: Request, user: Optional[User] = Depends(get_opti
     })
 
 
+_basic = HTTPBasic()
+
+def _require_author(credentials: HTTPBasicCredentials = Depends(_basic)):
+    ok = AUTHOR_PASSWORD and secrets.compare_digest(credentials.password.encode(), AUTHOR_PASSWORD.encode())
+    if not ok:
+        raise HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
+
+@app.get("/verify-author")
+async def author_page(_: None = Depends(_require_author)):
+    return HTMLResponse(Path("templates/author.html").read_text(encoding="utf-8"))
+
+
+@app.get("/r/{code}")
+async def referral_redirect(
+    code: str,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    if user:
+        return RedirectResponse("/app")
+    referrer = db.query(User).filter(User.referral_code == code).first()
+    response = RedirectResponse("/login", status_code=302)
+    if referrer:
+        response.set_cookie("ref", code, max_age=30 * 24 * 60 * 60, httponly=True, samesite="lax")
+    return response
+
+
+@app.get("/referral")
+async def referral_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+    ref_success: Optional[str] = None,
+    ref_error: Optional[str] = None,
+):
+    if not user:
+        return RedirectResponse("/login")
+    if not user.referral_code:
+        user.referral_code = generate_unique_referral_code(db)
+        db.commit()
+    referral_rows = (
+        db.query(Referral, User)
+        .join(User, User.id == Referral.referee_id)
+        .filter(Referral.referrer_id == user.id)
+        .order_by(Referral.created_at.desc())
+        .all()
+    )
+    referrals = []
+    total_pence = 0
+    for ref_row, referee_user in referral_rows:
+        credited = (200 if ref_row.intro_credited else 0) + (300 if ref_row.sub_credited else 0)
+        total_pence += credited
+        referrals.append({
+            "referee_email": referee_user.email,
+            "joined_date": f"{ref_row.created_at.day} {ref_row.created_at.strftime('%b %Y')}",
+            "status": ref_row.status.value,
+        })
+    _error_messages = {
+        "invalid_code": "That code doesn't look right — double-check and try again.",
+        "already_referred": "You've already applied a referral code.",
+        "self_referral": "You can't use your own referral code.",
+    }
+    return templates.TemplateResponse(request=request, name="referral.html", context={
+        "referral_code": user.referral_code,
+        "referrals": referrals,
+        "total_credits_earned": total_pence / 100,
+        "is_referred": user.referred_by_id is not None,
+        "ref_success": ref_success == "1",
+        "error_msg": _error_messages.get(ref_error),
+    })
+
+
+def _parse_referral_code(raw: str) -> str:
+    """Accept a bare code or a full /r/<code> URL — return just the code."""
+    raw = raw.strip()
+    if "/r/" in raw:
+        return raw.split("/r/")[-1].strip("/").strip()
+    return raw
+
+
+@app.post("/referral/apply")
+async def apply_referral_code(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    code: str = Form(...),
+    source: str = Form(default="referral"),
+):
+    def redirect(param: str, value: str):
+        base = "/settings" if source == "settings" else "/referral"
+        return RedirectResponse(f"{base}?{param}={value}", status_code=303)
+
+    if user.referred_by_id or db.query(Referral).filter(Referral.referee_id == user.id).first():
+        return redirect("ref_error", "already_referred")
+    referrer = db.query(User).filter(User.referral_code == _parse_referral_code(code)).first()
+    if not referrer:
+        return redirect("ref_error", "invalid_code")
+    if referrer.id == user.id:
+        return redirect("ref_error", "self_referral")
+    user.referred_by_id = referrer.id
+    db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
+    db.commit()
+    return redirect("ref_success", "1")
+
+
 @app.get("/settings")
 async def settings_page(
     request: Request,
     user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
+    ref_success: Optional[str] = None,
+    ref_error: Optional[str] = None,
 ):
     if not user:
         return RedirectResponse("/login")
@@ -311,6 +431,11 @@ async def settings_page(
         user.api_token = secrets.token_urlsafe(32)
         db.commit()
     cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
+    _error_messages = {
+        "invalid_code": "That code doesn't look right — double-check and try again.",
+        "already_referred": "You've already applied a referral code.",
+        "self_referral": "You can't use your own referral code.",
+    }
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
@@ -320,6 +445,9 @@ async def settings_page(
         "api_token": user.api_token,
         "base_url": BASE_URL,
         "sub_cancel_at": cancel_at,
+        "is_referred": user.referred_by_id is not None,
+        "ref_success": ref_success == "1",
+        "ref_error_msg": _error_messages.get(ref_error),
     })
 
 
@@ -504,7 +632,12 @@ async def regenerate_api_token(user: User = Depends(get_current_user), db: Sessi
 
 @app.get("/billing/checkout")
 async def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
-    url = create_checkout_session(user, db, plan=plan)
+    apply_discount = False
+    if plan == "subscription" and user.referred_by_id:
+        ref = db.query(Referral).filter(Referral.referee_id == user.id).first()
+        if ref and ref.status != ReferralStatus.subscribed:
+            apply_discount = True
+    url = create_checkout_session(user, db, plan=plan, apply_referral_discount=apply_discount)
     return RedirectResponse(url)
 
 

@@ -2,8 +2,8 @@ import stripe
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
-from models import AccountLevel, IntroCardFingerprint, User
+from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
+from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -17,7 +17,23 @@ def get_or_create_customer(user: User, db: Session) -> str:
     return customer.id
 
 
-def create_checkout_session(user: User, db: Session, plan: str = "subscription") -> str:
+def _credit_referrer(referrer: User, amount_pence: int, description: str) -> None:
+    if not referrer.stripe_customer_id:
+        print(f"[referral] referrer {referrer.email} has no Stripe customer — skipping credit")
+        return
+    try:
+        stripe.Customer.create_balance_transaction(
+            referrer.stripe_customer_id,
+            amount=-amount_pence,
+            currency="gbp",
+            description=description,
+        )
+        print(f"[referral] credited {referrer.email} {amount_pence}p: {description}")
+    except stripe.error.StripeError as e:
+        print(f"[referral] Stripe credit failed for {referrer.email}: {e}")
+
+
+def create_checkout_session(user: User, db: Session, plan: str = "subscription", apply_referral_discount: bool = False) -> str:
     customer_id = get_or_create_customer(user, db)
 
     if plan == "sessions":
@@ -41,7 +57,7 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription")
             cancel_url=f"{BASE_URL}/pricing",
         )
     else:
-        session = stripe.checkout.Session.create(
+        kwargs = dict(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": STRIPE_SUB_PRICE_ID or STRIPE_PRICE_ID, "quantity": 1}],
@@ -50,6 +66,9 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription")
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
+        if apply_referral_discount and STRIPE_REFERRAL_COUPON_ID:
+            kwargs["discounts"] = [{"coupon": STRIPE_REFERRAL_COUPON_ID}]
+        session = stripe.checkout.Session.create(**kwargs)
 
     return session.url
 
@@ -102,6 +121,18 @@ def _sync_subscription(sub: dict, db: Session):
             user.sub_cancel_at = datetime.utcfromtimestamp(period_end)
         elif not sub.get("cancel_at_period_end"):
             user.sub_cancel_at = None
+        if user.referred_by_id:
+            ref = db.query(Referral).filter(
+                Referral.referee_id == user.id,
+                Referral.sub_credited == False,  # noqa: E712
+            ).first()
+            if ref:
+                referrer = db.query(User).filter(User.id == ref.referrer_id).first()
+                if referrer:
+                    _credit_referrer(referrer, 300, f"Referral — {user.email} subscribed")
+                    ref.sub_credited = True
+                    ref.status = ReferralStatus.subscribed
+                    ref.sub_at = datetime.utcnow()
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
         user.sub_cancel_at = None
@@ -152,6 +183,18 @@ def _handle_sessions_purchase(data: dict, db: Session):
                 db.add(IntroCardFingerprint(fingerprint=fingerprint))
         user.sessions_remaining += 2
         user.intro_redeemed = True
+        if user.referred_by_id:
+            ref = db.query(Referral).filter(
+                Referral.referee_id == user.id,
+                Referral.intro_credited == False,  # noqa: E712
+            ).first()
+            if ref:
+                referrer = db.query(User).filter(User.id == ref.referrer_id).first()
+                if referrer:
+                    _credit_referrer(referrer, 200, f"Referral — {user.email} bought intro")
+                    ref.intro_credited = True
+                    ref.status = ReferralStatus.intro
+                    ref.intro_at = datetime.utcnow()
     elif plan == "sessions_pack":
         user.sessions_remaining += 3
     else:

@@ -1,0 +1,428 @@
+"""
+Billing tests — split into:
+  register()      unit tests (DB logic, no HTTP client needed)
+  register_http() route tests (require TestClient)
+"""
+import secrets as _sec
+from unittest.mock import MagicMock, patch
+
+from database import SessionLocal, init_db
+from models import AccountLevel, Referral, ReferralStatus, User
+from tests.helpers import cleanup, delete_by_name, make_cookie, make_user
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _stripe_id():
+    return f"cus_test_{_sec.token_hex(6)}"
+
+def _sub_id():
+    return f"sub_test_{_sec.token_hex(6)}"
+
+def _fake_sub(customer_id, sub_id, status="active", cancel_at_period_end=False):
+    return {
+        "id": sub_id,
+        "customer": customer_id,
+        "status": status,
+        "cancel_at_period_end": cancel_at_period_end,
+        "cancel_at": None,
+        "trial_end": None,
+    }
+
+def _fake_checkout_event(customer_id, plan, payment_intent="pi_test"):
+    return {
+        "type": "checkout.session.completed",
+        "data": {"object": {
+            "customer": customer_id,
+            "mode": "payment",
+            "payment_intent": payment_intent,
+            "metadata": {"plan": plan},
+        }},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Unit tests (no HTTP client)
+# ---------------------------------------------------------------------------
+
+def register(test, skip, client=None):
+    from billing import _handle_sessions_purchase, _sync_subscription
+
+    # -- _sync_subscription --------------------------------------------------
+
+    def test_sync_active_sets_unlimited():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid, sid = _stripe_id(), _sub_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            _sync_subscription(_fake_sub(cid, sid, "active"), db)
+            db.refresh(u)
+            assert u.account_level == AccountLevel.unlimited
+            assert u.stripe_sub_id == sid
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sync_trialing_sets_unlimited():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid, sid = _stripe_id(), _sub_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            _sync_subscription(_fake_sub(cid, sid, "trialing"), db)
+            db.refresh(u)
+            assert u.account_level == AccountLevel.unlimited
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sync_canceled_sets_free():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid, sid = _stripe_id(), _sub_id()
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            u.stripe_sub_id = sid
+            db.commit()
+            _sync_subscription(_fake_sub(cid, sid, "canceled"), db)
+            db.refresh(u)
+            assert u.account_level == AccountLevel.free
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sync_unknown_customer_is_noop():
+        init_db()
+        db = SessionLocal()
+        try:
+            _sync_subscription(_fake_sub("cus_nonexistent", _sub_id(), "active"), db)
+        finally:
+            db.close()
+
+    # -- _handle_sessions_purchase -------------------------------------------
+
+    def test_sessions_purchase_grants_2_sessions():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            data = _fake_checkout_event(cid, "sessions")["data"]["object"]
+            _handle_sessions_purchase(data, db)
+            db.refresh(u)
+            assert u.sessions_remaining == 2
+            assert u.intro_redeemed is True
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sessions_pack_grants_3_sessions():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            data = _fake_checkout_event(cid, "sessions_pack")["data"]["object"]
+            _handle_sessions_purchase(data, db)
+            db.refresh(u)
+            assert u.sessions_remaining == 3
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sessions_purchase_unknown_plan_is_noop():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            data = _fake_checkout_event(cid, "unknown_plan")["data"]["object"]
+            _handle_sessions_purchase(data, db)
+            db.refresh(u)
+            assert u.sessions_remaining == 0
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_sessions_purchase_no_user_is_noop():
+        init_db()
+        db = SessionLocal()
+        try:
+            data = _fake_checkout_event("cus_nobody", "sessions")["data"]["object"]
+            _handle_sessions_purchase(data, db)
+        finally:
+            db.close()
+
+    # -- Referral credit on intro purchase -----------------------------------
+
+    def test_referrer_credited_on_intro_purchase():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id)
+            db.add(ref_row)
+            db.commit()
+
+            data = _fake_checkout_event(referee_cid, "sessions")["data"]["object"]
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _handle_sessions_purchase(data, db)
+
+            mock_credit.assert_called_once()
+            args, kwargs = mock_credit.call_args
+            assert args[0] == referrer_cid
+            assert kwargs["amount"] == -200
+            db.refresh(ref_row)
+            assert ref_row.intro_credited is True
+            assert ref_row.status == ReferralStatus.intro
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_no_double_credit_intro():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
+                               intro_credited=True, status=ReferralStatus.intro)
+            db.add(ref_row)
+            db.commit()
+
+            data = _fake_checkout_event(referee_cid, "sessions")["data"]["object"]
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _handle_sessions_purchase(data, db)
+
+            mock_credit.assert_not_called()
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    # -- Referral credit on subscription ------------------------------------
+
+    def test_referrer_credited_on_subscription():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee_sid = _sub_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id)
+            db.add(ref_row)
+            db.commit()
+
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
+
+            mock_credit.assert_called_once()
+            args, kwargs = mock_credit.call_args
+            assert args[0] == referrer_cid
+            assert kwargs["amount"] == -300
+            db.refresh(ref_row)
+            assert ref_row.sub_credited is True
+            assert ref_row.status == ReferralStatus.subscribed
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_no_double_credit_subscription():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee_sid = _sub_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
+                               sub_credited=True, status=ReferralStatus.subscribed)
+            db.add(ref_row)
+            db.commit()
+
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
+
+            mock_credit.assert_not_called()
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_credit_referrer_skips_if_no_stripe_customer():
+        from billing import _credit_referrer
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer = make_user(db)
+            referrer.stripe_customer_id = None
+            db.commit()
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _credit_referrer(referrer, 200, "test")
+            mock_credit.assert_not_called()
+        finally:
+            cleanup(db, referrer); db.close()
+
+    test("_sync_subscription: active → unlimited",               test_sync_active_sets_unlimited)
+    test("_sync_subscription: trialing → unlimited",             test_sync_trialing_sets_unlimited)
+    test("_sync_subscription: canceled → free",                  test_sync_canceled_sets_free)
+    test("_sync_subscription: unknown customer is noop",         test_sync_unknown_customer_is_noop)
+    test("Sessions purchase grants 2 sessions",                  test_sessions_purchase_grants_2_sessions)
+    test("Sessions pack grants 3 sessions",                      test_sessions_pack_grants_3_sessions)
+    test("Sessions purchase: unknown plan is noop",              test_sessions_purchase_unknown_plan_is_noop)
+    test("Sessions purchase: no user is noop",                   test_sessions_purchase_no_user_is_noop)
+    test("Referrer credited £2 on referee intro purchase",       test_referrer_credited_on_intro_purchase)
+    test("No double-credit on intro (intro_credited guard)",     test_no_double_credit_intro)
+    test("Referrer credited £3 when referee subscribes",         test_referrer_credited_on_subscription)
+    test("No double-credit on subscription (sub_credited guard)",test_no_double_credit_subscription)
+    test("_credit_referrer skips if no Stripe customer",         test_credit_referrer_skips_if_no_stripe_customer)
+
+
+# ---------------------------------------------------------------------------
+# HTTP route tests (require TestClient)
+# ---------------------------------------------------------------------------
+
+def register_http(test, skip, client):
+
+    def test_cancel_requires_auth():
+        r = client.get("/billing/cancel", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_cancel_page_accessible():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.get("/billing/cancel", cookies={"session": token})
+            assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_cancel_confirm_requires_auth():
+        r = client.post("/billing/cancel/confirm",
+                        data={"reason": "test", "detail": ""},
+                        follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_cancel_confirm_no_subscription_returns_400():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.post("/billing/cancel/confirm",
+                            data={"reason": "too expensive", "detail": ""},
+                            cookies={"session": token},
+                            follow_redirects=False)
+            assert r.status_code == 400
+        finally:
+            delete_by_name(uname)
+
+    def test_cancel_confirm_success():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.stripe_sub_id = _sub_id()
+            db.commit()
+            mock_cancel = MagicMock(return_value=None)
+            with patch("server.cancel_subscription", mock_cancel):
+                r = client.post("/billing/cancel/confirm",
+                                data={"reason": "too expensive", "detail": ""},
+                                cookies={"session": token},
+                                follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            mock_cancel.assert_called_once()
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_portal_requires_auth():
+        r = client.post("/billing/portal", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_webhook_subscription_created():
+        cid, sid = _stripe_id(), _sub_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            fake_event = {
+                "type": "customer.subscription.created",
+                "data": {"object": _fake_sub(cid, sid, "active")},
+            }
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.account_level == AccountLevel.unlimited
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_webhook_subscription_deleted():
+        cid, sid = _stripe_id(), _sub_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            u.stripe_sub_id = sid
+            db.commit()
+            fake_event = {
+                "type": "customer.subscription.deleted",
+                "data": {"object": {"customer": cid, "id": sid}},
+            }
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.account_level == AccountLevel.free
+            assert u.stripe_sub_id is None
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_webhook_checkout_sessions_purchase():
+        cid = _stripe_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            fake_event = _fake_checkout_event(cid, "sessions")
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.sessions_remaining == 2
+            assert u.intro_redeemed is True
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_checkout_requires_auth():
+        r = client.get("/billing/checkout?plan=subscription", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_checkout_redirects_to_stripe():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.trial)
+        mock_session = MagicMock()
+        mock_session.url = "https://checkout.stripe.com/pay/test"
+        with patch("billing.stripe.checkout.Session.create", return_value=mock_session), \
+             patch("billing.stripe.Customer.create", return_value=MagicMock(id=_stripe_id())):
+            r = client.get("/billing/checkout?plan=subscription",
+                           cookies={"session": token},
+                           follow_redirects=False)
+        assert r.status_code in (302, 307)
+        assert "stripe.com" in r.headers.get("location", "")
+        delete_by_name(uname)
+
+    test("GET /billing/cancel requires auth",                 test_cancel_requires_auth)
+    test("GET /billing/cancel accessible when authed",        test_cancel_page_accessible)
+    test("POST /billing/cancel/confirm requires auth",        test_cancel_confirm_requires_auth)
+    test("POST /billing/cancel/confirm: no sub → 400",       test_cancel_confirm_no_subscription_returns_400)
+    test("POST /billing/cancel/confirm success flow",         test_cancel_confirm_success)
+    test("POST /billing/portal requires auth",                test_portal_requires_auth)
+    test("Webhook: subscription.created sets unlimited",      test_webhook_subscription_created)
+    test("Webhook: subscription.deleted sets free",           test_webhook_subscription_deleted)
+    test("Webhook: checkout.completed grants sessions",       test_webhook_checkout_sessions_purchase)
+    test("GET /billing/checkout requires auth",               test_checkout_requires_auth)
+    test("GET /billing/checkout redirects to Stripe",         test_checkout_redirects_to_stripe)

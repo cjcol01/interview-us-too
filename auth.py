@@ -11,6 +11,16 @@ from config import SECRET_KEY
 from database import get_db
 from models import User
 
+import secrets as _secrets
+
+
+def generate_unique_referral_code(db: Session) -> str:
+    for _ in range(10):
+        code = _secrets.token_urlsafe(8)
+        if not db.query(User).filter(User.referral_code == code).first():
+            return code
+    raise RuntimeError("Could not generate unique referral code")
+
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 _bearer = HTTPBearer()

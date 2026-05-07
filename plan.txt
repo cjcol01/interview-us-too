@@ -21,6 +21,8 @@ STRIPE
 - Add a cancel subscription button in settings (currently only accessible via Stripe portal link)✅
 - enable card fingerprinting before prod 
 - buy me a coffee
+- referals dont work on stripe - fix
+- referal flow has a few edge cases, handle them
 
 CONTACT
 - Add a contact form or mailto link somewhere accessible (landing page footer, settings, pricing page)

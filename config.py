@@ -16,6 +16,7 @@ STRIPE_PRICE_ID               = os.getenv("STRIPE_PRICE_ID", "")
 STRIPE_SESSIONS_PRICE_ID      = os.getenv("STRIPE_SESSIONS_INTRO_PRICE_ID", "")
 STRIPE_SESSIONS_PACK_PRICE_ID = os.getenv("STRIPE_SESSIONS_PACK_PRICE_ID", "")
 STRIPE_SUB_PRICE_ID           = os.getenv("STRIPE_SUB_PRICE_ID") or STRIPE_PRICE_ID
+STRIPE_REFERRAL_COUPON_ID     = os.getenv("STRIPE_REFERRAL_COUPON_ID", "")
 
 _missing = [
     name for name, val in [
@@ -30,6 +31,7 @@ if _missing:
 BASE_URL              = os.getenv("BASE_URL", "http://192.168.4.21:8000")
 
 AI_PROMPT    = os.getenv("AI_PROMPT", "Describe what is happening on this screen. Be concise.")
+AUTHOR_PASSWORD = os.getenv("AUTHOR_PASSWORD", "")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")

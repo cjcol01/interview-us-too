@@ -52,7 +52,7 @@
       text-decoration: none;
     }
 
-    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links { display: flex; align-items: center; gap: 20px; }
     .nav-links a:not(.btn) {
       color: var(--muted);
       text-decoration: none;
@@ -297,6 +297,104 @@
     .feature h4 { font-size: 0.72rem; font-weight: 500; color: var(--accent2); opacity: 0.75; margin-bottom: 10px; letter-spacing: 0.02em; }
     .feature p  { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
 
+    /* ── Referral ── */
+    .referral { background: var(--bg); }
+
+    .referral-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      align-items: center;
+      margin-top: 56px;
+    }
+    @media (max-width: 720px) {
+      .referral-inner { grid-template-columns: 1fr; gap: 40px; }
+    }
+
+    .referral-rewards {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .reward-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: border-color 0.2s;
+    }
+    .reward-row:hover { border-color: rgba(0,212,170,0.3); }
+
+    .reward-icon {
+      width: 38px; height: 38px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .reward-icon.green {
+      background: rgba(0,212,170,0.1);
+      border: 1px solid rgba(0,212,170,0.2);
+    }
+    .reward-icon.purple {
+      background: rgba(108,99,255,0.1);
+      border: 1px solid rgba(108,99,255,0.2);
+    }
+
+    .reward-content h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
+    .reward-content p { font-size: 0.83rem; color: var(--muted); line-height: 1.6; }
+
+    .reward-amount {
+      margin-left: auto;
+      font-size: 1.1rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent2), #00c49a);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .referral-visual {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .flow-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      text-align: center;
+    }
+
+    .flow-card h3 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+    .flow-card p { font-size: 0.85rem; color: var(--muted); }
+
+    .flow-divider {
+      text-align: center;
+      font-size: 1.2rem;
+      color: var(--border);
+      line-height: 1;
+    }
+
     /* ── Pricing ── */
     .pricing-grid {
       display: grid;
@@ -407,6 +505,7 @@
       <a href="#how-it-works">How it works</a>
       <a href="#features">Features</a>
       <a href="#pricing">Pricing</a>
+      <a href="#referral">Refer &amp; earn</a>
       {% if user %}
       <a class="btn btn-primary" href="/app">Go to app</a>
       {% else %}
@@ -570,6 +669,73 @@
     </div>
   </section>
 
+  <!-- Referral -->
+  <section id="referral" class="referral">
+    <div class="container">
+      <div class="section-label">Refer &amp; earn</div>
+      <h2>Share the edge.<br>Get rewarded.</h2>
+      <p class="section-sub">Invite a friend to InterviewAce. Every time they buy, you both earn &mdash; no limits on referrals.</p>
+
+      <div class="referral-inner">
+        <div class="referral-rewards">
+          <div class="reward-row">
+            <div class="reward-icon green">&#127381;</div>
+            <div class="reward-content">
+              <h4>Friend buys the intro offer</h4>
+              <p>They grab the £2 intro deal using your link</p>
+            </div>
+            <div class="reward-amount">+£2</div>
+          </div>
+
+          <div class="reward-row">
+            <div class="reward-icon green">&#9889;</div>
+            <div class="reward-content">
+              <h4>Friend subscribes</h4>
+              <p>They upgrade to the monthly plan — you get the remaining credit</p>
+            </div>
+            <div class="reward-amount">+£3</div>
+          </div>
+
+          <div class="reward-row">
+            <div class="reward-icon purple">&#127873;</div>
+            <div class="reward-content">
+              <h4>Friend gets rewarded too</h4>
+              <p>£5 off their first subscription — applied automatically at checkout</p>
+            </div>
+            <div class="reward-amount" style="background:linear-gradient(135deg,var(--accent),#8b5cf6);-webkit-background-clip:text;background-clip:text;">£5</div>
+          </div>
+
+          {% if user %}
+          <a class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:6px;">
+            Get your referral link &rarr;
+          </a>
+          {% else %}
+          <a class="btn btn-primary" href="/login" style="align-self:flex-start;margin-top:6px;">
+            Sign up to refer friends &rarr;
+          </a>
+          {% endif %}
+        </div>
+
+        <div class="referral-visual">
+          <div class="flow-card">
+            <h3>£5</h3>
+            <p>maximum credit per referral you earn</p>
+          </div>
+          <div class="flow-divider">&bull;</div>
+          <div class="flow-card">
+            <h3>&#8734;</h3>
+            <p>no limit on how many friends you refer</p>
+          </div>
+          <div class="flow-divider">&bull;</div>
+          <div class="flow-card" style="border-color:rgba(0,212,170,0.25);background:linear-gradient(160deg,rgba(0,212,170,0.05),var(--surface));">
+            <h3 style="font-size:1rem;font-weight:700;background:none;-webkit-text-fill-color:var(--text);">Credits apply to your next bill automatically</h3>
+            <p style="margin-top:4px;">No voucher codes, no manual redemption</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Pricing -->
   <section id="pricing">
     <div class="container">
@@ -635,6 +801,7 @@
     <div style="display:flex;gap:20px;">
       {% if user %}
       <a href="/app" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Dashboard</a>
+      <a href="/referral" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Refer &amp; earn</a>
       <a href="/settings" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Settings</a>
       {% else %}
       <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
