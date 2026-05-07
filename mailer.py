@@ -43,6 +43,7 @@ _REASON_LABELS = {
     "got_job":         "I got the job!",
     "too_expensive":   "Too expensive",
     "not_used_enough": "Didn't use it enough",
+    "had_issues":      "It was buggy / I had issues",
     "missing_feature": "Missing a feature",
     "other":           "Other",
 }
