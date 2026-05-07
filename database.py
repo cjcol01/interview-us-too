@@ -34,6 +34,7 @@ def init_db():
             ("sessions_remaining",  "INTEGER DEFAULT 0"),
             ("intro_redeemed",      "BOOLEAN DEFAULT 0"),
             ("intro_declined",      "BOOLEAN DEFAULT 0"),
+            ("sub_cancel_at",       "DATETIME"),
         ]
         for col, definition in migrations:
             if col not in existing:

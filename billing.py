@@ -1,4 +1,5 @@
 import stripe
+from datetime import datetime
 from sqlalchemy.orm import Session
 
 from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
@@ -53,6 +54,15 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription")
     return session.url
 
 
+def cancel_subscription(user: User) -> datetime | None:
+    if not user.stripe_sub_id:
+        raise ValueError("No active subscription found.")
+    stripe.Subscription.modify(user.stripe_sub_id, cancel_at_period_end=True)
+    sub = stripe.Subscription.retrieve(user.stripe_sub_id)
+    period_end = sub.get("cancel_at") or sub.get("trial_end")
+    return datetime.utcfromtimestamp(period_end) if period_end else None
+
+
 def create_portal_session(user: User) -> str:
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
@@ -87,8 +97,14 @@ def _sync_subscription(sub: dict, db: Session):
     user.stripe_sub_id = sub["id"]
     if sub["status"] in ("active", "trialing"):
         user.account_level = AccountLevel.unlimited
+        period_end = sub.get("cancel_at") or sub.get("trial_end")
+        if sub.get("cancel_at_period_end") and period_end:
+            user.sub_cancel_at = datetime.utcfromtimestamp(period_end)
+        elif not sub.get("cancel_at_period_end"):
+            user.sub_cancel_at = None
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
+        user.sub_cancel_at = None
     db.commit()
 
 

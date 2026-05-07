@@ -34,6 +34,7 @@ class User(Base):
     sessions_remaining = Column(Integer, default=0, nullable=False, server_default="0")
     intro_redeemed     = Column(Boolean, default=False, nullable=False, server_default="0")
     intro_declined     = Column(Boolean, default=False, nullable=False, server_default="0")
+    sub_cancel_at      = Column(DateTime, nullable=True)
 
 
 class InterviewSession(Base):

@@ -12,7 +12,7 @@ from typing import Optional
 
 import anthropic
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -20,9 +20,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import create_token, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
-from billing import create_checkout_session, create_portal_session, handle_webhook_event
+from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
 from config import AI_PROMPT, ANTHROPIC_API_KEY, BASE_URL, SERVER_HOST, SERVER_PORT
-from mailer import send_verification_email
+from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, User
 
@@ -310,6 +310,7 @@ async def settings_page(
     if not user.api_token:
         user.api_token = secrets.token_urlsafe(32)
         db.commit()
+    cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
@@ -318,6 +319,7 @@ async def settings_page(
         "sessions_remaining": user.sessions_remaining,
         "api_token": user.api_token,
         "base_url": BASE_URL,
+        "sub_cancel_at": cancel_at,
     })
 
 
@@ -506,12 +508,56 @@ async def billing_checkout(user: User = Depends(get_current_user), db: Session =
     return RedirectResponse(url)
 
 
+@app.get("/billing/cancel")
+async def billing_cancel(request: Request, user: User = Depends(get_current_user)):
+    return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={})
+
+
+@app.post("/billing/offer")
+async def billing_offer(user: User = Depends(get_current_user)):
+    # TODO: apply 50% coupon via Stripe before redirecting
+    return RedirectResponse("/settings?offer=claimed", status_code=303)
+
+
+@app.post("/billing/cancel/confirm")
+async def billing_cancel_confirm(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    reason: str = Form(default=""),
+    detail: str = Form(default=""),
+):
+    if not user.stripe_sub_id:
+        raise HTTPException(status_code=400, detail="No active subscription found.")
+    try:
+        cancel_at = cancel_subscription(user)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if cancel_at:
+        user.sub_cancel_at = cancel_at
+        db.commit()
+    if reason:
+        send_cancel_feedback_email(user.email, reason, detail, kept=False)
+    return RedirectResponse("/settings?cancelled=1", status_code=303)
+
+
+@app.post("/billing/portal")
 @app.get("/billing/portal")
 async def billing_portal(user: User = Depends(get_current_user)):
     if not user.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No billing account found.")
     url = create_portal_session(user)
-    return RedirectResponse(url)
+    return RedirectResponse(url, status_code=303)
+
+
+@app.post("/billing/feedback")
+async def billing_feedback(
+    user: User = Depends(get_current_user),
+    reason: str = Form(default=""),
+    detail: str = Form(default=""),
+):
+    if reason:
+        send_cancel_feedback_email(user.email, reason, detail, kept=True)
+    return RedirectResponse("/settings", status_code=303)
 
 
 @app.get("/billing/success")

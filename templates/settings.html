@@ -351,11 +351,21 @@
       {% if account_level == 'unlimited' %}
         <div class="row">
           <span class="row-label">Status</span>
-          <span style="font-size:0.82rem;color:var(--accent);font-weight:600;">Active subscription</span>
+          {% if sub_cancel_at %}
+            <span style="font-size:0.82rem;color:var(--danger);font-weight:600;">Cancels {{ sub_cancel_at }}</span>
+          {% else %}
+            <span style="font-size:0.82rem;color:var(--accent);font-weight:600;">Active subscription</span>
+          {% endif %}
         </div>
-        <a class="action-row cancel" href="/billing/portal">
-          Cancel subscription <span class="chevron">›</span>
-        </a>
+        {% if not sub_cancel_at %}
+          <a class="action-row cancel" href="/billing/cancel">
+            Cancel subscription <span class="chevron">›</span>
+          </a>
+        {% else %}
+          <a class="action-row upgrade" href="/billing/portal">
+            Manage billing <span class="chevron">›</span>
+          </a>
+        {% endif %}
       {% elif account_level == 'paid' %}
         <div class="row">
           <span class="row-label">Sessions</span>
