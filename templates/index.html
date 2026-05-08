@@ -661,6 +661,22 @@
             toast.classList.remove('visible');
           } else if (data.type === 'trial_expired') {
             showTrialExpired();
+          } else if (data.type === 'audio-working') {
+            statusEl.textContent = 'transcribing...';
+            statusEl.className = 'working';
+            analysisEl.innerHTML = '';
+            analysisEl.className = 'analysing';
+            badgeEl.textContent = 'mic';
+            badgeEl.className = 'audio';
+          } else if (data.type === 'audio-analysis') {
+            statusEl.textContent = 'live';
+            statusEl.className = 'live';
+            const transcriptionMd = data.transcription ? '> ' + data.transcription + '\n\n' : '';
+            analysisEl.innerHTML = marked.parse(transcriptionMd + (data.analysis || ''));
+            analysisEl.className = data.analysis ? '' : 'empty';
+            tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
+            badgeEl.textContent = 'mic';
+            badgeEl.className = 'audio';
           }
         } catch {}
       };

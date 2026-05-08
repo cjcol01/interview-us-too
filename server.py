@@ -3,6 +3,7 @@ import base64
 import json
 import os
 import secrets
+import tempfile
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass
@@ -12,17 +13,18 @@ from typing import Optional
 
 import anthropic
 import uvicorn
-from fastapi import Cookie, Depends, FastAPI, Form, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from auth import create_token, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, SERVER_HOST, SERVER_PORT
+from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, User
@@ -47,6 +49,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 SESSION_DURATION = timedelta(hours=2, minutes=30)
 TRIAL_DURATION   = timedelta(minutes=10)
@@ -596,6 +599,60 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
 
     await broadcast(user.id, "capture", state)
     return {"status": "ok", "capture_id": state["capture_id"]}
+
+
+@app.post("/api/audio-capture")
+async def api_audio_capture(
+    audio: UploadFile = File(...),
+    user: User = Depends(get_user_by_token),
+    db: Session = Depends(get_db),
+):
+    if user.account_level == AccountLevel.free:
+        raise HTTPException(status_code=403, detail="Subscription required")
+    if user.account_level == AccountLevel.trial:
+        now = datetime.utcnow()
+        session = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if not session:
+            await broadcast(user.id, "trial_expired", {})
+            raise HTTPException(status_code=403, detail="trial_expired")
+
+    await broadcast(user.id, "audio-working", {})
+
+    audio_bytes = await audio.read()
+    suffix = "." + (audio.filename or "recording.webm").rsplit(".", 1)[-1]
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+
+    try:
+        with open(tmp_path, "rb") as f:
+            transcript = await asyncio.to_thread(
+                openai_client.audio.transcriptions.create,
+                model="whisper-1",
+                file=f,
+            )
+        transcription_text = transcript.text
+    finally:
+        os.unlink(tmp_path)
+
+    prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}"
+    response = await asyncio.to_thread(
+        client.messages.create,
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    await broadcast(user.id, "audio-analysis", {
+        "transcription": transcription_text,
+        "analysis": response.content[0].text,
+        "timestamp": time.strftime("%H:%M:%S"),
+    })
+    return {"status": "ok"}
 
 
 @app.get("/api/me")

@@ -138,6 +138,85 @@ chrome.storage.onChanged.addListener((changes) => {
 
 chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
 
+// ---------------------------------------------------------------------------
+// Audio capture (hold Ctrl+Shift+U to record, release to send)
+// ---------------------------------------------------------------------------
+
+async function ensureOffscreen() {
+  const existing = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')],
+  });
+  if (existing.length === 0) {
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Microphone access for audio transcription',
+    });
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg.type === 'audio-start') {
+    handleAudioStart();
+  } else if (msg.type === 'audio-stop') {
+    handleAudioStop();
+  } else if (msg.type === 'audio-data') {
+    handleAudioData(msg.base64, msg.mimeType);
+  } else if (msg.type === 'audio-error') {
+    chrome.action.setBadgeText({ text: '' });
+    console.error('[audio] mic error:', msg.error);
+  }
+  // Return false — no async sendResponse needed
+  return false;
+});
+
+async function handleAudioStart() {
+  const { enabled } = await chrome.storage.local.get(['enabled']);
+  if (!enabled) {
+    const { is_unlimited } = await chrome.storage.local.get(['is_unlimited']);
+    await chrome.storage.local.set({ last_disabled_press: Date.now() });
+    if (!is_unlimited) await flashDisabled();
+    return;
+  }
+  await ensureOffscreen();
+  chrome.runtime.sendMessage({ type: 'start-recording' });
+  chrome.action.setBadgeText({ text: 'REC' });
+  chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
+}
+
+async function handleAudioStop() {
+  chrome.action.setBadgeText({ text: '' });
+  chrome.runtime.sendMessage({ type: 'stop-recording' });
+}
+
+async function handleAudioData(base64, mimeType) {
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+
+  // Convert base64 back to binary and upload as multipart
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], { type: mimeType });
+
+  const form = new FormData();
+  form.append('audio', blob, 'recording.webm');
+
+  try {
+    await fetch(`${server_url}/api/audio-capture`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${api_token}` },
+      body: form,
+    });
+  } catch (e) {
+    console.error('[audio] upload failed:', e.message);
+  }
+
+  // Close offscreen doc to free mic permission indicator
+  chrome.offscreen.closeDocument().catch(() => {});
+}
+
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === 'install') {
     const tabs = await chrome.tabs.query({});
