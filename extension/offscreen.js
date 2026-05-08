@@ -47,3 +47,6 @@ function stopRecording() {
     mediaRecorder.stop();
   }
 }
+
+// Signal to background that this document is loaded and ready to receive messages
+chrome.runtime.sendMessage({ type: 'offscreen-ready' });

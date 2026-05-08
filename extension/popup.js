@@ -99,6 +99,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
   });
 
+  const grantMicBtn = document.getElementById('grant_mic');
+  const micStatusEl = document.getElementById('mic_status');
+
+  async function checkMicPermission() {
+    try {
+      const result = await navigator.permissions.query({ name: 'microphone' });
+      if (result.state === 'granted') {
+        micStatusEl.textContent = 'Mic permission granted';
+        micStatusEl.className = 'status ok';
+        grantMicBtn.textContent = 'Re-test mic';
+      }
+    } catch {}
+  }
+  checkMicPermission();
+
+  grantMicBtn.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('grant-mic.html') });
+  });
+
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.last_capture) showStatus(`Last capture: ${changes.last_capture.newValue}`);
     if (changes.last_error?.newValue) showStatus(changes.last_error.newValue, true);

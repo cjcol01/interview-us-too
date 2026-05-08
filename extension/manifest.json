@@ -19,15 +19,15 @@
   "commands": {
     "capture": {
       "suggested_key": {
-        "default": "Ctrl+Shift+Y",
-        "mac": "MacCtrl+Shift+Y"
+        "default": "Ctrl+Shift+7",
+        "mac": "Command+Shift+7"
       },
       "description": "Capture current tab and analyze"
     },
     "toggle": {
       "suggested_key": {
         "default": "Ctrl+Shift+9",
-        "mac": "MacCtrl+Shift+9"
+        "mac": "Command+Shift+9"
       },
       "description": "Toggle interview assistant on/off"
     }

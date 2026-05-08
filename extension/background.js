@@ -139,24 +139,14 @@ chrome.storage.onChanged.addListener((changes) => {
 chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
 
 // ---------------------------------------------------------------------------
-// Audio capture (hold Ctrl+Shift+U to record, release to send)
+// Audio capture (hold Ctrl+Shift+8 to record, release to send)
 // ---------------------------------------------------------------------------
 
-async function ensureOffscreen() {
-  const existing = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT'],
-    documentUrls: [chrome.runtime.getURL('offscreen.html')],
-  });
-  if (existing.length === 0) {
-    await chrome.offscreen.createDocument({
-      url: 'offscreen.html',
-      reasons: ['USER_MEDIA'],
-      justification: 'Microphone access for audio transcription',
-    });
-  }
-}
+let _audioActive = false;
+let _stopPending = false;
+let _offscreenReadyResolve = null;
 
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'audio-start') {
     handleAudioStart();
   } else if (msg.type === 'audio-stop') {
@@ -164,14 +154,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   } else if (msg.type === 'audio-data') {
     handleAudioData(msg.base64, msg.mimeType);
   } else if (msg.type === 'audio-error') {
-    chrome.action.setBadgeText({ text: '' });
-    console.error('[audio] mic error:', msg.error);
+    _audioActive = false;
+    _stopPending = false;
+    chrome.action.setBadgeText({ text: 'ERR' });
+    chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
+    setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
+    chrome.offscreen.closeDocument().catch(() => {});
+  } else if (msg.type === 'offscreen-ready') {
+    _offscreenReadyResolve?.();
+    _offscreenReadyResolve = null;
   }
-  // Return false — no async sendResponse needed
   return false;
 });
 
 async function handleAudioStart() {
+  if (_audioActive) return;
+  _stopPending = false;
+
   const { enabled } = await chrome.storage.local.get(['enabled']);
   if (!enabled) {
     const { is_unlimited } = await chrome.storage.local.get(['is_unlimited']);
@@ -179,41 +178,62 @@ async function handleAudioStart() {
     if (!is_unlimited) await flashDisabled();
     return;
   }
-  await ensureOffscreen();
+
+  if (_stopPending) { _stopPending = false; return; }
+  _audioActive = true;
+
+  const existing = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')],
+  });
+
+  if (existing.length === 0) {
+    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Microphone access for audio transcription',
+    });
+    await readyPromise;
+  }
+
+  if (_stopPending) {
+    _stopPending = false;
+    _audioActive = false;
+    chrome.offscreen.closeDocument().catch(() => {});
+    return;
+  }
+
   chrome.runtime.sendMessage({ type: 'start-recording' });
   chrome.action.setBadgeText({ text: 'REC' });
   chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
 }
 
 async function handleAudioStop() {
+  if (!_audioActive) { _stopPending = true; return; }
+  _audioActive = false;
   chrome.action.setBadgeText({ text: '' });
   chrome.runtime.sendMessage({ type: 'stop-recording' });
 }
 
 async function handleAudioData(base64, mimeType) {
   const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
-  if (!server_url || !api_token) return;
-
-  // Convert base64 back to binary and upload as multipart
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  const blob = new Blob([bytes], { type: mimeType });
-
-  const form = new FormData();
-  form.append('audio', blob, 'recording.webm');
-
-  try {
-    await fetch(`${server_url}/api/audio-capture`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${api_token}` },
-      body: form,
-    });
-  } catch (e) {
-    console.error('[audio] upload failed:', e.message);
+  if (server_url && api_token) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const form = new FormData();
+    form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
+    try {
+      await fetch(`${server_url}/api/audio-capture`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${api_token}` },
+        body: form,
+      });
+    } catch (e) {
+      console.error('[audio] upload failed:', e.message);
+    }
   }
-
-  // Close offscreen doc to free mic permission indicator
   chrome.offscreen.closeDocument().catch(() => {});
 }
 

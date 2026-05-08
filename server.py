@@ -239,6 +239,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
 
 @app.post("/auth/logout")
+@app.get("/auth/logout")
 async def auth_logout():
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("session")
@@ -636,22 +637,26 @@ async def api_audio_capture(
                 file=f,
             )
         transcription_text = transcript.text
+
+        prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}"
+        response = await asyncio.to_thread(
+            client.messages.create,
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        await broadcast(user.id, "audio-analysis", {
+            "transcription": transcription_text,
+            "analysis": response.content[0].text,
+            "timestamp": time.strftime("%H:%M:%S"),
+        })
+    except Exception as exc:
+        await broadcast(user.id, "audio-error", {"message": str(exc)})
+        raise HTTPException(status_code=500, detail="Audio processing failed")
     finally:
         os.unlink(tmp_path)
 
-    prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}"
-    response = await asyncio.to_thread(
-        client.messages.create,
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-
-    await broadcast(user.id, "audio-analysis", {
-        "transcription": transcription_text,
-        "analysis": response.content[0].text,
-        "timestamp": time.strftime("%H:%M:%S"),
-    })
     return {"status": "ok"}
 
 

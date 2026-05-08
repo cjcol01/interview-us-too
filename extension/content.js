@@ -5,18 +5,18 @@ document.addEventListener('interview-ace:connect', (e) => {
   });
 });
 
-// Hold Ctrl+Shift+U to record audio; release to send
 let _audioRecording = false;
 
 document.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.shiftKey && e.code === 'KeyU' && !e.repeat && !_audioRecording) {
+  const trigger = (e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Digit8';
+  if (trigger && !e.repeat && !_audioRecording) {
     _audioRecording = true;
     chrome.runtime.sendMessage({ type: 'audio-start' });
   }
 }, true);
 
 document.addEventListener('keyup', (e) => {
-  if (e.code === 'KeyU' && _audioRecording) {
+  if (e.code === 'Digit8' && _audioRecording) {
     _audioRecording = false;
     chrome.runtime.sendMessage({ type: 'audio-stop' });
   }

@@ -677,6 +677,13 @@
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
+          } else if (data.type === 'audio-error') {
+            statusEl.textContent = 'live';
+            statusEl.className = 'live';
+            analysisEl.textContent = 'Audio error: ' + (data.message || 'unknown error');
+            analysisEl.className = '';
+            badgeEl.textContent = 'mic';
+            badgeEl.className = 'audio';
           }
         } catch {}
       };
