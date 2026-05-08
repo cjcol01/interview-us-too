@@ -521,7 +521,7 @@ async def trial_status(user: User = Depends(get_current_user), db: Session = Dep
         InterviewSession.ended_at == None,  # noqa: E711
     ).order_by(InterviewSession.started_at.desc()).first()
     if not session:
-        return {"is_trial": True, "started": False, "seconds_remaining": 0}
+        return {"is_trial": True, "started": False, "seconds_remaining": 0, "user_id": user.id}
     now = datetime.utcnow()
     remaining = max(0, (session.expires_at - now).total_seconds())
     return {
@@ -529,6 +529,7 @@ async def trial_status(user: User = Depends(get_current_user), db: Session = Dep
         "started": True,
         "seconds_remaining": int(remaining),
         "expired": remaining == 0,
+        "user_id": user.id,
     }
 
 

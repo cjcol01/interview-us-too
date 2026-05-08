@@ -473,25 +473,8 @@
       document.getElementById('warning-overlay').classList.remove('visible');
     }
 
-    async function confirmStart() {
-      document.getElementById('wm-confirm').disabled = true;
-      document.getElementById('wm-confirm').textContent = 'Starting...';
-      try {
-        const resp = await fetch('/api/trial/start', { method: 'POST' });
-        if (resp.ok || resp.status === 400) {
-          window.location.href = '/app';
-        } else {
-          const data = await resp.json().catch(() => ({}));
-          closeWarning();
-          document.getElementById('wm-confirm').disabled = false;
-          document.getElementById('wm-confirm').textContent = 'Got it — start practice trial';
-          alert(data.detail || 'Something went wrong. Please try again.');
-        }
-      } catch {
-        closeWarning();
-        document.getElementById('wm-confirm').disabled = false;
-        document.getElementById('wm-confirm').textContent = 'Got it — start practice trial';
-      }
+    function confirmStart() {
+      window.location.href = '/app';
     }
   </script>
 </body>

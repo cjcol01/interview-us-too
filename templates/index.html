@@ -62,7 +62,7 @@
 
     .header-right { display: flex; align-items: center; gap: 8px; position: relative; }
 
-    #menu-btn {
+    #menu-btn, #tutorial-btn {
       background: none;
       border: none;
       color: #555;
@@ -74,7 +74,9 @@
       justify-content: center;
       transition: color 0.15s;
     }
-    #menu-btn:hover { color: #aaa; }
+    #menu-btn:hover, #tutorial-btn:hover { color: #aaa; }
+    #tutorial-btn { color: #6c63ff; }
+    #tutorial-btn:hover { color: #a89fff; }
 
     #dropdown {
       display: none;
@@ -328,52 +330,6 @@
     .ts-footer a { color: #555; text-decoration: none; }
     .ts-footer a:hover { color: #888; }
 
-    #ts-warning-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.88);
-      z-index: 300;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    #ts-warning-overlay.visible { display: flex; }
-    .ts-wm {
-      background: #141414;
-      border: 1px solid #5a1e1e;
-      border-radius: 14px;
-      padding: 28px 24px;
-      max-width: 340px;
-      width: 100%;
-    }
-    .ts-wm-icon { font-size: 1.8rem; margin-bottom: 12px; }
-    .ts-wm h3 { font-size: 1rem; font-weight: 700; color: #f09090; margin-bottom: 10px; }
-    .ts-wm p { font-size: 0.85rem; color: #888; line-height: 1.6; margin-bottom: 20px; }
-    .ts-wm p strong { color: #ccc; }
-    .ts-wm-actions { display: flex; flex-direction: column; gap: 8px; }
-    #ts-wm-confirm {
-      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
-      border: none;
-      border-radius: 8px;
-      color: #fff;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 600;
-      padding: 12px;
-      width: 100%;
-    }
-    #ts-wm-cancel {
-      background: none;
-      border: 1px solid #2a2a2a;
-      border-radius: 8px;
-      color: #666;
-      cursor: pointer;
-      font-size: 0.85rem;
-      padding: 10px;
-      width: 100%;
-    }
-    #ts-wm-cancel:hover { color: #aaa; border-color: #444; }
 
     #trial-bar {
       background: #1a1400;
@@ -460,9 +416,165 @@
       color: #e09090;
     }
 
+    /* ── Hint toast ──────────────────────────────────────────────────────── */
+    #hint-toast {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #1a1a2e;
+      border: 1px solid #3a3a6a;
+      border-radius: 12px;
+      padding: 14px 16px;
+      max-width: 280px;
+      z-index: 150;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+      animation: hint-in 0.25s ease;
+    }
+    #hint-toast.visible { display: block; }
+    @keyframes hint-in {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #hint-toast p { font-size: 0.85rem; color: #bbb; line-height: 1.55; margin: 0; padding-right: 18px; }
+    #hint-toast p strong { color: #e0e0ff; }
+    #hint-dismiss {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: none;
+      border: none;
+      color: #444;
+      cursor: pointer;
+      font-size: 0.9rem;
+      line-height: 1;
+      padding: 2px;
+    }
+    #hint-dismiss:hover { color: #888; }
+
+    /* ── Tutorial modals ──────────────────────────────────────────────────── */
+    .tutorial-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.92);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .tutorial-overlay.visible { display: flex; }
+
+    .tutorial-modal {
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 16px;
+      padding: 32px 24px;
+      max-width: 340px;
+      width: 100%;
+      text-align: center;
+    }
+    .t-step-pill {
+      display: inline-block;
+      font-size: 0.7rem;
+      color: #555;
+      background: #1e1e1e;
+      border-radius: 999px;
+      padding: 2px 10px;
+      margin-bottom: 18px;
+      letter-spacing: 0.04em;
+    }
+    .tutorial-modal .t-icon { font-size: 2rem; margin-bottom: 12px; }
+    .tutorial-modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+    .tutorial-modal p { font-size: 0.85rem; color: #888; line-height: 1.6; margin-bottom: 20px; }
+    .tutorial-modal p strong { color: #ccc; }
+    .tutorial-modal kbd, #hint-toast kbd {
+      background: #1e1e2a;
+      border: 1px solid #3a3a5a;
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: monospace;
+      font-size: 0.82rem;
+      color: #a0a0e0;
+    }
+    .t-btn-primary {
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      border: none;
+      border-radius: 9px;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      padding: 13px 20px;
+      width: 100%;
+      box-shadow: 0 0 20px rgba(108,99,255,0.35);
+      margin-bottom: 10px;
+    }
+    .t-btn-ghost {
+      background: none;
+      border: none;
+      color: #444;
+      cursor: pointer;
+      font-size: 0.82rem;
+      padding: 8px;
+      width: 100%;
+    }
+    .t-btn-ghost:hover { color: #777; }
+    .tutorial-modal p.t-waiting-hint {
+      font-size: 0.78rem;
+      color: #444;
+      margin-bottom: 14px;
+    }
+
   </style>
 </head>
 <body>
+  <!-- Tutorial Step 1: Pin the extension -->
+  <div id="tutorial-overlay-1" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">1 / 4</div>
+      <div class="t-icon">📌</div>
+      <h2>Pin the extension</h2>
+      <p>Click the <strong>🧩 extensions icon</strong> in your Chrome toolbar, then click the <strong>pin</strong> next to InterviewAce. This keeps it one click away during interviews.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(1)">It's pinned ✓</button>
+      <button class="t-btn-ghost" onclick="advanceTutorial(1)">I don't want to pin it</button>
+    </div>
+  </div>
+
+  <!-- Tutorial Step 2: Toggle shortcut -->
+  <div id="tutorial-overlay-2" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">2 / 4</div>
+      <div class="t-icon">⌨️</div>
+      <h2>Turn it on and off</h2>
+      <p>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>9</kbd> on your computer to arm the extension. Try it now — this step closes automatically when you do.</p>
+      <p class="t-waiting-hint">Waiting for keypress...</p>
+      <button class="t-btn-ghost" onclick="advanceTutorial(2)">Skip</button>
+    </div>
+  </div>
+
+  <!-- Tutorial Step 3: Image capture -->
+  <div id="tutorial-overlay-3" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">3 / 4</div>
+      <div class="t-icon">📸</div>
+      <h2>Image capture</h2>
+      <p>With the extension armed, press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>7</kbd> on your computer. It captures your screen, runs AI analysis, and streams hints to this page.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(3)">Got it →</button>
+    </div>
+  </div>
+
+  <!-- Tutorial Step 4: Voice capture -->
+  <div id="tutorial-overlay-4" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">4 / 4</div>
+      <div class="t-icon">🎤</div>
+      <h2>Voice capture</h2>
+      <p>Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>8</kbd> to record audio instead. Speak the problem or think out loud — the AI transcribes and responds with guidance.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(4)">Let's go →</button>
+    </div>
+  </div>
+
   <!-- Trial not-started overlay (shown on second device before starting) -->
   <div id="trial-start-overlay">
     <div class="trial-start-modal">
@@ -476,22 +588,9 @@
         </svg>
         <p><strong>Practice only.</strong> 10 minutes is not enough for a real interview — use this to test the setup.</p>
       </div>
-      <button id="ts-start-btn" onclick="tsShowWarning()">Start 10-minute trial</button>
+      <button id="ts-start-btn" onclick="tsConfirmStart()">Start 10-minute trial</button>
       <p class="ts-footer">No card required &nbsp;&middot;&nbsp; <a href="/auth/logout">sign out</a></p>
       <p class="ts-footer" style="margin-top:8px;"><a href="/onboarding">Haven't connected the extension on your computer? Go to setup &rarr;</a></p>
-    </div>
-  </div>
-
-  <!-- Warning confirmation for second-device start -->
-  <div id="ts-warning-overlay">
-    <div class="ts-wm">
-      <div class="ts-wm-icon">&#9888;&#65039;</div>
-      <h3>Trial is for practice only</h3>
-      <p>Your free trial lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
-      <div class="ts-wm-actions">
-        <button id="ts-wm-confirm" onclick="tsConfirmStart()">Got it — start practice trial</button>
-        <button id="ts-wm-cancel" onclick="tsCloseWarning()">Cancel</button>
-      </div>
     </div>
   </div>
 
@@ -510,6 +609,11 @@
     <p>Interview assistant not started. To start discreetly, press <kbd>Ctrl+Shift+9</kbd>, then <kbd>Ctrl+Shift+Y</kbd> to capture a screenshot for analysis.</p>
   </div>
 
+  <div id="hint-toast">
+    <button id="hint-dismiss" onclick="document.getElementById('hint-toast').classList.remove('visible')">&times;</button>
+    <p>Try it — press <kbd id="hint-kbd">Ctrl+Shift+8</kbd> and say <strong>"what's an API?"</strong></p>
+  </div>
+
   <header>
     <div class="header-left">
       <h1>Screen Monitor</h1>
@@ -517,6 +621,13 @@
     </div>
     <div class="header-right">
       <span id="status">connecting...</span>
+      <button id="tutorial-btn" onclick="restartTutorial()" aria-label="How it works">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="8.01"/>
+          <path d="M12 12v4"/>
+        </svg>
+      </button>
       <button id="menu-btn" onclick="toggleMenu(event)" aria-label="Menu">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/>
@@ -725,6 +836,8 @@
 
     let _trialSecs = 0;
     let _trialTick = null;
+    let _tutorialKey = 'ia_tutorial_v1';
+    let _shortcutHandler = null;
 
     function showTrialExpired() {
       clearInterval(_trialTick);
@@ -767,8 +880,13 @@
         if (!resp.ok) return;
         const data = await resp.json();
         if (!data.is_trial) return;
+        if (data.user_id) _tutorialKey = 'ia_tutorial_v1_' + data.user_id;
         if (!data.started) {
-          document.getElementById('trial-start-overlay').classList.add('visible');
+          if (!localStorage.getItem(_tutorialKey)) {
+            showTutorialStep(1);
+          } else {
+            document.getElementById('trial-start-overlay').classList.add('visible');
+          }
           return;
         }
         if (data.expired || data.seconds_remaining <= 0) { showTrialExpired(); return; }
@@ -776,33 +894,87 @@
       } catch {}
     }
 
-    // Second-device start flow
-    function tsShowWarning() {
-      document.getElementById('ts-warning-overlay').classList.add('visible');
-    }
-    function tsCloseWarning() {
-      document.getElementById('ts-warning-overlay').classList.remove('visible');
-    }
     async function tsConfirmStart() {
-      const btn = document.getElementById('ts-wm-confirm');
+      const btn = document.getElementById('ts-start-btn');
       btn.disabled = true;
       btn.textContent = 'Starting...';
       try {
         const resp = await fetch('/api/trial/start', { method: 'POST' });
         if (resp.ok || resp.status === 400) {
           document.getElementById('trial-start-overlay').classList.remove('visible');
-          document.getElementById('ts-warning-overlay').classList.remove('visible');
           const r = await fetch('/api/trial/status');
           const d = await r.json();
           if (d.started && !d.expired) _startCountdown(d.seconds_remaining);
         } else {
           btn.disabled = false;
-          btn.textContent = 'Got it — start practice trial';
+          btn.textContent = 'Start 10-minute trial';
         }
       } catch {
         btn.disabled = false;
-        btn.textContent = 'Got it — start practice trial';
+        btn.textContent = 'Start 10-minute trial';
       }
+    }
+
+    // ── Tutorial ────────────────────────────────────────────────────────────
+
+    function showTutorialStep(n) {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
+      }
+      if (_shortcutHandler) {
+        document.removeEventListener('keydown', _shortcutHandler);
+        _shortcutHandler = null;
+      }
+      document.getElementById('tutorial-overlay-' + n).classList.add('visible');
+      if (n === 2) {
+        _shortcutHandler = function(e) {
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'Digit9') {
+            advanceTutorial(2);
+          }
+        };
+        document.addEventListener('keydown', _shortcutHandler);
+      }
+    }
+
+    function advanceTutorial(from) {
+      if (_shortcutHandler) {
+        document.removeEventListener('keydown', _shortcutHandler);
+        _shortcutHandler = null;
+      }
+      if (from >= 4) {
+        completeTutorial();
+      } else {
+        showTutorialStep(from + 1);
+      }
+    }
+
+    function completeTutorial() {
+      for (let i = 1; i <= 4; i++) {
+        document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
+      }
+      localStorage.setItem(_tutorialKey, '1');
+      if (!_trialTick) {
+        document.getElementById('trial-start-overlay').classList.add('visible');
+      } else {
+        setTimeout(showHintToast, 5000);
+      }
+    }
+
+    function restartTutorial() {
+      dropdown.classList.remove('open');
+      showTutorialStep(1);
+    }
+
+    function showHintToast() {
+      document.getElementById('hint-toast').classList.add('visible');
+    }
+
+    if (/Mac/.test(navigator.platform)) {
+      document.querySelectorAll('.tutorial-modal kbd').forEach(el => {
+        if (el.textContent === 'Ctrl') el.textContent = 'Cmd';
+      });
+      const hintKbd = document.getElementById('hint-kbd');
+      if (hintKbd) hintKbd.textContent = 'Cmd+Shift+8';
     }
 
     connect();
