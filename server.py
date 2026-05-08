@@ -49,6 +49,7 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
 )
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 SESSION_DURATION = timedelta(hours=2, minutes=30)
@@ -582,8 +583,8 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
 
     prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity]
 
-    response = await asyncio.to_thread(
-        client.messages.create,
+    full_text = ""
+    async with async_client.messages.stream(
         model="claude-sonnet-4-6",
         max_tokens=1024,
         messages=[{
@@ -593,9 +594,12 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
                 {"type": "text", "text": prompt},
             ],
         }],
-    )
+    ) as stream:
+        async for text in stream.text_stream:
+            full_text += text
+            await broadcast(user.id, "chunk", {"text": text, "capture_id": state["capture_id"]})
 
-    state["analysis"] = response.content[0].text
+    state["analysis"] = full_text
     state["timestamp"] = time.strftime("%H:%M:%S")
 
     await broadcast(user.id, "capture", state)
@@ -639,16 +643,19 @@ async def api_audio_capture(
         transcription_text = transcript.text
 
         prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}"
-        response = await asyncio.to_thread(
-            client.messages.create,
+        full_text = ""
+        async with async_client.messages.stream(
             model="claude-sonnet-4-6",
             max_tokens=1024,
             messages=[{"role": "user", "content": prompt}],
-        )
+        ) as stream:
+            async for text in stream.text_stream:
+                full_text += text
+                await broadcast(user.id, "chunk", {"text": text})
 
         await broadcast(user.id, "audio-analysis", {
             "transcription": transcription_text,
-            "analysis": response.content[0].text,
+            "analysis": full_text,
             "timestamp": time.strftime("%H:%M:%S"),
         })
     except Exception as exc:

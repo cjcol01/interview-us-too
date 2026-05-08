@@ -16,7 +16,12 @@ document.addEventListener('keydown', (e) => {
 }, true);
 
 document.addEventListener('keyup', (e) => {
-  if (e.code === 'Digit8' && _audioRecording) {
+  if (!_audioRecording) return;
+  const released = e.code === 'Digit8'
+    || e.code === 'MetaLeft' || e.code === 'MetaRight'
+    || e.code === 'ShiftLeft' || e.code === 'ShiftRight'
+    || e.code === 'ControlLeft' || e.code === 'ControlRight';
+  if (released) {
     _audioRecording = false;
     chrome.runtime.sendMessage({ type: 'audio-stop' });
   }

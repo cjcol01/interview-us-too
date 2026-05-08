@@ -588,6 +588,7 @@
     const analysisEl = document.getElementById('analysis');
     const tsEl       = document.getElementById('timestamp');
     const badgeEl    = document.getElementById('monitor-badge');
+    let _streamBuffer = '';
 
     const wrapEl = document.getElementById('screenshot-wrap');
 
@@ -635,6 +636,7 @@
         try {
           const data = JSON.parse(e.data);
           if (data.type === 'working') {
+            _streamBuffer = '';
             statusEl.textContent = 'analysing...';
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
@@ -644,7 +646,12 @@
             phEl.style.display = 'none';
             badgeEl.textContent = data.monitor || '';
             badgeEl.className = data.monitor || '';
+          } else if (data.type === 'chunk') {
+            _streamBuffer += data.text;
+            analysisEl.innerHTML = marked.parse(_streamBuffer);
+            analysisEl.className = '';
           } else if (data.type === 'capture') {
+            _streamBuffer = '';
             applyCapture(data);
             statusEl.textContent = 'live';
             statusEl.className = 'live';
@@ -662,6 +669,7 @@
           } else if (data.type === 'trial_expired') {
             showTrialExpired();
           } else if (data.type === 'audio-working') {
+            _streamBuffer = '';
             statusEl.textContent = 'transcribing...';
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
@@ -669,6 +677,7 @@
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
           } else if (data.type === 'audio-analysis') {
+            _streamBuffer = '';
             statusEl.textContent = 'live';
             statusEl.className = 'live';
             const transcriptionMd = data.transcription ? '> ' + data.transcription + '\n\n' : '';
