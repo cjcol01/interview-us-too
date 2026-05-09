@@ -17,6 +17,7 @@ from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAI
 from pydantic import BaseModel, Field
@@ -42,6 +43,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+app.mount("/css", StaticFiles(directory="css"), name="css")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -67,6 +69,23 @@ COMPLEXITY_SUFFIX = {
 @dataclass
 class UserSettings:
     complexity: int = 2
+
+
+class HotkeySettings(BaseModel):
+    capture: str
+    audio:   str
+    toggle:  str
+
+
+HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9"}
+
+
+def _user_hotkeys(user) -> dict:
+    return {
+        "capture": user.hotkey_capture or HOTKEY_DEFAULTS["capture"],
+        "audio":   user.hotkey_audio   or HOTKEY_DEFAULTS["audio"],
+        "toggle":  user.hotkey_toggle  or HOTKEY_DEFAULTS["toggle"],
+    }
 
 
 # Per-user state — keyed by user.id
@@ -149,10 +168,10 @@ class CaptureRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 @app.get("/login")
-async def login_page(user: Optional[User] = Depends(get_optional_user)):
+async def login_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if user:
         return RedirectResponse("/app")
-    return HTMLResponse(Path("templates/login.html").read_text(encoding="utf-8"))
+    return templates.TemplateResponse(request=request, name="login.html", context={})
 
 
 @app.post("/auth/login")
@@ -257,7 +276,7 @@ async def landing(request: Request, user: Optional[User] = Depends(get_optional_
 
 
 @app.get("/app")
-async def index(user: Optional[User] = Depends(get_optional_user)):
+async def index(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if not user:
         return RedirectResponse("/login")
     if not user.email_verified:
@@ -266,7 +285,8 @@ async def index(user: Optional[User] = Depends(get_optional_user)):
         return RedirectResponse("/pricing")
     if user.account_level == AccountLevel.trial and not user.setup_complete:
         return RedirectResponse("/onboarding")
-    return HTMLResponse(Path("templates/index.html").read_text(encoding="utf-8"))
+    hk = _user_hotkeys(user)
+    return templates.TemplateResponse(request=request, name="index.html", context=hk)
 
 
 @app.get("/onboarding")
@@ -284,9 +304,13 @@ async def onboarding_page(
     if not user.api_token:
         user.api_token = secrets.token_urlsafe(32)
         db.commit()
+    hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="onboarding.html", context={
         "api_token": user.api_token,
         "base_url": BASE_URL,
+        "hotkey_capture": hk["capture"],
+        "hotkey_audio":   hk["audio"],
+        "hotkey_toggle":  hk["toggle"],
     })
 
 
@@ -302,10 +326,10 @@ async def verify_pending(request: Request, user: Optional[User] = Depends(get_op
 
 
 @app.get("/trial-end")
-async def trial_end(user: Optional[User] = Depends(get_optional_user)):
+async def trial_end(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if not user:
         return RedirectResponse("/login")
-    return HTMLResponse(Path("templates/trial_end.html").read_text(encoding="utf-8"))
+    return templates.TemplateResponse(request=request, name="trial_end.html", context={})
 
 
 @app.get("/pricing")
@@ -326,8 +350,8 @@ def _require_author(credentials: HTTPBasicCredentials = Depends(_basic)):
         raise HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
 
 @app.get("/verify-author")
-async def author_page(_: None = Depends(_require_author)):
-    return HTMLResponse(Path("templates/author.html").read_text(encoding="utf-8"))
+async def author_page(request: Request, _: None = Depends(_require_author)):
+    return templates.TemplateResponse(request=request, name="author.html", context={})
 
 
 @app.get("/r/{code}")
@@ -441,6 +465,7 @@ async def settings_page(
         "already_referred": "You've already applied a referral code.",
         "self_referral": "You can't use your own referral code.",
     }
+    hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
@@ -453,6 +478,9 @@ async def settings_page(
         "is_referred": user.referred_by_id is not None,
         "ref_success": ref_success == "1",
         "ref_error_msg": _error_messages.get(ref_error),
+        "hotkey_capture": hk["capture"],
+        "hotkey_audio":   hk["audio"],
+        "hotkey_toggle":  hk["toggle"],
     })
 
 
@@ -670,7 +698,16 @@ async def api_audio_capture(
 
 @app.get("/api/me")
 async def api_me(user: User = Depends(get_user_by_token)):
-    return {"account_level": user.account_level.value}
+    return {"account_level": user.account_level.value, "hotkeys": _user_hotkeys(user)}
+
+
+@app.post("/api/settings/hotkeys")
+async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.hotkey_capture = data.capture
+    user.hotkey_audio   = data.audio
+    user.hotkey_toggle  = data.toggle
+    db.commit()
+    return {"status": "ok"}
 
 
 @app.post("/api/notify/disabled")

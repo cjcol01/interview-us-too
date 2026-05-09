@@ -37,6 +37,9 @@ def init_db():
             ("sub_cancel_at",       "DATETIME"),
             ("referral_code",       "VARCHAR"),
             ("referred_by_id",      "INTEGER"),
+            ("hotkey_capture",      "VARCHAR"),
+            ("hotkey_audio",        "VARCHAR"),
+            ("hotkey_toggle",       "VARCHAR"),
         ]
         for col, definition in migrations:
             if col not in existing:

@@ -9,7 +9,7 @@
   <div id="confirm-overlay" class="confirm-overlay hidden">
     <div class="confirm-box">
       <p class="confirm-title">Start a session?</p>
-      <p class="confirm-body">Each time you press <kbd>Ctrl+Shift+Y</kbd> it will send your screen to the AI and consume one token from your plan.</p>
+      <p class="confirm-body">Each time you press <kbd id="confirm-capture-key">Ctrl+Shift+7</kbd> it will send your screen to the AI and consume one token from your plan.</p>
       <div class="confirm-actions">
         <button id="confirm-cancel" class="confirm-btn">Cancel</button>
         <button id="confirm-ok" class="confirm-btn ok">Got it, turn on</button>
@@ -51,7 +51,7 @@
     <button id="grant_mic">Grant mic permission</button>
     <div id="mic_status" class="status"></div>
 
-    <p class="hint">Screen&nbsp;<kbd>Ctrl+Shift+7</kbd>&nbsp;&nbsp;Audio&nbsp;<kbd>Ctrl+Shift+8</kbd></p>
+    <p class="hint">Screen&nbsp;<kbd id="hint-capture">Ctrl+Shift+7</kbd>&nbsp;&nbsp;Audio&nbsp;<kbd id="hint-audio">Ctrl+Shift+8</kbd>&nbsp;&nbsp;Toggle&nbsp;<kbd id="hint-toggle">Ctrl+Shift+9</kbd></p>
   </div>
   <script src="popup.js"></script>
 </body>

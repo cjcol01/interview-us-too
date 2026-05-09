@@ -37,6 +37,9 @@ class User(Base):
     sub_cancel_at      = Column(DateTime, nullable=True)
     referral_code      = Column(String, nullable=True, unique=True, index=True)
     referred_by_id     = Column(Integer, ForeignKey("users.id"), nullable=True)
+    hotkey_capture     = Column(String, nullable=True)
+    hotkey_audio       = Column(String, nullable=True)
+    hotkey_toggle      = Column(String, nullable=True)
 
 
 class ReferralStatus(str, enum.Enum):

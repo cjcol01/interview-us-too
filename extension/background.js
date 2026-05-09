@@ -6,8 +6,15 @@ async function fetchAccountLevel() {
       headers: { 'Authorization': `Bearer ${api_token}` },
     });
     if (resp.ok) {
-      const { account_level } = await resp.json();
+      const { account_level, hotkeys } = await resp.json();
       await chrome.storage.local.set({ is_unlimited: account_level === 'unlimited' });
+      if (hotkeys) {
+        await chrome.storage.local.set({
+          hotkey_capture: hotkeys.capture,
+          hotkey_audio:   hotkeys.audio,
+          hotkey_toggle:  hotkeys.toggle,
+        });
+      }
     }
   } catch {}
 }
@@ -89,22 +96,27 @@ async function notifyEnabled() {
   }).catch(() => {});
 }
 
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command === 'capture') {
-    const { enabled, is_unlimited } = await chrome.storage.local.get(['enabled', 'is_unlimited']);
-    if (!enabled) {
-      await chrome.storage.local.set({ last_disabled_press: Date.now() });
-      if (!is_unlimited) await flashDisabled();
-      return;
-    }
-    doCapture();
-  } else if (command === 'toggle') {
-    const { enabled } = await chrome.storage.local.get(['enabled']);
-    const next = !enabled;
-    await chrome.storage.local.set({ enabled: next });
-    if (next) await notifyEnabled();
+async function handleCapture() {
+  const { enabled, is_unlimited } = await chrome.storage.local.get(['enabled', 'is_unlimited']);
+  if (!enabled) {
+    await chrome.storage.local.set({ last_disabled_press: Date.now() });
+    if (!is_unlimited) await flashDisabled();
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab) chrome.tabs.sendMessage(tab.id, { type: 'show-disabled' }).catch(() => {});
+    return;
   }
-});
+  doCapture();
+}
+
+async function handleToggle(senderTabId) {
+  const { enabled } = await chrome.storage.local.get(['enabled']);
+  const next = !enabled;
+  await chrome.storage.local.set({ enabled: next });
+  if (next) await notifyEnabled();
+  if (senderTabId) {
+    chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: next }).catch(() => {});
+  }
+}
 
 function makeIconImageData(size, enabled) {
   const canvas = new OffscreenCanvas(size, size);
@@ -146,8 +158,12 @@ let _audioActive = false;
 let _stopPending = false;
 let _offscreenReadyResolve = null;
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg.type === 'audio-start') {
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg.type === 'capture') {
+    handleCapture();
+  } else if (msg.type === 'toggle') {
+    handleToggle(sender.tab?.id);
+  } else if (msg.type === 'audio-start') {
     handleAudioStart();
   } else if (msg.type === 'audio-stop') {
     handleAudioStop();
@@ -176,6 +192,8 @@ async function handleAudioStart() {
     const { is_unlimited } = await chrome.storage.local.get(['is_unlimited']);
     await chrome.storage.local.set({ last_disabled_press: Date.now() });
     if (!is_unlimited) await flashDisabled();
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab) chrome.tabs.sendMessage(tab.id, { type: 'show-disabled' }).catch(() => {});
     return;
   }
 
@@ -238,7 +256,7 @@ async function handleAudioData(base64, mimeType) {
 }
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  if (reason === 'install') {
+  if (reason === 'install' || reason === 'update') {
     const tabs = await chrome.tabs.query({});
     for (const tab of tabs) {
       if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) continue;

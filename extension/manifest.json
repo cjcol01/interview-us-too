@@ -15,21 +15,5 @@
   "content_scripts": [{
     "matches": ["<all_urls>"],
     "js": ["content.js"]
-  }],
-  "commands": {
-    "capture": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+7",
-        "mac": "Command+Shift+7"
-      },
-      "description": "Capture current tab and analyze"
-    },
-    "toggle": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+9",
-        "mac": "Command+Shift+9"
-      },
-      "description": "Toggle interview assistant on/off"
-    }
-  }
+  }]
 }

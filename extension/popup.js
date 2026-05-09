@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const { server_url, api_token, complexity, last_capture, last_error, enabled } =
-    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error', 'enabled']);
+  const { server_url, api_token, complexity, last_capture, last_error, enabled,
+          hotkey_capture, hotkey_audio, hotkey_toggle } =
+    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error', 'enabled',
+                                    'hotkey_capture', 'hotkey_audio', 'hotkey_toggle']);
 
   const serverInput   = document.getElementById('server_url');
   const tokenInput    = document.getElementById('api_token');
@@ -15,6 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   if (server_url) serverInput.value = server_url;
   if (api_token)  tokenInput.value  = api_token;
+
+  document.getElementById('hint-capture').textContent     = hotkey_capture || 'Ctrl+Shift+7';
+  document.getElementById('hint-audio').textContent       = hotkey_audio   || 'Ctrl+Shift+8';
+  document.getElementById('hint-toggle').textContent      = hotkey_toggle  || 'Ctrl+Shift+9';
+  document.getElementById('confirm-capture-key').textContent = hotkey_capture || 'Ctrl+Shift+7';
 
   let isEnabled = enabled ?? false;
 
@@ -130,7 +137,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (changes.last_disabled_press) {
-      showStatus('Interview assistant not started. Press Ctrl+Shift+9 to start discreetly, then Ctrl+Shift+Y to capture.', true);
+      chrome.storage.local.get(['hotkey_toggle', 'hotkey_capture'], (r) => {
+        const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+9';
+        const capture = r.hotkey_capture || 'Ctrl+Shift+7';
+        showStatus(`Interview assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
+      });
     }
   });
 });

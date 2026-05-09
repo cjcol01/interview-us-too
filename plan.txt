@@ -34,7 +34,10 @@ LANDING PAGE
 - change sign in buttons dynamically to show sign in /out ✅
 - handle navigation around the website better - navbar etc
  
-
+FEATURES
+- mic settings and mic test
+- mac 'enable' the whole time
+ 
 SETTINGS PAGE
 - account_level shows "Trial" even after the trial session has expired — could show "Trial (expired)" ✅
   by passing trial status into the settings template and checking it there ✅

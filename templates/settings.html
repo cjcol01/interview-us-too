@@ -1,351 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>Settings — InterviewAce</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:      #080810;
-      --surface: #0f0f1a;
-      --border:  #1e1e2e;
-      --accent:  #6c63ff;
-      --accent2: #00d4aa;
-      --text:    #e2e2f0;
-      --muted:   #6b6b8a;
-      --danger:  #f87171;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      background: rgba(8,8,16,0.85);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      padding: 10px 14px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
-      position: sticky;
-      top: 0;
-      z-index: 10;
-    }
-
-    .back-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 4px;
-      display: flex;
-      align-items: center;
-      border-radius: 4px;
-      transition: color 0.15s;
-      text-decoration: none;
-    }
-    .back-btn:hover { color: var(--text); }
-
-    .logo {
-      font-size: 0.95rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    main {
-      flex: 1;
-      padding: 20px 16px 48px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      max-width: 540px;
-      margin: 0 auto;
-      width: 100%;
-    }
-
-    .section-label {
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--muted);
-      padding: 0 4px;
-      margin-bottom: -8px;
-    }
-
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      overflow: hidden;
-    }
-
-    .row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 13px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.88rem;
-      color: var(--text);
-      gap: 12px;
-    }
-    .row:last-child { border-bottom: none; }
-
-    .row-label { color: var(--muted); flex-shrink: 0; }
-    .row-value { font-size: 0.85rem; color: var(--muted); text-align: right; }
-
-    /* ── Plan badges ── */
-    .badge-paid {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      background: rgba(0,212,170,0.1);
-      border: 1px solid rgba(0,212,170,0.3);
-      border-radius: 20px;
-      color: var(--accent2);
-      font-size: 0.72rem;
-      font-weight: 700;
-      padding: 3px 10px;
-    }
-
-    .badge-unlimited {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: linear-gradient(135deg, rgba(108,99,255,0.2), rgba(139,92,246,0.2));
-      border: 1px solid rgba(108,99,255,0.4);
-      border-radius: 20px;
-      font-size: 0.72rem;
-      font-weight: 800;
-      padding: 4px 12px;
-      background-clip: padding-box;
-      position: relative;
-    }
-    .badge-unlimited span {
-      background: linear-gradient(135deg, var(--accent), #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .badge-unlimited::before {
-      content: '✦';
-      font-size: 0.6rem;
-      color: var(--accent);
-    }
-
-    /* ── Action rows ── */
-    .action-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 13px 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.88rem;
-      text-decoration: none;
-      cursor: pointer;
-      transition: background 0.12s;
-      background: none;
-      border-left: none;
-      border-right: none;
-      border-top: none;
-      width: 100%;
-      text-align: left;
-    }
-    .action-row:last-child { border-bottom: none; }
-    .action-row:hover { background: rgba(255,255,255,0.03); }
-
-    .action-row.upgrade {
-      color: var(--accent2);
-    }
-    .action-row.upgrade-sub {
-      color: var(--accent);
-    }
-    .action-row.cancel {
-      color: var(--danger);
-    }
-    .action-row.signout {
-      color: var(--danger);
-    }
-    .action-row .chevron {
-      color: var(--muted);
-      font-size: 0.8rem;
-    }
-
-    /* ── Referral code entry ── */
-    .ref-form { padding: 12px 16px; border-top: 1px solid var(--border); }
-    .ref-form-row { display: flex; gap: 8px; margin-top: 8px; }
-    .ref-input {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 9px 12px;
-      color: var(--text);
-      font-size: 0.82rem;
-      outline: none;
-      transition: border-color 0.15s;
-      min-width: 0;
-    }
-    .ref-input:focus { border-color: var(--accent); }
-    .ref-input::placeholder { color: var(--muted); }
-    .ref-apply-btn {
-      background: linear-gradient(135deg, var(--accent), #8b5cf6);
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      padding: 9px 14px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: box-shadow 0.15s;
-    }
-    .ref-apply-btn:hover { box-shadow: 0 0 16px rgba(108,99,255,0.4); }
-    .ref-feedback {
-      margin-top: 8px;
-      font-size: 0.78rem;
-      padding: 8px 10px;
-      border-radius: 7px;
-      line-height: 1.5;
-    }
-    .ref-feedback.success { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.2); color: var(--accent2); }
-    .ref-feedback.error   { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2); color: #ff6b6b; }
-    .ref-feedback.applied { font-size: 0.78rem; color: var(--muted); padding: 10px 16px; }
-
-    /* ── Extension section ── */
-    .ext-connected {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 13px 16px;
-      font-size: 0.85rem;
-      color: var(--accent2);
-      border-bottom: 1px solid var(--border);
-    }
-    .ext-connected .dot {
-      width: 7px; height: 7px;
-      border-radius: 50%;
-      background: var(--accent2);
-      flex-shrink: 0;
-    }
-    .ext-connected .reconnect {
-      margin-left: auto;
-      font-size: 0.75rem;
-      color: var(--muted);
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0;
-      text-decoration: underline;
-      text-underline-offset: 2px;
-    }
-    .ext-connected .reconnect:hover { color: var(--text); }
-
-    #connect-row {
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    #connect-row p {
-      font-size: 0.8rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    #connect-btn {
-      background: rgba(0,212,170,0.08);
-      border: 1px solid rgba(0,212,170,0.25);
-      border-radius: 9px;
-      color: var(--accent2);
-      cursor: pointer;
-      padding: 11px 16px;
-      font-size: 0.88rem;
-      font-weight: 600;
-      width: 100%;
-      transition: background 0.15s;
-    }
-    #connect-btn:hover { background: rgba(0,212,170,0.13); }
-    #connect-status { font-size: 0.76rem; color: var(--muted); min-height: 1em; }
-
-    /* ── Fallback dropdown ── */
-    .fallback-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 11px 16px;
-      font-size: 0.78rem;
-      color: var(--muted);
-      cursor: pointer;
-      user-select: none;
-      border-bottom: 1px solid var(--border);
-      transition: color 0.12s;
-      list-style: none;
-    }
-    .fallback-toggle:last-child { border-bottom: none; }
-    .fallback-toggle:hover { color: var(--text); }
-    .fallback-toggle .arrow { transition: transform 0.2s; display: inline-block; }
-    details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
-
-    .fallback-body {
-      padding: 12px 16px 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      border-bottom: 1px solid var(--border);
-    }
-    .fallback-body:last-child { border-bottom: none; }
-    .fallback-body p {
-      font-size: 0.78rem;
-      color: var(--muted);
-      line-height: 1.5;
-    }
-    .token-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .token-row code {
-      font-size: 0.68rem;
-      color: #7b9fd4;
-      background: var(--bg);
-      padding: 6px 10px;
-      border-radius: 6px;
-      border: 1px solid var(--border);
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .btn-sm {
-      background: rgba(255,255,255,0.04);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--muted);
-      cursor: pointer;
-      padding: 5px 10px;
-      font-size: 0.72rem;
-      white-space: nowrap;
-      transition: color 0.12s;
-    }
-    .btn-sm:hover { color: var(--text); }
-    .regen-row { display: flex; justify-content: flex-end; }
-  </style>
-</head>
-<body>
+{% extends "base.html" %}
+{% block title %}Settings — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/settings.css">{% endblock %}
+{% block content %}
   <header>
     <a class="back-btn" href="/app" aria-label="Back">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -489,6 +145,33 @@
 
     </div>
 
+    <!-- Shortcuts -->
+    <div class="section-label">Shortcuts</div>
+    <div class="card">
+      <div class="row">
+        <span class="row-label">Screen capture</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="hotkey-btn" id="hk-capture" onclick="recordHotkey('capture', this)">{{ hotkey_capture }}</button>
+          <button class="hotkey-reset" onclick="resetHotkey('capture')">reset</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Voice capture</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="hotkey-btn" id="hk-audio" onclick="recordHotkey('audio', this)">{{ hotkey_audio }}</button>
+          <button class="hotkey-reset" onclick="resetHotkey('audio')">reset</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Toggle on/off</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
+          <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
+        </div>
+      </div>
+      <div id="hk-status" style="padding:8px 16px;font-size:0.75rem;color:var(--muted);display:none;"></div>
+    </div>
+
     <!-- Actions -->
     <div class="card">
       <form action="/auth/logout" method="post">
@@ -499,6 +182,97 @@
     </div>
 
   </main>
+
+  <script>
+    // ── Hotkey recording ───────────────────────────────────────────────────
+    const _hotkeys = {
+      capture: '{{ hotkey_capture }}',
+      audio:   '{{ hotkey_audio }}',
+      toggle:  '{{ hotkey_toggle }}',
+    };
+    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9' };
+    let _recording = null;
+
+    function recordHotkey(action, btn) {
+      if (_recording) {
+        _recording.btn.textContent = _hotkeys[_recording.action];
+        _recording.btn.classList.remove('recording');
+      }
+      _recording = { action, btn };
+      btn.textContent = 'Press keys…';
+      btn.classList.add('recording');
+    }
+
+    function resetHotkey(action) {
+      if (_hotkeys[action] === _defaults[action]) return;
+      _hotkeys[action] = _defaults[action];
+      document.getElementById('hk-' + action).textContent = _defaults[action];
+      saveHotkeys();
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (!_recording) return;
+      // Ignore bare modifier keys — wait for the actual key
+      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+      e.preventDefault();
+
+      if (e.key === 'Escape') {
+        _recording.btn.textContent = _hotkeys[_recording.action];
+        _recording.btn.classList.remove('recording');
+        _recording = null;
+        return;
+      }
+
+      // Must include Ctrl/Cmd or Alt — Shift alone isn't a useful trigger modifier
+      if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
+
+      // Use e.code (layout-independent) so Ctrl+Shift+7 gives '7', not '&'
+      const digitMatch = e.code.match(/^Digit(\d)$/);
+      const letterMatch = e.code.match(/^Key([A-Z])$/);
+      if (!digitMatch && !letterMatch) return;
+      const key = digitMatch ? digitMatch[1] : letterMatch[1];
+
+      const parts = [];
+      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+      if (e.shiftKey) parts.push('Shift');
+      if (e.altKey)   parts.push('Alt');
+      parts.push(key);
+
+      const hotkey = parts.join('+');
+      _hotkeys[_recording.action] = hotkey;
+      _recording.btn.textContent = hotkey;
+      _recording.btn.classList.remove('recording');
+      _recording = null;
+      saveHotkeys();
+    }, true);
+
+    async function saveHotkeys() {
+      const statusEl = document.getElementById('hk-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/hotkeys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(_hotkeys),
+        });
+        if (resp.ok) {
+          // Push changes to the extension immediately — no reload needed
+          document.dispatchEvent(new CustomEvent('interview-ace:hotkeys', { detail: _hotkeys }));
+          statusEl.textContent = 'Saved — active in all open tabs.';
+          statusEl.style.color = 'var(--accent2)';
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+  </script>
 
   <script>
     // Ping extension on load — show connected state if it responds
@@ -573,5 +347,4 @@
       btn.disabled = false;
     }
   </script>
-</body>
-</html>
+{% endblock %}
