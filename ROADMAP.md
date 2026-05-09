@@ -20,7 +20,7 @@
 ### Data / Backend
 - [ ] Decide on database: keep SQLite or migrate to Postgres
   - If Postgres: replace `database.init_db` `ALTER TABLE` block with Alembic migrations (`database.py:24-46`) — the current approach silently breaks on Postgres
-- [ ] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts (`server.py:92-94`) with something persistent (Redis pub/sub or DB-backed) if running more than one worker
+- [x] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts with Redis pub/sub + hashes — app can now run with multiple uvicorn workers
 
 ### Bugs
 - [ ] Fix referral credits in Stripe — `_credit_referrer` is broken (`billing.py`, noted in `plan.txt:24`)
@@ -46,6 +46,7 @@
   - `FROM_EMAIL`
   - `NOTIFY_EMAIL`
   - `AUTHOR_PASSWORD`
+  - `REDIS_URL` (e.g. `redis://your-redis-host:6379/0`)
 - [ ] Configure Stripe webhook endpoint → `POST /billing/webhook` on the live domain
 - [ ] Set up SSL / HTTPS (most hosts do this automatically)
 

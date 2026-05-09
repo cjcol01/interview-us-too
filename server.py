@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
+import redis.asyncio as aioredis
 import uvicorn
 from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -24,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from auth import create_token, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, SERVER_HOST, SERVER_PORT
+from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, User
@@ -37,8 +38,17 @@ SCREENSHOTS_DIR = Path("screenshots")
 async def lifespan(app: FastAPI):
     init_db()
     SCREENSHOTS_DIR.mkdir(exist_ok=True)
+    if os.getenv("TESTING") == "1":
+        import fakeredis.aioredis
+        app.state.redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    else:
+        app.state.redis = aioredis.from_url(REDIS_URL, decode_responses=True)
+        await app.state.redis.ping()
     print(f"[ready] http://localhost:{SERVER_PORT}")
-    yield
+    try:
+        yield
+    finally:
+        await app.state.redis.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -81,20 +91,23 @@ def _user_hotkeys(user) -> dict:
     }
 
 
-# Per-user in-process state — keyed by user.id (not persistent across restarts)
-_subscribers:    dict[int, list[asyncio.Queue]] = {}
-_capture_states: dict[int, dict]                = {}
-_complexity:     dict[int, int]                 = {}
+_CAPTURE_DEFAULTS = {"analysis": "", "timestamp": "", "capture_id": "0", "monitor": ""}
+
+def _capture_key(uid: int) -> str:    return f"user:{uid}:capture"
+def _complexity_key(uid: int) -> str: return f"user:{uid}:complexity"
+def _events_channel(uid: int) -> str: return f"user:{uid}:events"
 
 
-def _capture_state(user_id: int) -> dict:
-    if user_id not in _capture_states:
-        _capture_states[user_id] = {"analysis": "", "timestamp": "", "capture_id": 0, "monitor": ""}
-    return _capture_states[user_id]
+async def get_capture_state(r, user_id: int) -> dict:
+    data = await r.hgetall(_capture_key(user_id))
+    merged = {**_CAPTURE_DEFAULTS, **data}
+    merged["capture_id"] = int(merged["capture_id"])
+    return merged
 
 
-def _user_complexity(user_id: int) -> int:
-    return _complexity.get(user_id, 2)
+async def get_complexity(r, user_id: int) -> int:
+    val = await r.get(_complexity_key(user_id))
+    return int(val) if val is not None else 2
 
 
 def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESSION_DURATION) -> InterviewSession:
@@ -122,10 +135,9 @@ def require_subscription(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-async def broadcast(user_id: int, event_type: str, data: dict):
+async def broadcast(r, user_id: int, event_type: str, data: dict):
     payload = json.dumps({"type": event_type, **data})
-    for q in _subscribers.get(user_id, []):
-        await q.put(payload)
+    await r.publish(_events_channel(user_id), payload)
 
 
 # Raises a redirect to /login — use as a dependency on page routes that require auth.
@@ -142,7 +154,7 @@ def require_user(user: Optional[User] = Depends(get_optional_user)) -> User:
     return user
 
 
-async def _gate_basic_access(user: User, db: Session):
+async def _gate_basic_access(r, user: User, db: Session):
     """Raise 403 if free or trial-expired. Shared by capture + audio endpoints."""
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
@@ -154,7 +166,7 @@ async def _gate_basic_access(user: User, db: Session):
             InterviewSession.ended_at == None,  # noqa: E711
         ).first()
         if not active:
-            await broadcast(user.id, "trial_expired", {})
+            await broadcast(r, user.id, "trial_expired", {})
             raise HTTPException(status_code=403, detail="trial_expired")
 
 
@@ -486,8 +498,9 @@ async def settings_page(
 
 
 @app.get("/latest")
-async def get_latest(user: User = Depends(require_subscription)):
-    return {"capture": _capture_state(user.id), "settings": {"complexity": _user_complexity(user.id)}}
+async def get_latest(request: Request, user: User = Depends(require_subscription)):
+    r = request.app.state.redis
+    return {"capture": await get_capture_state(r, user.id), "settings": {"complexity": await get_complexity(r, user.id)}}
 
 
 @app.get("/screenshot")
@@ -499,14 +512,15 @@ async def get_screenshot(user: User = Depends(require_subscription)):
 
 
 @app.post("/settings/complexity/{direction}")
-async def change_complexity(direction: str, user: User = Depends(require_subscription)):
-    c = _user_complexity(user.id)
+async def change_complexity(direction: str, request: Request, user: User = Depends(require_subscription)):
+    r = request.app.state.redis
+    c = await get_complexity(r, user.id)
     if direction == "up":
         c = min(COMPLEXITY_MAX, c + 1)
     elif direction == "down":
         c = max(COMPLEXITY_MIN, c - 1)
-    _complexity[user.id] = c
-    await broadcast(user.id, "settings", {"complexity": c})
+    await r.set(_complexity_key(user.id), c)
+    await broadcast(r, user.id, "settings", {"complexity": c})
     return {"complexity": c}
 
 
@@ -564,8 +578,9 @@ async def trial_status(user: User = Depends(get_current_user), db: Session = Dep
 
 
 @app.post("/api/capture")
-async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
-    await _gate_basic_access(user, db)
+async def api_capture(body: CaptureRequest, request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
+    r = request.app.state.redis
+    await _gate_basic_access(r, user, db)
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -589,10 +604,10 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
 
     (SCREENSHOTS_DIR / f"{user.id}.png").write_bytes(base64.b64decode(img_b64))
 
-    state = _capture_state(user.id)
-    state["capture_id"] += 1
-    state["monitor"] = body.monitor
-    await broadcast(user.id, "working", {"capture_id": state["capture_id"], "monitor": body.monitor})
+    key = _capture_key(user.id)
+    capture_id = await r.hincrby(key, "capture_id", 1)
+    await r.hset(key, "monitor", body.monitor)
+    await broadcast(r, user.id, "working", {"capture_id": capture_id, "monitor": body.monitor})
 
     prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity]
 
@@ -610,23 +625,25 @@ async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_tok
     ) as stream:
         async for text in stream.text_stream:
             full_text += text
-            await broadcast(user.id, "chunk", {"text": text, "capture_id": state["capture_id"]})
+            await broadcast(r, user.id, "chunk", {"text": text, "capture_id": capture_id})
 
-    state["analysis"] = full_text
-    state["timestamp"] = time.strftime("%H:%M:%S")
-
-    await broadcast(user.id, "capture", state)
-    return {"status": "ok", "capture_id": state["capture_id"]}
+    ts = time.strftime("%H:%M:%S")
+    await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
+    state = await get_capture_state(r, user.id)
+    await broadcast(r, user.id, "capture", state)
+    return {"status": "ok", "capture_id": capture_id}
 
 
 @app.post("/api/audio-capture")
 async def api_audio_capture(
+    request: Request,
     audio: UploadFile = File(...),
     user: User = Depends(get_user_by_token),
     db: Session = Depends(get_db),
 ):
-    await _gate_basic_access(user, db)
-    await broadcast(user.id, "audio-working", {})
+    r = request.app.state.redis
+    await _gate_basic_access(r, user, db)
+    await broadcast(r, user.id, "audio-working", {})
 
     audio_bytes = await audio.read()
     suffix = "." + (audio.filename or "recording.webm").rsplit(".", 1)[-1]
@@ -652,15 +669,15 @@ async def api_audio_capture(
         ) as stream:
             async for text in stream.text_stream:
                 full_text += text
-                await broadcast(user.id, "chunk", {"text": text})
+                await broadcast(r, user.id, "chunk", {"text": text})
 
-        await broadcast(user.id, "audio-analysis", {
+        await broadcast(r, user.id, "audio-analysis", {
             "transcription": transcription_text,
             "analysis": full_text,
             "timestamp": time.strftime("%H:%M:%S"),
         })
     except Exception as exc:
-        await broadcast(user.id, "audio-error", {"message": str(exc)})
+        await broadcast(r, user.id, "audio-error", {"message": str(exc)})
         raise HTTPException(status_code=500, detail="Audio processing failed")
     finally:
         os.unlink(tmp_path)
@@ -808,22 +825,23 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @app.get("/stream")
-async def stream(user: User = Depends(require_subscription)):
-    q: asyncio.Queue = asyncio.Queue()
-    _subscribers.setdefault(user.id, []).append(q)
-
-    state = _capture_state(user.id)
-    settings_payload = json.dumps({"type": "settings", "complexity": _user_complexity(user.id)})
+async def stream(request: Request, user: User = Depends(require_subscription)):
+    r = request.app.state.redis
+    state = await get_capture_state(r, user.id)
+    settings_payload = json.dumps({"type": "settings", "complexity": await get_complexity(r, user.id)})
+    pubsub = r.pubsub()
+    await pubsub.subscribe(_events_channel(user.id))
 
     async def gen():
         try:
             yield f"data: {json.dumps({'type': 'capture', **state})}\n\n"
             yield f"data: {settings_payload}\n\n"
-            while True:
-                data = await q.get()
-                yield f"data: {data}\n\n"
+            async for msg in pubsub.listen():
+                if msg["type"] == "message":
+                    yield f"data: {msg['data']}\n\n"
         finally:
-            _subscribers[user.id].remove(q)
+            await pubsub.unsubscribe(_events_channel(user.id))
+            await pubsub.aclose()
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 

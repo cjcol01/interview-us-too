@@ -12,3 +12,5 @@ python-multipart
 python-dotenv
 requests
 jinja2
+redis>=5.0
+fakeredis>=2.20

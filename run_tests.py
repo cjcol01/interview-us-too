@@ -12,6 +12,8 @@ warnings.filterwarnings("ignore")
 import logging
 logging.disable(logging.CRITICAL)
 
+os.environ.setdefault("TESTING", "1")  # use fakeredis — must be set before importing server
+
 from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, skip, test
 
 
