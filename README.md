@@ -5,7 +5,7 @@ A real-time coding interview prep tool. A Chrome extension captures your screen 
 ## How it works
 
 1. You're on a coding platform
-2. Press `Ctrl+Shift+Y` (or click the extension popup) to capture the screen
+2. Press `Ctrl+Shift+7` (or click the extension popup) to capture the screen
 3. The extension sends the screenshot to the server
 4. Claude analyses the question and streams the result back to your web dashboard
 5. You can adjust the complexity level (1-3) to get hints at different depths
@@ -57,8 +57,11 @@ Open the popup, paste your API token from the settings page, and you're ready.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Shift+Y` | Capture current tab and analyse |
+| `Ctrl+Shift+7` | Capture current tab and analyse |
+| `Ctrl+Shift+8` | Hold to record audio question |
 | `Ctrl+Shift+9` | Toggle the assistant on/off |
+
+All three shortcuts are user-rebindable from the Settings page.
 
 ## Project structure
 

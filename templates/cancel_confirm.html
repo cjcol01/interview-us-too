@@ -115,7 +115,7 @@
             <span class="issue-icon">&#9000;</span>
             <div>
               <strong>Shortcuts not firing</strong>
-              <span>Capture &amp; analyse is <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Y</kbd>. Toggle on/off is <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>9</kbd>. On Mac, use <kbd>Cmd</kbd> instead. Another app may be claiming the same shortcut — try the popup buttons instead.</span>
+              <span>Capture &amp; analyse is <span id="shortcut-capture"></span>. Toggle on/off is <span id="shortcut-toggle-1"></span>. Another app may be claiming the same shortcut — try the popup buttons instead.</span>
             </div>
           </div>
           <div class="issue-item">
@@ -129,7 +129,7 @@
             <span class="issue-icon">&#128065;</span>
             <div>
               <strong>Overlay not showing</strong>
-              <span>The overlay only appears after a capture. Toggle off then on again with <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>9</kbd> if it seems stuck.</span>
+              <span>The overlay only appears after a capture. Toggle off then on again with <span id="shortcut-toggle-2"></span> if it seems stuck.</span>
             </div>
           </div>
         </div>
@@ -173,6 +173,19 @@
   </main>
 
   <script>
+    /* ── Hotkeys ── */
+    (function () {
+      const isMac = /Mac/.test(navigator.platform);
+      function renderHotkey(hotkey) {
+        return hotkey.split('+').map(p => `<kbd>${isMac && p === 'Ctrl' ? 'Cmd' : p}</kbd>`).join('+');
+      }
+      const capture = '{{ hotkey_capture }}';
+      const toggle  = '{{ hotkey_toggle }}';
+      document.getElementById('shortcut-capture').innerHTML  = renderHotkey(capture);
+      document.getElementById('shortcut-toggle-1').innerHTML = renderHotkey(toggle);
+      document.getElementById('shortcut-toggle-2').innerHTML = renderHotkey(toggle);
+    })();
+
     /* ── Reveal feedback section ── */
     document.getElementById('no-thanks-btn').addEventListener('click', () => {
       const s = document.getElementById('feedback-section');
@@ -250,7 +263,7 @@
 
     function updateKeepLabel() {
       const hasText = Array.from(textareas).some(t => t.value.trim().length > 0);
-      keepBtn.textContent = hasText ? 'Keep my subscription and send message' : 'Keep my subscription';
+      keepBtn.textContent = hasText ? 'Keep my subscription and send developer message' : 'Keep my subscription';
     }
 
     textareas.forEach(t => t.addEventListener('input', updateKeepLabel));

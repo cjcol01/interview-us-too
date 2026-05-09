@@ -47,6 +47,17 @@ ROUTING
 
 BACKEND
 - No session count tracking yet for the sessions plan (paid users get sessions but nothing enforces or counts them)✅
+- Replace in-process _subscribers / _capture_states / _complexity dicts with something persistent
+  (Redis pub/sub or DB-backed) before running more than one worker — current state is lost on restart
+  and silently breaks with multiple processes (server.py)
+- Replace ad-hoc ALTER TABLE migrations in database.py with Alembic (or equivalent) before moving to Postgres —
+  the current approach does not run on Postgres and will silently skip columns that already exist
+- Add rate limiting to /api/capture and /api/audio-capture — no guard against a single token
+  hammering Anthropic/OpenAI at full speed (consider slowapi or a simple token-bucket per user)
+- Replace print() logging throughout with Python's logging module (structured, levelled output
+  that can be captured by a host's log aggregator in prod)
+- Tighten CORS: set allow_origins to the actual domain once deployed, not ["*"] (server.py:47)
+- /billing/offer is a stub with a TODO — implement the 50% coupon or remove the route (server.py)
 
 CHROME EXTENSION
 - Publish to Chrome Web Store (requires developer account, $5 one-time fee, review process)

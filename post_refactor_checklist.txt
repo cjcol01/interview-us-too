@@ -1,0 +1,177 @@
+POST-REFACTOR MANUAL VERIFICATION CHECKLIST
+============================================
+Tick each item after the refactor lands.
+The test suite covers routing and unit logic; this list covers
+everything that needs eyeballs, a real browser, or a live Stripe account.
+
+Conventions:
+  [ ] = not yet checked
+  [x] = passed
+  [!] = failed / needs fix
+
+
+CHROME EXTENSION — END-TO-END (browser required)
+-------------------------------------------------
+[ ] Capture hotkey (Ctrl+Shift+7) fires on a real coding problem page
+    (Leetcode, HackerRank, etc.) and analysis streams into the dashboard.
+
+[ ] Capture hotkey on macOS — Cmd+Shift+7 should also work.
+    This exercises the e.metaKey branch in content.js:67.
+    If this breaks, the fix is there.
+
+[ ] Audio hotkey hold-to-record (Ctrl+Shift+8):
+    - Press and hold → REC badge appears on extension icon.
+    - Release → badge clears, transcription + analysis streams in.
+
+[ ] Audio keyup edge case: release only the Shift key mid-record
+    (keep Ctrl held). Does recording stop? Should it?
+    Current content.js:85-97 behaviour is loose — note whether
+    the refactor tightened or changed this.
+
+[ ] Toggle hotkey (Ctrl+Shift+9) turns extension OFF.
+    Dashboard receives 'disabled' event. No more captures until toggled on.
+
+[ ] chrome://extensions → reload the extension on an existing tab.
+    Content script should re-inject automatically (background.js:258-266).
+    Check that hotkeys still respond after reload without refreshing the tab.
+
+[ ] Mic permission: click the "Grant microphone" button in popup.
+    A new tab should open, request mic, then close itself automatically.
+    (grant-mic.js:3-13)
+
+[ ] Extension picks up hotkey changes from /settings within a few seconds
+    without manually reloading. (storage listener at content.js:43-53)
+
+
+WEB PAGES — RENDER CHECK (no Jinja errors, no visual breakage)
+---------------------------------------------------------------
+[ ] / (landing) — signed out
+[ ] / (landing) — signed in (sign-in button should change to "Go to app")
+[ ] /login — both tabs (sign in / register)
+[ ] /verify-pending — email shown correctly
+[ ] /onboarding — API token visible, hotkeys shown, BASE_URL correct
+[ ] /app — tutorial overlays present on first visit; analytics strip works
+[ ] /pricing — both plan cards render; intro redeemed state hides the sessions plan
+[ ] /settings — account level label, all three hotkey fields, API token, billing section
+[ ] /referral — your code, referee table (empty for new user is fine)
+[ ] /billing/cancel — confetti canvas + reason form
+[ ] /billing/success — polls /api/billing/status and stops after account upgrades
+[ ] /trial-end — renders without error
+[ ] /verify-author — HTTP Basic prompt appears; correct credentials show author.html
+[ ] CSS refresh (commit 14db733) — eyeball every page for layout regressions.
+    Pay attention to login page and app dashboard which had the biggest changes.
+
+
+AUTH FLOWS
+----------
+[ ] Full register → email verification flow:
+    Register → check email → click verification link → land on /onboarding.
+    (Requires a real RESEND_API_KEY.)
+
+[ ] Login → session cookie set → /app reachable.
+
+[ ] GET /auth/logout (new variant) — clears cookie, redirects to /login.
+    Test by navigating to /auth/logout directly in browser.
+
+[ ] POST /auth/logout — still works (existing form-based logout).
+
+[ ] /api/token/regenerate — new token returned, old bearer token immediately
+    returns 401 from /api/capture or /api/me.
+
+
+TUTORIAL / ONBOARDING
+----------------------
+[ ] 4-step tutorial overlays in /app:
+    Step 1: Pin extension to toolbar.
+    Step 2: Start trial (button should call /api/trial/start).
+    Step 3: Use the hotkey.
+    Step 4: Dismiss / done.
+
+[ ] Tutorial does NOT reappear after setup_complete = True.
+    Verify by refreshing /app after completing the tutorial.
+
+[ ] /api/trial/start creates a 10-minute session (visible in /api/trial/status).
+
+[ ] Trial expiry: after 10 minutes, the next capture should broadcast
+    'trial_expired' and the dashboard should show the trial-end prompt.
+
+
+SETTINGS PAGE
+-------------
+[ ] Hotkey rebind: change all three hotkeys in /settings, save,
+    then verify the extension uses the new keys within ~5 seconds
+    (background polls /api/me on load; content.js listens for storage changes).
+
+[ ] Trial-expired account label: an expired trial user should see
+    "Trial (expired)" or similar — not just "Trial".
+
+[ ] API token copy button works (if present in UI).
+
+
+BILLING (Stripe test mode — use test card 4242 4242 4242 4242)
+---------------------------------------------------------------
+[ ] Sessions plan (£2 intro): checkout → success → account_level = paid,
+    sessions_remaining > 0. Verify in /settings.
+
+[ ] Subscription plan: checkout → success → account_level = unlimited.
+    /settings should show "Unlimited" or "Subscribed".
+
+[ ] In-app cancel flow:
+    /billing/cancel → enter reason → submit → subscription set to cancel
+    at period end. Check feedback email arrives at NOTIFY_EMAIL.
+
+[ ] Webhook: customer.subscription.deleted flips account to free.
+    Use Stripe CLI: stripe trigger customer.subscription.deleted
+    (or let the period end in test mode with accelerated billing).
+
+[ ] Card-fingerprint anti-abuse (only meaningful in prod with real key):
+    Second account using same test card for the £2 intro should be
+    auto-refunded. Verify billing.py:166-183 logic hasn't changed.
+
+[ ] /billing/offer route — confirm it still returns something meaningful
+    (it's currently a stub; make sure refactor didn't accidentally break
+    the routing even if the feature is incomplete).
+
+
+REFERRALS (known issues — re-test after any referral refactor)
+--------------------------------------------------------------
+[ ] /r/{code} sets the ref cookie; registering with that cookie creates
+    a Referral row with status = signed_up.
+
+[ ] Referrer gets £2 credit in Stripe when referee buys the intro plan.
+    (Known broken per plan.txt:24 — note whether refactor fixed or preserved this.)
+
+[ ] Self-referral is blocked: registering with your own referral code
+    should NOT set referred_by_id.
+
+[ ] /referral/apply: entering a valid code retroactively on /settings
+    works if the user has no referrer.
+
+[ ] Edge cases (from plan.txt:25 — "referal flow has a few edge cases"):
+    Document any specific cases you know about and re-test them here.
+
+
+STREAMING PERFORMANCE
+---------------------
+[ ] Screenshot capture: analysis chunks stream in visibly (not dumped all
+    at once). Visible in the dashboard as text appears word-by-word.
+
+[ ] Audio capture: same streaming behaviour for the Claude response.
+
+[ ] Whisper transcription time for a 5-second clip should be < ~5 seconds
+    (ballpark; Whisper-1 is fast for short clips).
+
+[ ] SSE connection stays alive for > 30 seconds without dropping
+    (browser keep-alive / proxy timeout check if behind nginx).
+
+
+DATABASE / STARTUP
+------------------
+[ ] Delete users.db and restart server — init_db should create all tables
+    and run ALTER TABLE migrations without errors (database.py:24-46).
+    All existing tests should still pass on the fresh DB.
+
+[ ] (Future) Postgres migration: if you switch to Postgres before prod,
+    re-run all tests and this checklist against it. The ALTER TABLE
+    migration block won't work on Postgres — it needs replacing with
+    Alembic or similar.

@@ -6,7 +6,6 @@ import secrets
 import tempfile
 import time
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -16,7 +15,7 @@ import uvicorn
 from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAI
@@ -50,7 +49,6 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -64,11 +62,6 @@ COMPLEXITY_SUFFIX = {
     2: "\n\nComplexity level: 2/3 — give the approach a skilled but junior developer would write. Reasonably efficient, clean code with a short explanation of the reasoning.",
     3: "\n\nComplexity level: 3/3 — give the optimal approach. Best time/space complexity, clean production-quality code, with a thorough explanation including trade-offs and edge cases.",
 }
-
-
-@dataclass
-class UserSettings:
-    complexity: int = 2
 
 
 class HotkeySettings(BaseModel):
@@ -88,10 +81,10 @@ def _user_hotkeys(user) -> dict:
     }
 
 
-# Per-user state — keyed by user.id
+# Per-user in-process state — keyed by user.id (not persistent across restarts)
 _subscribers:    dict[int, list[asyncio.Queue]] = {}
 _capture_states: dict[int, dict]                = {}
-_settings:       dict[int, UserSettings]        = {}
+_complexity:     dict[int, int]                 = {}
 
 
 def _capture_state(user_id: int) -> dict:
@@ -100,10 +93,8 @@ def _capture_state(user_id: int) -> dict:
     return _capture_states[user_id]
 
 
-def _user_settings(user_id: int) -> UserSettings:
-    if user_id not in _settings:
-        _settings[user_id] = UserSettings()
-    return _settings[user_id]
+def _user_complexity(user_id: int) -> int:
+    return _complexity.get(user_id, 2)
 
 
 def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESSION_DURATION) -> InterviewSession:
@@ -125,10 +116,6 @@ def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESS
     return session
 
 
-def _screenshot_path(user_id: int) -> Path:
-    return SCREENSHOTS_DIR / f"{user_id}.png"
-
-
 def require_subscription(user: User = Depends(get_current_user)) -> User:
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
@@ -139,6 +126,49 @@ async def broadcast(user_id: int, event_type: str, data: dict):
     payload = json.dumps({"type": event_type, **data})
     for q in _subscribers.get(user_id, []):
         await q.put(payload)
+
+
+# Raises a redirect to /login — use as a dependency on page routes that require auth.
+class _Unauthenticated(Exception):
+    pass
+
+@app.exception_handler(_Unauthenticated)
+async def _unauthenticated_handler(request: Request, exc: _Unauthenticated):
+    return RedirectResponse("/login", status_code=302)
+
+def require_user(user: Optional[User] = Depends(get_optional_user)) -> User:
+    if not user:
+        raise _Unauthenticated()
+    return user
+
+
+async def _gate_basic_access(user: User, db: Session):
+    """Raise 403 if free or trial-expired. Shared by capture + audio endpoints."""
+    if user.account_level == AccountLevel.free:
+        raise HTTPException(status_code=403, detail="Subscription required")
+    if user.account_level == AccountLevel.trial:
+        now = datetime.utcnow()
+        active = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if not active:
+            await broadcast(user.id, "trial_expired", {})
+            raise HTTPException(status_code=403, detail="trial_expired")
+
+
+def _ensure_api_token(user: User, db: Session):
+    if not user.api_token:
+        user.api_token = secrets.token_urlsafe(32)
+        db.commit()
+
+
+_REFERRAL_ERROR_MESSAGES = {
+    "invalid_code":    "That code doesn't look right — double-check and try again.",
+    "already_referred": "You've already applied a referral code.",
+    "self_referral":   "You can't use your own referral code.",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -276,34 +306,27 @@ async def landing(request: Request, user: Optional[User] = Depends(get_optional_
 
 
 @app.get("/app")
-async def index(request: Request, user: Optional[User] = Depends(get_optional_user)):
-    if not user:
-        return RedirectResponse("/login")
+async def index(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if user.account_level == AccountLevel.free:
         return RedirectResponse("/pricing")
     if user.account_level == AccountLevel.trial and not user.setup_complete:
         return RedirectResponse("/onboarding")
-    hk = _user_hotkeys(user)
-    return templates.TemplateResponse(request=request, name="index.html", context=hk)
+    return templates.TemplateResponse(request=request, name="index.html", context=_user_hotkeys(user))
 
 
 @app.get("/onboarding")
 async def onboarding_page(
     request: Request,
-    user: Optional[User] = Depends(get_optional_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    if not user:
-        return RedirectResponse("/login")
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
-    if not user.api_token:
-        user.api_token = secrets.token_urlsafe(32)
-        db.commit()
+    _ensure_api_token(user, db)
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="onboarding.html", context={
         "api_token": user.api_token,
@@ -315,9 +338,7 @@ async def onboarding_page(
 
 
 @app.get("/verify-pending")
-async def verify_pending(request: Request, user: Optional[User] = Depends(get_optional_user)):
-    if not user:
-        return RedirectResponse("/login")
+async def verify_pending(request: Request, user: User = Depends(require_user)):
     if user.email_verified:
         return RedirectResponse("/app")
     return templates.TemplateResponse(request=request, name="verify_pending.html", context={
@@ -326,16 +347,12 @@ async def verify_pending(request: Request, user: Optional[User] = Depends(get_op
 
 
 @app.get("/trial-end")
-async def trial_end(request: Request, user: Optional[User] = Depends(get_optional_user)):
-    if not user:
-        return RedirectResponse("/login")
+async def trial_end(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="trial_end.html", context={})
 
 
 @app.get("/pricing")
-async def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
-    if not user:
-        return RedirectResponse("/login")
+async def pricing_page(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="pricing.html", context={
         "intro_redeemed": user.intro_redeemed,
         "sessions_remaining": user.sessions_remaining,
@@ -372,13 +389,11 @@ async def referral_redirect(
 @app.get("/referral")
 async def referral_page(
     request: Request,
-    user: Optional[User] = Depends(get_optional_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
     ref_success: Optional[str] = None,
     ref_error: Optional[str] = None,
 ):
-    if not user:
-        return RedirectResponse("/login")
     if not user.referral_code:
         user.referral_code = generate_unique_referral_code(db)
         db.commit()
@@ -399,18 +414,13 @@ async def referral_page(
             "joined_date": f"{ref_row.created_at.day} {ref_row.created_at.strftime('%b %Y')}",
             "status": ref_row.status.value,
         })
-    _error_messages = {
-        "invalid_code": "That code doesn't look right — double-check and try again.",
-        "already_referred": "You've already applied a referral code.",
-        "self_referral": "You can't use your own referral code.",
-    }
     return templates.TemplateResponse(request=request, name="referral.html", context={
         "referral_code": user.referral_code,
         "referrals": referrals,
         "total_credits_earned": total_pence / 100,
         "is_referred": user.referred_by_id is not None,
         "ref_success": ref_success == "1",
-        "error_msg": _error_messages.get(ref_error),
+        "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
     })
 
 
@@ -449,22 +459,13 @@ async def apply_referral_code(
 @app.get("/settings")
 async def settings_page(
     request: Request,
-    user: Optional[User] = Depends(get_optional_user),
+    user: User = Depends(require_user),
     db: Session = Depends(get_db),
     ref_success: Optional[str] = None,
     ref_error: Optional[str] = None,
 ):
-    if not user:
-        return RedirectResponse("/login")
-    if not user.api_token:
-        user.api_token = secrets.token_urlsafe(32)
-        db.commit()
+    _ensure_api_token(user, db)
     cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
-    _error_messages = {
-        "invalid_code": "That code doesn't look right — double-check and try again.",
-        "already_referred": "You've already applied a referral code.",
-        "self_referral": "You can't use your own referral code.",
-    }
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
@@ -477,7 +478,7 @@ async def settings_page(
         "sub_cancel_at": cancel_at,
         "is_referred": user.referred_by_id is not None,
         "ref_success": ref_success == "1",
-        "ref_error_msg": _error_messages.get(ref_error),
+        "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
@@ -486,12 +487,12 @@ async def settings_page(
 
 @app.get("/latest")
 async def get_latest(user: User = Depends(require_subscription)):
-    return {"capture": _capture_state(user.id), "settings": asdict(_user_settings(user.id))}
+    return {"capture": _capture_state(user.id), "settings": {"complexity": _user_complexity(user.id)}}
 
 
 @app.get("/screenshot")
 async def get_screenshot(user: User = Depends(require_subscription)):
-    path = _screenshot_path(user.id)
+    path = SCREENSHOTS_DIR / f"{user.id}.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="No screenshot yet")
     return FileResponse(path, media_type="image/png")
@@ -499,13 +500,14 @@ async def get_screenshot(user: User = Depends(require_subscription)):
 
 @app.post("/settings/complexity/{direction}")
 async def change_complexity(direction: str, user: User = Depends(require_subscription)):
-    s = _user_settings(user.id)
+    c = _user_complexity(user.id)
     if direction == "up":
-        s.complexity = min(COMPLEXITY_MAX, s.complexity + 1)
+        c = min(COMPLEXITY_MAX, c + 1)
     elif direction == "down":
-        s.complexity = max(COMPLEXITY_MIN, s.complexity - 1)
-    await broadcast(user.id, "settings", asdict(s))
-    return asdict(s)
+        c = max(COMPLEXITY_MIN, c - 1)
+    _complexity[user.id] = c
+    await broadcast(user.id, "settings", {"complexity": c})
+    return {"complexity": c}
 
 
 # ---------------------------------------------------------------------------
@@ -563,47 +565,29 @@ async def trial_status(user: User = Depends(get_current_user), db: Session = Dep
 
 @app.post("/api/capture")
 async def api_capture(body: CaptureRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
-    if user.account_level == AccountLevel.free:
-        raise HTTPException(status_code=403, detail="Subscription required")
-    if user.account_level == AccountLevel.trial:
-        if user.sessions_remaining > 0:
-            user.account_level = AccountLevel.paid
-            db.commit()
-        else:
-            now = datetime.utcnow()
-            session = db.query(InterviewSession).filter(
-                InterviewSession.user_id == user.id,
-                InterviewSession.expires_at > now,
-                InterviewSession.ended_at == None,  # noqa: E711
-            ).first()
-            if not session:
-                await broadcast(user.id, "trial_expired", {})
-                raise HTTPException(status_code=403, detail="trial_expired")
+    await _gate_basic_access(user, db)
+
     if user.account_level == AccountLevel.paid:
-        if user.stripe_sub_id:
-            # Subscriber set to 'paid' by old webhook code — correct to unlimited
-            user.account_level = AccountLevel.unlimited
-            db.commit()
-        else:
-            now = datetime.utcnow()
-            active = db.query(InterviewSession).filter(
-                InterviewSession.user_id == user.id,
-                InterviewSession.expires_at > now,
-                InterviewSession.ended_at == None,  # noqa: E711
-            ).first()
-            if not active:
-                if user.sessions_remaining <= 0:
-                    user.account_level = AccountLevel.free
-                    db.commit()
-                    raise HTTPException(status_code=403, detail="sessions_exhausted")
-                user.sessions_remaining -= 1
+        now = datetime.utcnow()
+        active = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if not active:
+            if user.sessions_remaining <= 0:
+                user.account_level = AccountLevel.free
                 db.commit()
-            _get_or_create_session(db, user.id)
+                raise HTTPException(status_code=403, detail="sessions_exhausted")
+            user.sessions_remaining -= 1
+            db.commit()
+        _get_or_create_session(db, user.id)
+
     img_b64 = body.image
     if "," in img_b64:
         img_b64 = img_b64.split(",", 1)[1]
 
-    _screenshot_path(user.id).write_bytes(base64.b64decode(img_b64))
+    (SCREENSHOTS_DIR / f"{user.id}.png").write_bytes(base64.b64decode(img_b64))
 
     state = _capture_state(user.id)
     state["capture_id"] += 1
@@ -641,19 +625,7 @@ async def api_audio_capture(
     user: User = Depends(get_user_by_token),
     db: Session = Depends(get_db),
 ):
-    if user.account_level == AccountLevel.free:
-        raise HTTPException(status_code=403, detail="Subscription required")
-    if user.account_level == AccountLevel.trial:
-        now = datetime.utcnow()
-        session = db.query(InterviewSession).filter(
-            InterviewSession.user_id == user.id,
-            InterviewSession.expires_at > now,
-            InterviewSession.ended_at == None,  # noqa: E711
-        ).first()
-        if not session:
-            await broadcast(user.id, "trial_expired", {})
-            raise HTTPException(status_code=403, detail="trial_expired")
-
+    await _gate_basic_access(user, db)
     await broadcast(user.id, "audio-working", {})
 
     audio_bytes = await audio.read()
@@ -750,7 +722,11 @@ async def billing_checkout(user: User = Depends(get_current_user), db: Session =
 
 @app.get("/billing/cancel")
 async def billing_cancel(request: Request, user: User = Depends(get_current_user)):
-    return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={})
+    hk = _user_hotkeys(user)
+    return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={
+        "hotkey_capture": hk["capture"],
+        "hotkey_toggle":  hk["toggle"],
+    })
 
 
 @app.post("/billing/offer")
@@ -837,12 +813,12 @@ async def stream(user: User = Depends(require_subscription)):
     _subscribers.setdefault(user.id, []).append(q)
 
     state = _capture_state(user.id)
-    s = _user_settings(user.id)
+    settings_payload = json.dumps({"type": "settings", "complexity": _user_complexity(user.id)})
 
     async def gen():
         try:
             yield f"data: {json.dumps({'type': 'capture', **state})}\n\n"
-            yield f"data: {json.dumps({'type': 'settings', **asdict(s)})}\n\n"
+            yield f"data: {settings_payload}\n\n"
             while True:
                 data = await q.get()
                 yield f"data: {data}\n\n"

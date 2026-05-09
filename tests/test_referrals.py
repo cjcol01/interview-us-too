@@ -118,7 +118,11 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
-    def test_self_referral_is_prevented():
+    def test_register_with_others_code_creates_referral():
+        # Using someone else's referral code at registration SHOULD create a referral.
+        # There is no way to block "self-referral via a second account" at the server
+        # level (the two accounts have different IDs). The real self-referral guard
+        # lives at POST /referral/apply (server.py:441-442).
         token, uname = make_cookie(AccountLevel.trial)
         db = SessionLocal()
         u = db.query(User).filter(User.username == uname).first()
@@ -139,10 +143,30 @@ def register(test, skip, client):
             db2 = SessionLocal()
             try:
                 new_u = db2.query(User).filter(User.username == new_uname).first()
-                assert new_u.referred_by_id != u.id or new_u.username != u.username
+                # referral IS created — different accounts, different IDs
+                assert new_u.referred_by_id == u.id
             finally:
                 cleanup(db2, new_u)
                 db2.close()
+        finally:
+            delete_by_name(uname)
+
+    def test_referral_apply_blocks_self_referral():
+        # /referral/apply DOES guard self-referral (server.py:441-442).
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        u = db.query(User).filter(User.username == uname).first()
+        own_code = u.referral_code
+        db.close()
+        try:
+            r = client.post(
+                "/referral/apply",
+                data={"code": own_code, "source": "settings"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert "self_referral" in r.headers.get("location", "")
         finally:
             delete_by_name(uname)
 
@@ -258,7 +282,8 @@ def register(test, skip, client):
     test("Register assigns referral_code to new user",                 test_register_assigns_referral_code)
     test("Register with ref cookie creates Referral row",             test_register_with_ref_cookie_creates_referral_row)
     test("Register with invalid ref cookie → no referral created",    test_register_with_invalid_ref_cookie_no_referral)
-    test("Self-referral is prevented",                                 test_self_referral_is_prevented)
+    test("Register with own code creates referral (2nd account)",     test_register_with_others_code_creates_referral)
+    test("/referral/apply blocks self-referral",                      test_referral_apply_blocks_self_referral)
     test("/referral requires auth",                                    test_referral_page_requires_auth)
     test("/referral shows user's referral code",                       test_referral_page_shows_code)
     test("/referral shows empty state for new user",                   test_referral_page_empty_list_for_new_user)

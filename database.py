@@ -43,7 +43,7 @@ def init_db():
         ]
         for col, definition in migrations:
             if col not in existing:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))  # no-op if column exists
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:

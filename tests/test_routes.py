@@ -197,6 +197,137 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
+    # -- GET /auth/logout (new variant added in login refresh) -----------------
+
+    def test_get_logout_redirects():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/auth/logout", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "login" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    # -- /onboarding ----------------------------------------------------------
+
+    def test_onboarding_renders_for_trial_user():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            from models import User
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/onboarding", cookies={"session": token})
+            assert r.status_code == 200
+            assert u.api_token in r.text
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_onboarding_generates_api_token_if_missing():
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.api_token = None
+            u.email_verified = True
+            db.commit()
+            r = client.get("/onboarding", cookies={"session": token})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.api_token is not None and len(u.api_token) > 0
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_onboarding_redirects_non_trial_to_app():
+        from models import User
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/onboarding", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/app" in r.headers.get("location", "")
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    # -- /verify-pending ------------------------------------------------------
+
+    def test_verify_pending_renders_for_unverified():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/verify-pending", cookies={"session": token})
+            assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_verify_pending_redirects_verified_user():
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.setup_complete = True
+            db.commit()
+            r = client.get("/verify-pending", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/app" in r.headers.get("location", "")
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    # -- /auth/resend-verification --------------------------------------------
+
+    def test_resend_verification_ok_for_unverified():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.post("/auth/resend-verification", cookies={"session": token})
+            # Resend may fail silently (placeholder key) but the route returns 200
+            assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_resend_verification_400_for_already_verified():
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.post("/auth/resend-verification", cookies={"session": token})
+            assert r.status_code == 400
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    # -- /api/me happy path ---------------------------------------------------
+
+    def test_api_me_returns_account_level_and_hotkeys():
+        from auth import create_token
+        from database import SessionLocal as SL
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SL()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            r = client.get("/api/me", headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+            body = r.json()
+            assert body["account_level"] == AccountLevel.trial.value
+            assert "hotkeys" in body
+            assert "capture" in body["hotkeys"]
+        finally:
+            db.close()
+            delete_by_name(uname)
+
     test("Landing page returns 200",                           test_landing_200)
     test("Login page returns 200",                             test_login_page_200)
     test("Unauthenticated /app redirects to login",            test_app_redirects_to_login)
@@ -222,3 +353,12 @@ def register(test, skip, client):
     test("Complexity: up increments setting",                  test_complexity_up_increments)
     test("Token regenerate returns new token",                 test_token_regenerate_returns_new_token)
     test("Logout clears session cookie",                       test_logout_clears_session)
+    test("GET /auth/logout also redirects to login",          test_get_logout_redirects)
+    test("/onboarding renders for trial user",                test_onboarding_renders_for_trial_user)
+    test("/onboarding generates api_token if missing",        test_onboarding_generates_api_token_if_missing)
+    test("/onboarding redirects non-trial to /app",           test_onboarding_redirects_non_trial_to_app)
+    test("/verify-pending renders for unverified user",       test_verify_pending_renders_for_unverified)
+    test("/verify-pending redirects verified user to /app",   test_verify_pending_redirects_verified_user)
+    test("Resend verification ok for unverified user",        test_resend_verification_ok_for_unverified)
+    test("Resend verification 400 for already verified",      test_resend_verification_400_for_already_verified)
+    test("/api/me returns account_level + hotkeys",           test_api_me_returns_account_level_and_hotkeys)

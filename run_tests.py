@@ -60,6 +60,14 @@ with TestClient(app) as client:
     import tests.test_author
     tests.test_author.register(test, skip, client)
 
+    section("Hotkeys")
+    import tests.test_hotkeys
+    tests.test_hotkeys.register(test, skip, client)
+
+    section("Audio Capture")
+    import tests.test_audio
+    tests.test_audio.register(test, skip, client)
+
     section("External APIs")
 
     def _test_claude():
@@ -102,6 +110,14 @@ skipped = sum(1 for _, r, _ in results if r is None)
 
 print(f"\n{BOLD}{'─' * 48}{RESET}")
 print(f"  {PASS} {passed}   {FAIL} {failed}   {SKIP} {skipped}")
+
+failures = [(name, exc) for name, r, exc in results if r is False]
+if failures:
+    print(f"\n{BOLD}Failed tests:{RESET}")
+    for name, exc in failures:
+        print(f"  {FAIL} {name}")
+        if exc is not None:
+            print(f"         {type(exc).__name__}: {exc}")
 print()
 
 sys.exit(1 if failed else 0)
