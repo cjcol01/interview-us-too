@@ -332,3 +332,37 @@
     }
     .btn-sm:hover { color: var(--text); }
     .regen-row { display: flex; justify-content: flex-end; }
+
+    /* ── Response style pills ── */
+    .style-row {
+      padding: 13px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .style-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .style-pill {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 14px;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+      white-space: nowrap;
+    }
+    .style-pill:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .style-pill.active {
+      background: rgba(108,99,255,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }

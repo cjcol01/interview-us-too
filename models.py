@@ -13,6 +13,13 @@ class AccountLevel(str, enum.Enum):
     unlimited = "unlimited"
 
 
+class ResponseStyle(str, enum.Enum):
+    conversational = "conversational"
+    bullets        = "bullets"
+    summary        = "summary"
+    one_liner      = "one_liner"
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -40,6 +47,7 @@ class User(Base):
     hotkey_capture     = Column(String, nullable=True)
     hotkey_audio       = Column(String, nullable=True)
     hotkey_toggle      = Column(String, nullable=True)
+    response_style     = Column(Enum(ResponseStyle), nullable=True)
 
 
 class ReferralStatus(str, enum.Enum):

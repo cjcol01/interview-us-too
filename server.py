@@ -28,7 +28,7 @@ from billing import cancel_subscription, create_checkout_session, create_portal_
 from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
-from models import AccountLevel, InterviewSession, Referral, ReferralStatus, User
+from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
 
 templates = Jinja2Templates(directory="templates")
 SCREENSHOTS_DIR = Path("screenshots")
@@ -82,6 +82,18 @@ class HotkeySettings(BaseModel):
 
 HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9"}
 
+RESPONSE_STYLE_DEFAULT = ResponseStyle.conversational
+RESPONSE_STYLE_SUFFIX = {
+    ResponseStyle.conversational: "",
+    ResponseStyle.bullets:        "\n\nFormat your entire response as concise bullet points.",
+    ResponseStyle.summary:        "\n\nKeep your response to a brief 2-3 sentence summary only.",
+    ResponseStyle.one_liner:      "\n\nRespond in a single sentence only.",
+}
+
+
+class ResponseStyleRequest(BaseModel):
+    style: ResponseStyle
+
 
 def _user_hotkeys(user) -> dict:
     return {
@@ -89,6 +101,10 @@ def _user_hotkeys(user) -> dict:
         "audio":   user.hotkey_audio   or HOTKEY_DEFAULTS["audio"],
         "toggle":  user.hotkey_toggle  or HOTKEY_DEFAULTS["toggle"],
     }
+
+
+def _user_response_style(user) -> ResponseStyle:
+    return user.response_style or RESPONSE_STYLE_DEFAULT
 
 
 _CAPTURE_DEFAULTS = {"analysis": "", "timestamp": "", "capture_id": "0", "monitor": ""}
@@ -512,6 +528,7 @@ async def settings_page(
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
+        "response_style": _user_response_style(user).value,
     })
 
 
@@ -630,7 +647,8 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await r.hset(key, "monitor", body.monitor)
     await broadcast(r, user.id, "working", {"capture_id": capture_id, "monitor": body.monitor})
 
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity]
+    style = _user_response_style(user)
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity] + RESPONSE_STYLE_SUFFIX[style]
 
     full_text = ""
     async with async_client.messages.stream(
@@ -684,7 +702,8 @@ async def api_audio_capture(
             )
         transcription_text = transcript.text
 
-        prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}"
+        style = _user_response_style(user)
+        prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
         full_text = ""
         async with async_client.messages.stream(
             model="claude-sonnet-4-6",
@@ -721,6 +740,13 @@ async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_us
     user.hotkey_toggle  = data.toggle
     db.commit()
     return {"status": "ok"}
+
+
+@app.post("/api/settings/response-style")
+async def save_response_style(data: ResponseStyleRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.response_style = data.style
+    db.commit()
+    return {"status": "ok", "style": data.style.value}
 
 
 @app.post("/api/notify/disabled")

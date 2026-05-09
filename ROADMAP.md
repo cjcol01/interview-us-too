@@ -70,6 +70,8 @@
 - [ ] Show "Trial (expired)" label for expired trial users in settings (not just "Trial")
 - [ ] Fix README keyboard shortcut docs — stale (wrong keys, missing audio shortcut)
 - [ ] "Buy me a coffee" link / tip jar (`plan.txt:23`)
+- [ ] add instant replay system for rolling back previously spoken text
+- [ ] check mac mic recording symbol - do we need to spoof a mic
 
 ---
 

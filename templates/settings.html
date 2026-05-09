@@ -145,6 +145,30 @@
 
     </div>
 
+    <!-- Response Style -->
+    <div class="section-label">AI Response Style</div>
+    <div class="card">
+      <div class="style-row">
+        <span class="row-label" style="color:var(--muted);font-size:0.82rem;">How should responses be formatted?</span>
+        <div class="style-pills" id="style-pills">
+          {% set styles = [
+            ('conversational', 'Conversational'),
+            ('bullets',        'Bullet points'),
+            ('summary',        'Summary'),
+            ('one_liner',      'One liner'),
+          ] %}
+          {% for value, label in styles %}
+            <button
+              class="style-pill {% if response_style == value %}active{% endif %}"
+              data-style="{{ value }}"
+              onclick="setStyle('{{ value }}', this)"
+            >{{ label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="style-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
+    </div>
+
     <!-- Shortcuts -->
     <div class="section-label">Shortcuts</div>
     <div class="card">
@@ -182,6 +206,36 @@
     </div>
 
   </main>
+
+  <script>
+    // ── Response style ────────────────────────────────────────────────────
+    async function setStyle(value, btn) {
+      document.querySelectorAll('.style-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const statusEl = document.getElementById('style-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/response-style', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ style: value }),
+        });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent2)';
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+  </script>
 
   <script>
     // ── Hotkey recording ───────────────────────────────────────────────────
