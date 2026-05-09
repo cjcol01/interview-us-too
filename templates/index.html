@@ -92,6 +92,10 @@
     <p>Interview assistant not started. Press <span id="disabled-toast-toggle"></span> to start, then <span id="disabled-toast-capture"></span> to capture.</p>
   </div>
 
+  <div id="rate-limit-toast">
+    <p id="rate-limit-msg"></p>
+  </div>
+
   <div id="hint-toast">
     <button id="hint-dismiss" onclick="document.getElementById('hint-toast').classList.remove('visible')">&times;</button>
     <p>Try it — press <kbd id="hint-kbd">Ctrl+Shift+8</kbd> and say <strong>"what's an API?"</strong></p>
@@ -229,6 +233,7 @@
       es.onmessage = e => {
         try {
           const data = JSON.parse(e.data);
+          console.debug('[sse]', data.type);
           if (data.type === 'working') {
             _streamBuffer = '';
             statusEl.textContent = 'analysing...';
@@ -251,6 +256,12 @@
             statusEl.className = 'live';
           } else if (data.type === 'settings') {
             applySettings(data);
+          } else if (data.type === 'rate_limited') {
+            const toast = document.getElementById('rate-limit-toast');
+            document.getElementById('rate-limit-msg').textContent = data.message;
+            toast.classList.add('visible');
+            clearTimeout(toast._hide);
+            toast._hide = setTimeout(() => toast.classList.remove('visible'), 5000);
           } else if (data.type === 'disabled') {
             const toast = document.getElementById('disabled-toast');
             toast.classList.add('visible');
@@ -288,7 +299,7 @@
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
           }
-        } catch {}
+        } catch (err) { console.error('[sse handler]', data?.type, err); }
       };
 
       es.onerror = () => {

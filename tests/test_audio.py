@@ -104,9 +104,10 @@ def register(test, skip, client):
                 "/api/audio-capture",
                 files={"audio": ("test_audio.wav", audio_bytes, "audio/wav")},
                 headers={"Authorization": f"Bearer {u.api_token}"},
+                timeout=60,
             )
-            assert r.status_code == 200
-            assert r.json() == {"status": "ok"}
+            assert r.status_code == 200, f"status={r.status_code} body={r.text[:300]}"
+            assert r.json() == {"status": "ok"}, f"json={r.json()}"
         finally:
             cleanup(db, u)
             db.close()

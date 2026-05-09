@@ -36,9 +36,18 @@ def make_cookie(account_level=AccountLevel.trial):
 
 
 def cleanup(db, *users):
+    import asyncio
     for u in users:
         if u is None:
             continue
+        try:
+            import server as _s
+            asyncio.run(_s.app.state.redis.delete(
+                f"rl:{u.id}:audio:last",   f"rl:{u.id}:audio:count",
+                f"rl:{u.id}:capture:last", f"rl:{u.id}:capture:count",
+            ))
+        except Exception:
+            pass
         db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
         db.query(Referral).filter(
             (Referral.referrer_id == u.id) | (Referral.referee_id == u.id)

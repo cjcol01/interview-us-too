@@ -19,6 +19,7 @@ async function fetchAccountLevel() {
   } catch {}
 }
 
+
 async function doCapture() {
   const { server_url, api_token, complexity } = await chrome.storage.local.get([
     'server_url', 'api_token', 'complexity',
@@ -97,12 +98,10 @@ async function notifyEnabled() {
 }
 
 async function handleCapture() {
-  const { enabled, is_unlimited } = await chrome.storage.local.get(['enabled', 'is_unlimited']);
+  const { enabled } = await chrome.storage.local.get(['enabled']);
   if (!enabled) {
     await chrome.storage.local.set({ last_disabled_press: Date.now() });
-    if (!is_unlimited) await flashDisabled();
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (tab) chrome.tabs.sendMessage(tab.id, { type: 'show-disabled' }).catch(() => {});
+    await flashDisabled();
     return;
   }
   doCapture();
@@ -113,6 +112,7 @@ async function handleToggle(senderTabId) {
   const next = !enabled;
   await chrome.storage.local.set({ enabled: next });
   if (next) await notifyEnabled();
+  else await flashDisabled();
   if (senderTabId) {
     chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: next }).catch(() => {});
   }
@@ -189,11 +189,8 @@ async function handleAudioStart() {
 
   const { enabled } = await chrome.storage.local.get(['enabled']);
   if (!enabled) {
-    const { is_unlimited } = await chrome.storage.local.get(['is_unlimited']);
     await chrome.storage.local.set({ last_disabled_press: Date.now() });
-    if (!is_unlimited) await flashDisabled();
-    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if (tab) chrome.tabs.sendMessage(tab.id, { type: 'show-disabled' }).catch(() => {});
+    await flashDisabled();
     return;
   }
 
@@ -243,11 +240,15 @@ async function handleAudioData(base64, mimeType) {
     const form = new FormData();
     form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
     try {
-      await fetch(`${server_url}/api/audio-capture`, {
+      const resp = await fetch(`${server_url}/api/audio-capture`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${api_token}` },
         body: form,
       });
+      if (!resp.ok) {
+        let msg = `Audio error ${resp.status}`;
+        try { const json = await resp.json(); msg = json.detail ?? msg; } catch {}
+      }
     } catch (e) {
       console.error('[audio] upload failed:', e.message);
     }

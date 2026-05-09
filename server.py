@@ -135,6 +135,24 @@ def require_subscription(user: User = Depends(get_current_user)) -> User:
     return user
 
 
+async def _rate_limit(r, user_id: int, endpoint: str, cooldown: int, limit: int,
+                      cooldown_msg: str = "Too fast — wait a moment before trying again",
+                      limit_msg: str = "Rate limit exceeded — try again in a minute"):
+    last_key  = f"rl:{user_id}:{endpoint}:last"
+    count_key = f"rl:{user_id}:{endpoint}:count"
+    last = await r.get(last_key)
+    if last and (time.time() - float(last)) < cooldown:
+        await broadcast(r, user_id, "rate_limited", {"message": cooldown_msg})
+        raise HTTPException(status_code=429, detail=cooldown_msg)
+    count = await r.incr(count_key)
+    if count == 1:
+        await r.expire(count_key, 60)
+    if count > limit:
+        await broadcast(r, user_id, "rate_limited", {"message": limit_msg})
+        raise HTTPException(status_code=429, detail=limit_msg)
+    await r.set(last_key, time.time(), ex=cooldown + 5)
+
+
 async def broadcast(r, user_id: int, event_type: str, data: dict):
     payload = json.dumps({"type": event_type, **data})
     await r.publish(_events_channel(user_id), payload)
@@ -581,6 +599,9 @@ async def trial_status(user: User = Depends(get_current_user), db: Session = Dep
 async def api_capture(body: CaptureRequest, request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     r = request.app.state.redis
     await _gate_basic_access(r, user, db)
+    await _rate_limit(r, user.id, "capture", cooldown=5, limit=6,
+                      cooldown_msg="Capturing too fast — wait 5 seconds between captures",
+                      limit_msg="Capture limit reached — you can capture up to 6 times per minute")
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -643,6 +664,9 @@ async def api_audio_capture(
 ):
     r = request.app.state.redis
     await _gate_basic_access(r, user, db)
+    await _rate_limit(r, user.id, "audio", cooldown=5, limit=10,
+                      cooldown_msg="Recording too fast — wait 5 seconds between recordings",
+                      limit_msg="Recording limit reached — you can record up to 10 times per minute")
     await broadcast(r, user.id, "audio-working", {})
 
     audio_bytes = await audio.read()
@@ -700,18 +724,18 @@ async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_us
 
 
 @app.post("/api/notify/disabled")
-async def notify_disabled(user: User = Depends(get_user_by_token)):
-    if user.account_level in (AccountLevel.free, AccountLevel.unlimited):
+async def notify_disabled(request: Request, user: User = Depends(get_user_by_token)):
+    if user.account_level == AccountLevel.free:
         return {"status": "ok"}
-    await broadcast(user.id, "disabled", {})
+    await broadcast(request.app.state.redis, user.id, "disabled", {})
     return {"status": "ok"}
 
 
 @app.post("/api/notify/enabled")
-async def notify_enabled(user: User = Depends(get_user_by_token)):
+async def notify_enabled(request: Request, user: User = Depends(get_user_by_token)):
     if user.account_level in (AccountLevel.free, AccountLevel.unlimited):
         return {"status": "ok"}
-    await broadcast(user.id, "enabled", {})
+    await broadcast(request.app.state.redis, user.id, "enabled", {})
     return {"status": "ok"}
 
 

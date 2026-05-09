@@ -394,6 +394,25 @@
       color: #f09090;
     }
 
+    /* ── Rate-limit toast ── */
+    #rate-limit-toast {
+      display: none;
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(180,83,9,0.08);
+      border: 1px solid rgba(180,83,9,0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      max-width: 320px;
+      width: calc(100% - 32px);
+      z-index: 300;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.6);
+    }
+    #rate-limit-toast.visible { display: block; }
+    #rate-limit-toast p { font-size: 0.88rem; color: #fb923c; line-height: 1.55; margin: 0; }
+
     /* ── Hint toast ── */
     #hint-toast {
       display: none;
