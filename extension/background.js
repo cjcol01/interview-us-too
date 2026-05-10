@@ -298,7 +298,8 @@ async function handleAudioStart() {
     return;
   }
 
-  chrome.runtime.sendMessage({ type: 'start-recording' });
+  const { mic_device_id } = await chrome.storage.local.get(['mic_device_id']);
+  chrome.runtime.sendMessage({ type: 'start-recording', deviceId: mic_device_id || null });
   chrome.action.setBadgeText({ text: 'REC' });
   chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
 }

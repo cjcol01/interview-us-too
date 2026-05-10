@@ -2,6 +2,8 @@
 
 body {
   width: 290px;
+  max-height: 600px;
+  overflow-y: auto;
   background: #0d0d0d;
   color: #e0e0e0;
   font-family: system-ui, -apple-system, sans-serif;
@@ -9,10 +11,10 @@ body {
 }
 
 .container {
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 h1 {
@@ -223,4 +225,70 @@ kbd {
   background: #1a1a1a;
   border-color: #333;
   color: #666;
+}
+
+.mic-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mic-perm-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #333;
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.mic-perm-dot.ok  { background: #4caf50; box-shadow: 0 0 4px #4caf5066; }
+.mic-perm-dot.err { background: #e57373; }
+
+select {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  padding: 7px 28px 7px 10px;
+  font-size: 12px;
+  outline: none;
+  width: 100%;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+select:focus { border-color: #3a3a3a; }
+
+.mic-meter-wrap {
+  background: #111;
+  border: 1px solid #222;
+  border-radius: 4px;
+  height: 8px;
+  overflow: hidden;
+}
+
+.mic-meter-bar {
+  height: 100%;
+  width: 0%;
+  background: #2a6e2a;
+  border-radius: 4px;
+  transition: background 0.3s;
+}
+.mic-meter-bar.active { background: #4caf50; }
+.mic-meter-bar.hot    { background: #e57373; }
+
+.replay-btn.testing {
+  background: #0e2e0e;
+  border-color: #1e4a1e;
+  color: #4caf50;
+}
+
+.mic-grant-btn {
+  font-size: 0.72rem;
+  color: #666;
+  border-color: #2a2a2a;
 }

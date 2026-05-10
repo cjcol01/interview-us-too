@@ -48,8 +48,19 @@
 
     <div id="status" class="status"></div>
 
-    <button id="grant_mic">Grant mic permission</button>
-    <div id="mic_status" class="status"></div>
+    <div class="mic-section">
+      <div class="row-between">
+        <label>Mic Input <span id="mic-perm-dot" class="mic-perm-dot"></span></label>
+        <button id="mic-test-btn" class="replay-btn">Test</button>
+      </div>
+      <select id="mic-select">
+        <option value="">Default microphone</option>
+      </select>
+      <div class="mic-meter-wrap" id="mic-meter-wrap" style="display:none;">
+        <div id="mic-meter-bar" class="mic-meter-bar"></div>
+      </div>
+      <button id="grant_mic" class="mic-grant-btn" style="display:none;">Grant mic permission</button>
+    </div>
 
     <div id="replay-section" style="display:none;border-top:1px solid #333;margin-top:10px;padding-top:10px;">
       <div class="row-between" style="margin-bottom:6px;">

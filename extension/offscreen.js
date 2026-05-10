@@ -19,7 +19,7 @@ const _replay = {
 
 // ── Message router ────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
-  if      (msg.type === 'start-recording')   startMicRecording();
+  if      (msg.type === 'start-recording')   startMicRecording(msg.deviceId);
   else if (msg.type === 'stop-recording')    stopMicRecording();
   else if (msg.type === 'replay-stream-id')  startReplay(msg.streamId, msg.windowSec, msg.epochMs);
   else if (msg.type === 'replay-slice')      handleReplaySlice(msg.requestId, msg.windowSec);
@@ -27,9 +27,10 @@ chrome.runtime.onMessage.addListener((msg) => {
 });
 
 // ── Mic recording ─────────────────────────────────────────────────────────────
-async function startMicRecording() {
+async function startMicRecording(deviceId) {
   try {
-    _mic.stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const audio = deviceId ? { deviceId: { ideal: deviceId } } : true;
+    _mic.stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
   } catch (e) {
     chrome.runtime.sendMessage({ type: 'audio-error', error: e.message });
     return;

@@ -109,24 +109,137 @@ document.addEventListener('DOMContentLoaded', async () => {
     } catch {}
   });
 
-  const grantMicBtn = document.getElementById('grant_mic');
-  const micStatusEl = document.getElementById('mic_status');
+  const grantMicBtn  = document.getElementById('grant_mic');
+  const micSelect    = document.getElementById('mic-select');
+  const micMeterBar  = document.getElementById('mic-meter-bar');
+  const micMeterWrap = document.getElementById('mic-meter-wrap');
+  const micPermDot   = document.getElementById('mic-perm-dot');
+  const micTestBtn   = document.getElementById('mic-test-btn');
 
-  async function checkMicPermission() {
-    try {
-      const result = await navigator.permissions.query({ name: 'microphone' });
-      if (result.state === 'granted') {
-        micStatusEl.textContent = 'Mic permission granted';
-        micStatusEl.className = 'status ok';
-        grantMicBtn.textContent = 'Re-test mic';
-      }
-    } catch {}
+  const _mic = { stream: null, animId: null, ctx: null, testing: false };
+  let _meterClass = '';
+  let _smoothed   = 0;
+
+  function stopMicPreview() {
+    if (_mic.animId) { cancelAnimationFrame(_mic.animId); _mic.animId = null; }
+    if (_mic.stream) { _mic.stream.getTracks().forEach(t => t.stop()); _mic.stream = null; }
+    if (_mic.ctx)    { _mic.ctx.close().catch(() => {}); _mic.ctx = null; }
+    _mic.testing    = false;
+    _smoothed       = 0;
+    micMeterBar.style.width = '0%';
+    if (_meterClass) { micMeterBar.className = 'mic-meter-bar'; _meterClass = ''; }
+    micMeterWrap.style.display = 'none';
+    micTestBtn.textContent     = 'Test';
+    micTestBtn.classList.remove('testing');
   }
-  checkMicPermission();
+
+  async function startMicPreview(deviceId) {
+    stopMicPreview();
+    const audio = deviceId ? { deviceId: { ideal: deviceId } } : true;
+    try {
+      _mic.stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
+    } catch {
+      return false;
+    }
+    _mic.testing           = true;
+    micMeterWrap.style.display = '';
+    micTestBtn.textContent     = 'Stop';
+    micTestBtn.classList.add('testing');
+
+    _mic.ctx = new AudioContext();
+    const src      = _mic.ctx.createMediaStreamSource(_mic.stream);
+    const analyser = _mic.ctx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    function tick() {
+      _mic.animId = requestAnimationFrame(tick);
+      analyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) sum += (data[i] - 128) ** 2;
+      const raw = Math.min(1, Math.sqrt(sum / data.length) / 36);
+      // Asymmetric smoothing: fast attack, slow decay
+      _smoothed = raw > _smoothed
+        ? raw * 0.5  + _smoothed * 0.5
+        : raw * 0.08 + _smoothed * 0.92;
+      micMeterBar.style.width = (_smoothed * 100).toFixed(1) + '%';
+      // Only update class on threshold crossings to avoid constant repaints
+      const next = _smoothed > 0.72 ? 'hot' : _smoothed > 0.22 ? 'active' : '';
+      if (next !== _meterClass) {
+        _meterClass = next;
+        micMeterBar.className = 'mic-meter-bar' + (next ? ' ' + next : '');
+      }
+    }
+    tick();
+    return true;
+  }
+
+  // Brief stream to unlock device labels, then immediately stop
+  async function enumerateDevices() {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch { return []; }
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    stream.getTracks().forEach(t => t.stop());
+    return devices.filter(d => d.kind === 'audioinput' && d.deviceId && d.deviceId !== 'default');
+  }
+
+  async function populateMicDevices(selectedId) {
+    const inputs = await enumerateDevices();
+    micSelect.innerHTML = '<option value="">Default microphone</option>';
+    inputs.forEach((d, i) => {
+      const opt = document.createElement('option');
+      opt.value       = d.deviceId;
+      opt.textContent = d.label || `Microphone ${i + 1}`;
+      if (d.deviceId === selectedId) opt.selected = true;
+      micSelect.appendChild(opt);
+    });
+  }
+
+  async function initMicSection() {
+    const { mic_device_id } = await chrome.storage.local.get(['mic_device_id']);
+    let permState = 'prompt';
+    try {
+      const perm = await navigator.permissions.query({ name: 'microphone' });
+      permState = perm.state;
+    } catch {}
+
+    if (permState === 'granted') {
+      await populateMicDevices(mic_device_id || '');
+      grantMicBtn.style.display  = 'none';
+      micTestBtn.disabled        = false;
+      micPermDot.className       = 'mic-perm-dot ok';
+    } else {
+      grantMicBtn.style.display  = '';
+      micTestBtn.disabled        = true;
+      micPermDot.className       = permState === 'denied' ? 'mic-perm-dot err' : 'mic-perm-dot';
+    }
+  }
+
+  micTestBtn.addEventListener('click', async () => {
+    if (_mic.testing) {
+      stopMicPreview();
+    } else {
+      const { mic_device_id } = await chrome.storage.local.get(['mic_device_id']);
+      await startMicPreview(mic_device_id || null);
+    }
+  });
+
+  micSelect.addEventListener('change', async () => {
+    const deviceId = micSelect.value || '';
+    await chrome.storage.local.set({ mic_device_id: deviceId });
+    if (_mic.testing) await startMicPreview(deviceId || null);
+  });
 
   grantMicBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('grant-mic.html') });
   });
+
+  window.addEventListener('unload', stopMicPreview);
+
+  initMicSection();
 
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.last_capture) showStatus(`Last capture: ${changes.last_capture.newValue}`);

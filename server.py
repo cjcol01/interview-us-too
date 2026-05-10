@@ -716,8 +716,9 @@ async def api_audio_capture(
         transcription_text = transcript.text
         await broadcast(r, user.id, "audio-transcribed", {"transcription": transcription_text})
 
-        style = _user_response_style(user)
-        prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
+        style      = _user_response_style(user)
+        complexity = await get_complexity(r, user.id)
+        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
         full_text = ""
         async with async_client.messages.stream(
             model="claude-sonnet-4-6",
