@@ -40,6 +40,9 @@ def init_db():
             ("hotkey_capture",      "VARCHAR"),
             ("hotkey_audio",        "VARCHAR"),
             ("hotkey_toggle",       "VARCHAR"),
+            ("hotkey_replay",       "VARCHAR"),
+            ("replay_enabled",      "BOOLEAN DEFAULT 0"),
+            ("replay_seconds",      "INTEGER DEFAULT 10"),
         ]
         for col, definition in migrations:
             if col not in existing:

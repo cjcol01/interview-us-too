@@ -28,7 +28,7 @@ _missing = [
 ]
 if _missing:
     raise RuntimeError(f"Missing required env vars: {', '.join(_missing)}")
-BASE_URL              = os.getenv("BASE_URL", "http://192.168.4.21:8000")
+BASE_URL              = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
 AI_PROMPT      = os.getenv("AI_PROMPT", "Describe what is happening on this screen. Be concise.")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")

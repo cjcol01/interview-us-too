@@ -43,15 +43,42 @@ const _onMessage = (msg) => {
     showDisabledToast();
   } else if (msg.type === 'show-rate-limit') {
     showRateLimitToast(msg.message);
+  } else if (msg.type === 'replay-buffer-empty') {
+    showRateLimitToast('Replay buffer warming up — wait a moment and try again.');
   }
 };
 chrome.runtime.onMessage.addListener(_onMessage);
 ac.signal.addEventListener('abort', () => chrome.runtime.onMessage.removeListener(_onMessage));
 
 document.addEventListener('interview-ace:hotkeys', (e) => {
-  const { capture, audio, toggle } = e.detail;
-  chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle });
+  const { capture, audio, toggle, replay } = e.detail;
+  chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle, hotkey_replay: replay });
 }, { signal: ac.signal });
+
+document.addEventListener('interview-ace:replay', (e) => {
+  const { enabled, seconds } = e.detail;
+  chrome.storage.local.set({ replay_enabled: enabled, replay_seconds: seconds });
+}, { signal: ac.signal });
+
+document.addEventListener('interview-ace:replay-relock', () => {
+  chrome.runtime.sendMessage({ type: 'replay-relock' });
+}, { signal: ac.signal });
+
+// On /app: push replay status changes into the page as custom events
+if (window.location.pathname.startsWith('/app')) {
+  chrome.storage.local.get(['replay_status'], ({ replay_status }) => {
+    if (replay_status) {
+      document.dispatchEvent(new CustomEvent('interview-ace:replay-status', { detail: replay_status }));
+    }
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.replay_status?.newValue) {
+      document.dispatchEvent(new CustomEvent('interview-ace:replay-status', {
+        detail: changes.replay_status.newValue,
+      }));
+    }
+  });
+}
 
 document.addEventListener('interview-ace:connect', (e) => {
   const { token, serverUrl } = e.detail;
@@ -60,19 +87,21 @@ document.addEventListener('interview-ace:connect', (e) => {
   });
 }, { signal: ac.signal });
 
-const _hotkeys = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9' };
+const _hotkeys = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6' };
 let _audioRecording = false;
 
-chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle'], (r) => {
+chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay'], (r) => {
   if (r.hotkey_capture) _hotkeys.capture = r.hotkey_capture;
   if (r.hotkey_audio)   _hotkeys.audio   = r.hotkey_audio;
   if (r.hotkey_toggle)  _hotkeys.toggle  = r.hotkey_toggle;
+  if (r.hotkey_replay)  _hotkeys.replay  = r.hotkey_replay;
 });
 
 const _onStorageChanged = (changes) => {
   if (changes.hotkey_capture?.newValue) _hotkeys.capture = changes.hotkey_capture.newValue;
   if (changes.hotkey_audio?.newValue)   _hotkeys.audio   = changes.hotkey_audio.newValue;
   if (changes.hotkey_toggle?.newValue)  _hotkeys.toggle  = changes.hotkey_toggle.newValue;
+  if (changes.hotkey_replay?.newValue)  _hotkeys.replay  = changes.hotkey_replay.newValue;
 };
 chrome.storage.onChanged.addListener(_onStorageChanged);
 ac.signal.addEventListener('abort', () => chrome.storage.onChanged.removeListener(_onStorageChanged));
@@ -104,6 +133,8 @@ document.addEventListener('keydown', (e) => {
     chrome.runtime.sendMessage({ type: 'capture' });
   } else if (matchesHotkey(e, _hotkeys.toggle)) {
     chrome.runtime.sendMessage({ type: 'toggle' });
+  } else if (matchesHotkey(e, _hotkeys.replay)) {
+    chrome.runtime.sendMessage({ type: 'replay-trigger' });
   }
 }, { capture: true, signal: ac.signal });
 

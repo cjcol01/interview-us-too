@@ -47,7 +47,10 @@ class User(Base):
     hotkey_capture     = Column(String, nullable=True)
     hotkey_audio       = Column(String, nullable=True)
     hotkey_toggle      = Column(String, nullable=True)
+    hotkey_replay      = Column(String, nullable=True)
     response_style     = Column(Enum(ResponseStyle), nullable=True)
+    replay_enabled     = Column(Boolean, default=False, nullable=False, server_default="0")
+    replay_seconds     = Column(Integer, default=10,    nullable=False, server_default="10")
 
 
 class ReferralStatus(str, enum.Enum):

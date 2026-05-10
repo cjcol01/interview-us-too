@@ -72,6 +72,8 @@
 - [ ] "Buy me a coffee" link / tip jar (`plan.txt:23`)
 - [ ] add instant replay system for rolling back previously spoken text
 - [ ] check mac mic recording symbol - do we need to spoof a mic
+- [ ] change settings i.e. conversational, bullet points, summary, one liner 
+- [ ] upload a paragraph before hand of core company info
 
 ---
 

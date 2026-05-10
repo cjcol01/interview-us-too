@@ -51,7 +51,21 @@
     <button id="grant_mic">Grant mic permission</button>
     <div id="mic_status" class="status"></div>
 
-    <p class="hint">Screen&nbsp;<kbd id="hint-capture">Ctrl+Shift+7</kbd>&nbsp;&nbsp;Audio&nbsp;<kbd id="hint-audio">Ctrl+Shift+8</kbd>&nbsp;&nbsp;Toggle&nbsp;<kbd id="hint-toggle">Ctrl+Shift+9</kbd></p>
+    <div id="replay-section" style="display:none;border-top:1px solid #333;margin-top:10px;padding-top:10px;">
+      <div class="row-between" style="margin-bottom:6px;">
+        <label style="font-weight:600;font-size:0.85rem;">Instant Replay</label>
+        <span id="replay-pill" class="replay-pill idle">Idle</span>
+      </div>
+      <div class="row-between" style="margin-bottom:4px;">
+        <span id="replay-window-label" style="font-size:0.78rem;color:#888;">Window: 10s</span>
+        <div>
+          <button id="replay-lock-btn" class="replay-btn">Lock to this tab</button>
+          <button id="replay-unlock-btn" class="replay-btn secondary" style="display:none;">Unlock</button>
+        </div>
+      </div>
+    </div>
+
+    <p class="hint">Screen&nbsp;<kbd id="hint-capture">Ctrl+Shift+7</kbd>&nbsp;&nbsp;Audio&nbsp;<kbd id="hint-audio">Ctrl+Shift+8</kbd>&nbsp;&nbsp;Toggle&nbsp;<kbd id="hint-toggle">Ctrl+Shift+9</kbd>&nbsp;&nbsp;Replay&nbsp;<kbd id="hint-replay">Ctrl+Shift+6</kbd></p>
   </div>
   <script src="popup.js"></script>
 </body>

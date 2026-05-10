@@ -78,9 +78,18 @@ class HotkeySettings(BaseModel):
     capture: str
     audio:   str
     toggle:  str
+    replay:  str
 
 
-HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9"}
+HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9", "replay": "Ctrl+Shift+6"}
+
+REPLAY_SECONDS_MIN = 1
+REPLAY_SECONDS_MAX = 30
+
+
+class ReplaySettings(BaseModel):
+    enabled: bool
+    seconds: int = Field(ge=REPLAY_SECONDS_MIN, le=REPLAY_SECONDS_MAX)
 
 RESPONSE_STYLE_DEFAULT = ResponseStyle.conversational
 RESPONSE_STYLE_SUFFIX = {
@@ -100,6 +109,7 @@ def _user_hotkeys(user) -> dict:
         "capture": user.hotkey_capture or HOTKEY_DEFAULTS["capture"],
         "audio":   user.hotkey_audio   or HOTKEY_DEFAULTS["audio"],
         "toggle":  user.hotkey_toggle  or HOTKEY_DEFAULTS["toggle"],
+        "replay":  user.hotkey_replay  or HOTKEY_DEFAULTS["replay"],
     }
 
 
@@ -528,7 +538,10 @@ async def settings_page(
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
+        "hotkey_replay":  hk["replay"],
         "response_style": _user_response_style(user).value,
+        "replay_enabled": user.replay_enabled,
+        "replay_seconds": user.replay_seconds,
     })
 
 
@@ -701,6 +714,7 @@ async def api_audio_capture(
                 file=f,
             )
         transcription_text = transcript.text
+        await broadcast(r, user.id, "audio-transcribed", {"transcription": transcription_text})
 
         style = _user_response_style(user)
         prompt = AI_PROMPT + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
@@ -730,7 +744,11 @@ async def api_audio_capture(
 
 @app.get("/api/me")
 async def api_me(user: User = Depends(get_user_by_token)):
-    return {"account_level": user.account_level.value, "hotkeys": _user_hotkeys(user)}
+    return {
+        "account_level": user.account_level.value,
+        "hotkeys": _user_hotkeys(user),
+        "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
+    }
 
 
 @app.post("/api/settings/hotkeys")
@@ -738,6 +756,15 @@ async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_us
     user.hotkey_capture = data.capture
     user.hotkey_audio   = data.audio
     user.hotkey_toggle  = data.toggle
+    user.hotkey_replay  = data.replay
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/settings/replay")
+async def save_replay(data: ReplaySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.replay_enabled = data.enabled
+    user.replay_seconds = data.seconds
     db.commit()
     return {"status": "ok"}
 

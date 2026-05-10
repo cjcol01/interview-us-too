@@ -66,6 +66,10 @@ with TestClient(app) as client:
     import tests.test_hotkeys
     tests.test_hotkeys.register(test, skip, client)
 
+    section("Instant Replay")
+    import tests.test_replay
+    tests.test_replay.register(test, skip, client)
+
     section("Audio Capture")
     import tests.test_audio
     tests.test_audio.register(test, skip, client)

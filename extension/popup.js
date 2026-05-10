@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const { server_url, api_token, complexity, last_capture, last_error, enabled,
-          hotkey_capture, hotkey_audio, hotkey_toggle } =
+          hotkey_capture, hotkey_audio, hotkey_toggle, hotkey_replay,
+          replay_enabled, replay_seconds } =
     await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error', 'enabled',
-                                    'hotkey_capture', 'hotkey_audio', 'hotkey_toggle']);
+                                    'hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay',
+                                    'replay_enabled', 'replay_seconds']);
 
   const serverInput   = document.getElementById('server_url');
   const tokenInput    = document.getElementById('api_token');
@@ -21,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('hint-capture').textContent     = hotkey_capture || 'Ctrl+Shift+7';
   document.getElementById('hint-audio').textContent       = hotkey_audio   || 'Ctrl+Shift+8';
   document.getElementById('hint-toggle').textContent      = hotkey_toggle  || 'Ctrl+Shift+9';
+  document.getElementById('hint-replay').textContent      = hotkey_replay  || 'Ctrl+Shift+6';
   document.getElementById('confirm-capture-key').textContent = hotkey_capture || 'Ctrl+Shift+7';
 
   let isEnabled = enabled ?? false;
@@ -143,5 +146,68 @@ document.addEventListener('DOMContentLoaded', async () => {
         showStatus(`Interview assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
       });
     }
+  });
+
+  // ── Replay section ────────────────────────────────────────────────────────
+  const replaySection  = document.getElementById('replay-section');
+  const replayPill     = document.getElementById('replay-pill');
+  const replayWinLabel = document.getElementById('replay-window-label');
+  const lockBtn        = document.getElementById('replay-lock-btn');
+  const unlockBtn      = document.getElementById('replay-unlock-btn');
+
+  if (replay_enabled) {
+    replaySection.style.display = 'block';
+    replayWinLabel.textContent  = `Window: ${replay_seconds || 10}s`;
+  }
+
+  function applyReplayStatus(status) {
+    if (!status) return;
+    const { state, tabTitle } = status;
+    replayPill.className = 'replay-pill ' + state;
+    if (state === 'idle') {
+      replayPill.textContent  = 'Idle';
+      lockBtn.textContent     = 'Lock to this tab';
+      lockBtn.style.display   = '';
+      unlockBtn.style.display = 'none';
+    } else if (state === 'arming') {
+      replayPill.textContent  = 'Arming…';
+      lockBtn.style.display   = 'none';
+      unlockBtn.style.display = '';
+    } else if (state === 'armed') {
+      replayPill.textContent  = tabTitle ? `Armed: ${tabTitle.slice(0, 24)}` : 'Armed';
+      lockBtn.style.display   = 'none';
+      unlockBtn.style.display = '';
+    } else if (state === 'stream-ended') {
+      replayPill.textContent  = 'Stream lost';
+      lockBtn.textContent     = 'Re-lock to a tab';
+      lockBtn.style.display   = '';
+      unlockBtn.style.display = 'none';
+    } else if (state === 'error') {
+      replayPill.textContent  = 'Error — re-lock';
+      lockBtn.textContent     = 'Lock to this tab';
+      lockBtn.style.display   = '';
+      unlockBtn.style.display = 'none';
+    }
+  }
+
+  // Restore persisted status (local is accessible from both popup and content scripts)
+  chrome.storage.local.get(['replay_status'], ({ replay_status }) => {
+    applyReplayStatus(replay_status);
+  });
+
+  // Live updates from background
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === 'replay-status') applyReplayStatus(msg);
+  });
+
+  lockBtn.addEventListener('click', async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return;
+    const windowSec = replay_seconds || 10;
+    chrome.runtime.sendMessage({ type: 'replay-lock', tabId: tab.id, windowSec });
+  });
+
+  unlockBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'replay-unlock' });
   });
 });

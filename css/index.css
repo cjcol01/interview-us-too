@@ -249,6 +249,28 @@
     #analysis li { margin: 3px 0; }
     #analysis strong { color: var(--text); }
 
+    #transcription-box {
+      display: none;
+      background: rgba(0,212,170,0.05);
+      border: 1px solid rgba(0,212,170,0.15);
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 10px;
+    }
+    #transcription-label {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent2);
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    #transcription-text {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
     #timestamp { font-size: 0.68rem; color: var(--border); margin-top: 10px; }
 
     /* ── Trial start overlay ── */

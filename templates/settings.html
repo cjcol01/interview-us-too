@@ -169,6 +169,39 @@
       <div id="style-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
     </div>
 
+    <!-- Instant Replay -->
+    <div class="section-label">Instant Replay</div>
+    <div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <span class="row-label">Enable instant replay</span>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
+            Buffers audio from a locked browser tab. Lock a tab in the extension popup,<br>
+            then press the hotkey to send the last N seconds to Whisper + Claude.<br>
+            Audio never leaves your browser unless you press the hotkey.
+          </div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="replay-toggle" {% if replay_enabled %}checked{% endif %} onchange="onReplayToggle()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div class="row" id="replay-seconds-row" {% if not replay_enabled %}style="opacity:0.4;pointer-events:none;"{% endif %}>
+        <span class="row-label">Buffer window</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input
+            type="range" id="replay-slider"
+            min="1" max="30" value="{{ replay_seconds }}"
+            style="width:110px;"
+            oninput="document.getElementById('replay-seconds-label').textContent=this.value+'s'"
+            onchange="saveReplay()"
+          >
+          <span id="replay-seconds-label" style="font-size:0.82rem;min-width:28px;">{{ replay_seconds }}s</span>
+        </div>
+      </div>
+      <div id="replay-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
+    </div>
+
     <!-- Shortcuts -->
     <div class="section-label">Shortcuts</div>
     <div class="card">
@@ -191,6 +224,13 @@
         <div style="display:flex;align-items:center;gap:6px;">
           <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
           <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Instant replay</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="hotkey-btn" id="hk-replay" onclick="recordHotkey('replay', this)">{{ hotkey_replay }}</button>
+          <button class="hotkey-reset" onclick="resetHotkey('replay')">reset</button>
         </div>
       </div>
       <div id="hk-status" style="padding:8px 16px;font-size:0.75rem;color:var(--muted);display:none;"></div>
@@ -238,13 +278,51 @@
   </script>
 
   <script>
+    // ── Replay settings ────────────────────────────────────────────────────
+    function onReplayToggle() {
+      const enabled = document.getElementById('replay-toggle').checked;
+      const row = document.getElementById('replay-seconds-row');
+      row.style.opacity = enabled ? '1' : '0.4';
+      row.style.pointerEvents = enabled ? '' : 'none';
+      saveReplay();
+    }
+
+    async function saveReplay() {
+      const enabled = document.getElementById('replay-toggle').checked;
+      const seconds = parseInt(document.getElementById('replay-slider').value, 10);
+      const statusEl = document.getElementById('replay-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/replay', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled, seconds }),
+        });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent2)';
+          document.dispatchEvent(new CustomEvent('interview-ace:replay', { detail: { enabled, seconds } }));
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // ── Hotkey recording ───────────────────────────────────────────────────
     const _hotkeys = {
       capture: '{{ hotkey_capture }}',
       audio:   '{{ hotkey_audio }}',
       toggle:  '{{ hotkey_toggle }}',
+      replay:  '{{ hotkey_replay }}',
     };
-    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9' };
+    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6' };
     let _recording = null;
 
     function recordHotkey(action, btn) {

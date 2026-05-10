@@ -22,7 +22,7 @@ def register(test, skip, client):
         try:
             u = make_user(db, AccountLevel.trial)
             token = create_token(u.id)
-            payload = {"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3"}
+            payload = {"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3", "replay": "Ctrl+Shift+6"}
             r = client.post(
                 "/api/settings/hotkeys",
                 json=payload,
@@ -42,7 +42,7 @@ def register(test, skip, client):
         try:
             u = make_user(db, AccountLevel.trial)
             token = create_token(u.id)
-            payload = {"capture": "Alt+A", "audio": "Alt+B", "toggle": "Alt+C"}
+            payload = {"capture": "Alt+A", "audio": "Alt+B", "toggle": "Alt+C", "replay": "Ctrl+Shift+6"}
             client.post("/api/settings/hotkeys", json=payload, cookies={"session": token})
             r = client.get("/api/me", headers={"Authorization": f"Bearer {u.api_token}"})
             assert r.status_code == 200
@@ -99,7 +99,10 @@ def register(test, skip, client):
             u.hotkey_audio   = "Ctrl+Y"
             u.hotkey_toggle  = "Ctrl+Z"
             hk = _user_hotkeys(u)
-            assert hk == {"capture": "Ctrl+X", "audio": "Ctrl+Y", "toggle": "Ctrl+Z"}
+            assert hk["capture"] == "Ctrl+X"
+            assert hk["audio"]   == "Ctrl+Y"
+            assert hk["toggle"]  == "Ctrl+Z"
+            assert hk["replay"]  == HOTKEY_DEFAULTS["replay"]
         finally:
             cleanup(db, u)
             db.close()

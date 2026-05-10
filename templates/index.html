@@ -107,6 +107,7 @@
       <span id="monitor-badge"></span>
     </div>
     <div class="header-right">
+      <span id="replay-badge" style="display:none;font-size:0.72rem;display:none;align-items:center;gap:5px;"></span>
       <span id="status">connecting...</span>
       <button id="tutorial-btn" onclick="restartTutorial()" aria-label="How it works">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -174,23 +175,30 @@
           <button class="complexity-btn" id="complexity-up" onclick="postComplexity('up')">+</button>
         </div>
       </div>
+      <div id="transcription-box">
+        <div id="transcription-label">You said</div>
+        <div id="transcription-text"></div>
+      </div>
       <div id="analysis" class="empty"></div>
       <div id="timestamp"></div>
     </div>
   </main>
 
   <script>
-    const statusEl   = document.getElementById('status');
-    const imgEl      = document.getElementById('screenshot');
-    const phEl       = document.getElementById('placeholder');
-    const analysisEl = document.getElementById('analysis');
-    const tsEl       = document.getElementById('timestamp');
-    const badgeEl    = document.getElementById('monitor-badge');
+    const statusEl       = document.getElementById('status');
+    const imgEl          = document.getElementById('screenshot');
+    const phEl           = document.getElementById('placeholder');
+    const analysisEl     = document.getElementById('analysis');
+    const tsEl           = document.getElementById('timestamp');
+    const badgeEl        = document.getElementById('monitor-badge');
+    const transcBoxEl    = document.getElementById('transcription-box');
+    const transcTextEl   = document.getElementById('transcription-text');
     let _streamBuffer = '';
 
     const wrapEl = document.getElementById('screenshot-wrap');
 
     function applyCapture(data) {
+      transcBoxEl.style.display = 'none';
       if (data.capture_id > 0) {
         imgEl.src = '/screenshot?t=' + data.capture_id;
         imgEl.classList.remove('hidden');
@@ -240,6 +248,7 @@
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
             analysisEl.className = 'analysing';
+            transcBoxEl.style.display = 'none';
             imgEl.src = '/screenshot?t=' + data.capture_id;
             imgEl.classList.remove('hidden');
             phEl.style.display = 'none';
@@ -279,14 +288,18 @@
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
             analysisEl.className = 'analysing';
+            transcBoxEl.style.display = 'none';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
+          } else if (data.type === 'audio-transcribed') {
+            transcTextEl.textContent = data.transcription;
+            transcBoxEl.style.display = 'block';
+            statusEl.textContent = 'analysing...';
           } else if (data.type === 'audio-analysis') {
             _streamBuffer = '';
             statusEl.textContent = 'live';
             statusEl.className = 'live';
-            const transcriptionMd = data.transcription ? '> ' + data.transcription + '\n\n' : '';
-            analysisEl.innerHTML = marked.parse(transcriptionMd + (data.analysis || ''));
+            analysisEl.innerHTML = marked.parse(data.analysis || '');
             analysisEl.className = data.analysis ? '' : 'empty';
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
             badgeEl.textContent = 'mic';
@@ -488,5 +501,35 @@
 
     connect();
     initTrial();
+
+    // ── Instant replay badge ─────────────────────────────────────────────────
+    const _replayBadge = document.getElementById('replay-badge');
+
+    function _applyReplayStatus(status) {
+      if (!status || status.state === 'idle' || status.state === 'arming') {
+        _replayBadge.style.display = 'none';
+        return;
+      }
+      _replayBadge.style.display = 'flex';
+      if (status.state === 'armed') {
+        _replayBadge.innerHTML =
+          '<span style="width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0;"></span>' +
+          '<span style="color:var(--muted)">replay</span>';
+      } else if (status.state === 'stream-ended') {
+        _replayBadge.innerHTML =
+          '<span style="color:#e57373;font-size:0.7rem;">replay lost</span>' +
+          '<button onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))" ' +
+          'style="background:none;border:none;color:#5b9bd5;cursor:pointer;font-size:0.7rem;padding:0;text-decoration:underline;">re-lock</button>';
+      } else if (status.state === 'error') {
+        _replayBadge.innerHTML =
+          '<span style="color:#e57373;font-size:0.7rem;">replay error</span>' +
+          '<button onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))" ' +
+          'style="background:none;border:none;color:#5b9bd5;cursor:pointer;font-size:0.7rem;padding:0;text-decoration:underline;">re-lock</button>';
+      } else {
+        _replayBadge.style.display = 'none';
+      }
+    }
+
+    document.addEventListener('interview-ace:replay-status', (e) => _applyReplayStatus(e.detail));
   </script>
 {% endblock %}

@@ -6,13 +6,20 @@ async function fetchAccountLevel() {
       headers: { 'Authorization': `Bearer ${api_token}` },
     });
     if (resp.ok) {
-      const { account_level, hotkeys } = await resp.json();
-      await chrome.storage.local.set({ is_unlimited: account_level === 'unlimited' });
-      if (hotkeys) {
+      const data = await resp.json();
+      await chrome.storage.local.set({ is_unlimited: data.account_level === 'unlimited' });
+      if (data.hotkeys) {
         await chrome.storage.local.set({
-          hotkey_capture: hotkeys.capture,
-          hotkey_audio:   hotkeys.audio,
-          hotkey_toggle:  hotkeys.toggle,
+          hotkey_capture: data.hotkeys.capture,
+          hotkey_audio:   data.hotkeys.audio,
+          hotkey_toggle:  data.hotkeys.toggle,
+          hotkey_replay:  data.hotkeys.replay,
+        });
+      }
+      if (data.replay) {
+        await chrome.storage.local.set({
+          replay_enabled: data.replay.enabled,
+          replay_seconds: data.replay.seconds,
         });
       }
     }
@@ -158,6 +165,48 @@ let _audioActive = false;
 let _stopPending = false;
 let _offscreenReadyResolve = null;
 
+// ---------------------------------------------------------------------------
+// Instant replay state
+// ---------------------------------------------------------------------------
+
+let _replayArmed     = false;
+let _replayTabId     = null;
+let _replayTabOrigin = null;
+let _lastReplayTabId = null;
+let _replayWindowSec = 10;
+const _replayPending = {};   // requestId → resolve fn
+
+// Clear any stale armed status from a previous SW lifetime
+chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
+
+function maybeCloseOffscreen() {
+  if (!_replayArmed && !_audioActive) {
+    chrome.offscreen.closeDocument().catch(() => {});
+  }
+}
+
+function broadcastReplayStatus(state, extra = {}) {
+  const payload = { state, ...extra };
+  // local is readable by content scripts; session is not — write both
+  chrome.storage.local.set({ replay_status: payload }).catch(() => {});
+  chrome.storage.session?.set({ replay_status: payload }).catch(() => {});
+  chrome.runtime.sendMessage({ type: 'replay-status', ...payload }).catch(() => {});
+}
+
+function handleStreamDeath() {
+  if (!_replayArmed && _replayTabId === null) return; // already disarmed
+  _replayArmed     = false;
+  _replayTabId     = null;
+  _replayTabOrigin = null;
+  chrome.runtime.sendMessage({ type: 'replay-disarm' }).catch(() => {});
+  broadcastReplayStatus('stream-ended');
+  maybeCloseOffscreen();
+}
+
+// ---------------------------------------------------------------------------
+// Message router
+// ---------------------------------------------------------------------------
+
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.type === 'capture') {
     handleCapture();
@@ -175,13 +224,43 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     chrome.action.setBadgeText({ text: 'ERR' });
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
     setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
-    chrome.offscreen.closeDocument().catch(() => {});
+    maybeCloseOffscreen();
   } else if (msg.type === 'offscreen-ready') {
     _offscreenReadyResolve?.();
     _offscreenReadyResolve = null;
+  } else if (msg.type === 'replay-lock') {
+    handleReplayLock(msg.tabId, msg.windowSec);
+  } else if (msg.type === 'replay-unlock') {
+    handleReplayUnlock();
+  } else if (msg.type === 'replay-trigger') {
+    handleReplayTrigger(sender.tab?.id);
+  } else if (msg.type === 'replay-armed') {
+    _replayArmed = true;
+    if (_replayTabId) {
+      chrome.tabs.get(_replayTabId, (tab) => {
+        broadcastReplayStatus('armed', { tabTitle: tab?.title || 'Unknown tab' });
+      });
+    } else {
+      broadcastReplayStatus('armed');
+    }
+  } else if (msg.type === 'replay-slice-result') {
+    _replayPending[msg.requestId]?.({ base64: msg.base64, mimeType: msg.mimeType });
+    delete _replayPending[msg.requestId];
+  } else if (msg.type === 'replay-stream-error') {
+    _replayArmed = false;
+    broadcastReplayStatus('error', { errorMsg: msg.error || 'Tab audio capture failed' });
+    maybeCloseOffscreen();
+  } else if (msg.type === 'replay-stream-ended') {
+    handleStreamDeath();
+  } else if (msg.type === 'replay-relock') {
+    handleReplayRelock();
   }
   return false;
 });
+
+// ---------------------------------------------------------------------------
+// Mic recording handlers (unchanged logic, maybeCloseOffscreen replaces unconditional close)
+// ---------------------------------------------------------------------------
 
 async function handleAudioStart() {
   if (_audioActive) return;
@@ -215,7 +294,7 @@ async function handleAudioStart() {
   if (_stopPending) {
     _stopPending = false;
     _audioActive = false;
-    chrome.offscreen.closeDocument().catch(() => {});
+    maybeCloseOffscreen();
     return;
   }
 
@@ -253,8 +332,143 @@ async function handleAudioData(base64, mimeType) {
       console.error('[audio] upload failed:', e.message);
     }
   }
-  chrome.offscreen.closeDocument().catch(() => {});
+  maybeCloseOffscreen();
 }
+
+// ---------------------------------------------------------------------------
+// Replay handlers
+// ---------------------------------------------------------------------------
+
+async function handleReplayLock(tabId, windowSec) {
+  _replayTabId     = tabId;
+  _lastReplayTabId = tabId;
+  _replayWindowSec = windowSec;
+
+  // Remember origin so we can detect cross-origin navigation later
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    _replayTabOrigin = tab.url ? new URL(tab.url).origin : null;
+  } catch { _replayTabOrigin = null; }
+
+  broadcastReplayStatus('arming');
+
+  // Ensure a clean offscreen doc — close any stale one first (awaited so we
+  // don't race between close and create), then create fresh unless the mic
+  // path is already holding the doc open.
+  const existing = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')],
+  });
+
+  let needCreate = existing.length === 0;
+  if (existing.length > 0 && !_audioActive) {
+    await chrome.offscreen.closeDocument().catch(() => {});
+    needCreate = true;
+  }
+
+  if (needCreate) {
+    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Tab audio capture for instant replay',
+    });
+    await readyPromise;
+  }
+
+  let streamId;
+  try {
+    // Omit consumerTabId — offscreen docs don't have a tab ID
+    streamId = await chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
+  } catch (e) {
+    console.error('[replay] getMediaStreamId failed:', e.message);
+    broadcastReplayStatus('error', { errorMsg: 'Could not capture tab audio — try re-locking' });
+    maybeCloseOffscreen();
+    return;
+  }
+
+  chrome.runtime.sendMessage({ type: 'replay-stream-id', streamId, windowSec, epochMs: 60_000 });
+}
+
+async function handleReplayUnlock() {
+  if (!_replayArmed && _replayTabId === null) return;
+  _replayArmed = false;
+  _replayTabId = null;
+  chrome.runtime.sendMessage({ type: 'replay-disarm' }).catch(() => {});
+  broadcastReplayStatus('idle');
+  maybeCloseOffscreen();
+}
+
+async function handleReplayTrigger(senderTabId) {
+  if (!_replayArmed) return;
+
+  // Always read the current setting — user may have changed it since locking
+  const { replay_seconds } = await chrome.storage.local.get(['replay_seconds']);
+  const windowSec = replay_seconds || _replayWindowSec;
+
+  const requestId = Math.random().toString(36).slice(2);
+  const dataPromise = new Promise(resolve => { _replayPending[requestId] = resolve; });
+
+  chrome.runtime.sendMessage({ type: 'replay-slice', requestId, windowSec });
+
+  const { base64, mimeType } = await dataPromise;
+  if (!base64) {
+    if (senderTabId) {
+      chrome.tabs.sendMessage(senderTabId, { type: 'replay-buffer-empty' }).catch(() => {});
+    }
+    return;
+  }
+
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const form = new FormData();
+  form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
+  try {
+    await fetch(`${server_url}/api/audio-capture`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${api_token}` },
+      body: form,
+    });
+  } catch (e) {
+    console.error('[replay] upload failed:', e.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+async function handleReplayRelock() {
+  if (!_lastReplayTabId) return;
+  const { replay_seconds } = await chrome.storage.local.get(['replay_seconds']);
+  handleReplayLock(_lastReplayTabId, replay_seconds || _replayWindowSec);
+}
+
+// Hold the SW alive while the offscreen doc has an open port
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'replay-keepalive') {
+    port.onDisconnect.addListener(() => {});
+  }
+});
+
+// Detect locked tab being closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabId === _replayTabId) handleStreamDeath();
+});
+
+// Detect locked tab navigating to a different origin (privacy guard)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (tabId !== _replayTabId || !_replayArmed) return;
+  if (changeInfo.status !== 'loading') return;
+  try {
+    const currentUrl = tab.url || changeInfo.url;
+    if (!currentUrl) return;
+    const newOrigin = new URL(currentUrl).origin;
+    if (_replayTabOrigin && newOrigin !== _replayTabOrigin) handleStreamDeath();
+  } catch {}
+});
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   if (reason === 'install' || reason === 'update') {

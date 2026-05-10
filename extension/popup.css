@@ -199,3 +199,28 @@ kbd {
   font-family: monospace;
   color: #555;
 }
+
+.replay-pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #333;
+  color: #555;
+  background: #1a1a1a;
+}
+.replay-pill.armed        { color: #4caf50; border-color: #1e4a1e; background: #0e2e0e; }
+.replay-pill.arming       { color: #f0a030; border-color: #5a3800; background: #2a1a00; }
+.replay-pill.stream-ended { color: #e57373; border-color: #5a1a1a; background: #2a0a0a; }
+.replay-pill.error        { color: #e57373; border-color: #5a1a1a; background: #2a0a0a; }
+
+.replay-btn {
+  font-size: 0.72rem;
+  padding: 4px 9px;
+  margin-left: 4px;
+}
+.replay-btn.secondary {
+  background: #1a1a1a;
+  border-color: #333;
+  color: #666;
+}
