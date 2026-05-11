@@ -290,3 +290,93 @@ def register(test, skip, client):
     test("/referral shows referee in list",                            test_referral_page_shows_referee)
     test("Checkout applies discount for referred subscriber",          test_checkout_applies_discount_for_referred_user)
     test("Checkout skips discount for non-referred user",              test_checkout_no_discount_for_non_referred_user)
+
+    # -- /referral/apply happy path and edge cases ---------------------------
+
+    def test_referral_apply_valid_code_creates_referral():
+        init_db()
+        db = SessionLocal()
+        referrer = make_user(db, AccountLevel.unlimited)
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.post(
+                "/referral/apply",
+                data={"code": referrer.referral_code, "source": "settings"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert "ref_success=1" in r.headers.get("location", "")
+            db2 = SessionLocal()
+            try:
+                applicant = db2.query(User).filter(User.username == uname).first()
+                assert applicant.referred_by_id == referrer.id
+                ref_row = db2.query(Referral).filter(Referral.referee_id == applicant.id).first()
+                assert ref_row is not None
+                assert ref_row.referrer_id == referrer.id
+                assert ref_row.status == ReferralStatus.signed_up
+            finally:
+                db2.close()
+        finally:
+            cleanup(db, referrer); db.close()
+            delete_by_name(uname)
+
+    def test_referral_apply_already_referred_is_rejected():
+        init_db()
+        db = SessionLocal()
+        referrer = make_user(db, AccountLevel.unlimited)
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            applicant = db.query(User).filter(User.username == uname).first()
+            applicant.referred_by_id = referrer.id
+            db.commit()
+            r = client.post(
+                "/referral/apply",
+                data={"code": referrer.referral_code, "source": "settings"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert "already_referred" in r.headers.get("location", "")
+        finally:
+            cleanup(db, referrer); db.close()
+            delete_by_name(uname)
+
+    def test_referral_apply_invalid_code_is_rejected():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.post(
+                "/referral/apply",
+                data={"code": "zzz_totally_nonexistent_code", "source": "settings"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert "invalid_code" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    def test_referral_apply_url_form_code_is_parsed():
+        """_parse_referral_code accepts a full /r/CODE URL."""
+        init_db()
+        db = SessionLocal()
+        referrer = make_user(db, AccountLevel.unlimited)
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            url_code = f"https://example.com/r/{referrer.referral_code}"
+            r = client.post(
+                "/referral/apply",
+                data={"code": url_code, "source": "settings"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert "ref_success=1" in r.headers.get("location", "")
+        finally:
+            cleanup(db, referrer); db.close()
+            delete_by_name(uname)
+
+    test("/referral/apply: valid code creates referral row",          test_referral_apply_valid_code_creates_referral)
+    test("/referral/apply: already referred is rejected",             test_referral_apply_already_referred_is_rejected)
+    test("/referral/apply: invalid code is rejected",                 test_referral_apply_invalid_code_is_rejected)
+    test("/referral/apply: URL-form /r/CODE is parsed correctly",     test_referral_apply_url_form_code_is_parsed)

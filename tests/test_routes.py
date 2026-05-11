@@ -2,7 +2,7 @@ import secrets as _sec
 
 from database import SessionLocal
 from models import AccountLevel, User
-from tests.helpers import delete_by_name, make_cookie
+from tests.helpers import cleanup, delete_by_name, make_cookie, make_user
 
 
 def register(test, skip, client):
@@ -362,3 +362,206 @@ def register(test, skip, client):
     test("Resend verification ok for unverified user",        test_resend_verification_ok_for_unverified)
     test("Resend verification 400 for already verified",      test_resend_verification_400_for_already_verified)
     test("/api/me returns account_level + hotkeys",           test_api_me_returns_account_level_and_hotkeys)
+
+    # -- GET /verify (email verification) ------------------------------------
+
+    def test_verify_valid_token_sets_verified_and_redirects():
+        import secrets as sec
+        from auth import hash_password
+        db = SessionLocal()
+        tag = sec.token_hex(4)
+        uname = f"_verify_{tag}"
+        verify_tok = sec.token_urlsafe(32)
+        try:
+            u = User(
+                username=uname, email=f"{uname}@test.internal",
+                full_name="V", password_hash=hash_password("pass12345"),
+                account_level=AccountLevel.trial,
+                verify_token=verify_tok,
+            )
+            db.add(u); db.commit()
+            r = client.get(f"/verify?token={verify_tok}", follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            db.refresh(u)
+            assert u.email_verified is True
+            assert u.verify_token is None
+        finally:
+            db.query(User).filter(User.username == uname).delete()
+            db.commit(); db.close()
+
+    def test_verify_invalid_token_returns_400():
+        r = client.get("/verify?token=notarealtoken")
+        assert r.status_code == 400
+
+    test("GET /verify: valid token marks verified + redirects",  test_verify_valid_token_sets_verified_and_redirects)
+    test("GET /verify: invalid token → 400",                     test_verify_invalid_token_returns_400)
+
+    # -- GET /app redirect logic ---------------------------------------------
+
+    def test_app_redirects_unverified_to_verify_pending():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/app", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "verify-pending" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    def test_app_redirects_free_to_pricing():
+        token, uname = make_cookie(AccountLevel.free)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/app", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/pricing" in r.headers.get("location", "")
+        finally:
+            db.close(); delete_by_name(uname)
+
+    def test_app_redirects_trial_no_setup_to_onboarding():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.setup_complete = False
+            db.commit()
+            r = client.get("/app", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/onboarding" in r.headers.get("location", "")
+        finally:
+            db.close(); delete_by_name(uname)
+
+    test("GET /app: unverified user → /verify-pending",           test_app_redirects_unverified_to_verify_pending)
+    test("GET /app: free user → /pricing",                        test_app_redirects_free_to_pricing)
+    test("GET /app: trial without setup → /onboarding",           test_app_redirects_trial_no_setup_to_onboarding)
+
+    # -- GET /screenshot -----------------------------------------------------
+
+    def test_screenshot_no_file_returns_404():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/screenshot", cookies={"session": token})
+            assert r.status_code == 404
+        finally:
+            delete_by_name(uname)
+
+    test("GET /screenshot: no file → 404",                        test_screenshot_no_file_returns_404)
+
+    # -- POST /api/notify/disabled and /api/notify/enabled ------------------
+
+    def test_notify_disabled_free_user_is_noop():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.free)
+            r = client.post("/api/notify/disabled",
+                            headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_notify_disabled_requires_bearer():
+        r = client.post("/api/notify/disabled")
+        assert r.status_code in (401, 403)
+
+    def test_notify_enabled_free_user_is_noop():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.free)
+            r = client.post("/api/notify/enabled",
+                            headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_notify_enabled_unlimited_user_is_noop():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.unlimited)
+            r = client.post("/api/notify/enabled",
+                            headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_notify_enabled_trial_user_returns_200():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post("/api/notify/enabled",
+                            headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+        finally:
+            cleanup(db, u); db.close()
+
+    test("POST /api/notify/disabled: free user no-op → 200",      test_notify_disabled_free_user_is_noop)
+    test("POST /api/notify/disabled requires Bearer token",        test_notify_disabled_requires_bearer)
+    test("POST /api/notify/enabled: free user no-op → 200",       test_notify_enabled_free_user_is_noop)
+    test("POST /api/notify/enabled: unlimited user no-op → 200",  test_notify_enabled_unlimited_user_is_noop)
+    test("POST /api/notify/enabled: trial user → 200",            test_notify_enabled_trial_user_returns_200)
+
+    # -- GET /api/billing/status ---------------------------------------------
+
+    def test_billing_status_returns_expected_fields():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/api/billing/status", cookies={"session": token})
+            assert r.status_code == 200
+            body = r.json()
+            assert "account_level" in body
+            assert "sessions_remaining" in body
+            assert "intro_declined" in body
+            assert body["account_level"] == AccountLevel.trial.value
+        finally:
+            delete_by_name(uname)
+
+    def test_billing_status_requires_auth():
+        r = client.get("/api/billing/status", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    test("GET /api/billing/status returns account fields",         test_billing_status_returns_expected_fields)
+    test("GET /api/billing/status requires auth",                  test_billing_status_requires_auth)
+
+    # -- POST /billing/offer -------------------------------------------------
+
+    def test_billing_offer_requires_auth():
+        r = client.post("/billing/offer", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_billing_offer_redirects_to_settings():
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.post("/billing/offer", cookies={"session": token},
+                            follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "offer=claimed" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    test("POST /billing/offer requires auth",                      test_billing_offer_requires_auth)
+    test("POST /billing/offer redirects to /settings?offer=claimed", test_billing_offer_redirects_to_settings)
+
+    # -- POST /billing/feedback ----------------------------------------------
+
+    def test_billing_feedback_requires_auth():
+        r = client.post("/billing/feedback",
+                        data={"reason": "", "detail": ""},
+                        follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_billing_feedback_redirects_to_settings():
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.post("/billing/feedback",
+                            data={"reason": "keeping it", "detail": ""},
+                            cookies={"session": token},
+                            follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/settings" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    test("POST /billing/feedback requires auth",                   test_billing_feedback_requires_auth)
+    test("POST /billing/feedback redirects to /settings",          test_billing_feedback_redirects_to_settings)

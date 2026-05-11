@@ -1,8 +1,30 @@
+_MINIMAL_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)
+
+
+class _FakeAsyncStream:
+    """Minimal async context manager that mimics anthropic's streaming response."""
+    async def __aenter__(self): return self
+    async def __aexit__(self, *args): pass
+
+    async def _gen(self):
+        yield "ok"
+
+    @property
+    def text_stream(self):
+        return self._gen()
+
+
+def _mock_anthropic_stream(*args, **kwargs):
+    return _FakeAsyncStream()
+
+
 def register(test, skip, client=None):
     from database import SessionLocal, init_db
-    from models import InterviewSession
+    from models import AccountLevel, InterviewSession
     from server import _get_or_create_session
-    from tests.helpers import make_user, cleanup
+    from tests.helpers import cleanup, make_user
 
     def test_session_created_on_first_capture():
         init_db()
@@ -175,3 +197,86 @@ def register(test, skip, client=None):
     test("/api/trial/status before start",             test_trial_status_before_start)
     test("/api/trial/status after start",              test_trial_status_after_start)
     test("/api/setup/complete flips flag",             test_setup_complete_sets_flag)
+
+    # -- paid account gating in /api/capture ---------------------------------
+
+    def test_paid_no_session_deducts_sessions_remaining():
+        """Paid user with sessions_remaining=2 and no active session: capture deducts one."""
+        init_db()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.paid)
+            u.sessions_remaining = 2
+            db.commit()
+            import server
+            orig = server.async_client.messages.stream
+            server.async_client.messages.stream = _mock_anthropic_stream
+            try:
+                r = client.post(
+                    "/api/capture",
+                    json={"image": _MINIMAL_PNG_B64, "complexity": 2, "monitor": "browser"},
+                    headers={"Authorization": f"Bearer {u.api_token}"},
+                )
+                assert r.status_code == 200
+                db.refresh(u)
+                assert u.sessions_remaining == 1
+            finally:
+                server.async_client.messages.stream = orig
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_paid_sessions_exhausted_returns_403_and_downgrades():
+        """Paid user with sessions_remaining=0 and no active session: 403 + downgraded to free."""
+        init_db()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.paid)
+            u.sessions_remaining = 0
+            db.commit()
+            r = client.post(
+                "/api/capture",
+                json={"image": _MINIMAL_PNG_B64, "complexity": 2, "monitor": "browser"},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 403
+            assert "sessions_exhausted" in r.json().get("detail", "")
+            db.refresh(u)
+            assert u.account_level == AccountLevel.free
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_paid_with_active_session_no_deduction():
+        """Paid user with an active session: no sessions_remaining deduction."""
+        from datetime import timedelta
+        from datetime import datetime
+        init_db()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.paid)
+            u.sessions_remaining = 2
+            db.commit()
+            sess = InterviewSession(
+                user_id=u.id,
+                expires_at=datetime.utcnow() + timedelta(hours=2),
+            )
+            db.add(sess); db.commit()
+            import server
+            orig = server.async_client.messages.stream
+            server.async_client.messages.stream = _mock_anthropic_stream
+            try:
+                r = client.post(
+                    "/api/capture",
+                    json={"image": _MINIMAL_PNG_B64, "complexity": 2, "monitor": "browser"},
+                    headers={"Authorization": f"Bearer {u.api_token}"},
+                )
+                assert r.status_code == 200
+                db.refresh(u)
+                assert u.sessions_remaining == 2
+            finally:
+                server.async_client.messages.stream = orig
+        finally:
+            cleanup(db, u); db.close()
+
+    test("Paid: no session, sessions=2 → deducts one",             test_paid_no_session_deducts_sessions_remaining)
+    test("Paid: sessions=0, no session → 403 + downgrade to free", test_paid_sessions_exhausted_returns_403_and_downgrades)
+    test("Paid: has active session → no deduction",                test_paid_with_active_session_no_deduction)
