@@ -21,7 +21,7 @@
       <a class="btn btn-primary" href="/app">Go to app</a>
       {% else %}
       <a class="btn btn-outline" href="/login">Sign in</a>
-      <a class="btn btn-primary" href="/login">Get started</a>
+      <a class="btn btn-primary" href="/login?register=1">Get started</a>
       {% endif %}
     </div>
   </nav>
@@ -39,7 +39,7 @@
         {% if user %}
         <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
         {% else %}
-        <a class="btn btn-primary btn-lg" href="/login">Start for free</a>
+        <a class="btn btn-primary btn-lg" href="/login?register=1">Start for free</a>
         {% endif %}
         <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
       </div>
@@ -51,15 +51,38 @@
     </div>
   </section>
 
+  <!-- Stats Strip -->
+  <div class="stats-strip reveal">
+    <div class="stat-item">
+      <span class="stat-num" data-count="3" data-suffix=" modes">3 modes</span>
+      <span class="stat-label">capture options</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="stat-item">
+      <span class="stat-num">&lt;&thinsp;3s</span>
+      <span class="stat-label">response time</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="stat-item">
+      <span class="stat-num" data-count="2.5" data-suffix="hr">2.5hr</span>
+      <span class="stat-label">per session</span>
+    </div>
+    <div class="stat-div"></div>
+    <div class="stat-item">
+      <span class="stat-num">Free</span>
+      <span class="stat-label">trial</span>
+    </div>
+  </div>
+
   <!-- Pain Points -->
   <section class="pain">
     <div class="container">
-      <div class="section-label">Sound familiar?</div>
-      <h2>Interviews are broken.<br>Pressure kills performance.</h2>
-      <p class="section-sub">Being watched changes everything. The same problems you solve at home become impossible under a stranger's gaze.</p>
+      <div class="section-label reveal">Sound familiar?</div>
+      <h2 class="reveal">Interviews are broken.<br>Pressure kills performance.</h2>
+      <p class="section-sub reveal">Being watched changes everything. The same problems you solve at home become impossible under a stranger's gaze.</p>
 
       <div class="pain-grid">
-        <div class="pain-card">
+        <div class="pain-card reveal">
           <div class="pain-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -68,7 +91,7 @@
           <h3>Mind goes completely blank</h3>
           <p>You've solved this exact problem before. But now, with the interviewer staring, nothing comes. Every algorithm just&hellip; disappears.</p>
         </div>
-        <div class="pain-card">
+        <div class="pain-card reveal">
           <div class="pain-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
@@ -78,7 +101,7 @@
           <h3>Can't think while being watched</h3>
           <p>The screen share is on, the timer's ticking, and you can feel their eyes. Anxiety takes over before you've even read the question.</p>
         </div>
-        <div class="pain-card">
+        <div class="pain-card reveal">
           <div class="pain-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <rect x="4" y="4" width="16" height="16" rx="2"/>
@@ -92,7 +115,7 @@
           <h3>Forget the optimal approach</h3>
           <p>You know there's a better solution. You've seen it. But under pressure, only the naive brute-force comes to mind.</p>
         </div>
-        <div class="pain-card">
+        <div class="pain-card reveal">
           <div class="pain-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"/>
@@ -110,26 +133,26 @@
   <!-- How it works -->
   <section id="how-it-works">
     <div class="container">
-      <div class="section-label">How it works</div>
-      <h2>Two ways to capture.<br>One silent result.</h2>
-      <p class="section-sub">Works in the background while you interview. No suspicious activity, no window switching, no browser tabs.</p>
+      <div class="section-label reveal">How it works</div>
+      <h2 class="reveal">Two ways to capture.<br>One silent result.</h2>
+      <p class="section-sub reveal">Works in the background while you interview. No suspicious activity, no window switching, no browser tabs.</p>
 
       <div class="steps">
-        <div class="step">
+        <div class="step reveal">
           <div class="step-num">1</div>
           <div>
             <h3>Tap or hold a hidden hotkey</h3>
             <p><strong>Tap</strong> to capture your screen instantly &mdash; intercepted at the OS level, invisible to screen-monitoring software. <strong>Hold</strong> while the interviewer speaks and release to send their words straight to AI.</p>
           </div>
         </div>
-        <div class="step">
+        <div class="step reveal">
           <div class="step-num">2</div>
           <div>
             <h3>AI reads or listens</h3>
             <p>For screenshots, Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first, then Claude reasons through it &mdash; same output, hands-free input.</p>
           </div>
         </div>
-        <div class="step">
+        <div class="step reveal">
           <div class="step-num">3</div>
           <div>
             <h3>Answer streams to your phone</h3>
@@ -143,9 +166,9 @@
   <!-- Demo -->
   <section class="demo" id="demo">
     <div class="container">
-      <div class="section-label">See it in action</div>
-      <h2>The interview continues.<br><span style="background:linear-gradient(135deg,var(--accent),#8b5cf6,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">The answer's already there.</span></h2>
-      <p class="section-sub">Three ways to use it &mdash; all streaming to your phone while you stay focused.</p>
+      <div class="section-label reveal">See it in action</div>
+      <h2 class="reveal">The interview continues.<br><span style="background:linear-gradient(135deg,var(--accent),#8b5cf6,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">The answer's already there.</span></h2>
+      <p class="section-sub reveal">Three ways to use it &mdash; all streaming to your phone while you stay focused.</p>
 
       <!-- Scenario tabs -->
       <div class="demo-tabs">
@@ -619,13 +642,13 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <!-- Features Bento -->
   <section class="features" id="features">
     <div class="container">
-      <div class="section-label">Features</div>
-      <h2>Everything you need.<br>Nothing they'll notice.</h2>
+      <div class="section-label reveal">Features</div>
+      <h2 class="reveal">Everything you need.<br>Nothing they'll notice.</h2>
 
       <div class="features-bento">
 
         <!-- feat-a: Undetectable — 2-col wide -->
-        <div class="feature feat-a">
+        <div class="feature feat-a reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -644,7 +667,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
 
         <!-- feat-b: Streams to phone -->
-        <div class="feature feat-b">
+        <div class="feature feat-b reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <rect x="5" y="2" width="14" height="20" rx="2"/>
@@ -657,7 +680,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
 
         <!-- feat-c: Screen or voice -->
-        <div class="feature feat-c">
+        <div class="feature feat-c reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -672,7 +695,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
 
         <!-- feat-d: Instant replay -->
-        <div class="feature feat-d">
+        <div class="feature feat-d reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="1 4 1 10 7 10"/>
@@ -685,7 +708,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
 
         <!-- feat-e: Smart analysis — 2-col wide -->
-        <div class="feature feat-e">
+        <div class="feature feat-e reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -697,7 +720,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
 
         <!-- feat-f: Live calls + recorded tests -->
-        <div class="feature feat-f">
+        <div class="feature feat-f reveal">
           <div class="feature-icon">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
@@ -716,13 +739,13 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <!-- Referral -->
   <section id="referral" class="referral">
     <div class="container">
-      <div class="section-label">Refer &amp; earn</div>
-      <h2>Share the edge.<br>Get rewarded.</h2>
-      <p class="section-sub">Invite a friend to InterviewAce. Every time they buy, you both earn &mdash; no limits on referrals.</p>
+      <div class="section-label reveal">Refer &amp; earn</div>
+      <h2 class="reveal">Share the edge.<br>Get rewarded.</h2>
+      <p class="section-sub reveal">Invite a friend to InterviewAce. Every time they buy, you both earn &mdash; no limits on referrals.</p>
 
       <div class="referral-inner">
         <div class="referral-rewards">
-          <div class="reward-row">
+          <div class="reward-row reveal">
             <div class="reward-icon green">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
@@ -735,7 +758,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <div class="reward-amount">+£2</div>
           </div>
 
-          <div class="reward-row">
+          <div class="reward-row reveal">
             <div class="reward-icon green">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="17 1 21 5 17 9"/>
@@ -751,7 +774,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <div class="reward-amount">+£3</div>
           </div>
 
-          <div class="reward-row">
+          <div class="reward-row reveal">
             <div class="reward-icon purple">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 12 20 22 4 22 4 12"/>
@@ -773,24 +796,24 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             Get your referral link &rarr;
           </a>
           {% else %}
-          <a class="btn btn-primary" href="/login" style="align-self:flex-start;margin-top:8px;">
+          <a class="btn btn-primary" href="/login?register=1" style="align-self:flex-start;margin-top:8px;">
             Sign up to refer friends &rarr;
           </a>
           {% endif %}
         </div>
 
         <div class="referral-visual">
-          <div class="flow-card">
+          <div class="flow-card reveal">
             <h3>£5</h3>
             <p>maximum credit per referral you earn</p>
           </div>
           <div class="flow-divider"><span>and</span></div>
-          <div class="flow-card">
+          <div class="flow-card reveal">
             <h3>&#8734;</h3>
             <p>no limit on how many friends you refer</p>
           </div>
           <div class="flow-divider"><span>plus</span></div>
-          <div class="flow-card" style="border-color:rgba(0,212,170,0.18);background:linear-gradient(160deg,rgba(0,212,170,0.04),var(--surface));">
+          <div class="flow-card reveal" style="border-color:rgba(0,212,170,0.18);background:linear-gradient(160deg,rgba(0,212,170,0.04),var(--surface));">
             <h3 style="font-size:1rem;font-weight:700;background:none;-webkit-text-fill-color:var(--text);">Credits apply to your next bill automatically</h3>
             <p style="margin-top:6px;">No voucher codes, no manual redemption</p>
           </div>
@@ -802,12 +825,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <!-- Pricing -->
   <section id="pricing">
     <div class="container">
-      <div class="section-label">Pricing</div>
-      <h2>Start free. Pay when it matters.</h2>
-      <p class="section-sub">Try a free 10-minute trial session with no card needed. Upgrade when you're ready.</p>
+      <div class="section-label reveal">Pricing</div>
+      <h2 class="reveal">Start free. Pay when it matters.</h2>
+      <p class="section-sub reveal">Try a free 10-minute trial session with no card needed. Upgrade when you're ready.</p>
 
       <div class="pricing-grid">
-        <div class="plan">
+        <div class="plan reveal">
           <div class="plan-name">Sessions</div>
           <div class="plan-price">£2 <span>/ 2 sessions</span></div>
           <div style="font-size:0.7rem;color:#a78bfa;margin-bottom:8px;font-weight:500;">Introductory offer &mdash; usually £15 for 3 sessions</div>
@@ -818,10 +841,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li>Instant replay</li>
             <li>Sessions never expire</li>
           </ul>
-          <a class="btn btn-outline" href="/login" style="width:100%;justify-content:center;">Get started</a>
+          <a class="btn btn-outline" href="/login?register=1" style="width:100%;justify-content:center;">Get started</a>
         </div>
 
-        <div class="plan featured">
+        <div class="plan featured reveal">
           <div class="plan-badge">Most popular</div>
           <div class="plan-name">Unlimited</div>
           <div class="plan-price">£25 <span>/ month</span></div>
@@ -832,7 +855,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li>Instant replay</li>
             <li>Cancel anytime</li>
           </ul>
-          <a class="btn btn-primary" href="/login" style="width:100%;justify-content:center;">Start unlimited</a>
+          <a class="btn btn-primary" href="/login?register=1" style="width:100%;justify-content:center;">Start unlimited</a>
         </div>
       </div>
 
@@ -840,23 +863,91 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         {% if user %}
         <a href="/app" style="color:var(--accent);text-decoration:none;">Go to your dashboard &rarr;</a>
         {% else %}
-        No card needed to try &mdash; <a href="/login" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
+        No card needed to try &mdash; <a href="/login?register=1" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
         {% endif %}
       </p>
     </div>
   </section>
 
   <!-- CTA Banner -->
-  <div class="cta-banner">
+  <div class="cta-banner reveal">
     <div class="section-label">Get started today</div>
     <h2>Your next interview<br>doesn't have to be a gamble.</h2>
     <p>Join developers who stopped leaving it to chance.</p>
     {% if user %}
     <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
     {% else %}
-    <a class="btn btn-primary btn-lg" href="/login">Create your free account</a>
+    <a class="btn btn-primary btn-lg" href="/login?register=1">Create your free account</a>
     {% endif %}
   </div>
+
+  <script>
+  (function () {
+    var noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    /* ── Scroll Entrance Animations ── */
+    if (!noMotion && 'IntersectionObserver' in window) {
+      var revealObs = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            revealObs.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.1 });
+      document.querySelectorAll('.reveal').forEach(function (el) {
+        revealObs.observe(el);
+      });
+    } else {
+      document.querySelectorAll('.reveal').forEach(function (el) {
+        el.classList.add('visible');
+      });
+    }
+
+    /* ── Cursor-Tracking Card Spotlight ── */
+    if (!noMotion) {
+      document.querySelectorAll('.pain-card, .feature').forEach(function (card) {
+        card.addEventListener('mousemove', function (e) {
+          var r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+          card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+        });
+      });
+    }
+
+    /* ── Stats Strip Count-Up ── */
+    function countUp(el, target, suffix, duration) {
+      var isDecimal = target % 1 !== 0;
+      var start = 0;
+      var startTime = null;
+      function step(ts) {
+        if (!startTime) startTime = ts;
+        var prog = Math.min((ts - startTime) / duration, 1);
+        var ease = 1 - Math.pow(1 - prog, 3);
+        var val = start + (target - start) * ease;
+        el.textContent = (isDecimal ? val.toFixed(1) : Math.round(val)) + suffix;
+        if (prog < 1) requestAnimationFrame(step);
+        else el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
+      }
+      requestAnimationFrame(step);
+    }
+
+    var statsStrip = document.querySelector('.stats-strip');
+    if (statsStrip && 'IntersectionObserver' in window) {
+      var statsObs = new IntersectionObserver(function (entries) {
+        if (entries[0].isIntersecting) {
+          statsStrip.querySelectorAll('.stat-num[data-count]').forEach(function (el) {
+            var target = parseFloat(el.getAttribute('data-count'));
+            var suffix = el.getAttribute('data-suffix') || '';
+            if (!noMotion) countUp(el, target, suffix, 900);
+          });
+          statsObs.disconnect();
+        }
+      }, { threshold: 0.5 });
+      statsObs.observe(statsStrip);
+    }
+  })();
+  </script>
 
   <!-- Footer -->
   <footer>
@@ -869,7 +960,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       <a href="/settings" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Settings</a>
       {% else %}
       <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
-      <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
+      <a href="/login?register=1" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
       {% endif %}
     </div>
   </footer>

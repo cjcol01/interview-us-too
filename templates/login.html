@@ -52,6 +52,8 @@
   </div>
 
   <script>
+    if (new URLSearchParams(location.search).get('register')) switchTab('register');
+
     function switchTab(tab) {
       document.querySelectorAll('.tab').forEach((t, i) =>
         t.classList.toggle('active', (i === 0) === (tab === 'login'))
