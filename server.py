@@ -521,6 +521,7 @@ async def settings_page(
     ref_error: Optional[str] = None,
 ):
     _ensure_api_token(user, db)
+    r = request.app.state.redis
     cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="settings.html", context={
@@ -540,6 +541,7 @@ async def settings_page(
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
         "response_style": _user_response_style(user).value,
+        "complexity": await get_complexity(r, user.id),
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
     })
@@ -660,8 +662,9 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await r.hset(key, "monitor", body.monitor)
     await broadcast(r, user.id, "working", {"capture_id": capture_id, "monitor": body.monitor})
 
-    style = _user_response_style(user)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[body.complexity] + RESPONSE_STYLE_SUFFIX[style]
+    style      = _user_response_style(user)
+    complexity = await get_complexity(r, user.id)
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style]
 
     full_text = ""
     async with async_client.messages.stream(
@@ -744,12 +747,33 @@ async def api_audio_capture(
 
 
 @app.get("/api/me")
-async def api_me(user: User = Depends(get_user_by_token)):
+async def api_me(request: Request, user: User = Depends(get_user_by_token)):
+    r = request.app.state.redis
     return {
         "account_level": user.account_level.value,
         "hotkeys": _user_hotkeys(user),
         "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
+        "complexity": await get_complexity(r, user.id),
+        "response_style": _user_response_style(user).value,
     }
+
+
+class ComplexityRequest(BaseModel):
+    value: int = Field(ge=1, le=3)
+
+
+@app.post("/api/settings/complexity")
+async def set_complexity(request: Request, data: ComplexityRequest, user: User = Depends(get_user_by_token)):
+    r = request.app.state.redis
+    await r.set(_complexity_key(user.id), data.value)
+    return {"complexity": data.value}
+
+
+@app.post("/api/settings/style")
+async def set_style_token(data: ResponseStyleRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
+    user.response_style = data.style
+    db.commit()
+    return {"status": "ok", "style": data.style.value}
 
 
 @app.post("/api/settings/hotkeys")

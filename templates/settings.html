@@ -169,6 +169,23 @@
       <div id="style-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
     </div>
 
+    <!-- Complexity -->
+    <div class="section-label">Response Complexity</div>
+    <div class="card">
+      <div class="row">
+        <div>
+          <span class="row-label">Detail level</span>
+          <div id="complexity-desc" style="font-size:0.75rem;color:var(--muted);margin-top:2px;line-height:1.4;"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+          <button class="hotkey-reset" onclick="changeComplexity(-1)">−</button>
+          <span id="complexity-val" style="font-size:1.1rem;font-weight:700;color:var(--accent2);min-width:16px;text-align:center;">{{ complexity }}</span>
+          <button class="hotkey-reset" onclick="changeComplexity(1)">+</button>
+        </div>
+      </div>
+      <div id="complexity-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
+    </div>
+
     <!-- Instant Replay -->
     <div class="section-label">Instant Replay</div>
     <div class="card">
@@ -246,6 +263,47 @@
     </div>
 
   </main>
+
+  <script>
+    // ── Complexity ────────────────────────────────────────────────────────
+    const _complexityDescs = {
+      1: 'Concise hint — naive approach, simple readable code, brief explanation.',
+      2: 'Full solution — clean code with a clear walkthrough.',
+      3: 'Optimal — best time/space complexity, production-quality code, trade-offs covered.',
+    };
+    let _complexity = {{ complexity }};
+
+    function _applyComplexityUI() {
+      document.getElementById('complexity-val').textContent  = _complexity;
+      document.getElementById('complexity-desc').textContent = _complexityDescs[_complexity];
+    }
+    _applyComplexityUI();
+
+    async function changeComplexity(delta) {
+      const next = Math.max(1, Math.min(3, _complexity + delta));
+      if (next === _complexity) return;
+      _complexity = next;
+      _applyComplexityUI();
+      const statusEl = document.getElementById('complexity-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color   = 'var(--muted)';
+      statusEl.textContent   = 'Saving…';
+      try {
+        const resp = await fetch('/settings/complexity/' + (delta > 0 ? 'up' : 'down'), { method: 'POST' });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent2)';
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+  </script>
 
   <script>
     // ── Response style ────────────────────────────────────────────────────
