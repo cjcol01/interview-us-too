@@ -1,7 +1,11 @@
 {% extends "base.html" %}
 {% block title %}InterviewAce &mdash; Your Silent Co-Pilot{% endblock %}
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/landing.css">{% endblock %}
+{% block head %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/css/landing.css">
+{% endblock %}
 {% block content %}
 
   <!-- Nav -->
@@ -9,6 +13,7 @@
     <a class="logo" href="/">InterviewAce</a>
     <div class="nav-links">
       <a href="#how-it-works">How it works</a>
+      <a href="#demo">Demo</a>
       <a href="#features">Features</a>
       <a href="#pricing">Pricing</a>
       <a href="#referral">Refer &amp; earn</a>
@@ -23,16 +28,21 @@
 
   <!-- Hero -->
   <section class="hero">
-    <div class="hero-badge">AI-powered interview assistance</div>
-    <h1>Stop blanking.<br><span>Start acing.</span></h1>
-    <p>You know the material. But the moment someone's watching, your mind goes blank. InterviewAce puts the answers where only you can see them &mdash; your phone.</p>
-    <div class="hero-cta">
-      {% if user %}
-      <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
-      {% else %}
-      <a class="btn btn-primary btn-lg" href="/login">Start for free</a>
-      {% endif %}
-      <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <span class="hero-badge-dot"></span>
+        AI-powered interview assistance
+      </div>
+      <h1>Stop blanking.<br><span>Start acing.</span></h1>
+      <p>You know the material. But the moment someone's watching, your mind goes blank. InterviewAce captures your screen or listens to the question &mdash; and streams the answer to your phone before you've even started typing.</p>
+      <div class="hero-cta">
+        {% if user %}
+        <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
+        {% else %}
+        <a class="btn btn-primary btn-lg" href="/login">Start for free</a>
+        {% endif %}
+        <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
+      </div>
     </div>
     <div class="hero-scroll">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -50,24 +60,48 @@
 
       <div class="pain-grid">
         <div class="pain-card">
-          <div class="pain-icon">&#128565;</div>
+          <div class="pain-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+            </svg>
+          </div>
           <h3>Mind goes completely blank</h3>
           <p>You've solved this exact problem before. But now, with the interviewer staring, nothing comes. Every algorithm just&hellip; disappears.</p>
         </div>
         <div class="pain-card">
-          <div class="pain-icon">&#128248;</div>
+          <div class="pain-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </div>
           <h3>Can't think while being watched</h3>
           <p>The screen share is on, the timer's ticking, and you can feel their eyes. Anxiety takes over before you've even read the question.</p>
         </div>
         <div class="pain-card">
-          <div class="pain-icon">&#129327;</div>
+          <div class="pain-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <rect x="9" y="9" width="6" height="6"/>
+              <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
+              <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
+              <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
+              <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
+            </svg>
+          </div>
           <h3>Forget the optimal approach</h3>
           <p>You know there's a better solution. You've seen it. But under pressure, only the naive brute-force comes to mind.</p>
         </div>
         <div class="pain-card">
-          <div class="pain-icon">&#128081;</div>
+          <div class="pain-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="15" y1="9" x2="9" y2="15"/>
+              <line x1="9" y1="9" x2="15" y2="15"/>
+            </svg>
+          </div>
           <h3>One mistake ends it</h3>
-          <p>One bad day, one anxiety spike, one blank moment - and months of prep go to waste. The stakes are too high to leave to chance.</p>
+          <p>One bad day, one anxiety spike, one blank moment &mdash; and months of prep go to waste. The stakes are too high to leave to chance.</p>
         </div>
       </div>
     </div>
@@ -77,100 +111,604 @@
   <section id="how-it-works">
     <div class="container">
       <div class="section-label">How it works</div>
-      <h2>Three steps. Completely invisible.</h2>
+      <h2>Two ways to capture.<br>One silent result.</h2>
       <p class="section-sub">Works in the background while you interview. No suspicious activity, no window switching, no browser tabs.</p>
 
       <div class="steps">
         <div class="step">
           <div class="step-num">1</div>
           <div>
-            <h3>Press a hidden hotkey</h3>
-            <p>A discreet key combination captures your screen instantly. Intercepted at the OS level - completely invisible to any screen-monitoring software or browser.</p>
+            <h3>Tap or hold a hidden hotkey</h3>
+            <p><strong>Tap</strong> to capture your screen instantly &mdash; intercepted at the OS level, invisible to screen-monitoring software. <strong>Hold</strong> while the interviewer speaks and release to send their words straight to AI.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-num">2</div>
           <div>
-            <h3>AI analyses the problem</h3>
-            <p>Your screenshot is sent to Claude AI which reads the problem, detects the language, and generates a well-reasoned solution with explanation.</p>
+            <h3>AI reads or listens</h3>
+            <p>For screenshots, Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first, then Claude reasons through it &mdash; same output, hands-free input.</p>
           </div>
         </div>
         <div class="step">
           <div class="step-num">3</div>
           <div>
-            <h3>Answer appears on your phone</h3>
-            <p>Results stream to your phone in seconds. Glance down naturally. The interviewer sees you thinking. You're reading the solution.</p>
+            <h3>Answer streams to your phone</h3>
+            <p>Results appear in seconds with syntax-highlighted code and explanation. Miss something? Hit instant replay to capture and send the last 15 seconds of speech to AI.</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Features -->
+  <!-- Demo -->
+  <section class="demo" id="demo">
+    <div class="container">
+      <div class="section-label">See it in action</div>
+      <h2>The interview continues.<br><span style="background:linear-gradient(135deg,var(--accent),#8b5cf6,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">The answer's already there.</span></h2>
+      <p class="section-sub">Three ways to use it &mdash; all streaming to your phone while you stay focused.</p>
+
+      <!-- Scenario tabs -->
+      <div class="demo-tabs">
+        <div class="demo-tab active" data-tab="0">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          Screenshot capture
+        </div>
+        <div class="demo-tab" data-tab="1">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          Voice capture
+        </div>
+        <div class="demo-tab" data-tab="2">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"/>
+            <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
+          </svg>
+          Instant replay
+        </div>
+      </div>
+
+      <div class="demo-stage" id="demoStage">
+
+        <!-- macOS menu bar -->
+        <div class="demo-menubar">
+          <span class="demo-menubar-apple">&#xF8FF;</span>
+          <div class="demo-menubar-items">
+            <span id="demoAppName">Chrome</span>
+            <span>File</span><span>Edit</span><span>View</span><span>Window</span>
+          </div>
+          <span class="demo-menubar-time">9:41 AM</span>
+        </div>
+
+        <!-- Browser chrome -->
+        <div class="demo-chrome">
+          <div class="demo-dots"><span></span><span></span><span></span></div>
+          <div class="demo-url-bar">
+            <div class="demo-url" id="demoUrl">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span id="demoUrlText">leetcode.com/problems/two-sum</span>
+            </div>
+          </div>
+          <div class="demo-chrome-spacer"></div>
+        </div>
+
+        <!-- Body: scenes + phone -->
+        <div class="demo-body">
+
+          <!-- Left: browser scenes -->
+          <div class="demo-computer">
+            <div class="demo-scenes">
+
+              <!-- Scene 0: LeetCode problem -->
+              <div class="demo-scene active" data-s="0">
+                <div class="sc-lc-header">
+                  <span class="sc-lc-title">206. Reverse Linked List</span>
+                  <span class="demo-badge-easy">Easy</span>
+                </div>
+                <div class="sc-lc-body">
+                  <p class="sc-lc-desc">
+                    Reverse a singly-linked list.
+                    Return <em>the reversed list</em>.
+                  </p>
+                  <div class="sc-lc-example">
+                    <pre>Input:  1&#8594;2&#8594;3&#8594;4&#8594;5
+Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
+                  </div>
+                </div>
+                <div class="sc-editor">
+                  <div class="sc-editor-tabs">
+                    <span class="active">Python3</span><span>JavaScript</span>
+                  </div>
+                  <pre class="sc-editor-stub">class Solution:
+    def reverseList(self, head):
+        <span class="demo-cursor"></span></pre>
+                </div>
+                <div class="demo-capture-bar">
+                  <div class="demo-capture-btn" id="s0CaptureBtn">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    Capture
+                  </div>
+                  <kbd class="demo-hotkey">&#8997; Space</kbd>
+                  <span class="demo-intercepted" id="s0Intercepted">OS-intercepted &mdash; undetectable</span>
+                </div>
+              </div>
+
+              <!-- Scene 1: Zoom call (voice) -->
+              <div class="demo-scene" data-s="1">
+                <div class="sc-zoom">
+                  <div class="sc-zoom-grid">
+                    <div class="zoom-tile speaking" id="s1InterviewerTile">
+                      <div class="zoom-avatar">A</div>
+                      <div class="zoom-name">Alex (Interviewer)</div>
+                      <div class="zoom-speaking-dots" id="s1SpeakDots">
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                      </div>
+                    </div>
+                    <div class="zoom-tile">
+                      <div class="zoom-avatar" style="background:linear-gradient(135deg,rgba(0,212,170,0.3),rgba(0,180,140,0.2));">Y</div>
+                      <div class="zoom-you-label">You (Muted)</div>
+                    </div>
+                  </div>
+                  <div class="zoom-caption-bar" id="s1Caption">&nbsp;</div>
+                  <div class="demo-voice-bar">
+                    <div class="demo-voice-btn" id="s1VoiceBtn">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                        <line x1="12" y1="19" x2="12" y2="23"/>
+                        <line x1="8" y1="23" x2="16" y2="23"/>
+                      </svg>
+                      Hold to record
+                    </div>
+                    <kbd class="demo-hotkey">&#8997; V</kbd>
+                    <span class="demo-voice-hint" id="s1Hint">Hold while interviewer speaks</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Scene 2: Zoom call (replay) -->
+              <div class="demo-scene" data-s="2">
+                <div class="sc-zoom">
+                  <div class="sc-zoom-grid">
+                    <div class="zoom-tile speaking" id="s2InterviewerTile">
+                      <div class="zoom-avatar">A</div>
+                      <div class="zoom-name">Alex (Interviewer)</div>
+                      <div class="zoom-speaking-dots" id="s2SpeakDots">
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span>
+                      </div>
+                    </div>
+                    <div class="zoom-tile">
+                      <div class="zoom-avatar" style="background:linear-gradient(135deg,rgba(0,212,170,0.3),rgba(0,180,140,0.2));">Y</div>
+                      <div class="zoom-you-label">You (Muted)</div>
+                    </div>
+                  </div>
+                  <div class="zoom-caption-bar" id="s2Caption">&nbsp;</div>
+                  <div class="demo-voice-bar">
+                    <div class="demo-replay-btn" id="s2ReplayBtn">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="1 4 1 10 7 10"/>
+                        <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
+                      </svg>
+                      Instant replay
+                    </div>
+                    <kbd class="demo-hotkey">&#8997; R</kbd>
+                    <span class="demo-voice-hint" id="s2Hint">Captures &amp; sends the last 15s of speech</span>
+                  </div>
+                </div>
+              </div>
+
+            </div><!-- /demo-scenes -->
+          </div><!-- /demo-computer -->
+
+          <!-- Right: phone mockup -->
+          <div class="demo-phone-panel">
+            <div class="demo-phone-label">Your phone</div>
+            <div class="phone-frame">
+              <div class="phone-notch-wrap"></div>
+              <div class="phone-status-bar">
+                <span>9:41</span><span>&#9679;&#9679;&#9679;</span>
+              </div>
+              <div class="phone-screen">
+
+                <!-- idle -->
+                <div class="phone-state visible" id="phIdle">
+                  <div class="phone-idle-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="2"/>
+                      <line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2.5"/>
+                    </svg>
+                  </div>
+                  <p class="phone-idle" style="font-size:0.56rem;color:var(--muted);text-align:center;">Waiting&hellip;</p>
+                </div>
+
+                <!-- recording -->
+                <div class="phone-state" id="phRecording">
+                  <div class="phone-recording-row">
+                    <span class="phone-recording-dot"></span>
+                    <span class="phone-recording-label">Recording</span>
+                  </div>
+                  <div class="phone-waveform">
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                  </div>
+                  <span class="phone-recording-hint">Release to send&hellip;</span>
+                </div>
+
+                <!-- capturing (replay) -->
+                <div class="phone-state" id="phCapturing">
+                  <div class="phone-capturing-row">
+                    <span class="phone-capturing-dot"></span>
+                    <span class="phone-capturing-label">Last 15s&hellip;</span>
+                  </div>
+                  <div class="phone-waveform phone-waveform-replay">
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                    <span class="phone-wave-bar"></span>
+                  </div>
+                  <span class="phone-recording-hint">Sending to AI&hellip;</span>
+                </div>
+
+                <!-- analyzing -->
+                <div class="phone-state" id="phAnalyzing">
+                  <div class="phone-spinner"></div>
+                  <span class="phone-analyzing-label">Analyzing&hellip;</span>
+                </div>
+
+                <!-- answer (code) -->
+                <div class="phone-state phone-answer" id="phAnswerCode">
+                  <div class="phone-answer-header">
+                    <span class="phone-answer-dot"></span>
+                    <span class="phone-answer-label">InterviewAce</span>
+                  </div>
+                  <pre class="phone-code" id="phCode"></pre>
+                  <div class="phone-complexity-row" id="phComplexity">
+                    <span class="phone-badge">Time O(n)</span>
+                    <span class="phone-badge">Space O(n)</span>
+                  </div>
+                  <div class="phone-flash" id="phFlash"></div>
+                </div>
+
+                <!-- answer (prose) -->
+                <div class="phone-state phone-answer" id="phAnswerProse">
+                  <div class="phone-answer-header">
+                    <span class="phone-answer-dot"></span>
+                    <span class="phone-answer-label">InterviewAce</span>
+                  </div>
+                  <pre class="phone-prose" id="phProse"></pre>
+                  <div class="phone-flash" id="phFlash2"></div>
+                </div>
+
+              </div><!-- /phone-screen -->
+              <div class="phone-home-bar"></div>
+            </div><!-- /phone-frame -->
+          </div><!-- /demo-phone-panel -->
+
+        </div><!-- /demo-body -->
+      </div><!-- /demo-stage -->
+    </div><!-- /container -->
+  </section>
+
+  <script>
+  (function () {
+    var SCREENSHOT_CODE = 'def reverseList(head):\n    prev = None\n    while head:\n        nxt = head.next\n        head.next = prev\n        prev = head\n        head = nxt\n    return prev';
+
+    var VOICE_ANSWER = 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound';
+
+    var REPLAY_ANSWER = 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.';
+
+    var Q1 = 'Explain the difference between concurrency and parallelism.';
+    var Q2 = 'What are the time and space\ncomplexity tradeoffs here?';
+
+    var timers = [];
+    var activeTab = 0;
+
+    function after(ms, fn) { var t = setTimeout(fn, ms); timers.push(t); return t; }
+    function clearAll() { timers.forEach(clearTimeout); timers = []; }
+
+    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function highlight(c) {
+      return esc(c)
+        .replace(/(#[^\n]*)/g,'<span class="tok-cm">$1</span>')
+        .replace(/\b(def|for|in|if|return)\b/g,'<span class="tok-kw">$1</span>')
+        .replace(/\b(enumerate|range|len)\b/g,'<span class="tok-fn">$1</span>')
+        .replace(/\b(\d+)\b/g,'<span class="tok-num">$1</span>');
+    }
+
+    function streamText(el, text, done, useHighlight) {
+      var i = 0;
+      function tick() {
+        if (i >= text.length) {
+          if (useHighlight) el.innerHTML = highlight(text);
+          if (done) done();
+          return;
+        }
+        el.textContent = text.slice(0, i + 1);
+        var ch = text[i];
+        var delay = ch === '\n' ? 50 + Math.random()*40 : ch === ' ' ? 5 : 12 + Math.random()*12;
+        i++;
+        timers.push(setTimeout(tick, delay));
+      }
+      tick();
+    }
+
+    function phoneShow(id) {
+      ['phIdle','phRecording','phCapturing','phAnalyzing','phAnswerCode','phAnswerProse'].forEach(function(s) {
+        var el = document.getElementById(s);
+        el.classList.remove('visible');
+      });
+      if (id) document.getElementById(id).classList.add('visible');
+    }
+
+    function flashPhone() {
+      var frame = document.querySelector('.phone-frame');
+      frame.classList.remove('answer-arriving');
+      void frame.offsetWidth;
+      frame.classList.add('answer-arriving');
+    }
+
+    function scheduleAdvance() {
+      after(3500, function() { runScenario((activeTab + 1) % 3); });
+    }
+
+    function switchScene(idx) {
+      document.querySelectorAll('.demo-scene').forEach(function(s, i) {
+        s.classList.toggle('active', i === idx);
+      });
+      var urls = ['leetcode.com/problems/reverse-linked-list','us02web.zoom.us/j/83726491','us02web.zoom.us/j/83726491'];
+      var apps = ['Chrome','Zoom','Zoom'];
+      document.getElementById('demoUrlText').textContent = urls[idx];
+      document.getElementById('demoAppName').textContent = apps[idx];
+    }
+
+    /* ── Scenario 0: Screenshot ── */
+    function runScreenshot() {
+      switchScene(0);
+      phoneShow('phIdle');
+      after(900, function() {
+        var btn = document.getElementById('s0CaptureBtn');
+        btn.classList.add('pressing');
+        after(180, function() { btn.classList.remove('pressing'); });
+
+        var intcpt = document.getElementById('s0Intercepted');
+        intcpt.classList.add('visible');
+        after(1900, function() { intcpt.classList.remove('visible'); });
+
+        after(400, function() {
+          phoneShow('phAnalyzing');
+          after(900, function() {
+            phoneShow('phAnswerCode');
+            document.getElementById('phCode').textContent = '';
+            document.getElementById('phComplexity').style.display = 'none';
+            flashPhone();
+            streamText(document.getElementById('phCode'), SCREENSHOT_CODE, function() {
+              document.getElementById('phComplexity').style.display = 'flex';
+              scheduleAdvance();
+            }, true);
+          });
+        });
+      });
+    }
+
+    /* ── Scenario 1: Voice ── */
+    function runVoice() {
+      switchScene(1);
+      phoneShow('phIdle');
+      var caption = document.getElementById('s1Caption');
+      var voiceBtn = document.getElementById('s1VoiceBtn');
+      var hint = document.getElementById('s1Hint');
+      caption.textContent = '';
+
+      after(400, function() {
+        streamText(caption, Q1, null, false);
+      });
+
+      after(750, function() {
+        voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Recording…';
+        voiceBtn.classList.add('recording');
+        hint.textContent = 'Release to send…';
+        phoneShow('phRecording');
+
+        after(2200, function() {
+          voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Hold to record';
+          voiceBtn.classList.remove('recording');
+          hint.textContent = 'Hold while interviewer speaks';
+          phoneShow('phAnalyzing');
+
+          after(1000, function() {
+            phoneShow('phAnswerProse');
+            document.getElementById('phProse').textContent = '';
+            flashPhone();
+            streamText(document.getElementById('phProse'), VOICE_ANSWER, scheduleAdvance, false);
+          });
+        });
+      });
+    }
+
+    /* ── Scenario 2: Replay ── */
+    function runReplay() {
+      switchScene(2);
+      phoneShow('phIdle');
+
+      var caption = document.getElementById('s2Caption');
+      var replayBtn = document.getElementById('s2ReplayBtn');
+      caption.textContent = '';
+
+      after(700, function() {
+        streamText(caption, Q2, function() {
+          after(600, function() {
+            replayBtn.classList.add('pressed');
+            after(220, function() { replayBtn.classList.remove('pressed'); });
+
+            phoneShow('phCapturing');
+
+            after(950, function() {
+              phoneShow('phAnalyzing');
+
+              after(1000, function() {
+                phoneShow('phAnswerProse');
+                document.getElementById('phProse').textContent = '';
+                flashPhone();
+                streamText(document.getElementById('phProse'), REPLAY_ANSWER, scheduleAdvance, false);
+              });
+            });
+          });
+        }, false);
+      });
+    }
+
+    var runners = [runScreenshot, runVoice, runReplay];
+
+    function runScenario(idx) {
+      clearAll();
+      phoneShow('phIdle');
+      activeTab = idx;
+      document.querySelectorAll('.demo-tab').forEach(function(t, i) {
+        t.classList.toggle('active', i === idx);
+      });
+      runners[idx]();
+    }
+
+    document.querySelectorAll('.demo-tab').forEach(function(tab, i) {
+      tab.addEventListener('click', function() { runScenario(i); });
+    });
+
+    /* Auto-start on scroll */
+    var stage = document.getElementById('demoStage');
+    if ('IntersectionObserver' in window) {
+      var obs = new IntersectionObserver(function(entries) {
+        if (entries[0].isIntersecting) { after(500, function() { runScenario(0); }); obs.disconnect(); }
+      }, { threshold: 0.2 });
+      obs.observe(stage);
+    } else {
+      runScenario(0);
+    }
+  })();
+  </script>
+
+  <!-- Features Bento -->
   <section class="features" id="features">
     <div class="container">
       <div class="section-label">Features</div>
       <h2>Everything you need.<br>Nothing they'll notice.</h2>
 
-      <div class="features-grid">
-        <div class="feature">
+      <div class="features-bento">
+
+        <!-- feat-a: Undetectable — 2-col wide -->
+        <div class="feature feat-a">
           <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
-              <rect x="1" y="6" width="14" height="12" rx="2"/>
-            </svg>
-          </div>
-          <h3>Works on live calls and recorded tests</h3>
-          <h4>Zoom, Teams, HireVue, Kira, and more</h4>
-          <p>On a live video call the answer goes straight to your phone. On recorded tests, where the platform flags tab switching and copy-pasting - you never do either, so there's nothing to detect.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-          <h3>Instant AI response</h3>
-          <h4>Under 5 seconds</h4>
-          <p>Powered by Claude AI. The answer streams to your phone with syntax-highlighted code, time and space complexity, and a concise explanation - formatted to read at a glance.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.5"/>
-            </svg>
-          </div>
-          <h3>Phone-only display</h3>
-          <h4>Also available on a second monitor or laptop</h4>
-          <p>The answer never touches your interview screen. It streams directly to your phone browser over your local network.</p>
-        </div>
-        <div class="feature">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
             </svg>
           </div>
           <h3>Undetectable by design</h3>
-          <p>Hotkeys intercepted at OS level. No browser extensions. No window switching. Screen capture software sees nothing unusual.</p>
+          <h4>Rebind all three hotkeys to anything you like</h4>
+          <p>Hotkeys are intercepted at the OS level &mdash; not inside the browser. No window switching, no browser tabs, no clipboard access. Screen-monitoring software sees nothing unusual because nothing unusual is happening.</p>
+          <div class="stealth-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+              <polyline points="22 4 12 14.01 9 11.01"/>
+            </svg>
+            OS-level interception &bull; Zero browser footprint
+          </div>
         </div>
-        <div class="feature">
+
+        <!-- feat-b: Streams to phone -->
+        <div class="feature feat-b">
           <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2"/>
+              <line x1="12" y1="18" x2="12" y2="18.01"/>
+            </svg>
+          </div>
+          <h3>Streams to your phone</h3>
+          <h4>Also works on a second monitor or laptop</h4>
+          <p>The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation &mdash; formatted to read at a glance.</p>
+        </div>
+
+        <!-- feat-c: Screen or voice -->
+        <div class="feature feat-c">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </div>
+          <h3>Screen capture or voice</h3>
+          <h4>Audio transcription + Claude's most powerful model</h4>
+          <p>Tap to screenshot the question, or hold to record the interviewer speaking. Both paths stream the same Claude analysis.</p>
+        </div>
+
+        <!-- feat-d: Instant replay -->
+        <div class="feature feat-d">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="1 4 1 10 7 10"/>
+              <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
+            </svg>
+          </div>
+          <h3>Instant replay</h3>
+          <h4>Didn't catch the question?</h4>
+          <p>If you missed what the interviewer said, instant replay sends their question to AI after the fact.</p>
+        </div>
+
+        <!-- feat-e: Smart analysis — 2-col wide -->
+        <div class="feature feat-e">
+          <div class="feature-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
             </svg>
           </div>
-          <h3>Adjustable complexity</h3>
-          <p>Switch between optimal, intermediate, and naive solutions on the fly. Match the level the interviewer expects from you.</p>
+          <h3>Smart analysis</h3>
+          <h4>Auto language detection &bull; adjustable complexity</h4>
+          <p>Detects Python, JavaScript, Java, C++, and more automatically. Switch between optimal, intermediate, and naive solutions on the fly &mdash; get the answer at exactly the level the interviewer expects.</p>
         </div>
-        <div class="feature">
+
+        <!-- feat-f: Live calls + recorded tests -->
+        <div class="feature feat-f">
           <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
-              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
+              <rect x="1" y="6" width="14" height="12" rx="2"/>
             </svg>
           </div>
-          <h3>Auto language detection</h3>
-          <p>Automatically detects Python, JavaScript, Java, C++, and more from your screen</p>
+          <h3>Live calls &amp; recorded tests</h3>
+          <h4>Zoom, Teams, HireVue, Kira &amp; more</h4>
+          <p>On live calls the answer goes to your phone. On recorded tests that flag tab switching &mdash; you never switch, so there's nothing to flag.</p>
         </div>
+
       </div>
     </div>
   </section>
@@ -185,7 +723,11 @@
       <div class="referral-inner">
         <div class="referral-rewards">
           <div class="reward-row">
-            <div class="reward-icon green">&#127381;</div>
+            <div class="reward-icon green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+              </svg>
+            </div>
             <div class="reward-content">
               <h4>Friend buys the intro offer</h4>
               <p>They grab the £2 intro deal using your link</p>
@@ -194,29 +736,44 @@
           </div>
 
           <div class="reward-row">
-            <div class="reward-icon green">&#9889;</div>
+            <div class="reward-icon green">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="17 1 21 5 17 9"/>
+                <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                <polyline points="7 23 3 19 7 15"/>
+                <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+              </svg>
+            </div>
             <div class="reward-content">
               <h4>Friend subscribes</h4>
-              <p>They upgrade to the monthly plan — you get the remaining credit</p>
+              <p>They upgrade to the monthly plan &mdash; you get the remaining credit</p>
             </div>
             <div class="reward-amount">+£3</div>
           </div>
 
           <div class="reward-row">
-            <div class="reward-icon purple">&#127873;</div>
+            <div class="reward-icon purple">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 12 20 22 4 22 4 12"/>
+                <rect x="2" y="7" width="20" height="5"/>
+                <line x1="12" y1="22" x2="12" y2="7"/>
+                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
+                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
+              </svg>
+            </div>
             <div class="reward-content">
               <h4>Friend gets rewarded too</h4>
-              <p>£5 off their first subscription — applied automatically at checkout</p>
+              <p>£5 off their first subscription &mdash; applied automatically at checkout</p>
             </div>
             <div class="reward-amount" style="background:linear-gradient(135deg,var(--accent),#8b5cf6);-webkit-background-clip:text;background-clip:text;">£5</div>
           </div>
 
           {% if user %}
-          <a class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:6px;">
+          <a class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:8px;">
             Get your referral link &rarr;
           </a>
           {% else %}
-          <a class="btn btn-primary" href="/login" style="align-self:flex-start;margin-top:6px;">
+          <a class="btn btn-primary" href="/login" style="align-self:flex-start;margin-top:8px;">
             Sign up to refer friends &rarr;
           </a>
           {% endif %}
@@ -227,15 +784,15 @@
             <h3>£5</h3>
             <p>maximum credit per referral you earn</p>
           </div>
-          <div class="flow-divider">&bull;</div>
+          <div class="flow-divider"><span>and</span></div>
           <div class="flow-card">
             <h3>&#8734;</h3>
             <p>no limit on how many friends you refer</p>
           </div>
-          <div class="flow-divider">&bull;</div>
-          <div class="flow-card" style="border-color:rgba(0,212,170,0.25);background:linear-gradient(160deg,rgba(0,212,170,0.05),var(--surface));">
+          <div class="flow-divider"><span>plus</span></div>
+          <div class="flow-card" style="border-color:rgba(0,212,170,0.18);background:linear-gradient(160deg,rgba(0,212,170,0.04),var(--surface));">
             <h3 style="font-size:1rem;font-weight:700;background:none;-webkit-text-fill-color:var(--text);">Credits apply to your next bill automatically</h3>
-            <p style="margin-top:4px;">No voucher codes, no manual redemption</p>
+            <p style="margin-top:6px;">No voucher codes, no manual redemption</p>
           </div>
         </div>
       </div>
@@ -253,11 +810,12 @@
         <div class="plan">
           <div class="plan-name">Sessions</div>
           <div class="plan-price">£2 <span>/ 2 sessions</span></div>
-          <div style="font-size:0.72rem;color:#a78bfa;margin-bottom:4px;">Introductory offer &mdash; usually £15 for 3 sessions</div>
+          <div style="font-size:0.7rem;color:#a78bfa;margin-bottom:8px;font-weight:500;">Introductory offer &mdash; usually £15 for 3 sessions</div>
           <div class="plan-desc">Buy sessions when you need them. No subscription.</div>
           <ul class="plan-features">
-            <li>2 full 2.5 hour sessions</li>
-            <li>All AI features</li>
+            <li>2 full 2.5-hour sessions</li>
+            <li>Screen &amp; voice capture</li>
+            <li>Instant replay</li>
             <li>Sessions never expire</li>
           </ul>
           <a class="btn btn-outline" href="/login" style="width:100%;justify-content:center;">Get started</a>
@@ -270,8 +828,8 @@
           <div class="plan-desc">For active job seekers. Unlimited sessions, cancel anytime.</div>
           <ul class="plan-features">
             <li>Unlimited sessions</li>
-            <li>All AI features</li>
-            <li>Dual monitor support</li>
+            <li>Screen &amp; voice capture</li>
+            <li>Instant replay</li>
             <li>Cancel anytime</li>
           </ul>
           <a class="btn btn-primary" href="/login" style="width:100%;justify-content:center;">Start unlimited</a>
