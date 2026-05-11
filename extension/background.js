@@ -22,6 +22,8 @@ async function fetchAccountLevel() {
           replay_seconds: data.replay.seconds,
         });
       }
+      if (data.complexity != null)    await chrome.storage.local.set({ complexity: data.complexity });
+      if (data.response_style != null) await chrome.storage.local.set({ response_style: data.response_style });
     }
   } catch {}
 }
@@ -57,7 +59,6 @@ async function doCapture() {
       },
       body: JSON.stringify({
         image: dataUrl,
-        complexity: complexity ?? 2,
         monitor: 'browser',
       }),
     });

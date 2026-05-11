@@ -181,6 +181,11 @@
       </div>
       <div id="analysis" class="empty"></div>
       <div id="timestamp"></div>
+      <div id="history-nav">
+        <button class="hist-btn" id="hist-older" onclick="navigateHistory(1)">‹ older</button>
+        <span id="hist-label"></span>
+        <button class="hist-btn" id="hist-newer" onclick="navigateHistory(-1)">newer ›</button>
+      </div>
     </div>
   </main>
 
@@ -195,7 +200,48 @@
     const transcTextEl   = document.getElementById('transcription-text');
     let _streamBuffer = '';
 
-    const wrapEl = document.getElementById('screenshot-wrap');
+    const wrapEl        = document.getElementById('screenshot-wrap');
+    const histNavEl     = document.getElementById('history-nav');
+    const histOlderEl   = document.getElementById('hist-older');
+    const histNewerEl   = document.getElementById('hist-newer');
+    const histLabelEl   = document.getElementById('hist-label');
+
+    const _history = [];  // newest first: { analysis, transcription, timestamp, type }
+    let _historyIdx = 0;  // 0 = live
+
+    function _pushHistory(item) {
+      _history.unshift(item);
+      if (_history.length > 3) _history.pop();
+      _historyIdx = 0;
+      _updateHistoryNav();
+    }
+
+    function _updateHistoryNav() {
+      if (_history.length < 2) { histNavEl.style.display = 'none'; return; }
+      histNavEl.style.display    = 'flex';
+      histOlderEl.disabled       = _historyIdx >= _history.length - 1;
+      histNewerEl.disabled       = _historyIdx === 0;
+      histLabelEl.textContent    = _historyIdx === 0 ? 'latest' : `${_historyIdx + 1} of ${_history.length}`;
+    }
+
+    function navigateHistory(delta) {
+      const next = _historyIdx + delta;
+      if (next < 0 || next >= _history.length) return;
+      _historyIdx = next;
+      const item = _history[_historyIdx];
+      analysisEl.innerHTML  = item.analysis ? marked.parse(item.analysis) : '';
+      analysisEl.className  = item.analysis ? '' : 'empty';
+      tsEl.textContent      = item.timestamp ? 'captured at ' + item.timestamp : '';
+      badgeEl.textContent   = item.type;
+      badgeEl.className     = item.type;
+      if (item.transcription) {
+        transcTextEl.textContent    = item.transcription;
+        transcBoxEl.style.display   = 'block';
+      } else {
+        transcBoxEl.style.display   = 'none';
+      }
+      _updateHistoryNav();
+    }
 
     function applyCapture(data) {
       transcBoxEl.style.display = 'none';
@@ -244,6 +290,7 @@
           console.debug('[sse]', data.type);
           if (data.type === 'working') {
             _streamBuffer = '';
+            _historyIdx = 0;
             statusEl.textContent = 'analysing...';
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
@@ -263,6 +310,7 @@
             applyCapture(data);
             statusEl.textContent = 'live';
             statusEl.className = 'live';
+            if (data.analysis) _pushHistory({ analysis: data.analysis, timestamp: data.timestamp, type: data.monitor || 'browser' });
           } else if (data.type === 'settings') {
             applySettings(data);
           } else if (data.type === 'rate_limited') {
@@ -284,6 +332,7 @@
             showTrialExpired();
           } else if (data.type === 'audio-working') {
             _streamBuffer = '';
+            _historyIdx = 0;
             statusEl.textContent = 'transcribing...';
             statusEl.className = 'working';
             analysisEl.innerHTML = '';
@@ -304,6 +353,7 @@
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
+            if (data.analysis) _pushHistory({ analysis: data.analysis, transcription: data.transcription, timestamp: data.timestamp, type: 'audio' });
           } else if (data.type === 'audio-error') {
             statusEl.textContent = 'live';
             statusEl.className = 'live';

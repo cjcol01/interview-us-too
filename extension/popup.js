@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const { server_url, api_token, complexity, last_capture, last_error, enabled,
+  const { server_url, api_token, complexity, response_style, last_capture, last_error, enabled,
           hotkey_capture, hotkey_audio, hotkey_toggle, hotkey_replay,
           replay_enabled, replay_seconds } =
-    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'last_capture', 'last_error', 'enabled',
+    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'response_style',
+                                    'last_capture', 'last_error', 'enabled',
                                     'hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay',
                                     'replay_enabled', 'replay_seconds']);
 
@@ -103,10 +104,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const resp = await fetch(`${url}/api/me`, { headers: { 'Authorization': `Bearer ${tok}` } });
       if (resp.ok) {
-        const { account_level } = await resp.json();
-        await chrome.storage.local.set({ is_unlimited: account_level === 'unlimited' });
+        const data = await resp.json();
+        await chrome.storage.local.set({ is_unlimited: data.account_level === 'unlimited' });
       }
     } catch {}
+
+    // Sync complexity to server so it applies to audio/replay too
+    try {
+      await fetch(`${url}/api/settings/complexity`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: comp }),
+      });
+    } catch {}
+  });
+
+  // ── Response style pills ───────────────────────────────────────────────────
+  const stylePills = document.querySelectorAll('.style-pill');
+  let activeStyle  = response_style || 'conversational';
+
+  function applyStyleUI(style) {
+    stylePills.forEach(p => p.classList.toggle('active', p.dataset.style === style));
+  }
+  applyStyleUI(activeStyle);
+
+  stylePills.forEach(pill => {
+    pill.addEventListener('click', async () => {
+      const style = pill.dataset.style;
+      if (style === activeStyle) return;
+      activeStyle = style;
+      applyStyleUI(style);
+      await chrome.storage.local.set({ response_style: style });
+      const { server_url: url, api_token: tok } = await chrome.storage.local.get(['server_url', 'api_token']);
+      if (!url || !tok) return;
+      try {
+        await fetch(`${url}/api/settings/style`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ style }),
+        });
+      } catch {}
+    });
   });
 
   const grantMicBtn  = document.getElementById('grant_mic');

@@ -273,6 +273,34 @@
 
     #timestamp { font-size: 0.68rem; color: var(--border); margin-top: 10px; }
 
+    #history-nav {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .hist-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .hist-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+    .hist-btn:disabled { opacity: 0.3; cursor: default; }
+    #hist-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      min-width: 54px;
+      text-align: center;
+    }
+
     /* ── Trial start overlay ── */
     #trial-start-overlay {
       display: none;
