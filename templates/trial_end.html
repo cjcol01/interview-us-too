@@ -28,23 +28,69 @@
       <div class="tip-icon">&#9000;</div>
       <div class="tip-body">
         <h2>Key bindings</h2>
-        <div class="keybind-list">
+        <div class="keybind-list" id="keybind-list">
           <div class="keybind-row">
             <span class="keybind-desc">Capture screen &amp; analyse</span>
-            <div class="keybind-keys">
-              <kbd>Ctrl</kbd><span class="sep">+</span><kbd>Shift</kbd><span class="sep">+</span><kbd>Y</kbd>
-            </div>
+            <span class="keybind-keys" id="kb-capture"></span>
           </div>
           <div class="keybind-row">
-            <span class="keybind-desc">Toggle on / off</span>
-            <div class="keybind-keys">
-              <kbd>Ctrl</kbd><span class="sep">+</span><kbd>Shift</kbd><span class="sep">+</span><kbd>9</kbd>
-            </div>
+            <span class="keybind-desc">Record voice &amp; analyse</span>
+            <span class="keybind-keys" id="kb-audio"></span>
           </div>
-          <p class="tip-note" style="margin-top:4px;">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>.</p>
+          <div class="keybind-row">
+            <span class="keybind-desc">Instant replay (last few seconds)</span>
+            <span class="keybind-keys" id="kb-replay"></span>
+          </div>
+          <div class="keybind-row">
+            <span class="keybind-desc">Arm the extension</span>
+            <span class="keybind-keys" id="kb-toggle"></span>
+          </div>
         </div>
+        <p class="tip-note" style="margin-top:10px;">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>.</p>
       </div>
     </div>
+
+    <!-- Complexity control -->
+    <div class="tip-card">
+      <div class="tip-icon">&#9881;</div>
+      <div class="tip-body">
+        <h2>Tune the response detail</h2>
+        <p>The <strong style="color:#ccc;">+&thinsp;/&thinsp;&minus;</strong> buttons on the monitor page control how detailed the AI's answers are — fewer dots for a quick nudge, more dots for a full walkthrough.</p>
+        <p class="tip-note">Useful if the default responses feel too brief or too verbose for your style.</p>
+      </div>
+    </div>
+
+    <!-- Two-device tip -->
+    <div class="tip-card">
+      <div class="tip-icon">&#128241;</div>
+      <div class="tip-body">
+        <h2>Keep the monitor off the interviewer's screen</h2>
+        <p>Open the monitor page on your <strong style="color:#ccc;">phone or a second device</strong> — not on the same screen the interviewer can see. The extension captures from your main computer; the hints appear wherever you're logged in.</p>
+        <p class="tip-note">Most people prop their phone out of frame or use a second monitor positioned behind the camera.</p>
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        const hk = {
+          capture: '{{ hotkey_capture }}',
+          audio:   '{{ hotkey_audio }}',
+          replay:  '{{ hotkey_replay }}',
+          toggle:  '{{ hotkey_toggle }}',
+        };
+        const isMac = /Mac/.test(navigator.platform);
+        function renderKeys(hotkey) {
+          return hotkey.split('+').map((p, i, arr) => {
+            const label = isMac && p === 'Ctrl' ? 'Cmd' : p;
+            return `<kbd>${label}</kbd>${i < arr.length - 1 ? '<span class="sep">+</span>' : ''}`;
+          }).join('');
+        }
+        document.getElementById('kb-capture').innerHTML = renderKeys(hk.capture);
+        document.getElementById('kb-audio').innerHTML   = renderKeys(hk.audio);
+        document.getElementById('kb-replay').innerHTML  = renderKeys(hk.replay);
+        document.getElementById('kb-toggle').innerHTML  = renderKeys(hk.toggle);
+      })();
+    </script>
 
     <!-- Upgrade CTA -->
     <div class="upgrade-section">

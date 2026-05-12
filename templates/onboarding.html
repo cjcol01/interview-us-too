@@ -91,16 +91,18 @@
         </div>
         <p class="hotkey-hint"><span id="ob-key-capture"></span> to capture your screen and send for analysis.</p>
         <p class="hotkey-hint"><span id="ob-key-audio"></span> to record and analyse a verbal question.</p>
-        <p class="hotkey-hint"><span id="ob-key-toggle"></span> to start or stop the app.</p>
+        <p class="hotkey-hint"><span id="ob-key-replay"></span> to send the last few seconds of audio for instant analysis.</p>
+        <p class="hotkey-hint"><span id="ob-key-toggle"></span> to arm the extension.</p>
         <script>
           (function() {
-            const hk = { capture: '{{ hotkey_capture }}', audio: '{{ hotkey_audio }}', toggle: '{{ hotkey_toggle }}' };
+            const hk = { capture: '{{ hotkey_capture }}', audio: '{{ hotkey_audio }}', toggle: '{{ hotkey_toggle }}', replay: '{{ hotkey_replay }}' };
             const isMac = /Mac/.test(navigator.platform);
             function renderHotkey(key) {
               return key.split('+').map(p => `<kbd>${isMac && p === 'Ctrl' ? 'Cmd' : p}</kbd>`).join(' + ');
             }
             document.getElementById('ob-key-capture').innerHTML = renderHotkey(hk.capture);
             document.getElementById('ob-key-audio').innerHTML   = renderHotkey(hk.audio);
+            document.getElementById('ob-key-replay').innerHTML  = renderHotkey(hk.replay);
             document.getElementById('ob-key-toggle').innerHTML  = renderHotkey(hk.toggle);
           })();
         </script>

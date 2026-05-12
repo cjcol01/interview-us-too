@@ -12,12 +12,26 @@
   </header>
 
   <main>
-    <div class="pitch">
-      <h1>One good interview with InterviewAce can <span class="h1-break"><span class="h1-big">change everything.</span></span></h1>
+    <div class="pitch-card">
+      <svg class="pitch-sparkle ps-1" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C8.3 4.7 11.3 7.7 16 8c-4.7.3-7.7 3.3-8 8-.3-4.7-3.3-7.7-8-8 4.7-.3 7.7-3.3 8-8z"/></svg>
+      <svg class="pitch-sparkle ps-2" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C8.3 4.7 11.3 7.7 16 8c-4.7.3-7.7 3.3-8 8-.3-4.7-3.3-7.7-8-8 4.7-.3 7.7-3.3 8-8z"/></svg>
+      <svg class="pitch-sparkle ps-3" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C8.3 4.7 11.3 7.7 16 8c-4.7.3-7.7 3.3-8 8-.3-4.7-3.3-7.7-8-8 4.7-.3 7.7-3.3 8-8z"/></svg>
+      <div class="pitch-eyebrow">Why it's worth it</div>
+      <h1>One good interview can <span class="h1-accent">change everything.</span></h1>
+      <div class="pitch-stats">
+        <div class="pitch-stat">
+          <span class="stat-val">4–6</span>
+          <span class="stat-unit">months</span>
+          <span class="stat-label">avg developer job search</span>
+        </div>
+        <div class="pitch-stat">
+          <span class="stat-val">£5,000<span class="stat-suffix">+</span></span>
+          <span class="stat-unit">typical uplift</span>
+          <span class="stat-label">from negotiation alone</span>
+        </div>
+      </div>
       <p class="pitch-body">
-        The average developer job search takes <strong>4–6 months</strong> and longer for grads. <br><br> Landing your role just one month earlier is worth thousands of pounds in salary alone — and if InterviewAce gets you the offer over the next candidate, or helps you negotiate a <strong>£5k–£10k higher package</strong>, it pays for itself many times over.
-        <br><br>
-        You've put in the hours learning. This is just making sure they count when it matters.
+        Landing one month earlier adds thousands in salary — before negotiation even begins. If InterviewAce gets you the offer over the next candidate, or helps you negotiate a stronger package, it pays for itself many times over.
       </p>
     </div>
 
@@ -150,4 +164,16 @@
       <a href="/auth/logout">Sign out</a>
     </p>
   </main>
+
+  <script>
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.querySelectorAll('.plan-card').forEach(function(card) {
+        card.addEventListener('mousemove', function(e) {
+          var r = card.getBoundingClientRect();
+          card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+          card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+        });
+      });
+    }
+  </script>
 {% endblock %}

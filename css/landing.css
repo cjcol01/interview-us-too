@@ -1433,9 +1433,18 @@ kbd.demo-hotkey {
   flex-shrink: 0;
 }
 @media (max-width: 640px) {
-  .stats-strip { flex-wrap: wrap; gap: 28px; padding: 28px 20px; }
+  .stats-strip {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0;
+    gap: 0;
+  }
   .stat-div { display: none; }
-  .stat-item { padding: 0 16px; }
+  .stat-item { padding: 28px 16px; text-align: center; }
+  .stat-item:nth-child(1),
+  .stat-item:nth-child(5) { border-right: 1px solid rgba(255,255,255,0.04); }
+  .stat-item:nth-child(1),
+  .stat-item:nth-child(3) { border-bottom: 1px solid rgba(255,255,255,0.04); }
 }
 
 /* ── Hero Gradient Shimmer ── */

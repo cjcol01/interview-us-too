@@ -421,6 +421,7 @@ async def onboarding_page(
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
+        "hotkey_replay":  hk["replay"],
     })
 
 
@@ -435,7 +436,13 @@ async def verify_pending(request: Request, user: User = Depends(require_user)):
 
 @app.get("/trial-end")
 async def trial_end(request: Request, user: User = Depends(require_user)):
-    return templates.TemplateResponse(request=request, name="trial_end.html", context={})
+    hk = _user_hotkeys(user)
+    return templates.TemplateResponse(request=request, name="trial_end.html", context={
+        "hotkey_capture": hk["capture"],
+        "hotkey_audio":   hk["audio"],
+        "hotkey_toggle":  hk["toggle"],
+        "hotkey_replay":  hk["replay"],
+    })
 
 
 @app.get("/pricing")

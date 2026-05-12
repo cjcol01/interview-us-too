@@ -15,7 +15,7 @@
   <!-- Tutorial Step 1: Pin the extension -->
   <div id="tutorial-overlay-1" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">1 / 4</div>
+      <div class="t-step-pill">1 / 5</div>
       <div class="t-icon">📌</div>
       <h2>Pin the extension</h2>
       <p>Click the <strong>🧩 extensions icon</strong> in your Chrome toolbar, then click the <strong>pin</strong> next to InterviewAce. This keeps it one click away during interviews.</p>
@@ -27,19 +27,18 @@
   <!-- Tutorial Step 2: Toggle shortcut -->
   <div id="tutorial-overlay-2" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">2 / 4</div>
+      <div class="t-step-pill">2 / 5</div>
       <div class="t-icon">⌨️</div>
-      <h2>Turn it on and off</h2>
-      <p>Press <span id="tutorial-key-toggle"></span> on your computer to arm the extension. Try it now — this step closes automatically when you do.</p>
-      <p class="t-waiting-hint">Waiting for keypress...</p>
-      <button class="t-btn-ghost" onclick="advanceTutorial(2)">Skip</button>
+      <h2>Arm the extension</h2>
+      <p>Press <span id="tutorial-key-toggle"></span> to arm the extension before your interview. You can disarm it at any time from the extension popup.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(2)">Got it →</button>
     </div>
   </div>
 
   <!-- Tutorial Step 3: Image capture -->
   <div id="tutorial-overlay-3" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">3 / 4</div>
+      <div class="t-step-pill">3 / 5</div>
       <div class="t-icon">📸</div>
       <h2>Image capture</h2>
       <p>With the extension armed, press <span id="tutorial-key-capture"></span> on your computer. It captures your screen, runs AI analysis, and streams hints to this page.</p>
@@ -50,11 +49,22 @@
   <!-- Tutorial Step 4: Voice capture -->
   <div id="tutorial-overlay-4" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">4 / 4</div>
+      <div class="t-step-pill">4 / 5</div>
       <div class="t-icon">🎤</div>
       <h2>Voice capture</h2>
       <p>Press <span id="tutorial-key-audio"></span> to record audio instead. Speak the problem or think out loud — the AI transcribes and responds with guidance.</p>
-      <button class="t-btn-primary" onclick="advanceTutorial(4)">Let's go →</button>
+      <button class="t-btn-primary" onclick="advanceTutorial(4)">Got it →</button>
+    </div>
+  </div>
+
+  <!-- Tutorial Step 5: Instant replay -->
+  <div id="tutorial-overlay-5" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">5 / 5</div>
+      <div class="t-icon">🔁</div>
+      <h2>Instant replay</h2>
+      <p>Press <span id="tutorial-key-replay"></span> to send the last few seconds of audio to AI — useful when something was said out loud and you want quick guidance without re-recording.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(5)">Let's go →</button>
     </div>
   </div>
 
@@ -110,10 +120,10 @@
       <span id="replay-badge" style="display:none;font-size:0.72rem;display:none;align-items:center;gap:5px;"></span>
       <span id="status">connecting...</span>
       <button id="tutorial-btn" onclick="restartTutorial()" aria-label="How it works">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
-          <line x1="12" y1="8" x2="12" y2="8.01"/>
-          <path d="M12 12v4"/>
+          <path d="M12 16v-4"/>
+          <path d="M12 8h.01"/>
         </svg>
       </button>
       <button id="menu-btn" onclick="toggleMenu(event)" aria-label="Menu">
@@ -393,8 +403,8 @@
 
     let _trialSecs = 0;
     let _trialTick = null;
+    let _isTrial = false;
     let _tutorialKey = 'ia_tutorial_v1';
-    let _shortcutHandler = null;
 
     function showTrialExpired() {
       clearInterval(_trialTick);
@@ -437,6 +447,7 @@
         if (!resp.ok) return;
         const data = await resp.json();
         if (!data.is_trial) return;
+        _isTrial = true;
         if (data.user_id) _tutorialKey = 'ia_tutorial_v1_' + data.user_id;
         if (!data.started) {
           if (!localStorage.getItem(_tutorialKey)) {
@@ -475,26 +486,14 @@
     // ── Tutorial ────────────────────────────────────────────────────────────
 
     function showTutorialStep(n) {
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
       }
-      if (_shortcutHandler) {
-        document.removeEventListener('interview-ace:toggled', _shortcutHandler);
-        _shortcutHandler = null;
-      }
       document.getElementById('tutorial-overlay-' + n).classList.add('visible');
-      if (n === 2) {
-        _shortcutHandler = function() { advanceTutorial(2); };
-        document.addEventListener('interview-ace:toggled', _shortcutHandler, { once: true });
-      }
     }
 
     function advanceTutorial(from) {
-      if (_shortcutHandler) {
-        document.removeEventListener('interview-ace:toggled', _shortcutHandler);
-        _shortcutHandler = null;
-      }
-      if (from >= 4) {
+      if (from >= 5) {
         completeTutorial();
       } else {
         showTutorialStep(from + 1);
@@ -502,13 +501,13 @@
     }
 
     function completeTutorial() {
-      for (let i = 1; i <= 4; i++) {
+      for (let i = 1; i <= 5; i++) {
         document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
       }
       localStorage.setItem(_tutorialKey, '1');
-      if (!_trialTick) {
+      if (_isTrial && !_trialTick) {
         document.getElementById('trial-start-overlay').classList.add('visible');
-      } else {
+      } else if (_trialTick) {
         setTimeout(showHintToast, 5000);
       }
     }
@@ -526,6 +525,7 @@
       capture: '{{ capture }}',
       audio:   '{{ audio }}',
       toggle:  '{{ toggle }}',
+      replay:  '{{ replay }}',
     };
 
     function renderHotkey(hotkey) {
@@ -541,6 +541,7 @@
       set('tutorial-key-toggle',   hk.toggle);
       set('tutorial-key-capture',  hk.capture);
       set('tutorial-key-audio',    hk.audio);
+      set('tutorial-key-replay',   hk.replay);
       set('disabled-toast-toggle', hk.toggle);
       set('disabled-toast-capture', hk.capture);
       const hintKbd = document.getElementById('hint-kbd');

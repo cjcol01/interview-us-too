@@ -117,12 +117,11 @@ async function handleCapture() {
 
 async function handleToggle(senderTabId) {
   const { enabled } = await chrome.storage.local.get(['enabled']);
-  const next = !enabled;
-  await chrome.storage.local.set({ enabled: next });
-  if (next) await notifyEnabled();
-  else await flashDisabled();
+  if (enabled) return; // hotkey only arms — use the extension popup to disarm
+  await chrome.storage.local.set({ enabled: true });
+  await notifyEnabled();
   if (senderTabId) {
-    chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: next }).catch(() => {});
+    chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: true }).catch(() => {});
   }
 }
 
