@@ -32,6 +32,8 @@ from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
 
 templates = Jinja2Templates(directory="templates")
+templates.env.globals["POSTHOG_KEY"] = POSTHOG_API_KEY
+templates.env.globals["POSTHOG_HOST"] = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 SCREENSHOTS_DIR = Path("screenshots")
 
 

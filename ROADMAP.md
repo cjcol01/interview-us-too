@@ -10,7 +10,7 @@
 ### Security
 - [ ] Tighten CORS: change `allow_origins=["*"]` to your actual domain (`server.py:48`)
 - [ ] Enable card fingerprinting for the £2 intro deal — currently toggled off in dev (`billing.py:142-183`)
-- [ ] Add rate limiting to `/api/capture` and `/api/audio-capture` — no guard against a single token hammering Anthropic/OpenAI (consider `slowapi` or a token-bucket per user)
+- [x] Add rate limiting to `/api/capture` and `/api/audio-capture` — no guard against a single token hammering Anthropic/OpenAI (consider `slowapi` or a token-bucket per user)
 - [ ] Replace `print()` logging throughout with Python's `logging` module (structured, levelled — required for host log aggregators)
 
 ### Config
@@ -18,7 +18,7 @@
 - [ ] Set all required env vars in production (see list below)
 
 ### Data / Backend
-- [ ] Decide on database: keep SQLite or migrate to Postgres
+- [x] Decide on database: keep SQLite or migrate to Postgres
   - If Postgres: replace `database.init_db` `ALTER TABLE` block with Alembic migrations (`database.py:24-46`) — the current approach silently breaks on Postgres
 - [x] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts with Redis pub/sub + hashes — app can now run with multiple uvicorn workers
 
@@ -49,7 +49,6 @@
   - `REDIS_URL` (e.g. `redis://your-redis-host:6379/0`)
 - [ ] Configure Stripe webhook endpoint → `POST /billing/webhook` on the live domain
 - [ ] Set up SSL / HTTPS (most hosts do this automatically)
-- [ ] posthog API
 
 ---
 
@@ -71,9 +70,9 @@
 - [ ] Show "Trial (expired)" label for expired trial users in settings (not just "Trial")
 - [ ] Fix README keyboard shortcut docs — stale (wrong keys, missing audio shortcut)
 - [ ] "Buy me a coffee" link / tip jar (`plan.txt:23`)
-- [ ] add instant replay system for rolling back previously spoken text
+- [x] add instant replay system for rolling back previously spoken text
 - [ ] check mac mic recording symbol - do we need to spoof a mic
-- [ ] change settings i.e. conversational, bullet points, summary, one liner 
+- [x] change settings i.e. conversational, bullet points, summary, one liner 
 - [ ] upload a paragraph before hand of core company info
 
 ---
