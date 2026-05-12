@@ -39,6 +39,14 @@ def create_token(user_id: int) -> str:
     return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
 
 
+def decode_user_id(token: str) -> Optional[int]:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return int(payload["sub"])
+    except Exception:
+        return None
+
+
 def get_optional_user(
     session: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),

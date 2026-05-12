@@ -1441,11 +1441,12 @@ kbd.demo-hotkey {
 /* ── Hero Gradient Shimmer ── */
 .hero h1 span {
   background-size: 200% auto;
-  animation: shimmer 2.5s ease-out forwards;
+  animation: shimmer 5s ease-in-out forwards;
 }
 @keyframes shimmer {
   0%   { background-position: 0% center; }
-  100% { background-position: 200% center; }
+  60%  { background-position: 200% center; }
+  100% { background-position: 100% center; }
 }
 @media (prefers-reduced-motion: reduce) { .hero h1 span { animation: none; } }
 

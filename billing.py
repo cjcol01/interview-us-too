@@ -2,6 +2,7 @@ import stripe
 from datetime import datetime
 from sqlalchemy.orm import Session
 
+from analytics import logger, track
 from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
 from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
 
@@ -19,7 +20,7 @@ def get_or_create_customer(user: User, db: Session) -> str:
 
 def _credit_referrer(referrer: User, amount_pence: int, description: str) -> None:
     if not referrer.stripe_customer_id:
-        print(f"[referral] referrer {referrer.email} has no Stripe customer — skipping credit")
+        logger.warning("[referral] referrer %s has no Stripe customer — skipping credit", referrer.email)
         return
     try:
         stripe.Customer.create_balance_transaction(
@@ -28,9 +29,9 @@ def _credit_referrer(referrer: User, amount_pence: int, description: str) -> Non
             currency="gbp",
             description=description,
         )
-        print(f"[referral] credited {referrer.email} {amount_pence}p: {description}")
+        logger.info("[referral] credited %s %dp: %s", referrer.email, amount_pence, description)
     except stripe.error.StripeError as e:
-        print(f"[referral] Stripe credit failed for {referrer.email}: {e}")
+        logger.error("[referral] Stripe credit failed for %s: %s", referrer.email, e)
 
 
 def create_checkout_session(user: User, db: Session, plan: str = "subscription", apply_referral_discount: bool = False) -> str:
@@ -133,9 +134,11 @@ def _sync_subscription(sub: dict, db: Session):
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
+        track(user.id, "subscription_created", via_referral=bool(user.referred_by_id))
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
         user.sub_cancel_at = None
+        track(user.id, "subscription_lapsed", status=sub["status"])
     db.commit()
 
 
@@ -155,13 +158,13 @@ def _get_card_fingerprint(checkout_data: dict) -> str | None:
 
 def _handle_sessions_purchase(data: dict, db: Session):
     customer_id = data.get("customer")
-    print(f"[webhook] sessions purchase: customer={customer_id} mode={data.get('mode')} metadata={data.get('metadata')}")
+    logger.info("[webhook] sessions purchase: customer=%s metadata=%s", customer_id, data.get("metadata"))
     user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     if not user:
-        print(f"[webhook] no user found for customer {customer_id}")
+        logger.warning("[webhook] no user found for customer %s", customer_id)
         return
     plan = (data.get("metadata") or {}).get("plan", "")
-    print(f"[webhook] user={user.email} plan={plan!r} sessions_remaining={user.sessions_remaining}")
+    logger.info("[webhook] user=%s plan=%r sessions_remaining=%d", user.email, plan, user.sessions_remaining)
     if plan == "sessions":
         if not STRIPE_SECRET_KEY.startswith("sk_test_"):
             fingerprint = _get_card_fingerprint(data)
@@ -170,7 +173,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     IntroCardFingerprint.fingerprint == fingerprint
                 ).first()
                 if already_used:
-                    print(f"[webhook] fingerprint already used — refunding")
+                    logger.warning("[webhook] fingerprint already used — refunding user=%s", user.email)
                     payment_intent = data.get("payment_intent")
                     if payment_intent:
                         try:
@@ -195,12 +198,14 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     ref.intro_credited = True
                     ref.status = ReferralStatus.intro
                     ref.intro_at = datetime.utcnow()
+        track(user.id, "sessions_purchased", plan="sessions", sessions_added=2)
     elif plan == "sessions_pack":
         user.sessions_remaining += 3
+        track(user.id, "sessions_purchased", plan="sessions_pack", sessions_added=3)
     else:
-        print(f"[webhook] unrecognised plan {plan!r} — ignoring")
+        logger.warning("[webhook] unrecognised plan %r — ignoring", plan)
         return
 
     user.account_level = AccountLevel.paid
     db.commit()
-    print(f"[webhook] granted sessions — user={user.email} sessions_remaining={user.sessions_remaining} account_level={user.account_level}")
+    logger.info("[webhook] granted sessions — user=%s sessions_remaining=%d", user.email, user.sessions_remaining)

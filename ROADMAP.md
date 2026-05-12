@@ -49,6 +49,7 @@
   - `REDIS_URL` (e.g. `redis://your-redis-host:6379/0`)
 - [ ] Configure Stripe webhook endpoint → `POST /billing/webhook` on the live domain
 - [ ] Set up SSL / HTTPS (most hosts do this automatically)
+- [ ] posthog API
 
 ---
 

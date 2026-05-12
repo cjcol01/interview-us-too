@@ -1,5 +1,6 @@
 import resend
 
+from analytics import logger
 from config import BASE_URL, FROM_EMAIL, NOTIFY_EMAIL, RESEND_API_KEY
 
 resend.api_key = RESEND_API_KEY
@@ -9,7 +10,7 @@ _PLACEHOLDER = "re_xxxxxxxxxxxx"
 
 def send_verification_email(to_email: str, token: str) -> None:
     url = f"{BASE_URL}/verify?token={token}"
-    print(f"[email] verify link for {to_email}: {url}")
+    logger.info("[email] verify link for %s: %s", to_email, url)
 
     if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
         return
@@ -36,7 +37,7 @@ def send_verification_email(to_email: str, token: str) -> None:
             """,
         })
     except Exception as e:
-        print(f"[email] failed to send via Resend: {e}")
+        logger.error("[email] failed to send via Resend: %s", e)
 
 
 _REASON_LABELS = {
@@ -59,7 +60,7 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
         '<p style="margin:12px 0 0;color:#555;font-size:0.85rem;">No additional detail.</p>'
     )
 
-    print(f"[cancel-feedback] user={user_email} action={action} reason={reason_label} detail={detail!r}")
+    logger.info("[cancel-feedback] user=%s action=%s reason=%s", user_email, action, reason_label)
 
     if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
         return
@@ -96,4 +97,4 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
             """,
         })
     except Exception as e:
-        print(f"[email] failed to send cancel feedback: {e}")
+        logger.error("[email] failed to send cancel feedback: %s", e)

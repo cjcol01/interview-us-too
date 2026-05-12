@@ -23,7 +23,8 @@ from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from auth import create_token, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
+from analytics import identify, logger, track
+from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
 from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
@@ -44,7 +45,7 @@ async def lifespan(app: FastAPI):
     else:
         app.state.redis = aioredis.from_url(REDIS_URL, decode_responses=True)
         await app.state.redis.ping()
-    print(f"[ready] http://localhost:{SERVER_PORT}")
+    logger.info("[ready] http://localhost:%d", SERVER_PORT)
     try:
         yield
     finally:
@@ -59,6 +60,30 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+_SKIP_LOG_PREFIXES = ("/css/", "/favicon")
+
+@app.middleware("http")
+async def _request_logger(request: Request, call_next):
+    if any(request.url.path.startswith(p) for p in _SKIP_LOG_PREFIXES):
+        return await call_next(request)
+    start = time.time()
+    user_id = None
+    token = request.cookies.get("session")
+    if token:
+        user_id = decode_user_id(token)
+    response = await call_next(request)
+    ms = int((time.time() - start) * 1000)
+    logger.info("%s %s → %d (%dms) user=%s", request.method, request.url.path, response.status_code, ms, user_id)
+    return response
+
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
 async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -210,6 +235,7 @@ async def _gate_basic_access(r, user: User, db: Session):
             InterviewSession.ended_at == None,  # noqa: E711
         ).first()
         if not active:
+            track(user.id, "trial_expired")
             await broadcast(r, user.id, "trial_expired", {})
             raise HTTPException(status_code=403, detail="trial_expired")
 
@@ -270,6 +296,7 @@ async def auth_login(body: LoginRequest, db: Session = Depends(get_db)):
 
     user.last_login = datetime.utcnow()
     db.commit()
+    track(user.id, "login")
 
     token = create_token(user.id)
     response = JSONResponse({"status": "ok", "username": user.username})
@@ -313,6 +340,8 @@ async def auth_register(
     user.verify_token = verify_token
     db.commit()
     send_verification_email(user.email, verify_token)
+    identify(user.id, user.email, user.full_name, user.account_level.value)
+    track(user.id, "signup", referred=bool(ref))
 
     token = create_token(user.id)
     response = JSONResponse({"status": "ok", "username": user.username})
@@ -339,6 +368,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     user.email_verified = True
     user.verify_token = None
     db.commit()
+    track(user.id, "email_verified", account_level=user.account_level.value)
     if user.account_level == AccountLevel.trial:
         return RedirectResponse("/onboarding")
     return RedirectResponse("/app")
@@ -383,6 +413,7 @@ async def onboarding_page(
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
     _ensure_api_token(user, db)
+    track(user.id, "onboarding_viewed")
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="onboarding.html", context={
         "api_token": user.api_token,
@@ -409,6 +440,7 @@ async def trial_end(request: Request, user: User = Depends(require_user)):
 
 @app.get("/pricing")
 async def pricing_page(request: Request, user: User = Depends(require_user)):
+    track(user.id, "pricing_viewed", account_level=user.account_level.value)
     return templates.TemplateResponse(request=request, name="pricing.html", context={
         "intro_redeemed": user.intro_redeemed,
         "sessions_remaining": user.sessions_remaining,
@@ -509,6 +541,7 @@ async def apply_referral_code(
     user.referred_by_id = referrer.id
     db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
     db.commit()
+    track(user.id, "referral_applied")
     return redirect("ref_success", "1")
 
 
@@ -584,6 +617,7 @@ async def setup_complete(user: User = Depends(get_current_user), db: Session = D
     if not user.api_token:
         user.api_token = secrets.token_urlsafe(32)
     db.commit()
+    track(user.id, "onboarding_completed")
     return {"status": "ok"}
 
 
@@ -599,6 +633,7 @@ async def trial_start(user: User = Depends(get_current_user), db: Session = Depe
     user.setup_complete = True
     session = _get_or_create_session(db, user.id, TRIAL_DURATION)
     db.commit()
+    track(user.id, "trial_started")
     return {
         "started_at": session.started_at.isoformat(),
         "expires_at": session.expires_at.isoformat(),
@@ -686,6 +721,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
     state = await get_capture_state(r, user.id)
     await broadcast(r, user.id, "capture", state)
+    track(user.id, "capture_submitted", complexity=complexity)
     return {"status": "ok", "capture_id": capture_id}
 
 
@@ -737,6 +773,7 @@ async def api_audio_capture(
             "analysis": full_text,
             "timestamp": time.strftime("%H:%M:%S"),
         })
+        track(user.id, "audio_capture_submitted")
     except Exception as exc:
         await broadcast(r, user.id, "audio-error", {"message": str(exc)})
         raise HTTPException(status_code=500, detail="Audio processing failed")
@@ -836,6 +873,7 @@ async def billing_checkout(user: User = Depends(get_current_user), db: Session =
         if ref and ref.status != ReferralStatus.subscribed:
             apply_discount = True
     url = create_checkout_session(user, db, plan=plan, apply_referral_discount=apply_discount)
+    track(user.id, "checkout_initiated", plan=plan)
     return RedirectResponse(url)
 
 
@@ -870,6 +908,7 @@ async def billing_cancel_confirm(
     if cancel_at:
         user.sub_cancel_at = cancel_at
         db.commit()
+    track(user.id, "subscription_cancelled", reason=reason)
     if reason:
         send_cancel_feedback_email(user.email, reason, detail, kept=False)
     return RedirectResponse("/settings?cancelled=1", status_code=303)
