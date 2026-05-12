@@ -38,3 +38,4 @@ FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
 REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
+LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"

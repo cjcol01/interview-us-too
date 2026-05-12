@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, OPENAI_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
+from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
@@ -388,7 +388,8 @@ async def auth_logout():
 
 @app.get("/")
 async def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
-    return templates.TemplateResponse(request=request, name="landing.html", context={"user": user})
+    template = "landing.html" if LANDING_PROD else "landing_prep.html"
+    return templates.TemplateResponse(request=request, name=template, context={"user": user})
 
 
 @app.get("/app")
