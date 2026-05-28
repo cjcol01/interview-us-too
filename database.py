@@ -41,8 +41,12 @@ def init_db():
             ("hotkey_audio",        "VARCHAR"),
             ("hotkey_toggle",       "VARCHAR"),
             ("hotkey_replay",       "VARCHAR"),
-            ("replay_enabled",      "BOOLEAN DEFAULT 0"),
-            ("replay_seconds",      "INTEGER DEFAULT 10"),
+            ("replay_enabled",         "BOOLEAN DEFAULT 0"),
+            ("replay_seconds",         "INTEGER DEFAULT 10"),
+            ("referral_credit_pence",  "INTEGER DEFAULT 0"),
+            ("sub_trial_used",         "BOOLEAN DEFAULT 0"),
+            ("sub_invoice_paid",       "BOOLEAN DEFAULT 0"),
+            ("retention_offer_claimed","BOOLEAN DEFAULT 0"),
         ]
         for col, definition in migrations:
             if col not in existing:

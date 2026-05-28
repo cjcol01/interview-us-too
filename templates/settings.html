@@ -13,6 +13,18 @@
 
   <main>
 
+    {% if offer_claimed %}
+    <div class="offer-claimed-banner" id="offer-claimed-banner">
+      &#10003; 50% off applied to your next month — enjoy!
+    </div>
+    <script>
+      setTimeout(() => {
+        const b = document.getElementById('offer-claimed-banner');
+        if (b) { b.style.transition = 'opacity 0.5s'; b.style.opacity = '0'; setTimeout(() => b.remove(), 500); }
+      }, 4000);
+    </script>
+    {% endif %}
+
     <!-- Account -->
     <div class="section-label">Account</div>
     <div class="card">
@@ -88,9 +100,9 @@
         Share your link, earn up to £5 per friend <span class="chevron">›</span>
       </a>
       {% if ref_success %}
-        <div class="ref-feedback success">Referral applied — £5 off your first subscription at checkout.</div>
+        <div class="ref-feedback success">Referral applied — £5 off your first full payment at checkout.</div>
       {% elif is_referred %}
-        <div class="ref-feedback applied">&#10003; Referral applied — £5 off your first subscription.</div>
+        <div class="ref-feedback applied">&#10003; Referral applied — £5 off your first full payment.</div>
       {% else %}
         <div class="ref-form">
           <div style="font-size:0.78rem;color:var(--muted);">Have a friend's referral code or link?</div>

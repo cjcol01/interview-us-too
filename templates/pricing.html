@@ -61,10 +61,20 @@
             Claim deal — £2
           </a>
           <p class="plan-fine">Single payment · No auto-renewal</p>
+          {% if referral_credit_pence > 0 %}
+          {% set intro_applied = [referral_credit_pence, 200]|min %}
+          {% set intro_over = referral_credit_pence - intro_applied %}
+          {% if intro_over > 0 %}
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(intro_applied / 100) }} credit applied &mdash; £{{ "%.2f"|format(intro_over / 100) }} carried over</p>
+          {% else %}
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(intro_applied / 100) }} credit applied at checkout</p>
+          {% endif %}
+          {% endif %}
         </div>
       </div>
       {% endif %}
 
+      {% if account_level != 'unlimited' %}
       <!-- Sessions pack card -->
       <div class="plan-card">
         <div>
@@ -107,7 +117,17 @@
           Get 3 sessions — £15
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
+        {% if referral_credit_pence > 0 %}
+        {% set pack_applied = [referral_credit_pence, 1500]|min %}
+        {% set pack_over = referral_credit_pence - pack_applied %}
+        {% if pack_over > 0 %}
+        <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied &mdash; £{{ "%.2f"|format(pack_over / 100) }} carried over</p>
+        {% else %}
+        <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied at checkout</p>
+        {% endif %}
+        {% endif %}
       </div>
+      {% endif %}
 
       <!-- Subscription card -->
       <div class="card-wrapper has-label">
@@ -153,6 +173,18 @@
             Start free week &rarr;
           </a>
           <p class="plan-fine">Card required to hold your trial.</p>
+          {% if is_referred and referral_discount_active %}
+          <p class="plan-fine credit-note">&#10003; £5 off your first full payment applied at checkout</p>
+          {% endif %}
+          {% if referral_credit_pence > 0 and sub_price_pence > 0 %}
+          {% set sub_applied = [referral_credit_pence, sub_price_pence]|min %}
+          {% set sub_over = referral_credit_pence - sub_applied %}
+          {% if sub_over > 0 %}
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(sub_applied / 100) }} credit applied to your first payment &mdash; £{{ "%.2f"|format(sub_over / 100) }} carried over</p>
+          {% else %}
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(sub_applied / 100) }} credit applied to your first payment</p>
+          {% endif %}
+          {% endif %}
         </div>
       </div>
 

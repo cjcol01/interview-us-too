@@ -214,7 +214,7 @@ def register(test, skip, client):
             token = create_token(referrer.id)
             r = client.get("/referral", cookies={"session": token})
             assert r.status_code == 200
-            assert referee.email in r.text
+            assert referee.username in r.text
         finally:
             cleanup(db, referrer, referee)
             db.close()

@@ -180,7 +180,7 @@
       padding: 16px;
       font-size: 0.84rem;
       line-height: 1.6;
-      color: var(--muted);
+      color: var(--text);
       animation: slide-in 0.2s ease;
     }
     .ctx-panel strong { color: var(--text); font-weight: 600; }
@@ -220,15 +220,21 @@
     .ctx-expensive .scroll-offer-btn:hover { background: rgba(0,212,170,0.18); }
 
     /* sessions */
-    .ctx-sessions .sessions-link {
+    .sessions-btn {
       display: inline-block;
       margin-top: 10px;
-      color: var(--accent);
-      font-size: 0.8rem;
-      font-weight: 600;
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
       text-decoration: none;
+      transition: box-shadow 0.15s, transform 0.15s;
     }
-    .ctx-sessions .sessions-link:hover { text-decoration: underline; }
+    .sessions-btn:hover { box-shadow: 0 0 20px rgba(108,99,255,0.4); transform: translateY(-1px); color: #fff; }
 
     /* feature / other */
     .dev-intro {

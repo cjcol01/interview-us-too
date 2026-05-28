@@ -399,3 +399,13 @@
       transform: translateX(16px);
       background: var(--accent);
     }
+.offer-claimed-banner {
+  background: rgba(0, 212, 170, 0.12);
+  border: 1px solid rgba(0, 212, 170, 0.35);
+  border-radius: 10px;
+  color: var(--accent, #00d4aa);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}

@@ -38,6 +38,7 @@
     </div>
 
     <!-- Offer -->
+    {% if offer_eligible %}
     <div class="offer-card" id="offer-card">
       <div class="offer-label">A quick offer</div>
       <h2>Stay for 50% off next month</h2>
@@ -49,9 +50,12 @@
         <button type="button" class="btn-no-thanks" id="no-thanks-btn">No thanks, continue cancelling</button>
       </div>
     </div>
+    {% else %}
+    <div id="offer-card" hidden></div>
+    {% endif %}
 
     <!-- Feedback + cancel (revealed after "No thanks") -->
-    <div id="feedback-section">
+    <div id="feedback-section" {% if not offer_eligible %}class="visible" style="display:flex;flex-direction:column;gap:14px;"{% endif %}>
 
       <div class="card">
         <div class="card-header">Before you cancel — why are you leaving?</div>
@@ -92,13 +96,18 @@
       </div>
 
       <div id="ctx-too_expensive" class="ctx-panel ctx-expensive" hidden>
+        {% if offer_eligible %}
         <p>The <strong>50% offer above still stands</strong> — half price for next month, no commitment beyond that. Worth a look before you go.</p>
         <button type="button" class="scroll-offer-btn" id="scroll-offer-btn">See the offer &#8593;</button>
+        {% else %}
+        <p>If cost is the issue, <strong>session packs might suit you better</strong>. Each session lasts 2.5 hours and <strong>never expires</strong> — pay only when you actually have an interview, not on a monthly clock.</p>
+        <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
+        {% endif %}
       </div>
 
       <div id="ctx-not_used_enough" class="ctx-panel ctx-sessions" hidden>
         <p>If timing is the issue, <strong>session packs might suit you better</strong>. Each session lasts 2.5 hours and <strong>never expires</strong> — use them when you actually have an interview, not on a monthly clock.</p>
-        <a class="sessions-link" href="/pricing">See session packs &rarr;</a>
+        <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
       </div>
 
       <div id="ctx-had_issues" class="ctx-panel ctx-issues" hidden>
@@ -151,6 +160,12 @@
       </div>
 
       <div id="ctx-other" class="ctx-panel" hidden>
+        <div class="dev-intro">
+          <div class="dev-avatar">CJ</div>
+          <div class="dev-bubble">
+            Hi, I'm CJ — I built InterviewAce. I check these messages <strong>every day</strong>. Feel free to share anything — I read every message.
+          </div>
+        </div>
         <textarea class="ctx-textarea" id="other-text" placeholder="Anything you'd like to share? (optional)"></textarea>
       </div>
 
@@ -187,15 +202,18 @@
     })();
 
     /* ── Reveal feedback section ── */
-    document.getElementById('no-thanks-btn').addEventListener('click', () => {
-      const s = document.getElementById('feedback-section');
-      s.classList.add('visible');
-      s.style.display = 'flex';
-      s.style.flexDirection = 'column';
-      s.style.gap = '14px';
-      s.style.animation = 'slide-in 0.25s ease';
-      s.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    });
+    const noThanksBtn = document.getElementById('no-thanks-btn');
+    if (noThanksBtn) {
+      noThanksBtn.addEventListener('click', () => {
+        const s = document.getElementById('feedback-section');
+        s.classList.add('visible');
+        s.style.display = 'flex';
+        s.style.flexDirection = 'column';
+        s.style.gap = '14px';
+        s.style.animation = 'slide-in 0.25s ease';
+        s.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
 
     /* ── Radio logic ── */
     const radios     = document.querySelectorAll('input[name="reason"]');
@@ -235,13 +253,16 @@
     });
 
     /* scroll-to-offer button */
-    document.getElementById('scroll-offer-btn').addEventListener('click', () => {
-      const offer = document.getElementById('offer-card');
-      offer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      offer.style.transition = 'box-shadow 0.3s';
-      offer.style.boxShadow = '0 0 0 2px rgba(0,212,170,0.5)';
-      setTimeout(() => offer.style.boxShadow = '', 1800);
-    });
+    const scrollOfferBtn = document.getElementById('scroll-offer-btn');
+    if (scrollOfferBtn) {
+      scrollOfferBtn.addEventListener('click', () => {
+        const offer = document.getElementById('offer-card');
+        offer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        offer.style.transition = 'box-shadow 0.3s';
+        offer.style.boxShadow = '0 0 0 2px rgba(0,212,170,0.5)';
+        setTimeout(() => offer.style.boxShadow = '', 1800);
+      });
+    }
 
     function collectFormData() {
       const checked = document.querySelector('input[name="reason"]:checked');

@@ -490,6 +490,11 @@
       text-align: center;
       line-height: 1.5;
     }
+    .plan-fine.credit-note {
+      color: var(--accent2);
+      opacity: 1;
+      margin-top: 6px;
+    }
 
     .footer-note {
       text-align: center;

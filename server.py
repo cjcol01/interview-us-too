@@ -25,8 +25,8 @@ from sqlalchemy.orm import Session
 
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
-from billing import cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, POSTHOG_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT
+from billing import apply_retention_coupon, cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
+from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, POSTHOG_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
 from mailer import send_cancel_feedback_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
@@ -237,6 +237,8 @@ async def _gate_basic_access(r, user: User, db: Session):
             InterviewSession.ended_at == None,  # noqa: E711
         ).first()
         if not active:
+            user.account_level = AccountLevel.free
+            db.commit()
             track(user.id, "trial_expired")
             await broadcast(r, user.id, "trial_expired", {})
             raise HTTPException(status_code=403, detail="trial_expired")
@@ -450,10 +452,17 @@ async def trial_end(request: Request, user: User = Depends(require_user)):
 
 @app.get("/pricing")
 async def pricing_page(request: Request, user: User = Depends(require_user)):
+    if user.account_level == AccountLevel.unlimited:
+        return RedirectResponse("/settings", status_code=302)
     track(user.id, "pricing_viewed", account_level=user.account_level.value)
     return templates.TemplateResponse(request=request, name="pricing.html", context={
         "intro_redeemed": user.intro_redeemed,
         "sessions_remaining": user.sessions_remaining,
+        "account_level": user.account_level.value,
+        "is_referred": user.referred_by_id is not None,
+        "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
+        "referral_credit_pence": user.referral_credit_pence,
+        "sub_price_pence": STRIPE_SUB_PRICE_PENCE,
     })
 
 
@@ -503,20 +512,19 @@ async def referral_page(
         .all()
     )
     referrals = []
-    total_pence = 0
     for ref_row, referee_user in referral_rows:
-        credited = (200 if ref_row.intro_credited else 0) + (300 if ref_row.sub_credited else 0)
-        total_pence += credited
         referrals.append({
-            "referee_email": referee_user.email,
+            "referee_name": referee_user.username,
             "joined_date": f"{ref_row.created_at.day} {ref_row.created_at.strftime('%b %Y')}",
             "status": ref_row.status.value,
+            "referee_level": referee_user.account_level.value,
         })
     return templates.TemplateResponse(request=request, name="referral.html", context={
         "referral_code": user.referral_code,
         "referrals": referrals,
-        "total_credits_earned": total_pence / 100,
+        "referral_credit_pence": user.referral_credit_pence,
         "is_referred": user.referred_by_id is not None,
+        "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
         "ref_success": ref_success == "1",
         "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
     })
@@ -562,6 +570,7 @@ async def settings_page(
     db: Session = Depends(get_db),
     ref_success: Optional[str] = None,
     ref_error: Optional[str] = None,
+    offer: Optional[str] = None,
 ):
     _ensure_api_token(user, db)
     r = request.app.state.redis
@@ -579,6 +588,7 @@ async def settings_page(
         "is_referred": user.referred_by_id is not None,
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
+        "offer_claimed": offer == "claimed",
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
@@ -893,12 +903,18 @@ async def billing_cancel(request: Request, user: User = Depends(get_current_user
     return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={
         "hotkey_capture": hk["capture"],
         "hotkey_toggle":  hk["toggle"],
+        "offer_eligible": user.sub_invoice_paid and not user.retention_offer_claimed,
     })
 
 
 @app.post("/billing/offer")
-async def billing_offer(user: User = Depends(get_current_user)):
-    # TODO: apply 50% coupon via Stripe before redirecting
+async def billing_offer(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        apply_retention_coupon(user)
+        user.retention_offer_claimed = True
+        db.commit()
+    except Exception as e:
+        logger.error("[retention] failed to apply coupon for %s: %s", user.email, e)
     return RedirectResponse("/settings?offer=claimed", status_code=303)
 
 
@@ -945,7 +961,9 @@ async def billing_feedback(
 
 
 @app.get("/billing/success")
-async def billing_success(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def billing_success(request: Request, user: User = Depends(get_optional_user), db: Session = Depends(get_db)):
+    if not user:
+        return RedirectResponse("/login?next=/billing/success", status_code=302)
     db.refresh(user)
     return templates.TemplateResponse(request=request, name="billing_success.html", context={})
 

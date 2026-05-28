@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from analytics import logger, track
-from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
+from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
 from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
 
 stripe.api_key = STRIPE_SECRET_KEY
@@ -19,8 +19,10 @@ def get_or_create_customer(user: User, db: Session) -> str:
 
 
 def _credit_referrer(referrer: User, amount_pence: int, description: str) -> None:
+    """Increment DB credit (source of truth) and mirror into Stripe balance for auto-invoice deduction."""
+    referrer.referral_credit_pence += amount_pence  # caller commits
     if not referrer.stripe_customer_id:
-        logger.warning("[referral] referrer %s has no Stripe customer — skipping credit", referrer.email)
+        logger.warning("[referral] referrer %s has no Stripe customer — skipping balance mirror", referrer.email)
         return
     try:
         stripe.Customer.create_balance_transaction(
@@ -31,14 +33,36 @@ def _credit_referrer(referrer: User, amount_pence: int, description: str) -> Non
         )
         logger.info("[referral] credited %s %dp: %s", referrer.email, amount_pence, description)
     except stripe.error.StripeError as e:
-        logger.error("[referral] Stripe credit failed for %s: %s", referrer.email, e)
+        logger.error("[referral] Stripe balance mirror failed for %s: %s", referrer.email, e)
+
+
+def apply_retention_coupon(user: User) -> None:
+    if not user.stripe_sub_id:
+        raise ValueError("No active subscription found.")
+    if not STRIPE_RETENTION_COUPON_ID:
+        logger.info("[retention] STRIPE_RETENTION_COUPON_ID not configured — skipping coupon")
+        return
+    key = "promotion_code" if STRIPE_RETENTION_COUPON_ID.startswith("promo_") else "coupon"
+    stripe.Subscription.modify(user.stripe_sub_id, discounts=[{key: STRIPE_RETENTION_COUPON_ID}])
+    logger.info("[retention] applied retention coupon to sub=%s", user.stripe_sub_id)
+
+
+def _create_credit_coupon(amount_pence: int) -> str:
+    """Create a single-use, amount-off coupon in Stripe for the given pence value. Returns coupon id."""
+    coupon = stripe.Coupon.create(
+        amount_off=amount_pence,
+        currency="gbp",
+        duration="once",
+        max_redemptions=1,
+    )
+    return coupon.id
 
 
 def create_checkout_session(user: User, db: Session, plan: str = "subscription", apply_referral_discount: bool = False) -> str:
     customer_id = get_or_create_customer(user, db)
 
     if plan == "sessions":
-        session = stripe.checkout.Session.create(
+        kwargs = dict(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": STRIPE_SESSIONS_PRICE_ID, "quantity": 1}],
@@ -47,8 +71,12 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
+        if user.referral_credit_pence > 0:
+            kwargs["discounts"] = [{"coupon": _create_credit_coupon(user.referral_credit_pence)}]
+        session = stripe.checkout.Session.create(**kwargs)
+
     elif plan == "sessions_pack":
-        session = stripe.checkout.Session.create(
+        kwargs = dict(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": STRIPE_SESSIONS_PACK_PRICE_ID, "quantity": 1}],
@@ -57,18 +85,24 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
+        if user.referral_credit_pence > 0:
+            kwargs["discounts"] = [{"coupon": _create_credit_coupon(user.referral_credit_pence)}]
+        session = stripe.checkout.Session.create(**kwargs)
+
     else:
         kwargs = dict(
             customer=customer_id,
             payment_method_types=["card"],
             line_items=[{"price": STRIPE_SUB_PRICE_ID or STRIPE_PRICE_ID, "quantity": 1}],
             mode="subscription",
-            subscription_data={"trial_period_days": 7},
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
+        if not user.sub_trial_used:
+            kwargs["subscription_data"] = {"trial_period_days": 7}
         if apply_referral_discount and STRIPE_REFERRAL_COUPON_ID:
-            kwargs["discounts"] = [{"coupon": STRIPE_REFERRAL_COUPON_ID}]
+            key = "promotion_code" if STRIPE_REFERRAL_COUPON_ID.startswith("promo_") else "coupon"
+            kwargs["discounts"] = [{key: STRIPE_REFERRAL_COUPON_ID}]
         session = stripe.checkout.Session.create(**kwargs)
 
     return session.url
@@ -109,6 +143,9 @@ def handle_webhook_event(payload: bytes, sig_header: str, db: Session):
         if data.get("mode") == "payment":
             _handle_sessions_purchase(data, db)
 
+    elif event["type"] == "invoice.paid":
+        _handle_invoice_paid(data, db)
+
 
 def _sync_subscription(sub: dict, db: Session):
     user = db.query(User).filter(User.stripe_customer_id == sub["customer"]).first()
@@ -117,12 +154,14 @@ def _sync_subscription(sub: dict, db: Session):
     user.stripe_sub_id = sub["id"]
     if sub["status"] in ("active", "trialing"):
         user.account_level = AccountLevel.unlimited
+        user.sub_trial_used = True
         period_end = sub.get("cancel_at") or sub.get("trial_end")
         if sub.get("cancel_at_period_end") and period_end:
             user.sub_cancel_at = datetime.utcfromtimestamp(period_end)
         elif not sub.get("cancel_at_period_end"):
             user.sub_cancel_at = None
-        if user.referred_by_id:
+        # Only credit the referrer once the referee has actually paid (active, not trialing)
+        if sub["status"] == "active" and user.referred_by_id:
             ref = db.query(Referral).filter(
                 Referral.referee_id == user.id,
                 Referral.sub_credited == False,  # noqa: E712
@@ -130,7 +169,8 @@ def _sync_subscription(sub: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    _credit_referrer(referrer, 300, f"Referral — {user.email} subscribed")
+                    credit = 300 if ref.intro_credited else 500
+                    _credit_referrer(referrer, credit, f"Referral — {user.email} subscribed")
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
@@ -165,6 +205,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
         return
     plan = (data.get("metadata") or {}).get("plan", "")
     logger.info("[webhook] user=%s plan=%r sessions_remaining=%d", user.email, plan, user.sessions_remaining)
+
     if plan == "sessions":
         if not STRIPE_SECRET_KEY.startswith("sk_test_"):
             fingerprint = _get_card_fingerprint(data)
@@ -199,13 +240,65 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     ref.status = ReferralStatus.intro
                     ref.intro_at = datetime.utcnow()
         track(user.id, "sessions_purchased", plan="sessions", sessions_added=2)
+
     elif plan == "sessions_pack":
         user.sessions_remaining += 3
+        if user.referred_by_id:
+            ref = db.query(Referral).filter(
+                Referral.referee_id == user.id,
+                Referral.sub_credited == False,  # noqa: E712
+            ).first()
+            if ref:
+                referrer = db.query(User).filter(User.id == ref.referrer_id).first()
+                if referrer:
+                    credit = 300 if ref.intro_credited else 500
+                    _credit_referrer(referrer, credit, f"Referral — {user.email} bought sessions pack")
+                    ref.sub_credited = True
+                    ref.status = ReferralStatus.subscribed
+                    ref.sub_at = datetime.utcnow()
         track(user.id, "sessions_purchased", plan="sessions_pack", sessions_added=3)
+
     else:
         logger.warning("[webhook] unrecognised plan %r — ignoring", plan)
         return
 
-    user.account_level = AccountLevel.paid
+    # Deduct any referral credit that was applied at checkout via coupon
+    applied = (data.get("total_details") or {}).get("amount_discount", 0)
+    if applied > 0 and user.referral_credit_pence > 0:
+        user.referral_credit_pence = max(0, user.referral_credit_pence - applied)
+        # Re-sync Stripe balance: the credit was consumed by a payment (not an invoice),
+        # so Stripe balance wasn't touched — add it back to cancel the mirror.
+        if user.stripe_customer_id:
+            try:
+                stripe.Customer.create_balance_transaction(
+                    user.stripe_customer_id,
+                    amount=applied,
+                    currency="gbp",
+                    description="Referral credit redeemed on one-time purchase",
+                )
+            except stripe.error.StripeError as e:
+                logger.error("[referral] balance resync failed for %s: %s", user.email, e)
+
+    if user.account_level != AccountLevel.unlimited:
+        user.account_level = AccountLevel.paid
     db.commit()
     logger.info("[webhook] granted sessions — user=%s sessions_remaining=%d", user.email, user.sessions_remaining)
+
+
+def _handle_invoice_paid(inv: dict, db: Session):
+    """Mark first invoice paid and deduct any referral credit consumed."""
+    customer_id = inv.get("customer")
+    if not customer_id:
+        return
+    user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
+    if not user:
+        return
+    if not user.sub_invoice_paid and (inv.get("amount_paid") or 0) > 0:
+        user.sub_invoice_paid = True
+    starting = inv.get("starting_balance", 0) or 0
+    ending = inv.get("ending_balance", 0) or 0
+    consumed = ending - starting
+    if consumed > 0:
+        user.referral_credit_pence = max(0, user.referral_credit_pence - consumed)
+        logger.info("[referral] invoice paid — deducted %dp credit for %s", consumed, user.email)
+    db.commit()

@@ -89,18 +89,20 @@
         </div>
       </div>
       <p style="font-size:0.78rem;color:var(--muted);margin-top:14px;line-height:1.6;">
-        Credits apply automatically to your next bill. No limit on referrals &mdash; invite as many friends as you like.
+        Credits apply at your next purchase or subscription renewal. No limit on referrals &mdash; invite as many friends as you like.
       </p>
     </div>
 
+    {% if referral_discount_active %}
     <!-- What your friend gets -->
     <div class="card friend-card">
       <div class="friend-icon">&#127873;</div>
       <div class="friend-text">
         <h3>Your friend gets £5 off too</h3>
-        <p>When they sign up via your link, they automatically get £5 off their first subscription payment. No code needed, it's applied at checkout.</p>
+        <p>When they sign up via your link, they automatically get £5 off their first full payment. No code needed, it's applied at checkout.</p>
       </div>
     </div>
+    {% endif %}
 
     <!-- Enter a referral code -->
     <div class="card enter-code-card">
@@ -109,12 +111,16 @@
       {% if ref_success or is_referred %}
         <p class="already-referred">
           {% if ref_success %}&#10003; Applied —{% else %}&#10003;{% endif %}
-          £5 off your first subscription will be applied automatically at checkout.
+          {% if referral_discount_active %}
+            £5 off your first full payment will be applied automatically at checkout.
+          {% else %}
+            Referral applied.
+          {% endif %}
         </p>
 
       {% else %}
         <p style="font-size:0.82rem;color:var(--muted);margin-bottom:12px;line-height:1.6;">
-          Paste a friend's referral link or just the code to get £5 off your first subscription.
+          Paste a friend's referral link or just the code to get £5 off your first full payment.
         </p>
         <form action="/referral/apply" method="post">
           <input type="hidden" name="source" value="referral">
@@ -142,7 +148,7 @@
     <div class="card tracker-card">
       <div class="tracker-header">
         <div class="card-label">Your referrals</div>
-        <div class="credit-total">£{{ total_credits_earned | default('0') }} earned</div>
+        <div class="credit-total">£{{ "%.2f" | format(referral_credit_pence / 100) }} credit</div>
       </div>
 
       <div class="referral-list">
@@ -150,7 +156,7 @@
           {% for ref in referrals %}
           <div class="referral-row">
             <div class="referral-info">
-              <div class="referral-name">{{ ref.referee_email }}</div>
+              <div class="referral-name">{{ ref.referee_name }}</div>
               <div class="referral-date">Joined {{ ref.joined_date }}</div>
             </div>
             <div class="referral-status">
@@ -160,6 +166,9 @@
               {% elif ref.status == 'intro' %}
                 <span class="status-pill credited">Bought intro</span>
                 <div class="referral-amount">+£2 credited</div>
+              {% elif ref.status == 'signed_up' and ref.referee_level == 'unlimited' %}
+                <span class="status-pill trialing">In trial</span>
+                <div class="referral-amount" style="color:var(--muted);">Credit on conversion</div>
               {% else %}
                 <span class="status-pill pending">Signed up</span>
                 <div class="referral-amount" style="color:var(--muted);">Pending</div>
@@ -177,7 +186,7 @@
     </div>
 
     <p class="footer-note">
-      Credits are applied automatically to your next invoice &nbsp;&middot;&nbsp;
+      Credits are applied at your next purchase or subscription renewal &nbsp;&middot;&nbsp;
       <a href="/settings">Back to settings</a>
     </p>
 
@@ -202,7 +211,7 @@
       if (navigator.share) {
         navigator.share({
           title: 'InterviewAce — Ace your interviews',
-          text: 'Get £5 off your first subscription with this link:',
+          text: 'Get £5 off your first full payment with this link:',
           url: link,
         });
       } else {

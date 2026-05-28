@@ -48,7 +48,7 @@ def _fake_checkout_event(customer_id, plan, payment_intent="pi_test"):
 # ---------------------------------------------------------------------------
 
 def register(test, skip, client=None):
-    from billing import _handle_sessions_purchase, _sync_subscription
+    from billing import _handle_sessions_purchase, _handle_invoice_paid, _sync_subscription, create_checkout_session
 
     # -- _sync_subscription --------------------------------------------------
 
@@ -223,7 +223,7 @@ def register(test, skip, client=None):
             mock_credit.assert_called_once()
             args, kwargs = mock_credit.call_args
             assert args[0] == referrer_cid
-            assert kwargs["amount"] == -300
+            assert kwargs["amount"] == -500  # no intro done → full £5
             db.refresh(ref_row)
             assert ref_row.sub_credited is True
             assert ref_row.status == ReferralStatus.subscribed
@@ -266,6 +266,199 @@ def register(test, skip, client=None):
         finally:
             cleanup(db, referrer); db.close()
 
+    # -- #1: credit only on active, not trialing --------------------------------
+
+    def test_trialing_does_not_credit_referrer():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee_sid = _sub_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id)
+            db.add(ref_row)
+            db.commit()
+
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "trialing"), db)
+
+            mock_credit.assert_not_called()
+            db.refresh(ref_row)
+            assert ref_row.sub_credited is False
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_trialing_then_active_credits_once():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee_sid = _sub_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id)
+            db.add(ref_row)
+            db.commit()
+
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "trialing"), db)
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
+
+            mock_credit.assert_called_once()
+            _, kwargs = mock_credit.call_args
+            assert kwargs["amount"] == -500  # no intro done → full £5
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_sub_trial_used_set_after_subscription():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid, sid = _stripe_id(), _sub_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            assert u.sub_trial_used is False
+            _sync_subscription(_fake_sub(cid, sid, "trialing"), db)
+            db.refresh(u)
+            assert u.sub_trial_used is True
+        finally:
+            cleanup(db, u); db.close()
+
+    # -- #3: pack purchase keeps unlimited ------------------------------------
+
+    def test_sessions_pack_does_not_downgrade_unlimited():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            data = _fake_checkout_event(cid, "sessions_pack")["data"]["object"]
+            _handle_sessions_purchase(data, db)
+            db.refresh(u)
+            assert u.account_level == AccountLevel.unlimited
+            assert u.sessions_remaining == 3
+        finally:
+            cleanup(db, u); db.close()
+
+    # -- #6: DB credit --------------------------------------------------------
+
+    def test_credit_referrer_increments_db_credit():
+        from billing import _credit_referrer
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            assert referrer.referral_credit_pence == 0
+            with patch("billing.stripe.Customer.create_balance_transaction"):
+                _credit_referrer(referrer, 200, "test")
+            assert referrer.referral_credit_pence == 200
+        finally:
+            cleanup(db, referrer); db.close()
+
+    def test_sessions_purchase_deducts_applied_credit():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            u.referral_credit_pence = 500
+            db.commit()
+            data = _fake_checkout_event(cid, "sessions")["data"]["object"]
+            data["total_details"] = {"amount_discount": 200}
+            with patch("billing.stripe.Customer.create_balance_transaction"):
+                _handle_sessions_purchase(data, db)
+            db.refresh(u)
+            assert u.referral_credit_pence == 300
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_invoice_paid_deducts_consumed_credit():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            u.referral_credit_pence = 500
+            db.commit()
+            fake_invoice = {
+                "customer": cid,
+                "starting_balance": -500,
+                "ending_balance": -200,
+            }
+            _handle_invoice_paid(fake_invoice, db)
+            db.refresh(u)
+            assert u.referral_credit_pence == 200
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_invoice_paid_clamps_at_zero():
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            u.referral_credit_pence = 100
+            db.commit()
+            fake_invoice = {
+                "customer": cid,
+                "starting_balance": -500,
+                "ending_balance": 0,
+            }
+            _handle_invoice_paid(fake_invoice, db)
+            db.refresh(u)
+            assert u.referral_credit_pence == 0
+        finally:
+            cleanup(db, u); db.close()
+
+    # -- #7: no trial on resubscription ---------------------------------------
+
+    def test_checkout_no_trial_when_sub_trial_used():
+        from unittest.mock import MagicMock
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.free, stripe_id=cid)
+            u.sub_trial_used = True
+            db.commit()
+            captured = {}
+            mock_session = MagicMock()
+            mock_session.url = "https://checkout.stripe.com/pay/test"
+            def capture_create(**kwargs):
+                captured.update(kwargs)
+                return mock_session
+            with patch("billing.stripe.checkout.Session.create", side_effect=capture_create):
+                create_checkout_session(u, db, plan="subscription")
+            assert "subscription_data" not in captured, "trial offered again after sub_trial_used"
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_checkout_trial_when_sub_trial_not_used():
+        from unittest.mock import MagicMock
+        init_db()
+        db = SessionLocal()
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            assert u.sub_trial_used is False
+            captured = {}
+            mock_session = MagicMock()
+            mock_session.url = "https://checkout.stripe.com/pay/test"
+            def capture_create(**kwargs):
+                captured.update(kwargs)
+                return mock_session
+            with patch("billing.stripe.checkout.Session.create", side_effect=capture_create):
+                create_checkout_session(u, db, plan="subscription")
+            assert "subscription_data" in captured
+            assert captured["subscription_data"].get("trial_period_days") == 7
+        finally:
+            cleanup(db, u); db.close()
+
     test("_sync_subscription: active → unlimited",               test_sync_active_sets_unlimited)
     test("_sync_subscription: trialing → unlimited",             test_sync_trialing_sets_unlimited)
     test("_sync_subscription: canceled → free",                  test_sync_canceled_sets_free)
@@ -279,6 +472,113 @@ def register(test, skip, client=None):
     test("Referrer credited £3 when referee subscribes",         test_referrer_credited_on_subscription)
     test("No double-credit on subscription (sub_credited guard)",test_no_double_credit_subscription)
     test("_credit_referrer skips if no Stripe customer",         test_credit_referrer_skips_if_no_stripe_customer)
+    def test_referrer_credited_300_on_subscription_if_intro_done():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee_sid = _sub_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
+                               intro_credited=True, status=ReferralStatus.intro)
+            db.add(ref_row)
+            db.commit()
+
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
+
+            mock_credit.assert_called_once()
+            _, kwargs = mock_credit.call_args
+            assert kwargs["amount"] == -300  # intro already done → only £3 remaining
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_referrer_credited_500_on_sessions_pack_no_intro():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id)
+            db.add(ref_row)
+            db.commit()
+
+            data = _fake_checkout_event(referee_cid, "sessions_pack")["data"]["object"]
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _handle_sessions_purchase(data, db)
+
+            mock_credit.assert_called_once()
+            args, kwargs = mock_credit.call_args
+            assert args[0] == referrer_cid
+            assert kwargs["amount"] == -500  # no intro → full £5
+            db.refresh(ref_row)
+            assert ref_row.sub_credited is True
+            assert ref_row.status == ReferralStatus.subscribed
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_referrer_credited_300_on_sessions_pack_if_intro_done():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
+                               intro_credited=True, status=ReferralStatus.intro)
+            db.add(ref_row)
+            db.commit()
+
+            data = _fake_checkout_event(referee_cid, "sessions_pack")["data"]["object"]
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _handle_sessions_purchase(data, db)
+
+            mock_credit.assert_called_once()
+            _, kwargs = mock_credit.call_args
+            assert kwargs["amount"] == -300  # intro done → £3 remaining
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    def test_no_double_credit_sessions_pack():
+        init_db()
+        db = SessionLocal()
+        try:
+            referrer_cid = _stripe_id()
+            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
+            referee_cid = _stripe_id()
+            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
+            referee.referred_by_id = referrer.id
+            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
+                               sub_credited=True, status=ReferralStatus.subscribed)
+            db.add(ref_row)
+            db.commit()
+
+            data = _fake_checkout_event(referee_cid, "sessions_pack")["data"]["object"]
+            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+                _handle_sessions_purchase(data, db)
+
+            mock_credit.assert_not_called()
+        finally:
+            cleanup(db, referrer, referee); db.close()
+
+    test("#1: trialing does NOT credit referrer",                test_trialing_does_not_credit_referrer)
+    test("#1: trialing then active credits referrer once",       test_trialing_then_active_credits_once)
+    test("#7: sub_trial_used set after first subscription",      test_sub_trial_used_set_after_subscription)
+    test("#3: pack purchase keeps unlimited account level",      test_sessions_pack_does_not_downgrade_unlimited)
+    test("#6: _credit_referrer increments DB credit",            test_credit_referrer_increments_db_credit)
+    test("#6: intro purchase deducts applied discount from DB",  test_sessions_purchase_deducts_applied_credit)
+    test("#6: invoice.paid deducts consumed balance from DB",    test_invoice_paid_deducts_consumed_credit)
+    test("#6: invoice.paid clamps credit at zero",               test_invoice_paid_clamps_at_zero)
+    test("#7: checkout omits trial when sub_trial_used=True",    test_checkout_no_trial_when_sub_trial_used)
+    test("#7: checkout includes trial when sub_trial_used=False",test_checkout_trial_when_sub_trial_not_used)
 
 
 # ---------------------------------------------------------------------------

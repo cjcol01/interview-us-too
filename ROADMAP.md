@@ -5,6 +5,17 @@
 
 ---
 
+## ⚠️ VERIFY BEFORE LAUNCH — Subscription referral credit
+
+> Subscription credit (referral_credit_pence) deducts from the DB via `invoice.paid` by reading
+> the Stripe customer balance delta. This was NOT end-to-end tested because manual DB edits don't
+> mirror to Stripe balance. **Must test the full flow:** earn credit via real referral → referee
+> subscribes → check that (a) Stripe auto-applies the balance to the first invoice and (b)
+> `referral_credit_pence` is deducted in the DB after `invoice.paid` fires.
+> Key code: `billing.py _credit_referrer`, `_handle_invoice_paid`.
+
+---
+
 ## 🔴 Blockers (must fix before launch)
 
 ### Security
@@ -23,11 +34,11 @@
 - [x] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts with Redis pub/sub + hashes — app can now run with multiple uvicorn workers
 
 ### Bugs
-- [ ] Fix referral credits in Stripe — `_credit_referrer` is broken (`billing.py`, noted in `plan.txt:24`)
-- [ ] Handle referral flow edge cases (`plan.txt:25`)
-- [ ] Implement `/billing/offer` or remove the route — currently a stub with a `# TODO` (`server.py:756`)
-- [ ] Remove the self-healing subscriber bug-fix patch in `api_capture` once data is clean (`server.py:582-586`)
-- [ ] Connect cancel reason form to backend — cancel info currently not persisted (`plan.txt:29`)
+- [x] Fix referral credits in Stripe — `_credit_referrer` was broken (`billing.py`)
+- [x] Handle referral flow edge cases
+- [x] Implement `/billing/offer` or remove the route — currently a stub with a `# TODO` (`server.py:756`)
+- [x] Remove the self-healing subscriber bug-fix patch in `api_capture` once data is clean (`server.py:582-586`)
+- [x] Connect cancel reason form to backend — cancel info currently not persisted
 
 ---
 
@@ -41,6 +52,8 @@
   - `OPENAI_API_KEY`
   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
   - `STRIPE_SESSIONS_PRICE_ID`, `STRIPE_SUB_PRICE_ID`
+  - `STRIPE_SUB_PRICE_PENCE` (subscription price in pence, e.g. `2500` for £25 — used for credit display on pricing page)
+  - `STRIPE_REFERRAL_COUPON_ID`, `STRIPE_RETENTION_COUPON_ID`
   - `RESEND_API_KEY`
   - `BASE_URL` (your public domain)
   - `FROM_EMAIL`
@@ -64,12 +77,13 @@
 ## 🔧 Features & Polish
 
 - [ ] Add a contact form or `mailto` link on landing page footer / settings / pricing
-- [x] Update landing page nav — sign-in/sign-out button behaviour (`plan.txt:35`)
-- [ ] Add mic settings and mic test (`plan.txt:38`)
+- [x] Update landing page nav — sign-in/sign-out button behaviour
+- [ ] Improve site navigation — navbar consistency across pages
+- [ ] Add mic settings and mic test
 - [ ] Fix audio keyup edge case — any modifier release stops recording (`content.js:85-97`)
 - [ ] Show "Trial (expired)" label for expired trial users in settings (not just "Trial")
 - [ ] Fix README keyboard shortcut docs — stale (wrong keys, missing audio shortcut)
-- [ ] "Buy me a coffee" link / tip jar (`plan.txt:23`)
+- [ ] "Buy me a coffee" link / tip jar
 - [x] add instant replay system for rolling back previously spoken text
 - [ ] check mac mic recording symbol - do we need to spoof a mic
 - [x] change settings i.e. conversational, bullet points, summary, one liner 

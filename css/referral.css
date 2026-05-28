@@ -408,6 +408,11 @@
       border: 1px solid rgba(0,212,170,0.35);
       color: var(--accent2);
     }
+    .status-pill.trialing {
+      background: rgba(251,191,36,0.1);
+      border: 1px solid rgba(251,191,36,0.3);
+      color: #fbbf24;
+    }
 
     .referral-amount {
       font-size: 0.82rem;
