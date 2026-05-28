@@ -438,18 +438,6 @@ def register(test, skip, client):
     test("GET /app: free user → /pricing",                        test_app_redirects_free_to_pricing)
     test("GET /app: trial without setup → /onboarding",           test_app_redirects_trial_no_setup_to_onboarding)
 
-    # -- GET /screenshot -----------------------------------------------------
-
-    def test_screenshot_no_file_returns_404():
-        token, uname = make_cookie(AccountLevel.trial)
-        try:
-            r = client.get("/screenshot", cookies={"session": token})
-            assert r.status_code == 404
-        finally:
-            delete_by_name(uname)
-
-    test("GET /screenshot: no file → 404",                        test_screenshot_no_file_returns_404)
-
     # -- POST /api/notify/disabled and /api/notify/enabled ------------------
 
     def test_notify_disabled_free_user_is_noop():

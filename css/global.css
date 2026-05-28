@@ -63,3 +63,80 @@ body {
 
 .footer-note a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
 .footer-note a:hover { color: var(--text); }
+
+/* ── App Navbar ─────────────────────────────────────── */
+.navbar {
+  background: rgba(15,15,26,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 0 20px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.navbar-logo {
+  font-size: 0.95rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.navbar-link {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.15s, background 0.15s;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.6;
+}
+.navbar-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+.navbar-link.active { color: var(--text); background: rgba(255,255,255,0.07); }
+.navbar-link.navbar-logout:hover { color: var(--danger); }
+.navbar-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s;
+  line-height: 0;
+}
+.navbar-hamburger:hover { color: var(--text); }
+@media (max-width: 600px) {
+  .navbar { flex-wrap: wrap; height: auto; min-height: 52px; padding: 0 16px; }
+  .navbar-logo { padding: 14px 0; }
+  .navbar-links {
+    display: none;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    border-top: 1px solid var(--border);
+    padding: 6px 0 10px;
+    gap: 2px;
+  }
+  .navbar-links.open { display: flex; }
+  .navbar-hamburger { display: flex; align-items: center; }
+  .navbar-link { padding: 10px 8px; }
+}

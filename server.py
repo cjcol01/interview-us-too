@@ -404,7 +404,12 @@ async def index(request: Request, user: User = Depends(require_user)):
         return RedirectResponse("/pricing")
     if user.account_level == AccountLevel.trial and not user.setup_complete:
         return RedirectResponse("/onboarding")
-    return templates.TemplateResponse(request=request, name="index.html", context=_user_hotkeys(user))
+    return templates.TemplateResponse(request=request, name="index.html", context={
+        **_user_hotkeys(user),
+        "show_navbar": True,
+        "account_level": user.account_level.value,
+        "sessions_remaining": user.sessions_remaining,
+    })
 
 
 @app.get("/onboarding")
@@ -463,6 +468,7 @@ async def pricing_page(request: Request, user: User = Depends(require_user)):
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
         "referral_credit_pence": user.referral_credit_pence,
         "sub_price_pence": STRIPE_SUB_PRICE_PENCE,
+        "show_navbar": True,
     })
 
 
@@ -527,6 +533,9 @@ async def referral_page(
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
         "ref_success": ref_success == "1",
         "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
+        "show_navbar": True,
+        "account_level": user.account_level.value,
+        "sessions_remaining": user.sessions_remaining,
     })
 
 
@@ -597,6 +606,7 @@ async def settings_page(
         "complexity": await get_complexity(r, user.id),
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
+        "show_navbar": True,
     })
 
 

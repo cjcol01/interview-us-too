@@ -17,6 +17,41 @@
   {% endif %}
 </head>
 <body>
+{% if show_navbar %}
+<nav class="navbar" id="navbar">
+  <a href="/app" class="navbar-logo">InterviewAce</a>
+  <div class="navbar-links" id="navbar-links">
+    <a href="/app" class="navbar-link{% if request.url.path == '/app' %} active{% endif %}">Dashboard</a>
+    <a href="/settings" class="navbar-link{% if request.url.path == '/settings' %} active{% endif %}">Settings</a>
+    <a href="/referral" class="navbar-link{% if request.url.path == '/referral' %} active{% endif %}">Referral</a>
+    {% if account_level != 'unlimited' %}
+    <a href="/pricing" class="navbar-link{% if request.url.path == '/pricing' %} active{% endif %}">{% if sessions_remaining and sessions_remaining > 0 %}Upgrade{% else %}Pricing{% endif %}</a>
+    {% endif %}
+  </div>
+  <button class="navbar-hamburger" id="navbar-hamburger" aria-label="Toggle menu" aria-expanded="false">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+      <line x1="3" y1="7" x2="21" y2="7"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="17" x2="21" y2="17"/>
+    </svg>
+  </button>
+</nav>
+<script>
+(function(){
+  var btn = document.getElementById('navbar-hamburger');
+  var links = document.getElementById('navbar-links');
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var open = links.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', function() {
+    links.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  });
+})();
+</script>
+{% endif %}
 {% block content %}{% endblock %}
 </body>
 </html>

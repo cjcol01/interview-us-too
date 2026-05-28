@@ -13,7 +13,7 @@
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
       position: sticky;
-      top: 0;
+      top: 52px;
       z-index: 10;
     }
 
@@ -177,6 +177,26 @@
       color: var(--muted);
       font-weight: 600;
     }
+
+    .analysis-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #clear-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-size: 0.72rem;
+      font-weight: 500;
+      font-family: inherit;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    #clear-btn:hover { border-color: var(--danger); color: var(--danger); }
 
     .complexity-control { display: flex; align-items: center; gap: 6px; }
 
