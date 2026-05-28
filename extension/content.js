@@ -51,8 +51,12 @@ chrome.runtime.onMessage.addListener(_onMessage);
 ac.signal.addEventListener('abort', () => chrome.runtime.onMessage.removeListener(_onMessage));
 
 document.addEventListener('interview-ace:hotkeys', (e) => {
-  const { capture, audio, toggle, replay } = e.detail;
-  chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle, hotkey_replay: replay });
+  const { capture, audio, toggle, replay, typing } = e.detail;
+  chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle, hotkey_replay: replay, hotkey_typing: typing });
+}, { signal: ac.signal });
+
+document.addEventListener('interview-ace:passthrough', (e) => {
+  chrome.storage.local.set({ typing_passthrough: e.detail.enabled });
 }, { signal: ac.signal });
 
 document.addEventListener('interview-ace:replay', (e) => {
@@ -87,14 +91,19 @@ document.addEventListener('interview-ace:connect', (e) => {
   });
 }, { signal: ac.signal });
 
-const _hotkeys = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6' };
+const _hotkeys = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6', typing: 'Ctrl+Shift+5' };
 let _audioRecording = false;
+let _typingActive = false;
+let _typingBuffer = '';
+let _passthrough = true;
 
-chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay'], (r) => {
+chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay', 'hotkey_typing', 'typing_passthrough'], (r) => {
   if (r.hotkey_capture) _hotkeys.capture = r.hotkey_capture;
   if (r.hotkey_audio)   _hotkeys.audio   = r.hotkey_audio;
   if (r.hotkey_toggle)  _hotkeys.toggle  = r.hotkey_toggle;
   if (r.hotkey_replay)  _hotkeys.replay  = r.hotkey_replay;
+  if (r.hotkey_typing)  _hotkeys.typing  = r.hotkey_typing;
+  if (r.typing_passthrough !== undefined) _passthrough = r.typing_passthrough;
 });
 
 const _onStorageChanged = (changes) => {
@@ -102,6 +111,8 @@ const _onStorageChanged = (changes) => {
   if (changes.hotkey_audio?.newValue)   _hotkeys.audio   = changes.hotkey_audio.newValue;
   if (changes.hotkey_toggle?.newValue)  _hotkeys.toggle  = changes.hotkey_toggle.newValue;
   if (changes.hotkey_replay?.newValue)  _hotkeys.replay  = changes.hotkey_replay.newValue;
+  if (changes.hotkey_typing?.newValue)  _hotkeys.typing  = changes.hotkey_typing.newValue;
+  if (changes.typing_passthrough?.newValue !== undefined) _passthrough = changes.typing_passthrough.newValue;
 };
 chrome.storage.onChanged.addListener(_onStorageChanged);
 ac.signal.addEventListener('abort', () => chrome.storage.onChanged.removeListener(_onStorageChanged));
@@ -125,6 +136,47 @@ function matchesHotkey(e, hotkey) {
 }
 
 document.addEventListener('keydown', (e) => {
+  // Typing-mode toggle — checked first so it always stops capture, even mid-typing.
+  if (matchesHotkey(e, _hotkeys.typing)) {
+    if (e.repeat) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (_typingActive) {
+      _typingActive = false;
+      const text = _typingBuffer;
+      _typingBuffer = '';
+      chrome.runtime.sendMessage({ type: 'typing-submit', text });
+    } else {
+      _typingActive = true;
+      _typingBuffer = '';
+      chrome.runtime.sendMessage({ type: 'typing-start' });
+    }
+    return;
+  }
+
+  // While typing mode is active, buffer keystrokes (basic fidelity: printable + Backspace).
+  if (_typingActive) {
+    // Enter ends capture and submits — it never appears in the buffer or on the page.
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      _typingActive = false;
+      const text = _typingBuffer;
+      _typingBuffer = '';
+      chrome.runtime.sendMessage({ type: 'typing-submit', text });
+      return;
+    }
+    if (e.key === 'Backspace') {
+      _typingBuffer = _typingBuffer.slice(0, -1);
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      _typingBuffer += e.key;
+    } else {
+      return;  // navigation/modifier keys: ignore and let them pass through
+    }
+    if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
+    return;
+  }
+
   if (e.repeat) return;
   if (matchesHotkey(e, _hotkeys.audio) && !_audioRecording) {
     _audioRecording = true;
@@ -150,4 +202,12 @@ document.addEventListener('keyup', (e) => {
     _audioRecording = false;
     chrome.runtime.sendMessage({ type: 'audio-stop' });
   }
+}, { capture: true, signal: ac.signal });
+
+document.addEventListener('paste', (e) => {
+  if (!_typingActive) return;
+  const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+  if (!pasted) return;
+  _typingBuffer += pasted;
+  if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
 }, { capture: true, signal: ac.signal });

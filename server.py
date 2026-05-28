@@ -106,9 +106,10 @@ class HotkeySettings(BaseModel):
     audio:   str
     toggle:  str
     replay:  str
+    typing:  str
 
 
-HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9", "replay": "Ctrl+Shift+6"}
+HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9", "replay": "Ctrl+Shift+6", "typing": "Ctrl+Shift+5"}
 
 REPLAY_SECONDS_MIN = 1
 REPLAY_SECONDS_MAX = 30
@@ -137,6 +138,7 @@ def _user_hotkeys(user) -> dict:
         "audio":   user.hotkey_audio   or HOTKEY_DEFAULTS["audio"],
         "toggle":  user.hotkey_toggle  or HOTKEY_DEFAULTS["toggle"],
         "replay":  user.hotkey_replay  or HOTKEY_DEFAULTS["replay"],
+        "typing":  user.hotkey_typing  or HOTKEY_DEFAULTS["typing"],
     }
 
 
@@ -276,6 +278,11 @@ class RegisterRequest(BaseModel):
 class CaptureRequest(BaseModel):
     image: str        # base64 PNG, optionally prefixed with "data:image/png;base64,"
     complexity: int = Field(default=2, ge=1, le=3)
+    monitor: str = "browser"
+
+
+class TextCaptureRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=5000)
     monitor: str = "browser"
 
 
@@ -602,6 +609,8 @@ async def settings_page(
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
+        "hotkey_typing":  hk["typing"],
+        "typing_passthrough": user.typing_passthrough,
         "response_style": _user_response_style(user).value,
         "complexity": await get_complexity(r, user.id),
         "replay_enabled": user.replay_enabled,
@@ -755,6 +764,55 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     return {"status": "ok", "capture_id": capture_id}
 
 
+@app.post("/api/text-capture")
+async def api_text_capture(body: TextCaptureRequest, request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
+    r = request.app.state.redis
+    await _gate_basic_access(r, user, db)
+    await _rate_limit(r, user.id, "capture", cooldown=5, limit=6,
+                      cooldown_msg="Sending too fast — wait 5 seconds between submissions",
+                      limit_msg="Limit reached — you can submit up to 6 times per minute")
+
+    if user.account_level == AccountLevel.paid:
+        now = datetime.utcnow()
+        active = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if not active:
+            if user.sessions_remaining <= 0:
+                user.account_level = AccountLevel.free
+                db.commit()
+                raise HTTPException(status_code=403, detail="sessions_exhausted")
+            user.sessions_remaining -= 1
+            db.commit()
+        _get_or_create_session(db, user.id)
+
+    await broadcast(r, user.id, "typing-working", {"text": body.text})
+
+    style      = _user_response_style(user)
+    complexity = await get_complexity(r, user.id)
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style]
+
+    full_text = ""
+    async with async_client.messages.stream(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        messages=[{"role": "user", "content": prompt}],
+    ) as stream:
+        async for text in stream.text_stream:
+            full_text += text
+            await broadcast(r, user.id, "chunk", {"text": text})
+
+    await broadcast(r, user.id, "typing-analysis", {
+        "input": body.text,
+        "analysis": full_text,
+        "timestamp": time.strftime("%H:%M:%S"),
+    })
+    track(user.id, "text_capture_submitted", complexity=complexity)
+    return {"status": "ok"}
+
+
 @app.post("/api/audio-capture")
 async def api_audio_capture(
     request: Request,
@@ -819,6 +877,7 @@ async def api_me(request: Request, user: User = Depends(get_user_by_token)):
     return {
         "account_level": user.account_level.value,
         "hotkeys": _user_hotkeys(user),
+        "typing_passthrough": user.typing_passthrough,
         "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
         "complexity": await get_complexity(r, user.id),
         "response_style": _user_response_style(user).value,
@@ -849,6 +908,18 @@ async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_us
     user.hotkey_audio   = data.audio
     user.hotkey_toggle  = data.toggle
     user.hotkey_replay  = data.replay
+    user.hotkey_typing  = data.typing
+    db.commit()
+    return {"status": "ok"}
+
+
+class PassthroughSetting(BaseModel):
+    enabled: bool
+
+
+@app.post("/api/settings/passthrough")
+async def save_passthrough(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.typing_passthrough = data.enabled
     db.commit()
     return {"status": "ok"}
 

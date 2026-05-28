@@ -155,7 +155,7 @@ def register(test, skip, client):
             token = create_token(u.id)
             r = client.post(
                 "/api/settings/hotkeys",
-                json={"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3", "replay": "Ctrl+Alt+R"},
+                json={"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3", "replay": "Ctrl+Alt+R", "typing": "Ctrl+Shift+5"},
                 cookies={"session": token},
             )
             assert r.status_code == 200

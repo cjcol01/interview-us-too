@@ -222,6 +222,26 @@
       <div id="replay-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
     </div>
 
+    <!-- Typing Mode -->
+    <div class="section-label">Typing Mode</div>
+    <div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <span class="row-label">Passthrough</span>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
+            Press the typing hotkey to start capturing what you type, press again to send it.<br>
+            <strong>On</strong> — your typing also appears in the page.
+            <strong>Off</strong> — your typing is hidden and sent only to your phone.
+          </div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="passthrough-toggle" {% if typing_passthrough %}checked{% endif %} onchange="savePassthrough()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+      <div id="passthrough-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
+    </div>
+
     <!-- Shortcuts -->
     <div class="section-label">Shortcuts</div>
     <div class="card">
@@ -251,6 +271,13 @@
         <div style="display:flex;align-items:center;gap:6px;">
           <button class="hotkey-btn" id="hk-replay" onclick="recordHotkey('replay', this)">{{ hotkey_replay }}</button>
           <button class="hotkey-reset" onclick="resetHotkey('replay')">reset</button>
+        </div>
+      </div>
+      <div class="row">
+        <span class="row-label">Typing mode</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="hotkey-btn" id="hk-typing" onclick="recordHotkey('typing', this)">{{ hotkey_typing }}</button>
+          <button class="hotkey-reset" onclick="resetHotkey('typing')">reset</button>
         </div>
       </div>
       <div id="hk-status" style="padding:8px 16px;font-size:0.75rem;color:var(--muted);display:none;"></div>
@@ -376,14 +403,43 @@
       }
     }
 
+    // ── Typing passthrough ─────────────────────────────────────────────────
+    async function savePassthrough() {
+      const enabled = document.getElementById('passthrough-toggle').checked;
+      const statusEl = document.getElementById('passthrough-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--muted)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/passthrough', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent2)';
+          document.dispatchEvent(new CustomEvent('interview-ace:passthrough', { detail: { enabled } }));
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // ── Hotkey recording ───────────────────────────────────────────────────
     const _hotkeys = {
       capture: '{{ hotkey_capture }}',
       audio:   '{{ hotkey_audio }}',
       toggle:  '{{ hotkey_toggle }}',
       replay:  '{{ hotkey_replay }}',
+      typing:  '{{ hotkey_typing }}',
     };
-    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6' };
+    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6', typing: 'Ctrl+Shift+5' };
     let _recording = null;
 
     function recordHotkey(action, btn) {

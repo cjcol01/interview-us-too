@@ -39,6 +39,7 @@
     #monitor-badge.left  { background: rgba(108,99,255,0.12); color: var(--accent); display: inline; border: 1px solid rgba(108,99,255,0.25); }
     #monitor-badge.right { background: rgba(139,92,246,0.12); color: #a78bfa; display: inline; border: 1px solid rgba(139,92,246,0.25); }
     #monitor-badge.audio { background: rgba(0,212,170,0.1); color: var(--accent2); display: inline; border: 1px solid rgba(0,212,170,0.2); }
+    #monitor-badge.typed { background: rgba(37,99,235,0.12); color: #60a5fa; display: inline; border: 1px solid rgba(37,99,235,0.25); }
 
     #status {
       font-size: 0.72rem;

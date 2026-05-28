@@ -185,6 +185,7 @@
     const tsEl           = document.getElementById('timestamp');
     const badgeEl        = document.getElementById('monitor-badge');
     const transcBoxEl    = document.getElementById('transcription-box');
+    const transcLabelEl  = document.getElementById('transcription-label');
     const transcTextEl   = document.getElementById('transcription-text');
     let _streamBuffer = '';
 
@@ -223,6 +224,7 @@
       badgeEl.textContent   = item.type;
       badgeEl.className     = item.type;
       if (item.transcription) {
+        transcLabelEl.textContent   = item.type === 'typed' ? 'You typed' : 'You said';
         transcTextEl.textContent    = item.transcription;
         transcBoxEl.style.display   = 'block';
       } else {
@@ -347,6 +349,7 @@
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
           } else if (data.type === 'audio-transcribed') {
+            transcLabelEl.textContent = 'You said';
             transcTextEl.textContent = data.transcription;
             transcBoxEl.style.display = 'block';
             statusEl.textContent = 'analysing...';
@@ -368,6 +371,31 @@
             analysisEl.className = '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
+          } else if (data.type === 'typing-working') {
+            _streamBuffer = '';
+            _historyIdx = 0;
+            statusEl.textContent = 'thinking...';
+            statusEl.className = 'working';
+            analysisEl.innerHTML = '';
+            analysisEl.className = 'analysing';
+            transcLabelEl.textContent = 'You typed';
+            transcTextEl.textContent = data.text || '';
+            transcBoxEl.style.display = data.text ? 'block' : 'none';
+            badgeEl.textContent = 'typed';
+            badgeEl.className = 'typed';
+          } else if (data.type === 'typing-analysis') {
+            _streamBuffer = '';
+            statusEl.textContent = 'live';
+            statusEl.className = 'live';
+            analysisEl.innerHTML = marked.parse(data.analysis || '');
+            analysisEl.className = data.analysis ? '' : 'empty';
+            if (data.analysis) clearBtnEl.classList.add('visible');
+            tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
+            transcLabelEl.textContent = 'You typed';
+            if (data.input) { transcTextEl.textContent = data.input; transcBoxEl.style.display = 'block'; }
+            badgeEl.textContent = 'typed';
+            badgeEl.className = 'typed';
+            if (data.analysis) _pushHistory({ analysis: data.analysis, transcription: data.input, timestamp: data.timestamp, type: 'typed' });
           }
         } catch (err) { console.error('[sse handler]', data?.type, err); }
       };

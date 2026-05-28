@@ -14,8 +14,10 @@ async function fetchAccountLevel() {
           hotkey_audio:   data.hotkeys.audio,
           hotkey_toggle:  data.hotkeys.toggle,
           hotkey_replay:  data.hotkeys.replay,
+          hotkey_typing:  data.hotkeys.typing,
         });
       }
+      if (data.typing_passthrough != null) await chrome.storage.local.set({ typing_passthrough: data.typing_passthrough });
       if (data.replay) {
         await chrome.storage.local.set({
           replay_enabled: data.replay.enabled,
@@ -218,6 +220,10 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     handleAudioStop();
   } else if (msg.type === 'audio-data') {
     handleAudioData(msg.base64, msg.mimeType);
+  } else if (msg.type === 'typing-start') {
+    handleTypingStart();
+  } else if (msg.type === 'typing-submit') {
+    handleTypingSubmit(msg.text);
   } else if (msg.type === 'audio-error') {
     _audioActive = false;
     _stopPending = false;
@@ -334,6 +340,66 @@ async function handleAudioData(base64, mimeType) {
     }
   }
   maybeCloseOffscreen();
+}
+
+// ---------------------------------------------------------------------------
+// Typing-mode handlers
+// ---------------------------------------------------------------------------
+
+async function handleTypingStart() {
+  const { enabled } = await chrome.storage.local.get(['enabled']);
+  if (!enabled) {
+    await chrome.storage.local.set({ last_disabled_press: Date.now() });
+    await flashDisabled();
+    return;
+  }
+  chrome.action.setBadgeText({ text: 'TYPE' });
+  chrome.action.setBadgeBackgroundColor({ color: '#2563eb' });
+}
+
+async function handleTypingSubmit(text) {
+  chrome.action.setBadgeText({ text: '' });
+  if (!text || !text.trim()) return;
+
+  const { server_url, api_token, enabled } = await chrome.storage.local.get(['server_url', 'api_token', 'enabled']);
+  if (!enabled) return;
+  if (!api_token || !server_url) {
+    chrome.action.openPopup().catch(() => {});
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${server_url}/api/text-capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${api_token}`,
+      },
+      body: JSON.stringify({ text, monitor: 'browser' }),
+    });
+
+    if (resp.ok) {
+      await chrome.storage.local.set({ last_capture: new Date().toLocaleTimeString(), last_error: '' });
+    } else {
+      const body = await resp.text();
+      let msg;
+      try {
+        const json = JSON.parse(body);
+        if (json.detail === 'sessions_exhausted') {
+          msg = 'No sessions remaining — visit InterviewAce to top up.';
+        } else if (json.detail === 'trial_expired') {
+          msg = 'Trial expired — visit InterviewAce to continue.';
+        } else {
+          msg = `Error ${resp.status}: ${json.detail ?? body}`;
+        }
+      } catch {
+        msg = `Error ${resp.status}: ${body}`;
+      }
+      await chrome.storage.local.set({ last_error: msg });
+    }
+  } catch (e) {
+    await chrome.storage.local.set({ last_error: `Network error: ${e.message}` });
+  }
 }
 
 // ---------------------------------------------------------------------------

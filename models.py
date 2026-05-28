@@ -48,6 +48,8 @@ class User(Base):
     hotkey_audio       = Column(String, nullable=True)
     hotkey_toggle      = Column(String, nullable=True)
     hotkey_replay      = Column(String, nullable=True)
+    hotkey_typing      = Column(String, nullable=True)
+    typing_passthrough = Column(Boolean, default=True, nullable=False, server_default="1")
     response_style     = Column(Enum(ResponseStyle), nullable=True)
     replay_enabled     = Column(Boolean, default=False, nullable=False, server_default="0")
     replay_seconds     = Column(Integer, default=10,    nullable=False, server_default="10")

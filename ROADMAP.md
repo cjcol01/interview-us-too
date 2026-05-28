@@ -34,11 +34,7 @@
 - [x] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts with Redis pub/sub + hashes — app can now run with multiple uvicorn workers
 
 ### Bugs
-- [x] Fix referral credits in Stripe — `_credit_referrer` was broken (`billing.py`)
-- [x] Handle referral flow edge cases
-- [x] Implement `/billing/offer` or remove the route — currently a stub with a `# TODO` (`server.py:756`)
-- [x] Remove the self-healing subscriber bug-fix patch in `api_capture` once data is clean (`server.py:582-586`)
-- [x] Connect cancel reason form to backend — cancel info currently not persisted
+
 
 ---
 
@@ -47,19 +43,6 @@
 - [ ] Choose a host: Railway / Render / Fly.io / VPS
 - [ ] Deploy app and verify it starts cleanly
 - [ ] Set environment variables on host:
-  - `SECRET_KEY`
-  - `ANTHROPIC_API_KEY`
-  - `OPENAI_API_KEY`
-  - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
-  - `STRIPE_SESSIONS_PRICE_ID`, `STRIPE_SUB_PRICE_ID`
-  - `STRIPE_SUB_PRICE_PENCE` (subscription price in pence, e.g. `2500` for £25 — used for credit display on pricing page)
-  - `STRIPE_REFERRAL_COUPON_ID`, `STRIPE_RETENTION_COUPON_ID`
-  - `RESEND_API_KEY`
-  - `BASE_URL` (your public domain)
-  - `FROM_EMAIL`
-  - `NOTIFY_EMAIL`
-  - `AUTHOR_PASSWORD`
-  - `REDIS_URL` (e.g. `redis://your-redis-host:6379/0`)
 - [ ] Configure Stripe webhook endpoint → `POST /billing/webhook` on the live domain
 - [ ] Set up SSL / HTTPS (most hosts do this automatically)
 
@@ -75,6 +58,18 @@
 ---
 
 ## 🔧 Features & Polish
+
+### ⌨️ Typing Mode (backend + extension + dashboard DONE — docs/UX remaining)
+- [ ] Landing page — add "Typing mode" to the feature list alongside screen capture + audio (`templates/landing.html`, `templates/landing_prep.html`, `landing.md`)
+- [ ] Tutorial overlay on `/app` — add a step explaining the typing hotkey, Enter-to-send, and passthrough
+- [ ] `/onboarding` — show the typing hotkey alongside the others (`templates/onboarding.html`)
+- [ ] Extension popup — add typing hotkey hint + passthrough state (was skipped during impl; `extension/popup.html` / `popup.js`)
+- [ ] `features.md` — document typing mode
+- [ ] README — document the typing hotkey + passthrough (folds into the stale-shortcuts fix below)
+- [ ] Decide passthrough default (currently ON) and whether OFF needs a clearer "your typing is invisible" warning in settings
+- [ ] Known limitation: Enter submits, so no multi-line typed input (paste still handles multi-line) — confirm acceptable or add a separate send key
+- [ ] Known limitation: typed results aren't persisted to the capture hash, so they don't reappear on dashboard reload (same as audio) — confirm acceptable
+- [ ] `/api/text-capture` shares the `/api/capture` rate-limit bucket (6/min, 5s cooldown) and deducts a paid session — confirm intended
 
 - [ ] Add a contact form or `mailto` link on landing page footer / settings / pricing
 - [x] Update landing page nav — sign-in/sign-out button behaviour
@@ -98,6 +93,11 @@
 ### Chrome Extension (E2E)
 - [ ] Capture hotkey fires and streams analysis into dashboard
 - [ ] Audio hold-to-record — REC badge appears, analysis streams on release
+- [ ] Typing hotkey starts capture (TYPE badge appears); pressing it again sends buffered text
+- [ ] Enter while typing sends the text and ends capture; Enter alone does NOT start capture
+- [ ] Passthrough ON — typed text appears in the page field; OFF — nothing appears in the page
+- [ ] Typed text shows in the "You typed" box on the dashboard; analysis streams below
+- [ ] Typing-mode UI is invisible during screen share (no in-page overlay; badge on toolbar only)
 - [ ] Toggle hotkey disables captures; dashboard receives `disabled` event
 - [ ] Hotkey changes in `/settings` propagate to extension within ~5 seconds
 - [ ] Mic permission: "Grant microphone" button opens tab, requests mic, closes itself
@@ -110,7 +110,7 @@
 - [ ] `/onboarding` — API token visible, hotkeys shown, `BASE_URL` correct
 - [ ] `/app` — tutorial overlays on first visit; streaming dashboard works
 - [ ] `/pricing` — both plan cards render; intro-redeemed state hides sessions plan
-- [ ] `/settings` — account level, all three hotkeys, API token, billing section
+- [ ] `/settings` — account level, all four hotkeys (incl. typing), passthrough toggle, API token, billing section
 - [ ] `/referral` — referral code shown, referee table renders
 - [ ] `/billing/cancel` — confetti + reason form
 - [ ] `/billing/success` — polls `/api/billing/status` until account upgrades
@@ -139,6 +139,7 @@
 ### Streaming
 - [ ] Screenshot analysis chunks stream in word-by-word (not dumped all at once)
 - [ ] Audio analysis streams the same way
+- [ ] Typed-input analysis streams the same way
 - [ ] Whisper transcription for a 5-second clip completes in < ~5 seconds
 - [ ] SSE connection stays alive > 30 seconds (important if behind a proxy/nginx)
 

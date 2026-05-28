@@ -41,6 +41,8 @@ def init_db():
             ("hotkey_audio",        "VARCHAR"),
             ("hotkey_toggle",       "VARCHAR"),
             ("hotkey_replay",       "VARCHAR"),
+            ("hotkey_typing",       "VARCHAR"),
+            ("typing_passthrough",  "BOOLEAN DEFAULT 1"),
             ("replay_enabled",         "BOOLEAN DEFAULT 0"),
             ("replay_seconds",         "INTEGER DEFAULT 10"),
             ("referral_credit_pence",  "INTEGER DEFAULT 0"),
