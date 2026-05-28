@@ -1,0 +1,292 @@
+/* ============================================================
+   landing-fusion.css — Light mode
+   Base: Apple / Cupertino (landing-v6.css)
+   ============================================================ */
+
+@import url('/css/landing-v6.css');
+
+/* ═══════════════════════════════════════════════════════════
+   HOW IT WORKS — 3-column grid layout
+═══════════════════════════════════════════════════════════ */
+
+#how-it-works {
+  background: var(--bg-alt);
+  padding: 100px 0;
+}
+
+#how-it-works .section-label { text-align: left; }
+#how-it-works h2 { text-align: left; margin: 0 0 16px; }
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: 64px;
+  position: relative;
+  flex-direction: unset;
+}
+
+.steps::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: calc(16.67% + 21px);
+  right: calc(16.67% + 21px);
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  z-index: 0;
+  opacity: 0.35;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 18px;
+  padding: 0 28px;
+  border-bottom: none;
+  border-top: none;
+  max-width: none;
+  margin: 0;
+  width: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.step-num {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #fff;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0, 113, 227, 0.28);
+  letter-spacing: 0;
+  padding-top: 0;
+  line-height: 1;
+}
+
+.step h3 {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+}
+
+.step p {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  max-width: none;
+  font-weight: 400;
+}
+
+.step p strong { color: var(--text); font-weight: 600; }
+
+@media (max-width: 900px) {
+  .steps { grid-template-columns: 1fr; gap: 0; }
+  .steps::before { display: none; }
+  .step {
+    flex-direction: row;
+    gap: 28px;
+    align-items: flex-start;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num { flex-shrink: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   FEATURES BENTO — Light-mode mirror of original dark design
+═══════════════════════════════════════════════════════════ */
+
+.features {
+  background: var(--bg-alt);
+  padding: 100px 0;
+}
+
+/* Match original dark container width so wide cards aren't squeezed */
+.features .container {
+  max-width: 1120px;
+  padding: 0 24px;
+}
+
+.features-bento {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-areas: none;
+  gap: 16px;
+  margin-top: 56px;
+}
+
+/* Explicit placement — avoids cascade conflict with v6's grid-column: span 2 / unset */
+.feat-a { grid-row: 1; grid-column: 1 / 3; }
+.feat-b { grid-row: 1; grid-column: 3; }
+.feat-c { grid-row: 1; grid-column: 4; }
+.feat-d { grid-row: 2; grid-column: 1; }
+.feat-e { grid-row: 2; grid-column: 2 / 4; }
+.feat-f { grid-row: 2; grid-column: 4; }
+
+.feature {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 28px;
+  transition: border-color 0.25s, transform 0.25s;
+  cursor: default;
+  position: relative;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.feature:hover {
+  border-color: rgba(0, 113, 227, 0.3);
+  transform: translateY(-2px);
+}
+
+.feature-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: rgba(0, 113, 227, 0.08);
+  border: 1px solid rgba(0, 113, 227, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.feature-icon svg { stroke: currentColor; }
+
+.feat-a .feature-icon {
+  background: rgba(110, 64, 255, 0.08);
+  border-color: rgba(110, 64, 255, 0.2);
+  color: var(--accent2);
+}
+.feat-a:hover { border-color: rgba(110, 64, 255, 0.3); }
+
+.feature h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.feature h4 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  opacity: 0.85;
+  margin-bottom: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.feat-a h4 { color: var(--accent2); }
+
+.feature p {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.stealth-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 113, 227, 0.08);
+  border: 1px solid rgba(0, 113, 227, 0.2);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-top: 18px;
+  letter-spacing: 0.04em;
+}
+.stealth-badge svg { stroke: currentColor; flex-shrink: 0; }
+
+/* Cursor spotlight — light mode */
+.feature { --mx: 50%; --my: 50%; }
+.feature::before {
+  background: radial-gradient(400px circle at var(--mx) var(--my), rgba(0, 113, 227, 0.05), transparent 70%);
+}
+
+@media (max-width: 1024px) {
+  .features-bento { grid-template-columns: repeat(2, 1fr); }
+  .feat-a { grid-row: 1; grid-column: 1 / 3; }
+  .feat-b { grid-row: 2; grid-column: 1; }
+  .feat-c { grid-row: 2; grid-column: 2; }
+  .feat-e { grid-row: 3; grid-column: 1 / 3; }
+  .feat-d { grid-row: 4; grid-column: 1; }
+  .feat-f { grid-row: 4; grid-column: 2; }
+}
+
+@media (max-width: 640px) {
+  .features-bento { grid-template-columns: 1fr; }
+  .feat-a, .feat-b, .feat-c, .feat-d, .feat-e, .feat-f {
+    grid-row: auto;
+    grid-column: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRICING — Checkmark ticks (override v6's dot approach)
+═══════════════════════════════════════════════════════════ */
+
+.plan-features li {
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: 0;
+  position: static;
+}
+
+.plan-features li::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  opacity: 1;
+  background:
+    rgba(0, 113, 227, 0.09)
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M3 8l3.5 3.5 6.5-7' stroke='%230071e3' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 10px no-repeat;
+  border: 1px solid rgba(0, 113, 227, 0.2);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DEMO — Phone size matches original
+═══════════════════════════════════════════════════════════ */
+
+.demo-body {
+  grid-template-columns: 1fr 245px;
+  min-height: 400px;
+}
+
+.phone-frame {
+  width: 165px;
+}
+
+.phone-screen {
+  min-height: 280px;
+}
+
