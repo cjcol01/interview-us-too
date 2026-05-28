@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Bash path rule
+
+Always use double-quoted paths in Bash commands (e.g. `ls "/Users/cjcoleman/CJ All/..."`). Never use backslash-escaped paths (e.g. `ls /Users/cjcoleman/CJ\ All/...`) — they break permission matching and trigger prompts.
+
 ## Commands
 
 ```bash

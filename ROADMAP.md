@@ -64,7 +64,7 @@
 ## 🔧 Features & Polish
 
 - [ ] Add a contact form or `mailto` link on landing page footer / settings / pricing
-- [ ] Update landing page nav — sign-in/sign-out button behaviour (`plan.txt:35`)
+- [x] Update landing page nav — sign-in/sign-out button behaviour (`plan.txt:35`)
 - [ ] Add mic settings and mic test (`plan.txt:38`)
 - [ ] Fix audio keyup edge case — any modifier release stops recording (`content.js:85-97`)
 - [ ] Show "Trial (expired)" label for expired trial users in settings (not just "Trial")
