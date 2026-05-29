@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Screen Monitor{% endblock %}
+{% block title %}InterviewAce{% endblock %}
 {% block head %}
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
@@ -142,14 +142,14 @@
           <line x1="8" y1="22" x2="16" y2="22"/>
           <line x1="12" y1="18" x2="12" y2="22"/>
         </svg>
-        <span>waiting for capture...</span>
+        <span>Waiting for capture…</span>
       </div>
       <img id="screenshot" class="hidden" alt="latest screenshot" />
     </div>
 
     <div id="analysis-card">
       <div class="analysis-header">
-        <div id="analysis-label">AI Analysis</div>
+        <div id="analysis-label">Your answer</div>
         <div class="analysis-header-right">
           <button id="clear-btn" onclick="clearCapture()">Clear</button>
           <div class="complexity-control">

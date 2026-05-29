@@ -29,7 +29,7 @@
       background-clip: text;
     }
 
-    .skip-link { font-size: 0.78rem; color: #444; text-decoration: none; }
+    .skip-link { font-size: 0.78rem; color: var(--muted); text-decoration: none; }
     .skip-link:hover { color: #888; }
 
     main {
@@ -45,7 +45,7 @@
 
     .intro { margin-bottom: 4px; }
     .intro h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
-    .intro p { font-size: 0.88rem; color: #666; line-height: 1.6; }
+    .intro p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
 
     .step-card {
       background: #141414;
@@ -73,7 +73,7 @@
 
     .step-body { flex: 1; min-width: 0; }
     .step-body h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
-    .step-body p { font-size: 0.84rem; color: #666; line-height: 1.55; margin-bottom: 12px; }
+    .step-body p { font-size: 0.84rem; color: var(--muted); line-height: 1.55; margin-bottom: 12px; }
     .step-body p:last-child { margin-bottom: 0; }
 
     .install-btn {
@@ -109,11 +109,11 @@
     #connect-btn:hover { background: #0a2a0a; }
     #connect-btn:disabled { opacity: 0.6; cursor: default; }
 
-    #connect-status { font-size: 0.78rem; color: #444; min-height: 1em; }
+    #connect-status { font-size: 0.78rem; color: var(--muted); min-height: 1em; }
 
     .manual-toggle {
       font-size: 0.75rem;
-      color: #444;
+      color: var(--muted);
       cursor: pointer;
       background: none;
       border: none;
@@ -136,7 +136,7 @@
     #manual-section.open { display: flex; }
 
     .manual-row { display: flex; flex-direction: column; gap: 4px; }
-    .manual-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #444; }
+    .manual-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
     .manual-val-row { display: flex; align-items: center; gap: 8px; }
     .manual-code {
       font-size: 0.7rem;
@@ -162,7 +162,7 @@
     }
     .copy-btn:hover { background: #222; }
 
-    .manual-hint { font-size: 0.75rem; color: #555; line-height: 1.5; }
+    .manual-hint { font-size: 0.75rem; color: var(--muted); line-height: 1.5; }
 
     .platform-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
     .platform-link {
@@ -179,7 +179,7 @@
 
     .hotkey-hint {
       font-size: 0.8rem;
-      color: #555;
+      color: var(--muted);
       line-height: 1.55;
     }
     kbd {
@@ -191,16 +191,6 @@
       font-size: 0.75rem;
       color: #bbb;
     }
-
-    .start-section {
-      background: #0f0f1a;
-      border: 1px solid #1e1e2e;
-      border-radius: 14px;
-      padding: 24px 20px;
-      text-align: center;
-    }
-    .start-section h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
-    .start-section > p { font-size: 0.85rem; color: #555; margin-bottom: 20px; line-height: 1.55; }
 
     #start-btn {
       background: linear-gradient(135deg, #6c63ff, #8b5cf6);
@@ -218,7 +208,7 @@
     #start-btn:hover { transform: translateY(-1px); box-shadow: 0 0 32px rgba(108,99,255,0.5); }
     #start-btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
 
-    .no-card { font-size: 0.75rem; color: #444; margin-top: 12px; }
+    .no-card { font-size: 0.75rem; color: var(--muted); margin-top: 12px; }
     .no-card strong { color: #4caf50; font-weight: 600; }
 
     .trial-warning {

@@ -23,9 +23,9 @@
     p { font-size: 0.88rem; color: #666; line-height: 1.6; margin-bottom: 24px; }
     .email { color: #5b9bd5; }
     button {
-      background: #1e3a5f;
-      color: #7eb8f7;
-      border: 1px solid #2a4f7a;
+      background: #6c63ff;
+      color: #fff;
+      border: 1px solid #6c63ff;
       border-radius: 8px;
       padding: 10px 20px;
       font-size: 0.9rem;
@@ -34,7 +34,7 @@
       margin-bottom: 10px;
       transition: background 0.15s;
     }
-    button:hover { background: #163050; }
+    button:hover { background: #5a52e0; border-color: #5a52e0; }
     button:disabled { opacity: 0.5; cursor: default; }
     .logout {
       font-size: 0.78rem;

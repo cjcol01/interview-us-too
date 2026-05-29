@@ -101,7 +101,7 @@ def register(test, skip, client=None):
 
     # -- _handle_sessions_purchase -------------------------------------------
 
-    def test_sessions_purchase_grants_2_sessions():
+    def test_sessions_purchase_grants_3_sessions():
         init_db()
         db = SessionLocal()
         try:
@@ -110,7 +110,7 @@ def register(test, skip, client=None):
             data = _fake_checkout_event(cid, "sessions")["data"]["object"]
             _handle_sessions_purchase(data, db)
             db.refresh(u)
-            assert u.sessions_remaining == 2
+            assert u.sessions_remaining == 3
             assert u.intro_redeemed is True
         finally:
             cleanup(db, u); db.close()
@@ -463,7 +463,7 @@ def register(test, skip, client=None):
     test("_sync_subscription: trialing → unlimited",             test_sync_trialing_sets_unlimited)
     test("_sync_subscription: canceled → free",                  test_sync_canceled_sets_free)
     test("_sync_subscription: unknown customer is noop",         test_sync_unknown_customer_is_noop)
-    test("Sessions purchase grants 2 sessions",                  test_sessions_purchase_grants_2_sessions)
+    test("Sessions purchase grants 3 sessions",                  test_sessions_purchase_grants_3_sessions)
     test("Sessions pack grants 3 sessions",                      test_sessions_pack_grants_3_sessions)
     test("Sessions purchase: unknown plan is noop",              test_sessions_purchase_unknown_plan_is_noop)
     test("Sessions purchase: no user is noop",                   test_sessions_purchase_no_user_is_noop)
@@ -692,7 +692,7 @@ def register_http(test, skip, client):
                                 headers={"stripe-signature": "test"})
             assert r.status_code == 200
             db.refresh(u)
-            assert u.sessions_remaining == 2
+            assert u.sessions_remaining == 3
             assert u.intro_redeemed is True
         finally:
             cleanup(db, u); db.close()

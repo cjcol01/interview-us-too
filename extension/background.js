@@ -1,3 +1,17 @@
+// Map server wire codes / details to human-readable messages. Never surface raw enums.
+const ERROR_MESSAGES = {
+  sessions_exhausted:       'No sessions remaining — visit InterviewAce to top up.',
+  trial_expired:            'Trial expired — visit InterviewAce to continue.',
+  'Subscription required':  'Your plan has ended — visit InterviewAce to upgrade.',
+};
+
+function friendlyError(status, detail) {
+  if (detail && ERROR_MESSAGES[detail]) return ERROR_MESSAGES[detail];
+  if (detail) return detail;  // server already sends human-friendly text (e.g. rate-limit messages)
+  return `Something went wrong (error ${status}). Please try again.`;
+}
+
+
 async function fetchAccountLevel() {
   const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
   if (!server_url || !api_token) return;
@@ -69,20 +83,9 @@ async function doCapture() {
       await chrome.storage.local.set({ last_capture: new Date().toLocaleTimeString(), last_error: '' });
     } else {
       const body = await resp.text();
-      let msg;
-      try {
-        const json = JSON.parse(body);
-        if (json.detail === 'sessions_exhausted') {
-          msg = 'No sessions remaining — visit InterviewAce to top up.';
-        } else if (json.detail === 'trial_expired') {
-          msg = 'Trial expired — visit InterviewAce to continue.';
-        } else {
-          msg = `Error ${resp.status}: ${json.detail ?? body}`;
-        }
-      } catch {
-        msg = `Error ${resp.status}: ${body}`;
-      }
-      await chrome.storage.local.set({ last_error: msg });
+      let detail = body;
+      try { detail = JSON.parse(body).detail ?? body; } catch {}
+      await chrome.storage.local.set({ last_error: friendlyError(resp.status, detail) });
     }
   } catch (e) {
     await chrome.storage.local.set({ last_error: `Network error: ${e.message}` });
@@ -332,8 +335,9 @@ async function handleAudioData(base64, mimeType) {
         body: form,
       });
       if (!resp.ok) {
-        let msg = `Audio error ${resp.status}`;
-        try { const json = await resp.json(); msg = json.detail ?? msg; } catch {}
+        let detail = null;
+        try { detail = (await resp.json()).detail; } catch {}
+        await chrome.storage.local.set({ last_error: friendlyError(resp.status, detail) });
       }
     } catch (e) {
       console.error('[audio] upload failed:', e.message);
@@ -382,20 +386,9 @@ async function handleTypingSubmit(text) {
       await chrome.storage.local.set({ last_capture: new Date().toLocaleTimeString(), last_error: '' });
     } else {
       const body = await resp.text();
-      let msg;
-      try {
-        const json = JSON.parse(body);
-        if (json.detail === 'sessions_exhausted') {
-          msg = 'No sessions remaining — visit InterviewAce to top up.';
-        } else if (json.detail === 'trial_expired') {
-          msg = 'Trial expired — visit InterviewAce to continue.';
-        } else {
-          msg = `Error ${resp.status}: ${json.detail ?? body}`;
-        }
-      } catch {
-        msg = `Error ${resp.status}: ${body}`;
-      }
-      await chrome.storage.local.set({ last_error: msg });
+      let detail = body;
+      try { detail = JSON.parse(body).detail ?? body; } catch {}
+      await chrome.storage.local.set({ last_error: friendlyError(resp.status, detail) });
     }
   } catch (e) {
     await chrome.storage.local.set({ last_error: `Network error: ${e.message}` });

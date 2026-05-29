@@ -377,7 +377,7 @@
 
     .price-was {
       font-size: 0.75rem;
-      color: #3a3a52;
+      color: var(--muted);
       text-decoration: line-through;
     }
 
@@ -486,7 +486,6 @@
     .plan-fine {
       font-size: 0.7rem;
       color: var(--muted);
-      opacity: 0.5;
       text-align: center;
       line-height: 1.5;
     }

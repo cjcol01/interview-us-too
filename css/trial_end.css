@@ -80,7 +80,7 @@
 
     .tip-note {
       font-size: 0.78rem;
-      color: #444;
+      color: var(--muted);
       line-height: 1.55;
       font-style: italic;
     }
@@ -121,7 +121,7 @@
       white-space: nowrap;
     }
 
-    .sep { font-size: 0.7rem; color: #444; }
+    .sep { font-size: 0.7rem; color: var(--muted); }
 
     .upgrade-section {
       background: #0f0f1a;
@@ -133,7 +133,7 @@
     }
 
     .upgrade-section h2 { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; }
-    .upgrade-section p { font-size: 0.85rem; color: #555; margin-bottom: 20px; line-height: 1.55; }
+    .upgrade-section p { font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; line-height: 1.55; }
 
     .upgrade-btn {
       display: block;
@@ -152,10 +152,10 @@
 
     .footer-links {
       font-size: 0.78rem;
-      color: #444;
+      color: var(--muted);
       display: flex;
       justify-content: center;
       gap: 16px;
     }
-    .footer-links a { color: #555; text-decoration: none; }
+    .footer-links a { color: var(--muted); text-decoration: none; }
     .footer-links a:hover { color: #888; }

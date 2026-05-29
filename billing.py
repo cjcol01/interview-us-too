@@ -225,7 +225,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     db.commit()
                     return
                 db.add(IntroCardFingerprint(fingerprint=fingerprint))
-        user.sessions_remaining += 2
+        user.sessions_remaining += 3
         user.intro_redeemed = True
         if user.referred_by_id:
             ref = db.query(Referral).filter(
@@ -239,7 +239,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     ref.intro_credited = True
                     ref.status = ReferralStatus.intro
                     ref.intro_at = datetime.utcnow()
-        track(user.id, "sessions_purchased", plan="sessions", sessions_added=2)
+        track(user.id, "sessions_purchased", plan="sessions", sessions_added=3)
 
     elif plan == "sessions_pack":
         user.sessions_remaining += 3

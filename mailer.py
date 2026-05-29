@@ -19,19 +19,22 @@ def send_verification_email(to_email: str, token: str) -> None:
         resend.Emails.send({
             "from": FROM_EMAIL,
             "to": to_email,
-            "subject": "Verify your InterviewAce account",
+            "subject": "Confirm your email to start your free InterviewAce trial",
             "html": f"""
-            <div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#0d0d0d;color:#e0e0e0;">
-              <h2 style="margin:0 0 16px;color:#fff;">Verify your email</h2>
-              <p style="margin:0 0 24px;color:#aaa;line-height:1.6;">
-                Click the button below to verify your email address and activate your account.
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Welcome to InterviewAce 👋</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Tap the button below to confirm your email and unlock your free 10-minute trial.
               </p>
-              <a href="{url}" style="display:inline-block;background:#1e3a5f;color:#7eb8f7;
+              <a href="{url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
                  border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
-                Verify my email
+                Confirm my email
               </a>
-              <p style="margin:24px 0 0;color:#555;font-size:0.82rem;">
-                Or copy this link: {url}
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                Or copy this link into your browser:<br>{url}
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                If you didn't sign up for InterviewAce, you can safely ignore this email.
               </p>
             </div>
             """,
