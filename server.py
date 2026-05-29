@@ -439,6 +439,7 @@ async def onboarding_page(
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
+        "hotkey_typing":  hk["typing"],
     })
 
 
@@ -658,6 +659,30 @@ async def setup_complete(user: User = Depends(get_current_user), db: Session = D
     db.commit()
     track(user.id, "onboarding_completed")
     return {"status": "ok"}
+
+
+@app.post("/api/onboarding/mobile-link")
+async def onboarding_mobile_link(request: Request, user: User = Depends(get_current_user)):
+    r = request.app.state.redis
+    token = secrets.token_urlsafe(16)
+    await r.setex(f"mobile_login:{token}", 300, str(user.id))
+    return {"url": f"{BASE_URL}/mobile-login?token={token}"}
+
+
+@app.get("/mobile-login")
+async def mobile_login(token: str, request: Request, db: Session = Depends(get_db)):
+    r = request.app.state.redis
+    user_id_str = await r.get(f"mobile_login:{token}")
+    if not user_id_str:
+        return RedirectResponse("/login?error=link_expired", status_code=303)
+    await r.delete(f"mobile_login:{token}")
+    user = db.query(User).filter(User.id == int(user_id_str)).first()
+    if not user:
+        return RedirectResponse("/login?error=link_expired", status_code=303)
+    jwt_token = create_token(user.id)
+    response = RedirectResponse("/app", status_code=303)
+    response.set_cookie("session", jwt_token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    return response
 
 
 @app.post("/api/trial/start")

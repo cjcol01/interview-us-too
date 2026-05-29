@@ -15,7 +15,7 @@
   <!-- Tutorial Step 1: Pin the extension -->
   <div id="tutorial-overlay-1" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">1 / 5</div>
+      <div class="t-step-pill">1 / 6</div>
       <div class="t-icon">📌</div>
       <h2>Pin the extension</h2>
       <p>Click the <strong>🧩 extensions icon</strong> in your Chrome toolbar, then click the <strong>pin</strong> next to InterviewAce. This keeps it one click away during interviews.</p>
@@ -24,47 +24,65 @@
     </div>
   </div>
 
-  <!-- Tutorial Step 2: Toggle shortcut -->
+  <!-- Tutorial Step 2: Arm the extension -->
   <div id="tutorial-overlay-2" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">2 / 5</div>
-      <div class="t-icon">⌨️</div>
+      <div class="t-step-pill">2 / 6</div>
+      <div class="t-icon">⚡</div>
       <h2>Arm the extension</h2>
-      <p>Press <span id="tutorial-key-toggle"></span> to arm the extension before your interview. You can disarm it at any time from the extension popup.</p>
+      <p>Press <span id="tutorial-key-toggle"></span> to arm the extension before your interview. You'll see the icon change. You can disarm it any time from the popup.</p>
       <button class="t-btn-primary" onclick="advanceTutorial(2)">Got it →</button>
     </div>
   </div>
 
-  <!-- Tutorial Step 3: Image capture -->
+  <!-- Tutorial Step 3: Open a problem (interactive) -->
   <div id="tutorial-overlay-3" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">3 / 5</div>
-      <div class="t-icon">📸</div>
-      <h2>Image capture</h2>
-      <p>With the extension armed, press <span id="tutorial-key-capture"></span> on your computer. It captures your screen, runs AI analysis, and streams hints to this page.</p>
-      <button class="t-btn-primary" onclick="advanceTutorial(3)">Got it →</button>
+      <div class="t-step-pill">3 / 6</div>
+      <div class="t-icon">💻</div>
+      <h2>Open a practice problem</h2>
+      <p>Visit a coding platform and open a problem as if it's a real interview. Come back here once you have one on screen.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:18px;">
+        <a href="https://leetcode.com/problemset/" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">LeetCode ↗</a>
+        <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">HackerRank ↗</a>
+        <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">Codility ↗</a>
+      </div>
+      <button class="t-btn-primary" onclick="advanceTutorial(3)">I have a problem open →</button>
     </div>
   </div>
 
-  <!-- Tutorial Step 4: Voice capture -->
+  <!-- Tutorial Step 4: Capture -->
   <div id="tutorial-overlay-4" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">4 / 5</div>
-      <div class="t-icon">🎤</div>
-      <h2>Voice capture</h2>
-      <p>Press <span id="tutorial-key-audio"></span> to record audio instead. Speak the problem or think out loud — the AI transcribes and responds with guidance.</p>
+      <div class="t-step-pill">4 / 6</div>
+      <div class="t-icon">📸</div>
+      <h2>Capture your screen</h2>
+      <p>With the extension armed, press <span id="tutorial-key-capture"></span> on your computer. InterviewAce will analyse the problem and stream hints here.</p>
       <button class="t-btn-primary" onclick="advanceTutorial(4)">Got it →</button>
     </div>
   </div>
 
-  <!-- Tutorial Step 5: Instant replay -->
+  <!-- Tutorial Step 5: Voice + Instant replay -->
   <div id="tutorial-overlay-5" class="tutorial-overlay">
     <div class="tutorial-modal">
-      <div class="t-step-pill">5 / 5</div>
-      <div class="t-icon">🔁</div>
-      <h2>Instant replay</h2>
-      <p>Press <span id="tutorial-key-replay"></span> to send the last few seconds of audio to AI — useful when something was said out loud and you want quick guidance without re-recording.</p>
-      <button class="t-btn-primary" onclick="advanceTutorial(5)">Let's go →</button>
+      <div class="t-step-pill">5 / 6</div>
+      <div class="t-icon">🎤</div>
+      <h2>Voice capture &amp; instant replay</h2>
+      <p>Hold <span id="tutorial-key-audio"></span> and read the problem out loud, then release. The AI transcribes and responds with guidance.</p>
+      <p><strong>Instant replay:</strong> before your interview, click the extension icon while on your coding platform tab and hit <strong>Lock to tab</strong>. Then press <span id="tutorial-key-replay"></span> any time to instantly send the last few seconds of audio — no re-recording needed.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(5)">Got it →</button>
+    </div>
+  </div>
+
+  <!-- Tutorial Step 6: Typing mode -->
+  <div id="tutorial-overlay-6" class="tutorial-overlay">
+    <div class="tutorial-modal">
+      <div class="t-step-pill">6 / 6</div>
+      <div class="t-icon">⌨️</div>
+      <h2>Typing mode</h2>
+      <p>Press <span id="tutorial-key-typing"></span> to enter typing mode — type your question silently, then press it again or <kbd>Enter</kbd> to submit.</p>
+      <p><strong>Passthrough mode</strong> (on by default) sends keystrokes to the page too, so you can type inside an online IDE while the extension captures what you write. Toggle it in the extension popup.</p>
+      <button class="t-btn-primary" onclick="advanceTutorial(6)">Let's go →</button>
     </div>
   </div>
 
@@ -505,14 +523,14 @@
     // ── Tutorial ────────────────────────────────────────────────────────────
 
     function showTutorialStep(n) {
-      for (let i = 1; i <= 5; i++) {
-        document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
+      for (let i = 1; i <= 6; i++) {
+        document.getElementById('tutorial-overlay-' + i)?.classList.remove('visible');
       }
-      document.getElementById('tutorial-overlay-' + n).classList.add('visible');
+      document.getElementById('tutorial-overlay-' + n)?.classList.add('visible');
     }
 
     function advanceTutorial(from) {
-      if (from >= 5) {
+      if (from >= 6) {
         completeTutorial();
       } else {
         showTutorialStep(from + 1);
@@ -520,8 +538,8 @@
     }
 
     function completeTutorial() {
-      for (let i = 1; i <= 5; i++) {
-        document.getElementById('tutorial-overlay-' + i).classList.remove('visible');
+      for (let i = 1; i <= 6; i++) {
+        document.getElementById('tutorial-overlay-' + i)?.classList.remove('visible');
       }
       localStorage.setItem(_tutorialKey, '1');
       if (_isTrial && !_trialTick) {
@@ -544,6 +562,7 @@
       audio:   '{{ audio }}',
       toggle:  '{{ toggle }}',
       replay:  '{{ replay }}',
+      typing:  '{{ typing }}',
     };
 
     function renderHotkey(hotkey) {
@@ -560,6 +579,7 @@
       set('tutorial-key-capture',  hk.capture);
       set('tutorial-key-audio',    hk.audio);
       set('tutorial-key-replay',   hk.replay);
+      set('tutorial-key-typing',   hk.typing);
       set('disabled-toast-toggle', hk.toggle);
       set('disabled-toast-capture', hk.capture);
       const hintKbd = document.getElementById('hint-kbd');
