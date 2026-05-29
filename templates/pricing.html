@@ -73,7 +73,7 @@
             <div>
               <div class="plan-name">Sessions pack</div>
               <div class="plan-price">
-                <span class="price-main">£15</span>
+                <span class="price-main">£10</span>
                 <span class="price-suffix">for 3 sessions</span>
               </div>
             </div>
@@ -105,11 +105,11 @@
         </div>
 
         <a class="plan-cta cta-sessions" href="/billing/checkout?plan=sessions_pack">
-          Get 3 sessions — £15
+          Get 3 sessions — £10
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
         {% if referral_credit_pence > 0 %}
-        {% set pack_applied = [referral_credit_pence, 1500]|min %}
+        {% set pack_applied = [referral_credit_pence, 1000]|min %}
         {% set pack_over = referral_credit_pence - pack_applied %}
         {% if pack_over > 0 %}
         <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied &mdash; £{{ "%.2f"|format(pack_over / 100) }} carried over</p>

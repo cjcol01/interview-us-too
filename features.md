@@ -41,7 +41,7 @@ Not marketing copy — incomplete and janky bits are called out plainly.
 ## Billing (Stripe)
 
 - Three plans in `billing.py`:
-  - `subscription` — £25/mo, 7-day trial period, sets `account_level = unlimited`.
+  - `subscription` — £20/mo, 7-day trial period, sets `account_level = unlimited`.
   - `sessions` / `sessions_pack` — one-time payments, increment `sessions_remaining`, set `account_level = paid`.
 - Routes: `GET /billing/checkout` (`server.py:740`), `GET /billing/portal`, `GET /billing/success`, `GET /api/billing/status`, `POST /billing/webhook`.
 - **In-app cancellation**: `/billing/cancel` → `cancel_confirm.html` → `POST /billing/cancel/confirm` sets `cancel_at_period_end=True` on the subscription and emails reason to `NOTIFY_EMAIL` (`server.py:763`, `mailer.py:52`).
