@@ -8,9 +8,7 @@
 <script>
   /* Runs before CSS paints — prevents flash of wrong theme */
   (function(){
-    var stored = localStorage.getItem('theme');
-    var preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    var theme = stored || preferred;
+    var theme = localStorage.getItem('theme') || 'light';
     if (theme === 'dark') document.documentElement.dataset.theme = 'dark';
   })();
 </script>

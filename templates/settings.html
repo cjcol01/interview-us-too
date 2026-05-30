@@ -45,6 +45,24 @@
       </div>
     </div>
 
+    <!-- Appearance -->
+    <div class="section-label">Appearance</div>
+    <div class="card">
+      <div class="row" style="align-items:flex-start;">
+        <div>
+          <span class="row-label">Dark mode</span>
+          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
+            Switch between light and dark. Applies across the app and the home page.<br>
+            (The live interview screen always stays dark.)
+          </div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="theme-toggle" onchange="onThemeToggle()">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
+    </div>
+
     <!-- Billing -->
     <div class="section-label">Billing</div>
     <div class="card">
@@ -293,6 +311,26 @@
     </div>
 
   </main>
+
+  <script>
+    // ── Appearance / theme ────────────────────────────────────────────────
+    // Shared with the landing page via localStorage('theme'); light is default.
+    (function(){
+      var dark = document.documentElement.dataset.theme === 'dark';
+      document.getElementById('theme-toggle').checked = dark;
+    })();
+
+    function onThemeToggle() {
+      var dark = document.getElementById('theme-toggle').checked;
+      if (dark) {
+        document.documentElement.dataset.theme = 'dark';
+        localStorage.setItem('theme', 'dark');
+      } else {
+        delete document.documentElement.dataset.theme;
+        localStorage.setItem('theme', 'light');
+      }
+    }
+  </script>
 
   <script>
     // ── Complexity ────────────────────────────────────────────────────────

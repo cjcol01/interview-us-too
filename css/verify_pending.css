@@ -1,7 +1,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, sans-serif;
       min-height: 100dvh;
       display: flex;
@@ -10,8 +10,8 @@
       padding: 20px;
     }
     .card {
-      background: #141414;
-      border: 1px solid #222;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 32px 28px;
       width: 100%;
@@ -19,33 +19,33 @@
       text-align: center;
     }
     .icon { font-size: 2.4rem; margin-bottom: 16px; }
-    h1 { font-size: 1.1rem; font-weight: 600; color: #ddd; margin-bottom: 10px; }
-    p { font-size: 0.88rem; color: #666; line-height: 1.6; margin-bottom: 24px; }
-    .email { color: #5b9bd5; }
+    h1 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 10px; }
+    p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; margin-bottom: 24px; }
+    .email { color: var(--accent); }
     button {
-      background: #6c63ff;
+      background: var(--accent);
       color: #fff;
-      border: 1px solid #6c63ff;
+      border: 1px solid var(--accent);
       border-radius: 8px;
       padding: 10px 20px;
       font-size: 0.9rem;
       cursor: pointer;
       width: 100%;
       margin-bottom: 10px;
-      transition: background 0.15s;
+      transition: background 0.15s, border-color 0.15s;
     }
-    button:hover { background: #5a52e0; border-color: #5a52e0; }
+    button:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
     button:disabled { opacity: 0.5; cursor: default; }
     .logout {
       font-size: 0.78rem;
-      color: #444;
+      color: var(--muted);
       cursor: pointer;
       background: none;
       border: none;
       padding: 4px;
       width: auto;
     }
-    .logout:hover { color: #888; background: none; }
+    .logout:hover { color: var(--text); background: none; }
     .msg { font-size: 0.8rem; min-height: 1.2em; margin-bottom: 12px; }
-    .msg.ok  { color: #4caf50; }
-    .msg.err { color: #e06c75; }
+    .msg.ok  { color: var(--accent2); }
+    .msg.err { color: var(--danger); }

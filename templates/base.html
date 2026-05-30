@@ -5,6 +5,16 @@
   {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">{% endblock %}
   <title>{% block title %}InterviewAce{% endblock %}</title>
   <link rel="stylesheet" href="/css/global.css">
+  <script>
+    /* Runs before CSS paints — prevents flash of wrong theme.
+       Light is the default; dark is opt-in and shared site-wide
+       via localStorage('theme'). Pages may override (see index). */
+    (function(){
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.dataset.theme = 'dark';
+      }
+    })();
+  </script>
   {% block head %}{% endblock %}
   {% if POSTHOG_KEY %}
   <script>

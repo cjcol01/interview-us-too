@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}InterviewAce{% endblock %}
 {% block head %}
+  <script>
+    /* The live dashboard is dark-only — pin it regardless of the
+       site-wide light/dark preference. */
+    document.documentElement.dataset.theme = 'dark';
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>

@@ -1,5 +1,5 @@
     header {
-      background: rgba(8,8,16,0.85);
+      background: rgba(255,255,255,0.85);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       padding: 10px 14px;
@@ -11,10 +11,14 @@
       top: 0;
       z-index: 10;
     }
+    [data-theme="dark"] header { background: rgba(8,8,16,0.85); }
 
     .logo {
       font-size: 0.95rem;
       font-weight: 700;
+      color: var(--text);
+    }
+    [data-theme="dark"] .logo {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -146,15 +150,17 @@
       transition: background 0.12s;
     }
     .radio-item:last-child { border-bottom: none; }
-    .radio-item:hover { background: rgba(255,255,255,0.02); }
-    .radio-item.selected { background: rgba(108,99,255,0.05); }
+    .radio-item:hover { background: rgba(0,0,0,0.03); }
+    .radio-item.selected { background: var(--accent-dim); }
+    [data-theme="dark"] .radio-item:hover { background: rgba(255,255,255,0.02); }
+    [data-theme="dark"] .radio-item.selected { background: rgba(108,99,255,0.05); }
 
     .radio-item input[type="radio"] {
       appearance: none;
       -webkit-appearance: none;
       width: 16px;
       height: 16px;
-      border: 1.5px solid #333;
+      border: 1.5px solid var(--border-strong);
       border-radius: 50%;
       flex-shrink: 0;
       cursor: pointer;
@@ -302,15 +308,16 @@
     .issue-item span { color: var(--muted); }
 
     kbd {
-      background: #1a1a2a;
-      border: 1px solid #2e2e40;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
       border-radius: 4px;
       padding: 1px 5px;
       font-family: 'Menlo', 'Consolas', monospace;
       font-size: 0.72rem;
-      color: #bbb;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
+    [data-theme="dark"] kbd { background: #1a1a2a; border-color: #2e2e40; color: #bbb; }
 
     /* ── Cancel actions ── */
     .cancel-actions {

@@ -3,7 +3,7 @@
     body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
 
     header {
-      background: rgba(8,8,16,0.85);
+      background: rgba(255,255,255,0.85);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
       padding: 10px 14px;
@@ -15,6 +15,7 @@
       top: 0;
       z-index: 10;
     }
+    [data-theme="dark"] header { background: rgba(8,8,16,0.85); }
 
     .logo {
       font-size: 0.95rem;
@@ -53,10 +54,13 @@
       content: '';
       position: fixed;
       inset: 0;
-      background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
       background-size: 28px 28px;
       pointer-events: none;
       z-index: 0;
+    }
+    [data-theme="dark"] main::after {
+      background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
     }
     main > * { position: relative; z-index: 1; }
 
@@ -135,8 +139,12 @@
       gap: 0;
       padding: 20px 0;
       margin: 4px 0 20px;
-      border-top: 1px solid rgba(255,255,255,0.06);
-      border-bottom: 1px solid rgba(255,255,255,0.06);
+      border-top: 1px solid rgba(0,0,0,0.08);
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] .pitch-stats {
+      border-top-color: rgba(255,255,255,0.06);
+      border-bottom-color: rgba(255,255,255,0.06);
     }
 
     .pitch-stat {
@@ -148,7 +156,10 @@
     }
 
     .pitch-stat + .pitch-stat {
-      border-left: 1px solid rgba(255,255,255,0.06);
+      border-left: 1px solid rgba(0,0,0,0.08);
+    }
+    [data-theme="dark"] .pitch-stat + .pitch-stat {
+      border-left-color: rgba(255,255,255,0.06);
     }
 
     .stat-val {
@@ -394,10 +405,11 @@
     }
 
     .badge.purple {
-      background: rgba(108,99,255,0.1);
+      background: var(--accent-dim);
       border-color: rgba(108,99,255,0.3);
-      color: #a78bfa;
+      color: var(--accent);
     }
+    [data-theme="dark"] .badge.purple { background: rgba(108,99,255,0.1); color: #a78bfa; }
 
     .plan-desc {
       font-size: 0.82rem;

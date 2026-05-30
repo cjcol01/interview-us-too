@@ -1,14 +1,47 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Theme tokens ────────────────────────────────────
+   Light is the default (matches landing.css). Dark is
+   opt-in via [data-theme="dark"] on <html>. Token names
+   are shared with landing.css so the look is consistent. */
 :root {
-  --bg:      #080810;
-  --surface: #0f0f1a;
-  --border:  #1e1e2e;
-  --accent:  #6c63ff;
-  --accent2: #00d4aa;
-  --text:    #e2e2f0;
-  --muted:   #6b6b8a;
-  --danger:  #f87171;
+  --bg:               #ffffff;
+  --bg-alt:           #f5f5f7;
+  --surface:          #f5f5f7;
+  --surface-elevated: #fafafa;
+  --text:             #1d1d1f;
+  --text-secondary:   #6e6e73;
+  --text-tertiary:    #86868b;
+  --muted:            #86868b;
+  --accent:           #0071e3;
+  --accent-hover:     #0077ed;
+  --accent-dim:       rgba(0, 113, 227, 0.08);
+  --accent2:          #018a70; /* success/positive — readable teal on light */
+  --border:           rgba(0, 0, 0, 0.1);
+  --border-strong:    rgba(0, 0, 0, 0.18);
+  --shadow-sm:        0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:        0 8px 24px rgba(0,0,0,0.1), 0 2px 6px rgba(0,0,0,0.06);
+  --danger:           #ff3b30;
+}
+
+[data-theme="dark"] {
+  --bg:               #080810;
+  --bg-alt:           #0f0f1a;
+  --surface:          #0f0f1a;
+  --surface-elevated: #14141f;
+  --text:             #e2e2f0;
+  --text-secondary:   #9999b3;
+  --text-tertiary:    #6b6b8a;
+  --muted:            #6b6b8a;
+  --accent:           #6c63ff;
+  --accent-hover:     #7b72ff;
+  --accent-dim:       rgba(108, 99, 255, 0.1);
+  --accent2:          #00d4aa;
+  --border:           #1e1e2e;
+  --border-strong:    rgba(255, 255, 255, 0.12);
+  --shadow-sm:        0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md:        0 8px 24px rgba(0,0,0,0.4);
+  --danger:           #f87171;
 }
 
 body {
@@ -35,17 +68,26 @@ body {
   border: none;
 }
 .btn-primary {
-  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  background: var(--accent);
   color: #fff;
-  box-shadow: 0 0 20px rgba(108,99,255,0.3);
 }
-.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(108,99,255,0.45); }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
 .btn-outline {
   background: transparent;
   color: var(--text);
   border: 1px solid var(--border);
 }
 .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Dark restores the neon gradient + glow */
+[data-theme="dark"] .btn-primary {
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+  box-shadow: 0 0 20px rgba(108,99,255,0.3);
+}
+[data-theme="dark"] .btn-primary:hover {
+  box-shadow: 0 0 28px rgba(108,99,255,0.45);
+  background: linear-gradient(135deg, var(--accent), #8b5cf6);
+}
 
 .back-btn {
   background: none;
@@ -73,9 +115,9 @@ body {
 
 /* ── App Navbar ─────────────────────────────────────── */
 .navbar {
-  background: rgba(15,15,26,0.92);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255,255,255,0.72);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   padding: 0 20px;
   height: 52px;
   display: flex;
@@ -86,16 +128,24 @@ body {
   top: 0;
   z-index: 50;
 }
+[data-theme="dark"] .navbar {
+  background: rgba(15,15,26,0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
 .navbar-logo {
   font-size: 0.95rem;
   font-weight: 800;
+  color: var(--text);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .navbar-logo {
   background: linear-gradient(135deg, var(--accent), var(--accent2));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-decoration: none;
-  letter-spacing: -0.01em;
-  flex-shrink: 0;
 }
 .navbar-links {
   display: flex;
@@ -116,8 +166,10 @@ body {
   font-family: inherit;
   line-height: 1.6;
 }
-.navbar-link:hover { color: var(--text); background: rgba(255,255,255,0.05); }
-.navbar-link.active { color: var(--text); background: rgba(255,255,255,0.07); }
+.navbar-link:hover { color: var(--text); background: rgba(0,0,0,0.05); }
+.navbar-link.active { color: var(--text); background: rgba(0,0,0,0.06); }
+[data-theme="dark"] .navbar-link:hover { background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .navbar-link.active { background: rgba(255,255,255,0.07); }
 .navbar-link.navbar-logout:hover { color: var(--danger); }
 .navbar-hamburger {
   display: none;

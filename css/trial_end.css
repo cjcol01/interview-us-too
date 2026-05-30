@@ -1,8 +1,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      background: #0d0d0d;
-      color: #e0e0e0;
+      background: var(--bg);
+      color: var(--text);
       font-family: system-ui, -apple-system, sans-serif;
       min-height: 100dvh;
       display: flex;
@@ -10,11 +10,11 @@
     }
 
     header {
-      background: #141414;
+      background: var(--surface);
       padding: 10px 14px;
       display: flex;
       align-items: center;
-      border-bottom: 1px solid #222;
+      border-bottom: 1px solid var(--border);
       position: sticky;
       top: 0;
     }
@@ -22,6 +22,9 @@
     .logo {
       font-size: 0.95rem;
       font-weight: 700;
+      color: var(--text);
+    }
+    [data-theme="dark"] .logo {
       background: linear-gradient(135deg, #6c63ff, #00d4aa);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -45,11 +48,11 @@
     }
     .hero-icon { font-size: 2.4rem; margin-bottom: 12px; }
     .hero h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
-    .hero p { font-size: 0.88rem; color: #666; line-height: 1.6; }
+    .hero p { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
 
     .tip-card {
-      background: #141414;
-      border: 1px solid #222;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 18px 16px;
       display: flex;
@@ -67,12 +70,12 @@
       font-size: 0.95rem;
       font-weight: 700;
       margin-bottom: 8px;
-      color: #ddd;
+      color: var(--text);
     }
 
     .tip-body p {
       font-size: 0.84rem;
-      color: #666;
+      color: var(--muted);
       line-height: 1.6;
       margin-bottom: 6px;
     }
@@ -100,7 +103,7 @@
 
     .keybind-desc {
       font-size: 0.84rem;
-      color: #888;
+      color: var(--text-secondary);
     }
 
     .keybind-keys {
@@ -111,21 +114,21 @@
     }
 
     kbd {
-      background: #1e1e1e;
-      border: 1px solid #333;
+      background: var(--bg-alt);
+      border: 1px solid var(--border);
       border-radius: 4px;
       padding: 3px 7px;
       font-family: 'Menlo', 'Consolas', monospace;
       font-size: 0.72rem;
-      color: #bbb;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
 
     .sep { font-size: 0.7rem; color: var(--muted); }
 
     .upgrade-section {
-      background: #0f0f1a;
-      border: 1px solid #1e1e2e;
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 24px 20px;
       text-align: center;
@@ -137,7 +140,7 @@
 
     .upgrade-btn {
       display: block;
-      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      background: var(--accent);
       color: #fff;
       text-decoration: none;
       padding: 13px 24px;
@@ -145,10 +148,17 @@
       font-weight: 700;
       font-size: 0.95rem;
       margin-bottom: 12px;
-      box-shadow: 0 0 20px rgba(108,99,255,0.3);
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
     }
-    .upgrade-btn:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(108,99,255,0.45); }
+    .upgrade-btn:hover { transform: translateY(-1px); background: var(--accent-hover); }
+    [data-theme="dark"] .upgrade-btn {
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+      box-shadow: 0 0 20px rgba(108,99,255,0.3);
+    }
+    [data-theme="dark"] .upgrade-btn:hover {
+      box-shadow: 0 0 28px rgba(108,99,255,0.45);
+      background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+    }
 
     .footer-links {
       font-size: 0.78rem;
@@ -158,4 +168,4 @@
       gap: 16px;
     }
     .footer-links a { color: var(--muted); text-decoration: none; }
-    .footer-links a:hover { color: #888; }
+    .footer-links a:hover { color: var(--text); }

@@ -80,11 +80,11 @@
     }
     input:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(108,99,255,0.12);
+      box-shadow: 0 0 0 3px var(--accent-dim);
     }
 
     button[type=submit] {
-      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      background: var(--accent);
       color: #fff;
       border: none;
       border-radius: 9px;
@@ -94,11 +94,18 @@
       font-weight: 700;
       cursor: pointer;
       margin-top: 4px;
-      box-shadow: 0 0 20px rgba(108,99,255,0.3);
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
     }
-    button[type=submit]:hover { transform: translateY(-1px); box-shadow: 0 0 28px rgba(108,99,255,0.45); }
+    button[type=submit]:hover { transform: translateY(-1px); background: var(--accent-hover); }
     button[type=submit]:active { transform: none; }
+    [data-theme="dark"] button[type=submit] {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      box-shadow: 0 0 20px rgba(108,99,255,0.3);
+    }
+    [data-theme="dark"] button[type=submit]:hover {
+      box-shadow: 0 0 28px rgba(108,99,255,0.45);
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    }
     button[type=submit]:disabled { opacity: 0.5; cursor: default; transform: none; }
 
     .error-msg {
