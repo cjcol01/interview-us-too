@@ -1,0 +1,229 @@
+    main {
+      flex: 1;
+      padding: 28px 16px 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      max-width: 680px;
+      margin: 0 auto;
+      width: 100%;
+      position: relative;
+    }
+
+    main::before {
+      content: '';
+      position: fixed;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(108,99,255,0.07) 0%, transparent 70%);
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    /* ── Hero ── */
+    .pitch {
+      text-align: center;
+      padding: 8px 4px 4px;
+    }
+    .pitch-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(108,99,255,0.1);
+      border: 1px solid rgba(108,99,255,0.25);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.72rem;
+      color: #a78bfa;
+      margin-bottom: 16px;
+      letter-spacing: 0.04em;
+      font-weight: 600;
+    }
+    .pitch h1 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      line-height: 1.2;
+    }
+    .pitch h1 span {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .pitch p {
+      font-size: 0.88rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+
+    /* ── Joined banner ── */
+    .joined-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,212,170,0.08);
+      border: 1px solid rgba(0,212,170,0.25);
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-size: 0.88rem;
+      color: var(--accent2);
+      font-weight: 600;
+    }
+
+    /* ── Card base ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+    }
+
+    .card-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Benefits grid ── */
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) { .benefits-grid { grid-template-columns: 1fr; } }
+
+    .benefit-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.15s;
+    }
+    .benefit-item:hover { border-color: rgba(108,99,255,0.3); }
+
+    .benefit-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(108,99,255,0.1);
+      border: 1px solid rgba(108,99,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a78bfa;
+    }
+
+    .benefit-item h3 {
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .benefit-item p {
+      font-size: 0.79rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── Compare table ── */
+    .compare-card { padding: 0; overflow: hidden; }
+    .compare-card .card-label { padding: 16px 20px 0; margin-bottom: 12px; }
+
+    .compare-table { display: flex; flex-direction: column; }
+
+    .compare-row {
+      display: grid;
+      grid-template-columns: 1fr 110px 110px;
+      padding: 11px 20px;
+      border-top: 1px solid var(--border);
+      align-items: center;
+      gap: 8px;
+    }
+    .compare-row:first-child { border-top: none; }
+
+    .compare-header { padding-bottom: 8px; }
+
+    .compare-col-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      text-align: center;
+    }
+    .compare-col-label.highlight { color: #a78bfa; }
+
+    .compare-feature {
+      font-size: 0.82rem;
+      color: var(--text);
+    }
+
+    .compare-val {
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .compare-val.muted { color: var(--muted); }
+    .compare-val.accent { color: var(--accent2); }
+
+    /* ── Waitlist card ── */
+    .waitlist-card {
+      border-color: rgba(108,99,255,0.25);
+      background: linear-gradient(160deg, rgba(108,99,255,0.06), var(--surface));
+      text-align: center;
+    }
+    .waitlist-card.joined {
+      border-color: rgba(0,212,170,0.25);
+      background: linear-gradient(160deg, rgba(0,212,170,0.05), var(--surface));
+    }
+
+    .waitlist-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .waitlist-content h2 {
+      font-size: 1.1rem;
+      font-weight: 800;
+    }
+
+    .waitlist-content p {
+      font-size: 0.84rem;
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 420px;
+    }
+
+    .waitlist-btn {
+      margin-top: 6px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 32px;
+      font-size: 0.92rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .waitlist-btn:hover { box-shadow: 0 0 24px rgba(108,99,255,0.45); transform: translateY(-1px); }
+
+    /* ── Footer ── */
+    .footer-note {
+      text-align: center;
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.7;
+      padding: 0 8px;
+    }
+    .footer-note a { color: var(--muted); text-decoration: none; }
+    .footer-note a:hover { color: var(--text); }

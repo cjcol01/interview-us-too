@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Partner Programme — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/partner.css">{% endblock %}
+{% block content %}
+
+  <main>
+
+    <!-- Hero -->
+    <div class="pitch">
+      <div class="pitch-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Partner programme
+      </div>
+      <h1>Refer more.<br><span>Earn more.</span></h1>
+      <p>For power referrers. Higher commissions, real cash payouts, and a direct line to the team. Join the waitlist and we'll reach out when we launch.</p>
+    </div>
+
+    {% if joined %}
+    <div class="joined-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      You're on the waitlist — we'll be in touch.
+    </div>
+    {% endif %}
+
+    <!-- Benefits -->
+    <div class="card">
+      <div class="card-label">What you get</div>
+      <div class="benefits-grid">
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <h3>Higher commissions</h3>
+          <p>Earn significantly more per referral than the standard programme — exact rates confirmed at launch.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+          </div>
+          <h3>Cash withdrawals</h3>
+          <p>Get paid directly to your bank. No credits, no waiting for renewals — real money, your way.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </div>
+          <h3>Dedicated support</h3>
+          <p>A direct line to the team. Priority help, early access to new features, and input on the roadmap.</p>
+        </div>
+        <div class="benefit-item">
+          <div class="benefit-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+          </div>
+          <h3>Partner badge</h3>
+          <p>Recognition on your profile and exclusive partner materials to share with your network.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- How it's different -->
+    <div class="card compare-card">
+      <div class="card-label">Standard vs Partner</div>
+      <div class="compare-table">
+        <div class="compare-row compare-header">
+          <div></div>
+          <div class="compare-col-label">Standard</div>
+          <div class="compare-col-label highlight">Partner</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Commission per referral</div>
+          <div class="compare-val muted">Up to £5</div>
+          <div class="compare-val accent">More — TBC</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Payout method</div>
+          <div class="compare-val muted">Account credit</div>
+          <div class="compare-val accent">Cash or credit</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Referral limit</div>
+          <div class="compare-val muted">Unlimited</div>
+          <div class="compare-val accent">Unlimited</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Dedicated support</div>
+          <div class="compare-val muted">—</div>
+          <div class="compare-val accent">&#10003;</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Early access</div>
+          <div class="compare-val muted">—</div>
+          <div class="compare-val accent">&#10003;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Waitlist CTA -->
+    {% if not joined %}
+    <div class="card waitlist-card">
+      <div class="waitlist-content">
+        <h2>Be first in line</h2>
+        <p>We're onboarding a small group of partners to start. Join the waitlist and we'll reach out directly when spots open.</p>
+        <form action="/partner/waitlist" method="post">
+          <button class="waitlist-btn" type="submit">Join waitlist</button>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="card waitlist-card joined">
+      <div class="waitlist-content">
+        <h2>You're on the list</h2>
+        <p>We'll email you at <strong>{{ user_email }}</strong> when partner spots open. Keep referring in the meantime!</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <p class="footer-note">
+      <a href="/referral">&#8592; Back to referrals</a>
+    </p>
+
+  </main>
+
+{% endblock %}

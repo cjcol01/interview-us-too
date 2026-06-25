@@ -57,6 +57,7 @@ class User(Base):
     sub_trial_used     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
+    partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
 
 
 class ReferralStatus(str, enum.Enum):

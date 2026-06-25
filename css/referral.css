@@ -319,7 +319,7 @@
     }
 
     /* ── Referrals tracker ── */
-    .tracker-card { gap: 0; padding: 0; overflow: hidden; }
+    .tracker-card { gap: 0; padding: 0; overflow: visible; }
 
     .tracker-header {
       padding: 16px 20px;
@@ -327,9 +327,81 @@
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid var(--border);
+      border-radius: 14px 14px 0 0;
     }
 
     .tracker-header .card-label { margin: 0; }
+
+    .tracker-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .withdraw-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: not-allowed;
+      opacity: 0.65;
+      position: relative;
+      user-select: none;
+      outline: none;
+    }
+
+    .withdraw-tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      width: 260px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+      font-weight: 400;
+      cursor: default;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      z-index: 10;
+    }
+    .withdraw-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      right: 14px;
+      border: 6px solid transparent;
+      border-top-color: var(--border);
+    }
+    .withdraw-tooltip::before {
+      content: '';
+      position: absolute;
+      top: calc(100% - 1px);
+      right: 15px;
+      border: 5px solid transparent;
+      border-top-color: var(--surface);
+      z-index: 1;
+    }
+
+    .withdraw-btn:hover,
+    .withdraw-btn:focus {
+      opacity: 1;
+      border-color: rgba(108,99,255,0.3);
+      color: var(--text);
+    }
+    .withdraw-btn:hover .withdraw-tooltip,
+    .withdraw-btn:focus .withdraw-tooltip {
+      display: block;
+    }
 
     .credit-total {
       font-size: 1.1rem;
@@ -350,7 +422,7 @@
       border-bottom: 1px solid var(--border);
       gap: 12px;
     }
-    .referral-row:last-child { border-bottom: none; }
+    .referral-row:last-child { border-bottom: none; border-radius: 0 0 14px 14px; }
 
     .referral-info { display: flex; flex-direction: column; gap: 2px; }
     .referral-name { font-size: 0.85rem; font-weight: 600; }
@@ -403,6 +475,62 @@
       color: var(--muted);
       font-size: 0.85rem;
       line-height: 1.7;
+      border-radius: 0 0 14px 14px;
+    }
+
+    /* ── Partner CTA ── */
+    .partner-cta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      text-decoration: none;
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .partner-cta:hover {
+      border-color: rgba(108,99,255,0.4);
+      background: linear-gradient(135deg, rgba(108,99,255,0.05), var(--surface));
+    }
+    .partner-cta:hover > svg { color: var(--accent); }
+
+    .partner-cta-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .partner-cta-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: rgba(108,99,255,0.1);
+      border: 1px solid rgba(108,99,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a78bfa;
+      flex-shrink: 0;
+    }
+
+    .partner-cta-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .partner-cta-sub {
+      font-size: 0.77rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .partner-cta > svg {
+      color: var(--muted);
+      flex-shrink: 0;
+      transition: color 0.15s;
     }
 
     /* ── Footer note ── */

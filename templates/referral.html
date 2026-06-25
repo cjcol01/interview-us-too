@@ -139,7 +139,18 @@
     <div class="card tracker-card">
       <div class="tracker-header">
         <div class="card-label">Your referrals</div>
-        <div class="credit-total">£{{ "%.2f" | format(referral_credit_pence / 100) }} credit</div>
+        <div class="tracker-header-right">
+          <div class="credit-total">£{{ "%.2f" | format(referral_credit_pence / 100) }} credit</div>
+          <div class="withdraw-btn" tabindex="0" aria-label="Withdraw coming soon">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            Withdraw
+            <div class="withdraw-tooltip">
+              Refer a paying customer and earn £5. Right now that's applied to your next bill — soon you'll be able to withdraw it as cash directly. Your balance will carry over when that launches.
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="referral-list">
@@ -175,6 +186,25 @@
         {% endif %}
       </div>
     </div>
+
+    <!-- Partner CTA -->
+    <a class="partner-cta" href="/partner">
+      <div class="partner-cta-left">
+        <div class="partner-cta-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div>
+          <div class="partner-cta-title">Refer a lot? Become a partner</div>
+          <div class="partner-cta-sub">Higher commissions, dedicated support, and more.</div>
+        </div>
+      </div>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M5 12h14M12 5l7 7-7 7"/>
+      </svg>
+    </a>
 
     <p class="footer-note">
       Credits are applied at your next purchase or subscription renewal &nbsp;&middot;&nbsp;

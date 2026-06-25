@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    a{color:inherit;text-decoration:none}
+    /* ---- Theme tokens (dark default) ---- */
+    [data-ia]{
+      --bg:#0A0A0C; --nav-bg:rgba(10,10,12,0.72); --bg-panel:#0C0C0F; --card:#111114;
+      --line:rgba(255,255,255,0.07); --line-strong:rgba(255,255,255,0.16);
+      --text:#F4F4F6; --text-1:#ECECEE; --text-2:#9C9CA6; --text-3:#67676F;
+      --accent:#C6F24E; --accent-line:rgba(198,242,78,0.28); --accent-soft:rgba(198,242,78,0.06);
+      --accent-bg:#C6F24E; --accent-on:#0A0A0C; --dot:#C6F24E; --dot-glow:0 0 8px #C6F24E;
+      --btn-bg:#ECECEE; --btn-text:#0A0A0C; --btn-shadow:rgba(255,255,255,0.16);
+      --ghost-line:rgba(255,255,255,0.14); --ghost-hover-line:rgba(255,255,255,0.3); --ghost-hover-bg:rgba(255,255,255,0.03);
+      --icon-line:rgba(255,255,255,0.1); --icon-bg:rgba(255,255,255,0.04);
+      --lime-cta-shadow:rgba(198,242,78,0.25); --hero-glow:rgba(198,242,78,0.07);
+    }
+    [data-ia][data-theme="light"]{
+      --bg:#FBFBF9; --nav-bg:rgba(251,251,249,0.78); --bg-panel:#F3F2EE; --card:#FFFFFF;
+      --line:rgba(20,20,18,0.10); --line-strong:rgba(20,20,18,0.22);
+      --text:#161614; --text-1:#1A1A18; --text-2:#5C5C58; --text-3:#8A8A84;
+      --accent:#3F6212; --accent-line:rgba(63,98,18,0.30); --accent-soft:rgba(63,98,18,0.07);
+      --accent-bg:#C6F24E; --accent-on:#1A1A18; --dot:#4D7C0F; --dot-glow:none;
+      --btn-bg:#1A1A18; --btn-text:#FBFBF9; --btn-shadow:rgba(0,0,0,0.20);
+      --ghost-line:rgba(20,20,18,0.18); --ghost-hover-line:rgba(20,20,18,0.35); --ghost-hover-bg:rgba(20,20,18,0.03);
+      --icon-line:rgba(20,20,18,0.12); --icon-bg:rgba(20,20,18,0.03);
+      --lime-cta-shadow:rgba(63,98,18,0.22); --hero-glow:rgba(63,98,18,0.05);
+    }
+    [data-ia] ::selection{background:rgba(198,242,78,0.30);color:#1A1A18}
+    @keyframes ia-rise{from{transform:translateY(16px)}to{transform:none}}
+    @keyframes ia-blink{0%,100%{opacity:1}50%{opacity:0}}
+    @keyframes ia-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+    @keyframes ia-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  </style>
+</helmet>
+<div data-ia="1" data-screen-label="InterviewAce Landing" style="background:var(--bg);color:var(--text-1);font-family:'Hanken Grotesk',system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh">
+
+  <!-- ===== NAV ===== -->
+  <nav style="position:fixed;top:0;left:0;right:0;z-index:100;height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 max(28px,4vw);background:var(--nav-bg);backdrop-filter:saturate(160%) blur(16px);-webkit-backdrop-filter:saturate(160%) blur(16px);border-bottom:1px solid var(--line)">
+    <a href="#top" style="display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:var(--text-1)">
+      <span style="width:9px;height:9px;border-radius:2px;background:var(--dot);box-shadow:var(--dot-glow)"></span>
+      InterviewAce
+    </a>
+    <div style="display:flex;align-items:center;gap:30px">
+      <div style="display:flex;align-items:center;gap:26px;font-size:14px;color:var(--text-2)" data-desktop-nav>
+        <a href="#how" style="transition:color .15s" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">How it works</a>
+        <a href="#features" style="transition:color .15s" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Features</a>
+        <a href="#pricing" style="transition:color .15s" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Pricing</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <a href="#" style="font-size:14px;color:var(--text-2);transition:color .15s" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Sign in</a>
+        <a href="#" style="font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:600;color:var(--btn-text);background:var(--btn-bg);padding:9px 18px;border-radius:8px;transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 8px 24px var(--btn-shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">Try free</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section id="top" style="position:relative;padding:150px max(28px,4vw) 80px;max-width:1280px;margin:0 auto">
+    <div style="position:absolute;top:60px;right:-5%;width:620px;height:620px;background:radial-gradient(circle,var(--hero-glow),transparent 65%);pointer-events:none;filter:blur(8px)"></div>
+    <div style="display:grid;grid-template-columns:1.05fr 0.95fr;gap:64px;align-items:center;position:relative">
+
+      <!-- left: copy -->
+      <div data-reveal style="opacity:1">
+        <div style="display:inline-flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2);border:1px solid var(--line-strong);border-radius:980px;padding:6px 14px;margin-bottom:30px">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--dot);box-shadow:var(--dot-glow);animation:ia-pulse 2s ease-in-out infinite"></span>
+          Streams in under 3 seconds
+        </div>
+        <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(46px,5.6vw,80px);line-height:1.0;letter-spacing:-0.035em;color:var(--text);margin-bottom:26px">
+          Stop blanking.<br>Start <span style="position:relative;white-space:nowrap">acing<span style="position:absolute;left:0;right:0;bottom:0.08em;height:0.12em;background:var(--accent-bg);border-radius:2px;opacity:0.9"></span></span>.
+        </h1>
+        <p style="font-size:18px;line-height:1.65;color:var(--text-2);max-width:480px;margin-bottom:38px">
+          You know the material — but the moment someone's watching, your mind goes blank. InterviewAce streams a working solution to your phone before you've typed a line. Your silent co-pilot, off-screen and out of sight.
+        </p>
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <a href="#" style="font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:600;color:var(--btn-text);background:var(--btn-bg);padding:14px 26px;border-radius:10px;transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 12px 32px var(--btn-shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">Try free — no card</a>
+          <a href="#how" style="font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:500;color:var(--text-1);padding:14px 24px;border-radius:10px;border:1px solid var(--ghost-line);transition:border-color .15s,background .15s" onmouseover="this.style.borderColor='var(--ghost-hover-line)';this.style.background='var(--ghost-hover-bg)'" onmouseout="this.style.borderColor='var(--ghost-line)';this.style.background='transparent'">See how it works</a>
+        </div>
+        <div style="display:flex;align-items:center;gap:22px;margin-top:40px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-3)">
+          <span style="display:flex;align-items:center;gap:7px"><span style="color:var(--accent)">✓</span> OS-level capture</span>
+          <span style="display:flex;align-items:center;gap:7px"><span style="color:var(--accent)">✓</span> Zero browser footprint</span>
+        </div>
+      </div>
+
+      <!-- right: device demo (always dark screens) -->
+      <div data-reveal style="opacity:1;display:flex;justify-content:center">
+        <div style="display:flex;align-items:flex-start;gap:0;position:relative">
+          <!-- laptop/browser stub -->
+          <div style="width:300px;background:#101013;border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,0.5)">
+            <div style="display:flex;align-items:center;gap:7px;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.06);background:#141417">
+              <span style="width:9px;height:9px;border-radius:50%;background:#ff5f57"></span>
+              <span style="width:9px;height:9px;border-radius:50%;background:#febc2e"></span>
+              <span style="width:9px;height:9px;border-radius:50%;background:#28c840"></span>
+              <span style="margin-left:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#67676F">leetcode.com/problems/reverse-linked-list</span>
+            </div>
+            <div style="padding:16px">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                <span style="font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:600;color:#ECECEE">206. Reverse Linked List</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#C6F24E;border:1px solid rgba(198,242,78,0.3);border-radius:4px;padding:1px 6px">Easy</span>
+              </div>
+              <p style="font-size:11.5px;color:#9C9CA6;line-height:1.55;margin-bottom:12px">Reverse a singly-linked list. Return the reversed list.</p>
+              <div style="background:#0A0A0C;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#67676F;line-height:1.7">1→2→3→4→5<br><span style="color:#9C9CA6">5→4→3→2→1</span></div>
+              <div style="margin-top:14px;background:#0A0A0C;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:11px 12px;font-family:'JetBrains Mono',monospace;font-size:10.5px;line-height:1.65;color:#67676F">
+                class Solution:<br>&nbsp;&nbsp;def reverseList(self, head):<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style="display:inline-block;width:7px;height:13px;background:#C6F24E;vertical-align:middle;animation:ia-blink 1.1s step-end infinite"></span>
+              </div>
+              <div style="display:flex;align-items:center;gap:9px;margin-top:13px">
+                <span style="display:inline-flex;align-items:center;gap:5px;background:#ECECEE;color:#0A0A0C;font-family:'Hanken Grotesk',sans-serif;font-size:11px;font-weight:600;padding:4px 11px;border-radius:7px">Capture</span>
+                <kbd style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#9C9CA6;border:1px solid rgba(255,255,255,0.12);border-bottom-width:2px;border-radius:5px;padding:2px 7px">⌥ Space</kbd>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:9.5px;color:#C6F24E">undetectable</span>
+              </div>
+            </div>
+          </div>
+          <!-- phone overlapping -->
+          <div style="width:148px;margin-left:-46px;margin-top:54px;background:#0D0D10;border:6px solid #1A1A20;border-radius:30px;overflow:hidden;position:relative;box-shadow:0 30px 60px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05);animation:ia-float 6s ease-in-out infinite">
+            <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:46px;height:14px;background:#1A1A20;border-radius:0 0 10px 10px;z-index:5"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 12px 3px;font-family:'JetBrains Mono',monospace;font-size:8px;color:#67676F">
+              <span>9:41</span><span>●●●</span>
+            </div>
+            <div style="padding:8px 9px 12px;min-height:230px;background:#0D0D10">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:8px">
+                <span style="width:5px;height:5px;border-radius:50%;background:#C6F24E;box-shadow:0 0 6px #C6F24E"></span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:8px;font-weight:600;letter-spacing:0.05em;color:#C6F24E">INTERVIEWACE</span>
+              </div>
+              <pre id="iaPhoneCode" style="font-family:'JetBrains Mono',monospace;font-size:8.5px;line-height:1.6;color:#D6D6DC;margin:0;white-space:pre-wrap;word-break:break-word;min-height:118px"><span id="iaTyped"></span><span style="display:inline-block;width:5px;height:10px;background:#C6F24E;vertical-align:middle;animation:ia-blink 1.1s step-end infinite"></span></pre>
+              <div style="display:flex;gap:5px;margin-top:8px">
+                <span style="font-family:'JetBrains Mono',monospace;font-size:7.5px;color:#C6F24E;border:1px solid rgba(198,242,78,0.25);border-radius:4px;padding:2px 6px">O(n) time</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:7.5px;color:#C6F24E;border:1px solid rgba(198,242,78,0.25);border-radius:4px;padding:2px 6px">O(1) space</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PLATFORM STRIP ===== -->
+  <div data-reveal style="opacity:1;border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--bg-panel)">
+    <div style="max-width:1180px;margin:0 auto;padding:26px max(28px,4vw);display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-3);margin-right:8px">Works with</span>
+      <sc-for list="{{ platforms }}" as="p" hint-placeholder-count="7">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text-2);padding:0 4px">{{ p }}</span>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ===== PAIN ===== -->
+  <section style="padding:120px max(28px,4vw);max-width:1180px;margin:0 auto">
+    <div data-reveal style="opacity:1;max-width:640px;margin-bottom:56px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);margin-bottom:18px"><span style="color:var(--accent)">01</span> &nbsp;·&nbsp; Sound familiar?</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-0.03em;color:var(--text)">Interviews are broken. Pressure kills performance.</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px">
+      <sc-for list="{{ pains }}" as="pain" hint-placeholder-count="4">
+        <div data-reveal style="opacity:1;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px" onmouseover="this.style.borderColor='var(--line-strong)';this.style.transform='translateY(-3px)'" onmouseout="this.style.borderColor='var(--line)';this.style.transform=''">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);margin-bottom:18px">{{ pain.no }}</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:16px;font-weight:600;color:var(--text-1);margin-bottom:10px;line-height:1.25">{{ pain.title }}</h3>
+          <p style="font-size:13.5px;color:var(--text-2);line-height:1.6">{{ pain.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ===== HOW IT WORKS ===== -->
+  <section id="how" style="background:var(--bg-panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+    <div style="padding:120px max(28px,4vw);max-width:1180px;margin:0 auto">
+      <div data-reveal style="opacity:1;max-width:640px;margin-bottom:64px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);margin-bottom:18px"><span style="color:var(--accent)">02</span> &nbsp;·&nbsp; How it works</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-0.03em;color:var(--text)">Two ways to capture. One silent result.</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:40px;position:relative">
+        <sc-for list="{{ steps }}" as="step" hint-placeholder-count="3">
+          <div data-reveal style="opacity:1">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:20px">
+              <div style="width:44px;height:44px;border-radius:11px;border:1px solid var(--accent-line);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:18px;color:var(--accent);flex-shrink:0">{{ step.n }}</div>
+              <div style="flex:1;height:1px;background:linear-gradient(90deg,var(--line-strong),transparent)"></div>
+            </div>
+            <h3 style="font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;color:var(--text-1);margin-bottom:10px;line-height:1.3">{{ step.title }}</h3>
+            <p style="font-size:14.5px;color:var(--text-2);line-height:1.65">{{ step.body }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES BENTO ===== -->
+  <section id="features" style="padding:120px max(28px,4vw);max-width:1180px;margin:0 auto">
+    <div data-reveal style="opacity:1;max-width:640px;margin-bottom:56px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);margin-bottom:18px"><span style="color:var(--accent)">03</span> &nbsp;·&nbsp; Features</div>
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-0.03em;color:var(--text)">Everything you need. Nothing they'll notice.</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:1fr;gap:16px">
+
+      <!-- A: undetectable, wide -->
+      <div data-reveal style="opacity:1;grid-column:span 3;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;position:relative;overflow:hidden" onmouseover="this.style.borderColor='var(--accent-line)'" onmouseout="this.style.borderColor='var(--line)'">
+        <div style="width:46px;height:46px;border-radius:12px;border:1px solid var(--accent-line);background:var(--accent-soft);display:flex;align-items:center;justify-content:center;margin-bottom:18px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;color:var(--text-1);margin-bottom:9px">Undetectable by design</h3>
+        <p style="font-size:14.5px;color:var(--text-2);line-height:1.65;max-width:420px">Hotkeys are intercepted at the OS level — not inside the browser. No window switching, no tabs, no clipboard access. Screen-monitoring software sees nothing unusual because nothing unusual is happening.</p>
+        <div style="display:inline-flex;align-items:center;gap:7px;margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);border:1px solid var(--accent-line);border-radius:8px;padding:7px 13px">OS-level interception · Zero browser footprint</div>
+      </div>
+
+      <!-- B: streams to phone -->
+      <div data-reveal style="opacity:1;grid-column:span 3;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px" onmouseover="this.style.borderColor='var(--line-strong)'" onmouseout="this.style.borderColor='var(--line)'">
+        <div style="width:46px;height:46px;border-radius:12px;border:1px solid var(--icon-line);background:var(--icon-bg);display:flex;align-items:center;justify-content:center;margin-bottom:18px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-1)"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+        </div>
+        <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;color:var(--text-1);margin-bottom:9px">Streams to your phone</h3>
+        <p style="font-size:14.5px;color:var(--text-2);line-height:1.65;max-width:420px">The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation — formatted to read at a glance. Also works on a second monitor.</p>
+      </div>
+
+      <!-- C/D/E thirds -->
+      <sc-for list="{{ smallFeatures }}" as="f" hint-placeholder-count="3">
+        <div data-reveal style="opacity:1;grid-column:span 2;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:28px" onmouseover="this.style.borderColor='var(--line-strong)'" onmouseout="this.style.borderColor='var(--line)'">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:14px">{{ f.tag }}</div>
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600;color:var(--text-1);margin-bottom:9px;line-height:1.3">{{ f.title }}</h3>
+          <p style="font-size:13.5px;color:var(--text-2);line-height:1.6">{{ f.body }}</p>
+        </div>
+      </sc-for>
+
+      <!-- F: wide closer -->
+      <div data-reveal style="opacity:1;grid-column:span 6;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:30px;display:flex;align-items:center;gap:28px;flex-wrap:wrap" onmouseover="this.style.borderColor='var(--line-strong)'" onmouseout="this.style.borderColor='var(--line)'">
+        <div style="width:46px;height:46px;border-radius:12px;border:1px solid var(--icon-line);background:var(--icon-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-1)"><path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg>
+        </div>
+        <div style="flex:1;min-width:240px">
+          <h3 style="font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:600;color:var(--text-1);margin-bottom:8px">Live calls &amp; recorded tests</h3>
+          <p style="font-size:14.5px;color:var(--text-2);line-height:1.65">On live calls the answer goes to your phone. On recorded tests that flag tab switching — you never switch, so there's nothing to flag. Zoom, Teams, HireVue, Kira &amp; more.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PRICING ===== -->
+  <section id="pricing" style="background:var(--bg-panel);border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+    <div style="padding:120px max(28px,4vw);max-width:1000px;margin:0 auto">
+      <div data-reveal style="opacity:1;text-align:center;margin-bottom:56px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-3);margin-bottom:18px"><span style="color:var(--accent)">04</span> &nbsp;·&nbsp; Pricing</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(30px,4vw,46px);line-height:1.08;letter-spacing:-0.03em;color:var(--text)">Start free. Pay when it matters.</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:stretch">
+        <!-- sessions -->
+        <div data-reveal style="opacity:1;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:32px;display:flex;flex-direction:column">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-2);margin-bottom:18px">Sessions</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:600;color:var(--text)">£2</span><span style="font-size:14px;color:var(--text-3)">/ 3 sessions</span></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:18px">Intro offer — normally £10</div>
+          <p style="font-size:14px;color:var(--text-2);line-height:1.6;margin-bottom:22px">Buy sessions when you need them. No subscription.</p>
+          <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:28px">
+            <sc-for list="{{ sessionFeatures }}" as="ft" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-1)"><span style="color:var(--accent)">✓</span>{{ ft }}</div>
+            </sc-for>
+          </div>
+          <a href="#" style="margin-top:auto;text-align:center;font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:600;color:var(--text-1);padding:13px;border-radius:10px;border:1px solid var(--ghost-line);transition:background .15s" onmouseover="this.style.background='var(--ghost-hover-bg)'" onmouseout="this.style.background='transparent'">Claim £2 intro</a>
+        </div>
+        <!-- unlimited featured -->
+        <div data-reveal style="opacity:1;background:linear-gradient(180deg,var(--accent-soft),var(--card) 42%);border:1px solid var(--accent-line);border-radius:18px;padding:32px;display:flex;flex-direction:column;position:relative">
+          <div style="position:absolute;top:-11px;left:32px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-on);background:var(--accent-bg);padding:4px 11px;border-radius:6px;font-weight:600">Most popular</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);margin-bottom:18px">Unlimited</div>
+          <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px"><span style="font-family:'Space Grotesk',sans-serif;font-size:40px;font-weight:600;color:var(--text)">£20</span><span style="font-size:14px;color:var(--text-3)">/ month</span></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);margin-bottom:18px">Free 1-week trial — no card needed</div>
+          <p style="font-size:14px;color:var(--text-2);line-height:1.6;margin-bottom:22px">For active job seekers. Unlimited sessions, cancel anytime.</p>
+          <div style="display:flex;flex-direction:column;gap:11px;margin-bottom:28px">
+            <sc-for list="{{ unlimitedFeatures }}" as="ft" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-1)"><span style="color:var(--accent)">✓</span>{{ ft }}</div>
+            </sc-for>
+          </div>
+          <a href="#" style="margin-top:auto;text-align:center;font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:600;color:var(--accent-on);background:var(--accent-bg);padding:13px;border-radius:10px;transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 12px 32px var(--lime-cta-shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">Start free week</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section style="padding:130px max(28px,4vw);max-width:760px;margin:0 auto;text-align:center">
+    <div data-reveal style="opacity:1">
+      <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:clamp(32px,4.5vw,52px);line-height:1.06;letter-spacing:-0.03em;color:var(--text);margin-bottom:20px">Your next interview doesn't have to be a gamble.</h2>
+      <p style="font-size:17px;color:var(--text-2);margin-bottom:36px">Join developers who stopped leaving it to chance.</p>
+      <a href="#" style="display:inline-block;font-family:'Hanken Grotesk',sans-serif;font-size:16px;font-weight:600;color:var(--btn-text);background:var(--btn-bg);padding:16px 34px;border-radius:11px;transition:transform .15s,box-shadow .15s" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 14px 36px var(--btn-shadow)'" onmouseout="this.style.transform='';this.style.boxShadow=''">Try free — no card</a>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer style="border-top:1px solid var(--line);padding:40px max(28px,4vw)">
+    <div style="max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap">
+      <a href="#top" style="display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;color:var(--text-1)"><span style="width:8px;height:8px;border-radius:2px;background:var(--dot)"></span>InterviewAce</a>
+      <p style="font-size:13px;color:var(--text-3)">© 2026 InterviewAce. All rights reserved.</p>
+      <div style="display:flex;gap:22px;font-size:13px;color:var(--text-2)">
+        <a href="#" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Support</a>
+        <a href="#pricing" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Pricing</a>
+        <a href="#" onmouseover="this.style.color='var(--text-1)'" onmouseout="this.style.color='var(--text-2)'">Privacy</a>
+      </div>
+    </div>
+  </footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  applyTheme() {
+    const root = document.querySelector('[data-ia]');
+    if (!root) return;
+    const t = this.props.theme || 'dark';
+    if (t === 'light') root.setAttribute('data-theme', 'light');
+    else root.removeAttribute('data-theme');
+  }
+
+  renderVals() {
+    return {
+      platforms: ["LeetCode", "HackerRank", "CoderPad", "HireVue", "Kira", "Zoom", "Teams", "Meet"],
+      pains: [
+        { no: "01", title: "Mind goes completely blank", body: "You've solved this exact problem before. But now, with the interviewer staring, every algorithm just disappears." },
+        { no: "02", title: "Can't think while watched", body: "The screen share is on, the timer's ticking, and you can feel their eyes. Anxiety takes over before you've read the question." },
+        { no: "03", title: "Forget the optimal approach", body: "You know there's a better solution. But under pressure, only the naive brute-force comes to mind." },
+        { no: "04", title: "One mistake ends it", body: "One bad day, one blank moment — and months of prep go to waste. The stakes are too high to leave to chance." }
+      ],
+      steps: [
+        { n: "1", title: "Tap or hold a hidden hotkey", body: "Tap to capture your screen instantly — intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI." },
+        { n: "2", title: "AI reads or listens", body: "Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first — same output, hands-free." },
+        { n: "3", title: "Answer streams to your phone", body: "Results appear in seconds with syntax-highlighted code and explanation. Missed something? Instant replay captures the last 15 seconds of speech." }
+      ],
+      smallFeatures: [
+        { tag: "Capture", title: "Screen or voice", body: "Tap to screenshot the question, or hold to record the interviewer. Both stream the same Claude analysis." },
+        { tag: "Replay", title: "Instant replay", body: "Missed what they said? Replay sends the last 15s of their question to AI after the fact." },
+        { tag: "Analysis", title: "Smart analysis", body: "Auto language detection. Switch between optimal, intermediate, and naive on the fly." }
+      ],
+      sessionFeatures: ["3 full 2.5-hour sessions", "Screen & voice capture", "Instant replay", "Sessions never expire"],
+      unlimitedFeatures: ["Unlimited sessions", "Screen & voice capture", "Instant replay", "Cancel anytime"]
+    };
+  }
+
+  componentDidMount() {
+    this.applyTheme();
+
+    // Scroll reveal (mutates DOM directly; marks shown so it survives re-renders)
+    const reveal = (el) => { el.style.opacity = '1'; el.style.transform = 'none'; el.dataset.shown = '1'; };
+    const els = Array.from(document.querySelectorAll('[data-reveal]'));
+    if ('IntersectionObserver' in window) {
+      this._revObs = new IntersectionObserver((entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) { reveal(e.target); this._revObs.unobserve(e.target); }
+        });
+      }, { threshold: 0.12 });
+      els.forEach((el) => this._revObs.observe(el));
+    } else {
+      els.forEach(reveal);
+    }
+
+    // Typing loop — updates DOM text directly so it never forces a re-render
+    const code = "def reverseList(head):\n    prev = None\n    while head:\n        nxt = head.next\n        head.next = prev\n        prev = head\n        head = nxt\n    return prev";
+    this._typeTimers = [];
+    const out = () => document.getElementById('iaTyped');
+    const startTyping = () => {
+      const el = out();
+      if (!el) return;
+      let i = 0;
+      const tick = () => {
+        const node = out();
+        if (!node) return;
+        if (i > code.length) {
+          const t = setTimeout(() => { node.textContent = ''; startTyping(); }, 4200);
+          this._typeTimers.push(t);
+          return;
+        }
+        node.textContent = code.slice(0, i);
+        const ch = code[i] || "";
+        const delay = ch === "\n" ? 60 : ch === " " ? 8 : 26 + Math.random() * 22;
+        i++;
+        const t = setTimeout(tick, delay);
+        this._typeTimers.push(t);
+      };
+      tick();
+    };
+    const t0 = setTimeout(startTyping, 900);
+    this._typeTimers.push(t0);
+  }
+
+  componentDidUpdate() {
+    this.applyTheme();
+    // Re-render (e.g. theme toggle) resets template inline styles — restore revealed elements
+    document.querySelectorAll('[data-reveal]').forEach((el) => {
+      if (el.dataset.shown === '1') { el.style.opacity = '1'; el.style.transform = 'none'; }
+    });
+  }
+
+  componentWillUnmount() {
+    (this._typeTimers || []).forEach(clearTimeout);
+  }
+}
+</script>
+</body>
+</html>

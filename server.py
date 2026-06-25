@@ -13,7 +13,7 @@ from typing import Optional
 import anthropic
 import redis.asyncio as aioredis
 import uvicorn
-from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -287,6 +287,11 @@ class TextCaptureRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(status_code=204)
+
+
 # Auth routes
 # ---------------------------------------------------------------------------
 
@@ -578,6 +583,34 @@ async def apply_referral_code(
     db.commit()
     track(user.id, "referral_applied")
     return redirect("ref_success", "1")
+
+
+@app.get("/partner")
+async def partner_page(
+    request: Request,
+    user: User = Depends(require_user),
+    joined: str = Query(default=""),
+):
+    return templates.TemplateResponse(request=request, name="partner.html", context={
+        "user": user,
+        "user_email": user.email,
+        "joined": user.partner_waitlist or joined == "1",
+        "show_navbar": True,
+        "account_level": user.account_level.value,
+        "sessions_remaining": user.sessions_remaining,
+    })
+
+
+@app.post("/partner/waitlist")
+async def partner_waitlist(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not user.partner_waitlist:
+        user.partner_waitlist = True
+        db.commit()
+        track(user.id, "partner_waitlist_joined")
+    return RedirectResponse("/partner?joined=1", status_code=303)
 
 
 @app.get("/settings")

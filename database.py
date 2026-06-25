@@ -49,6 +49,7 @@ def init_db():
             ("sub_trial_used",         "BOOLEAN DEFAULT 0"),
             ("sub_invoice_paid",       "BOOLEAN DEFAULT 0"),
             ("retention_offer_claimed","BOOLEAN DEFAULT 0"),
+            ("partner_waitlist",       "BOOLEAN DEFAULT 0"),
         ]
         for col, definition in migrations:
             if col not in existing:
