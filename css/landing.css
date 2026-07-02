@@ -18,7 +18,7 @@
   --accent:       #3F6212;
   --accent-line:  rgba(63,98,18,0.30);
   --accent-soft:  rgba(63,98,18,0.07);
-  --accent-bg:    red;
+  --accent-bg:    #C6F24E;
   --accent-on:    #1A1A18;
   --dot:          #4D7C0F;
   --dot-glow:     none;
@@ -48,7 +48,7 @@
   --accent:       #C6F24E;
   --accent-line:  rgba(198,242,78,0.28);
   --accent-soft:  rgba(198,242,78,0.06);
-  --accent-bg:    red;
+  --accent-bg:    #C6F24E;
   --accent-on:    #0A0A0C;
   --dot:          #C6F24E;
   --dot-glow:     0 0 8px #C6F24E;
