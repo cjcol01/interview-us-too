@@ -1,17 +1,32 @@
 {% extends "base.html" %}
-{% block title %}Verify your email{% endblock %}
+{% block title %}Verify your email — InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/verify_pending.css">{% endblock %}
 {% block content %}
-  <div class="card">
-    <div class="icon">&#9993;</div>
-    <h1>Check your email</h1>
-    <p>We sent a verification link to <span class="email">{{ email }}</span>. Click it to activate your account.</p>
-    <div id="msg" class="msg"></div>
-    <button id="resend-btn" onclick="resend()">Resend verification email</button>
-    <form method="post" action="/auth/logout" style="display:contents">
-      <button type="submit" class="logout">Sign out</button>
-    </form>
+  <div class="vp-wrap">
+    <div class="vp-glow" aria-hidden="true"></div>
+    <div class="vp-card">
+      <!-- mail icon -->
+      <div class="vp-icon-wrap">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+          stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="4" width="20" height="16" rx="2"/>
+          <path d="m22 7-10 5L2 7"/>
+        </svg>
+      </div>
+      <h1 class="vp-heading">Check your email</h1>
+      <p class="vp-body">
+        We sent a verification link to
+        <span class="email">{{ email }}</span>.
+        Click it to activate your account.
+      </p>
+      <div id="msg" class="msg"></div>
+      <button id="resend-btn" class="vp-btn-resend" onclick="resend()">Resend verification email</button>
+      <form method="post" action="/auth/logout" style="display:contents">
+        <button type="submit" class="vp-btn-logout">Sign out</button>
+      </form>
+    </div>
   </div>
+
   <script>
     async function resend() {
       const btn = document.getElementById('resend-btn');

@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block title %}Get started — InterviewAce{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/onboarding.css"><script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="/css/onboarding.css">
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+{% endblock %}
 {% block content %}
   <!-- Trial-only warning modal -->
   <div id="warning-overlay">
     <div class="warning-modal">
-      <div class="wm-icon">&#9888;&#65039;</div>
+      <div class="wm-icon">⚠️</div>
       <h3>Trial is for practice only</h3>
       <p>Your free trial lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
       <div class="wm-actions">
@@ -15,24 +18,26 @@
     </div>
   </div>
 
-  <header>
-    <span class="logo">InterviewAce</span>
-    <a href="/settings" class="skip-link">Skip setup</a>
+  <header class="ob-header">
+    <a class="ob-logo" href="/">
+      <span class="ob-logo-dot"></span>InterviewAce
+    </a>
+    <a href="/settings" class="ob-skip">Skip setup</a>
   </header>
 
-  <main>
-    <div class="intro">
+  <main class="ob-main">
+    <div class="ob-intro">
       <h1>You're in. Let's get set up.</h1>
-      <p>Three quick steps, then your 10-minute trial begins. No card required.</p>
+      <p>A few quick steps, then your 10-minute trial begins. No card required.</p>
     </div>
 
     <!-- Step 1: Install -->
-    <div class="step-card">
-      <div class="step-num">1</div>
-      <div class="step-body">
+    <div class="ob-step-card">
+      <div class="ob-step-num">1</div>
+      <div class="ob-step-body">
         <h2>Install the browser extension</h2>
         <p>Adds a silent background listener to Chrome or Edge. It stays completely invisible during your interview.</p>
-        <a href="https://chrome.google.com/webstore/detail/interviewace/placeholder" target="_blank" class="install-btn">
+        <a href="https://chrome.google.com/webstore/detail/interviewace/placeholder" target="_blank" class="ob-install-btn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="8 17 12 21 16 17"/>
             <line x1="12" y1="12" x2="12" y2="21"/>
@@ -44,68 +49,68 @@
     </div>
 
     <!-- Step 2: Connect -->
-    <div class="step-card">
-      <div class="step-num">2</div>
-      <div class="step-body">
+    <div class="ob-step-card">
+      <div class="ob-step-num">2</div>
+      <div class="ob-step-body">
         <h2>Connect the extension to your account</h2>
         <p>Open this page in the same browser where you installed the extension, then click below to link it automatically.</p>
-        <p>Click the puzzle piece icon in the top right of Chrome, find InterviewAce, and click the pin icon to keep it visible in your toolbar</p>
+        <p>Click the puzzle piece icon in the top right of Chrome, find InterviewAce, and click the pin icon to keep it visible in your toolbar.</p>
         <p>You don't have to do this, but it lets you know if it's running!</p>
-        <div class="connect-wrap">
-          <button id="connect-btn" onclick="connectExtension()">Connect Extension</button>
-          <p id="connect-status"></p>
-          <button class="manual-toggle" onclick="toggleManual()">Set up manually instead</button>
-          <div id="manual-section">
-            <div class="manual-row">
-              <span class="manual-label">API Token</span>
-              <div class="manual-val-row">
-                <code id="api-token" class="manual-code">{{ api_token }}</code>
-                <button class="copy-btn" onclick="copyText('api-token', this)">Copy</button>
+        <div class="ob-connect-wrap">
+          <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
+          <p id="connect-status" class="ob-connect-status"></p>
+          <button class="ob-manual-toggle" onclick="toggleManual()">Set up manually instead</button>
+          <div id="manual-section" class="ob-manual-section">
+            <div class="ob-manual-row">
+              <span class="ob-manual-label">API Token</span>
+              <div class="ob-manual-val-row">
+                <code id="api-token" class="ob-manual-code">{{ api_token }}</code>
+                <button class="ob-copy-btn" onclick="copyText('api-token', this)">Copy</button>
               </div>
             </div>
-            <div class="manual-row">
-              <span class="manual-label">Server URL</span>
-              <div class="manual-val-row">
-                <code id="server-url" class="manual-code">{{ base_url }}</code>
-                <button class="copy-btn" onclick="copyText('server-url', this)">Copy</button>
+            <div class="ob-manual-row">
+              <span class="ob-manual-label">Server URL</span>
+              <div class="ob-manual-val-row">
+                <code id="server-url" class="ob-manual-code">{{ base_url }}</code>
+                <button class="ob-copy-btn" onclick="copyText('server-url', this)">Copy</button>
               </div>
             </div>
-            <p class="manual-hint">Open the extension popup, paste your token and server URL, then click Save.</p>
+            <p class="ob-manual-hint">Open the extension popup, paste your token and server URL, then click Save.</p>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Step 3: Open a problem + feature overview -->
-    <div class="step-card">
-      <div class="step-num">3</div>
-      <div class="step-body">
+    <div class="ob-step-card">
+      <div class="ob-step-num">3</div>
+      <div class="ob-step-body">
         <h2>Open a coding challenge on your computer</h2>
         <p>Visit any of these platforms and open a practice problem as if it's a real interview.</p>
-        <div class="platform-links">
-          <a href="https://leetcode.com/problemset/" target="_blank" class="platform-link">LeetCode</a>
-          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="platform-link">HackerRank</a>
-          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="platform-link">Codility</a>
-          <a href="https://www.codewars.com/kata/search/" target="_blank" class="platform-link">CodeWars</a>
-          <a href="https://codesignal.com/" target="_blank" class="platform-link">CodeSignal</a>
+        <div class="ob-platform-links">
+          <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link">LeetCode</a>
+          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link">HackerRank</a>
+          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="ob-platform-link">Codility</a>
+          <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link">CodeWars</a>
+          <a href="https://codesignal.com/" target="_blank" class="ob-platform-link">CodeSignal</a>
         </div>
-        <p class="hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
-        <p class="hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
-        <p class="hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
-        <p class="hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
-        <p class="hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
 
-        <div class="feature-callout">
-          <div class="fc-title">&#x1F501; Instant replay — lock to your tab first</div>
+        <div class="ob-feature-callout">
+          <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
           <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
         </div>
 
-        <div class="feature-callout">
-          <div class="fc-title">&#x2328;&#xFE0F; Typing mode &amp; passthrough</div>
+        <div class="ob-feature-callout">
+          <div class="ob-fc-title">⌨️ Typing mode &amp; passthrough</div>
           <p>Press the typing hotkey to enter typing mode — type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
-          <div class="passthrough-row">
-            <span class="passthrough-label"><strong>Passthrough mode</strong> — keystrokes also reach the page (useful in online IDEs)</span>
-            <button id="passthrough-btn" class="toggle-pill active" onclick="togglePassthrough()">On</button>
+          <div class="ob-passthrough-row">
+            <span class="ob-passthrough-label"><strong>Passthrough mode</strong> — keystrokes also reach the page (useful in online IDEs)</span>
+            <button id="passthrough-btn" class="ob-toggle-pill active" onclick="togglePassthrough()">On</button>
           </div>
         </div>
 
@@ -127,39 +132,39 @@
     </div>
 
     <!-- Step 4: Move to second device -->
-    <div class="step-card">
-      <div class="step-num">4</div>
-      <div class="step-body">
+    <div class="ob-step-card">
+      <div class="ob-step-num">4</div>
+      <div class="ob-step-body">
         <h2>Move to your phone, second device or monitor</h2>
         <p>That's where the AI answers will appear. Scan the code to open the app already signed in, or copy the URL.</p>
 
-        <div class="qr-wrap" id="qr-wrap">
-          <div class="qr-canvas-wrap">
+        <div class="ob-qr-wrap" id="qr-wrap">
+          <div class="ob-qr-canvas-wrap">
             <div id="qr-canvas"></div>
-            <div id="qr-expired-overlay" class="qr-expired-overlay" style="display:none;">Expired</div>
+            <div id="qr-expired-overlay" class="ob-qr-expired-overlay" style="display:none;">Expired</div>
           </div>
-          <p id="qr-hint" class="qr-hint">Generating secure link…</p>
-          <div id="qr-footer" style="display:none;align-items:center;justify-content:space-between;gap:10px;width:100%;padding-top:6px;">
-            <span id="qr-timer" class="qr-timer"></span>
-            <button class="qr-refresh-btn" onclick="initMobileLink()">&#8635; Refresh QR code</button>
+          <p id="qr-hint" class="ob-qr-hint">Generating secure link…</p>
+          <div id="qr-footer" class="ob-qr-footer" style="display:none;">
+            <span id="qr-timer" class="ob-qr-timer"></span>
+            <button class="ob-qr-refresh-btn" onclick="initMobileLink()">↻ Refresh QR code</button>
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
-          <code id="phone-url" style="font-size:0.78rem;color:#5b9bd5;background:#0d0d0d;padding:7px 10px;border-radius:6px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:'Menlo','Consolas',monospace;">{{ base_url }}/app</code>
-          <button class="copy-btn" onclick="copyMobileUrl(this)">Copy</button>
+        <div class="ob-url-row">
+          <code id="phone-url" class="ob-phone-url">{{ base_url }}/app</code>
+          <button class="ob-copy-btn" onclick="copyMobileUrl(this)">Copy</button>
         </div>
 
         <!-- Before moved -->
         <div id="pre-moved">
-          <button id="moved-btn" onclick="iMoved()" style="background:#0e2e0e;border:1px solid #1e4a1e;border-radius:8px;color:#4caf50;cursor:pointer;padding:10px 18px;font-size:0.9rem;font-weight:600;width:100%;transition:background 0.15s;">I'm on my phone &#8594;</button>
+          <button id="moved-btn" class="ob-moved-btn" onclick="iMoved()">I'm on my phone →</button>
         </div>
 
         <!-- After moved -->
-        <div id="post-moved" style="display:none;flex-direction:column;gap:10px;">
-          <p style="font-size:0.84rem;color:#4caf50;margin:0;">&#10003; On your phone, tap <strong style="color:#6cdf80;">"Start 10-minute trial"</strong> to begin.</p>
-          <p style="font-size:0.78rem;color:#444;margin:0;line-height:1.5;">Close this page and continue on your phone</p>
-          <button onclick="startTrial()" style="background:none;border:none;color:#555;cursor:pointer;font-size:0.8rem;padding:0;text-align:left;text-decoration:underline;text-underline-offset:2px;">Or start here instead</button>
+        <div id="post-moved" class="ob-post-moved" style="display:none;">
+          <p class="ob-post-moved-ok">✓ On your phone, tap <strong>"Start 10-minute trial"</strong> to begin.</p>
+          <p class="ob-post-moved-hint">Close this page and continue on your phone</p>
+          <button onclick="startTrial()" class="ob-start-here-btn">Or start here instead</button>
         </div>
       </div>
     </div>
@@ -172,13 +177,13 @@
       btn.disabled = true;
       btn.textContent = 'Connecting...';
       status.textContent = '';
-      status.style.color = '#444';
+      status.className = 'ob-connect-status';
 
       const timeout = setTimeout(() => {
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
         status.textContent = 'Extension not detected — use manual setup below.';
-        status.style.color = '#e57373';
+        status.className = 'ob-connect-status err';
         document.getElementById('manual-section').classList.add('open');
       }, 2000);
 
@@ -186,9 +191,9 @@
         clearTimeout(timeout);
         btn.disabled = false;
         btn.textContent = 'Connected!';
-        btn.style.background = '#0a1e0a';
+        btn.classList.add('connected');
         status.textContent = "Extension linked. You're good to go.";
-        status.style.color = '#4caf50';
+        status.className = 'ob-connect-status ok';
       }, { once: true });
 
       document.dispatchEvent(new CustomEvent('interview-ace:connect', {
@@ -205,8 +210,8 @@
       navigator.clipboard.writeText(text).then(() => {
         const orig = btn.textContent;
         btn.textContent = 'Copied!';
-        btn.style.color = '#4caf50';
-        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
       });
     }
 
@@ -260,7 +265,7 @@
             clearInterval(_qrTimerTick);
             _mobileUrl = null;
             timerEl.textContent = 'Link expired — click Refresh to get a new one';
-            timerEl.style.color = '#666';
+            timerEl.classList.add('expired');
             document.getElementById('qr-expired-overlay').style.display = 'flex';
           } else {
             timerEl.textContent = fmt(secs);
@@ -276,8 +281,8 @@
       navigator.clipboard.writeText(url).then(() => {
         const orig = btn.textContent;
         btn.textContent = 'Copied!';
-        btn.style.color = '#4caf50';
-        setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
       });
     }
 

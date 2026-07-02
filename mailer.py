@@ -43,6 +43,41 @@ def send_verification_email(to_email: str, token: str) -> None:
         logger.error("[email] failed to send via Resend: %s", e)
 
 
+def send_password_reset_email(to_email: str, token: str) -> None:
+    url = f"{BASE_URL}/reset-password?token={token}"
+    logger.info("[email] password-reset link for %s: %s", to_email, url)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Reset your InterviewAce password",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Reset your password</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Click the button below to set a new password. This link expires in 1 hour.
+              </p>
+              <a href="{url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
+                 border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
+                Reset my password
+              </a>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                Or copy this link into your browser:<br>{url}
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                If you didn't request a password reset, you can safely ignore this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send reset email: %s", e)
+
+
 _REASON_LABELS = {
     "got_job":         "I got the job!",
     "too_expensive":   "Too expensive",

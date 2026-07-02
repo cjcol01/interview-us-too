@@ -64,8 +64,199 @@ def register(test, skip, client=None):
         finally:
             db.close()
 
+    def test_forgot_password_unknown_email():
+        """Submitting an unknown email should still return 200 (no enumeration)."""
+        res = client.post("/auth/forgot-password", json={"email": "nobody@nowhere.invalid"})
+        assert res.status_code == 200
+        assert res.json()["status"] == "ok"
+
+    def test_forgot_password_sets_token():
+        """Submitting a known email sets reset_token + expiry on the user."""
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from models import AccountLevel, User
+        init_db()
+        db = SessionLocal()
+        try:
+            u = User(
+                username="_reset_tok_test", email="_reset_tok@test.internal",
+                full_name="Reset", password_hash=hash_password("oldpass123"),
+                account_level=AccountLevel.trial, email_verified=True,
+            )
+            db.add(u)
+            db.commit()
+            db.refresh(u)
+
+            res = client.post("/auth/forgot-password", json={"email": "_reset_tok@test.internal"})
+            assert res.status_code == 200
+
+            db.expire(u)
+            db.refresh(u)
+            assert u.reset_token is not None
+            assert u.reset_token_expiry is not None
+        finally:
+            u2 = db.query(User).filter(User.username == "_reset_tok_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
+    def test_reset_password_valid_token():
+        """A valid token lets the user set a new password and then log in with it."""
+        from auth import hash_password, verify_password
+        from database import SessionLocal, init_db
+        from datetime import datetime, timedelta
+        from models import AccountLevel, User
+        import secrets
+        init_db()
+        db = SessionLocal()
+        try:
+            token = secrets.token_urlsafe(32)
+            u = User(
+                username="_reset_valid_test", email="_reset_valid@test.internal",
+                full_name="Reset Valid", password_hash=hash_password("oldpass123"),
+                account_level=AccountLevel.trial, email_verified=True,
+                reset_token=token,
+                reset_token_expiry=datetime.utcnow() + timedelta(hours=1),
+            )
+            db.add(u)
+            db.commit()
+
+            res = client.post("/auth/reset-password", json={
+                "token": token,
+                "new_password": "newpass456",
+            })
+            assert res.status_code == 200, res.text
+
+            db.expire(u)
+            db.refresh(u)
+            assert verify_password("newpass456", u.password_hash)
+            assert u.reset_token is None
+            assert u.reset_token_expiry is None
+        finally:
+            u2 = db.query(User).filter(User.username == "_reset_valid_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
+    def test_reset_password_expired_token():
+        """An expired token is rejected with 400."""
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from datetime import datetime, timedelta
+        from models import AccountLevel, User
+        import secrets
+        init_db()
+        db = SessionLocal()
+        try:
+            token = secrets.token_urlsafe(32)
+            u = User(
+                username="_reset_exp_test", email="_reset_exp@test.internal",
+                full_name="Reset Exp", password_hash=hash_password("oldpass123"),
+                account_level=AccountLevel.trial, email_verified=True,
+                reset_token=token,
+                reset_token_expiry=datetime.utcnow() - timedelta(minutes=1),
+            )
+            db.add(u)
+            db.commit()
+
+            res = client.post("/auth/reset-password", json={
+                "token": token,
+                "new_password": "newpass456",
+            })
+            assert res.status_code == 400
+        finally:
+            u2 = db.query(User).filter(User.username == "_reset_exp_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
+    def test_reset_password_invalid_token():
+        """A completely bogus token is rejected with 400."""
+        res = client.post("/auth/reset-password", json={
+            "token": "totallyinvalidtoken",
+            "new_password": "newpass456",
+        })
+        assert res.status_code == 400
+
+    def test_reset_password_too_short():
+        """Password shorter than 8 chars is rejected even with a valid token."""
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from datetime import datetime, timedelta
+        from models import AccountLevel, User
+        import secrets
+        init_db()
+        db = SessionLocal()
+        try:
+            token = secrets.token_urlsafe(32)
+            u = User(
+                username="_reset_short_test", email="_reset_short@test.internal",
+                full_name="Reset Short", password_hash=hash_password("oldpass123"),
+                account_level=AccountLevel.trial, email_verified=True,
+                reset_token=token,
+                reset_token_expiry=datetime.utcnow() + timedelta(hours=1),
+            )
+            db.add(u)
+            db.commit()
+
+            res = client.post("/auth/reset-password", json={
+                "token": token,
+                "new_password": "short",
+            })
+            assert res.status_code == 400
+        finally:
+            u2 = db.query(User).filter(User.username == "_reset_short_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
+    def test_reset_token_single_use():
+        """After a successful reset the token cannot be reused."""
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from datetime import datetime, timedelta
+        from models import AccountLevel, User
+        import secrets
+        init_db()
+        db = SessionLocal()
+        try:
+            token = secrets.token_urlsafe(32)
+            u = User(
+                username="_reset_1use_test", email="_reset_1use@test.internal",
+                full_name="Reset 1use", password_hash=hash_password("oldpass123"),
+                account_level=AccountLevel.trial, email_verified=True,
+                reset_token=token,
+                reset_token_expiry=datetime.utcnow() + timedelta(hours=1),
+            )
+            db.add(u)
+            db.commit()
+
+            res = client.post("/auth/reset-password", json={"token": token, "new_password": "newpass456"})
+            assert res.status_code == 200
+
+            # Second use with the same token should fail
+            res2 = client.post("/auth/reset-password", json={"token": token, "new_password": "anotherpass789"})
+            assert res2.status_code == 400
+        finally:
+            u2 = db.query(User).filter(User.username == "_reset_1use_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
     test("Password hashing and verification",         test_password_hashing)
     test("JWT token creation and decode",             test_token_roundtrip)
     test("Duplicate username rejected",               test_duplicate_username_rejected)
     test("Referral code generation — 10 unique",     test_referral_code_generation)
     test("Referral code is URL-safe",                 test_referral_code_is_url_safe)
+    test("Forgot password — unknown email returns 200",   test_forgot_password_unknown_email)
+    test("Forgot password — known email sets token",      test_forgot_password_sets_token)
+    test("Reset password — valid token works",            test_reset_password_valid_token)
+    test("Reset password — expired token rejected",       test_reset_password_expired_token)
+    test("Reset password — invalid token rejected",       test_reset_password_invalid_token)
+    test("Reset password — too-short password rejected",  test_reset_password_too_short)
+    test("Reset password — token is single-use",          test_reset_token_single_use)

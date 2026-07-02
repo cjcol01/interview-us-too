@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">{% endblock %}
   <title>{% block title %}InterviewAce{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/global.css">
+  <script>(function(){var t=localStorage.getItem('theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
   {% block head %}{% endblock %}
   {% if POSTHOG_KEY %}
   <script>
@@ -21,9 +25,10 @@
 <nav class="navbar" id="navbar">
   <a href="/app" class="navbar-logo">InterviewAce</a>
   <div class="navbar-links" id="navbar-links">
-    <a href="/app" class="navbar-link{% if request.url.path == '/app' %} active{% endif %}">Dashboard</a>
+    <a href="/app" class="navbar-link{% if request.url.path == '/app' %} active{% endif %}">Monitor</a>
     <a href="/settings" class="navbar-link{% if request.url.path == '/settings' %} active{% endif %}">Settings</a>
     <a href="/referral" class="navbar-link{% if request.url.path == '/referral' %} active{% endif %}">Referral</a>
+    <a href="/faq" class="navbar-link{% if request.url.path == '/faq' %} active{% endif %}">FAQ</a>
     {% if account_level != 'unlimited' %}
     <a href="/pricing" class="navbar-link{% if request.url.path == '/pricing' %} active{% endif %}">{% if sessions_remaining and sessions_remaining > 0 %}Upgrade{% else %}Pricing{% endif %}</a>
     {% endif %}

@@ -7,88 +7,100 @@
 {% endblock %}
 {% block content %}
 
-  <nav>
-    <a class="logo" href="/">InterviewAce</a>
+  <nav class="au-nav">
+    <a class="au-logo" href="/">
+      <span class="au-logo-dot"></span>InterviewAce
+    </a>
   </nav>
 
-  <main>
-    <div class="badge">Developer verification</div>
-    <h1>Built by <span>CJ Coleman</span></h1>
-    <p class="subtitle">
-      This page exists as a portfolio reference for employers. It verifies ownership of this project and provides contact details for anyone who wants to get in touch.
+  <main class="au-main">
+
+    <span class="au-badge">Developer verification</span>
+
+    <h1 class="au-heading">Built by <span class="au-name">CJ Coleman</span></h1>
+    <p class="au-subtitle">
+      This page exists as a portfolio reference for employers. It verifies ownership of this project
+      and provides contact details for anyone who wants to get in touch.
     </p>
 
-    <div class="commission-notice">
-      <strong>Commission notice:</strong> This project was designed and built on commission. The product, branding, and business logic belong to the client. This page is solely for developer attribution and is not linked from any public part of the site.
+    <div class="au-notice">
+      <strong>Commission notice:</strong> This project was designed and built on commission. The product,
+      branding, and business logic belong to the client. This page is solely for developer attribution
+      and is not linked from any public part of the site.
     </div>
 
-    <div class="section-label">About the developer</div>
-    <div class="info-grid">
-      <div class="info-card">
-        <div class="info-card-label">Name</div>
-        <div class="info-card-value">CJ Coleman</div>
+    <div class="au-section-label">About the developer</div>
+    <div class="au-info-grid">
+      <div class="au-info-card">
+        <div class="au-info-label">Name</div>
+        <div class="au-info-value">CJ Coleman</div>
       </div>
-      <div class="info-card">
-        <div class="info-card-label">Email</div>
-        <div class="info-card-value"><a href="mailto:cj2014999@hotail.com">cj2014999@hotail.com</a></div>
+      <div class="au-info-card">
+        <div class="au-info-label">Email</div>
+        <div class="au-info-value"><a href="mailto:cj2014999@hotail.com">cj2014999@hotail.com</a></div>
       </div>
-      <div class="info-card">
-        <div class="info-card-label">GitHub</div>
-        <div class="info-card-value"><a href="https://github.com/cjcol01" target="_blank" rel="noopener">github.com/cjcol01</a></div>
+      <div class="au-info-card">
+        <div class="au-info-label">GitHub</div>
+        <div class="au-info-value"><a href="https://github.com/cjcol01" target="_blank" rel="noopener">github.com/cjcol01</a></div>
       </div>
-      <div class="info-card">
-        <div class="info-card-label">Built</div>
-        <div class="info-card-value">2025 &ndash; 2026</div>
-      </div>
-    </div>
-
-    <div class="stack-section">
-      <div class="section-label">Tech stack</div>
-      <div class="tag-list">
-        <span class="tag">Python</span>
-        <span class="tag">FastAPI</span>
-        <span class="tag">SQLAlchemy</span>
-        <span class="tag">Jinja2</span>
-        <span class="tag">Anthropic Claude API</span>
-        <span class="tag">Stripe</span>
-        <span class="tag">Server-Sent Events</span>
-        <span class="tag">Chrome Extension (Manifest V3)</span>
-        <span class="tag">HTML / CSS / Vanilla JS</span>
-        <span class="tag">SQLite</span>
-        <span class="tag">Uvicorn</span>
+      <div class="au-info-card">
+        <div class="au-info-label">Built</div>
+        <div class="au-info-value">2025 &ndash; 2026</div>
       </div>
     </div>
 
-    <div class="stack-section">
-      <div class="section-label">What was built</div>
-      <div class="tag-list">
-        <span class="tag">Full-stack web application</span>
-        <span class="tag">User auth &amp; email verification</span>
-        <span class="tag">Subscription billing (Stripe)</span>
-        <span class="tag">AI screenshot analysis</span>
-        <span class="tag">Real-time SSE streaming</span>
-        <span class="tag">Browser extension</span>
-        <span class="tag">Referral system</span>
-        <span class="tag">Transactional email</span>
+    <div class="au-stack-section">
+      <div class="au-section-label">Tech stack</div>
+      <div class="au-tag-list">
+        <span class="au-tag">Python</span>
+        <span class="au-tag">FastAPI</span>
+        <span class="au-tag">SQLAlchemy</span>
+        <span class="au-tag">Jinja2</span>
+        <span class="au-tag">Anthropic Claude API</span>
+        <span class="au-tag">Stripe</span>
+        <span class="au-tag">Server-Sent Events</span>
+        <span class="au-tag">Chrome Extension (Manifest V3)</span>
+        <span class="au-tag">HTML / CSS / Vanilla JS</span>
+        <span class="au-tag">SQLite</span>
+        <span class="au-tag">Uvicorn</span>
       </div>
     </div>
 
-    <hr class="divider">
+    <div class="au-stack-section">
+      <div class="au-section-label">What was built</div>
+      <div class="au-tag-list">
+        <span class="au-tag">Full-stack web application</span>
+        <span class="au-tag">User auth &amp; email verification</span>
+        <span class="au-tag">Subscription billing (Stripe)</span>
+        <span class="au-tag">AI screenshot analysis</span>
+        <span class="au-tag">Real-time SSE streaming</span>
+        <span class="au-tag">Browser extension</span>
+        <span class="au-tag">Referral system</span>
+        <span class="au-tag">Transactional email</span>
+      </div>
+    </div>
 
-    <div class="verify-block">
+    <hr class="au-divider">
+
+    <div class="au-employers">
       <h2>For employers</h2>
       <p>
-        I wrote every line of this project &mdash; backend, frontend, extension, billing integration, and AI pipeline. Feel free to reach out if you'd like to discuss the work, ask for a code walkthrough, or have any questions about my process.
+        I wrote every line of this project &mdash; backend, frontend, extension, billing integration,
+        and AI pipeline. Feel free to reach out if you'd like to discuss the work, ask for a code
+        walkthrough, or have any questions about my process.
       </p>
-      <div class="contact-row">
+      <div class="au-contact-row">
         <a class="btn btn-primary" href="mailto:cjcoleman267@gmail.com">Email me</a>
         <a class="btn btn-outline" href="https://github.com/cjcol01" target="_blank" rel="noopener">GitHub &rarr;</a>
       </div>
     </div>
+
   </main>
 
-  <footer>
-    <a class="logo" href="/">InterviewAce</a>
+  <footer class="au-footer">
+    <a class="au-logo" href="/">
+      <span class="au-logo-dot"></span>InterviewAce
+    </a>
     <p>&copy; 2026 InterviewAce. All rights reserved.</p>
   </footer>
 

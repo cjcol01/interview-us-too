@@ -42,10 +42,10 @@
       <div class="t-icon">💻</div>
       <h2>Open a practice problem</h2>
       <p>Visit a coding platform and open a problem as if it's a real interview. Come back here once you have one on screen.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:18px;">
-        <a href="https://leetcode.com/problemset/" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">LeetCode ↗</a>
-        <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">HackerRank ↗</a>
-        <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" style="background:#1a1a2e;border:1px solid #2a2a4a;border-radius:7px;color:#7b8cff;padding:7px 13px;font-size:0.82rem;text-decoration:none;">Codility ↗</a>
+      <div class="tutorial-platform-links">
+        <a href="https://leetcode.com/problemset/" target="_blank" class="tutorial-platform-link">LeetCode ↗</a>
+        <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="tutorial-platform-link">HackerRank ↗</a>
+        <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="tutorial-platform-link">Codility ↗</a>
       </div>
       <button class="t-btn-primary" onclick="advanceTutorial(3)">I have a problem open →</button>
     </div>
@@ -149,7 +149,7 @@
   <!-- Trial countdown bar (shown for trial users only) -->
   <div id="trial-bar">
     <span>Free trial &mdash; <strong id="trial-time"></strong> remaining</span>
-    <a href="/trial-end" style="color:#5b9bd5;text-decoration:none;font-size:0.75rem;white-space:nowrap;">End trial &rarr;</a>
+    <a href="/trial-end" class="trial-bar-link">End trial &rarr;</a>
   </div>
 
   <main>
@@ -205,6 +205,7 @@
     const transcBoxEl    = document.getElementById('transcription-box');
     const transcLabelEl  = document.getElementById('transcription-label');
     const transcTextEl   = document.getElementById('transcription-text');
+    const clearBtnEl     = document.getElementById('clear-btn');
     let _streamBuffer = '';
 
     const wrapEl        = document.getElementById('screenshot-wrap');
@@ -602,18 +603,16 @@
       _replayBadge.style.display = 'flex';
       if (status.state === 'armed') {
         _replayBadge.innerHTML =
-          '<span style="width:6px;height:6px;border-radius:50%;background:#4caf50;flex-shrink:0;"></span>' +
-          '<span style="color:var(--muted)">replay</span>';
+          '<span class="rb-dot"></span>' +
+          '<span class="rb-label">replay</span>';
       } else if (status.state === 'stream-ended') {
         _replayBadge.innerHTML =
-          '<span style="color:#e57373;font-size:0.7rem;">replay lost</span>' +
-          '<button onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))" ' +
-          'style="background:none;border:none;color:#5b9bd5;cursor:pointer;font-size:0.7rem;padding:0;text-decoration:underline;">re-lock</button>';
+          '<span class="rb-err">replay lost</span>' +
+          '<button class="rb-relock" onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))">re-lock</button>';
       } else if (status.state === 'error') {
         _replayBadge.innerHTML =
-          '<span style="color:#e57373;font-size:0.7rem;">replay error</span>' +
-          '<button onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))" ' +
-          'style="background:none;border:none;color:#5b9bd5;cursor:pointer;font-size:0.7rem;padding:0;text-decoration:underline;">re-lock</button>';
+          '<span class="rb-err">replay error</span>' +
+          '<button class="rb-relock" onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))">re-lock</button>';
       } else {
         _replayBadge.style.display = 'none';
       }

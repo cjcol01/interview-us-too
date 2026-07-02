@@ -2,310 +2,432 @@
 {% block title %}Settings — InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/settings.css">{% endblock %}
 {% block content %}
-  <main>
 
-    {% if offer_claimed %}
-    <div class="offer-claimed-banner" id="offer-claimed-banner">
-      &#10003; 50% off applied to your next month — enjoy!
-    </div>
-    <script>
-      setTimeout(() => {
-        const b = document.getElementById('offer-claimed-banner');
-        if (b) { b.style.transition = 'opacity 0.5s'; b.style.opacity = '0'; setTimeout(() => b.remove(), 500); }
-      }, 4000);
-    </script>
-    {% endif %}
+  {% if offer_claimed %}
+  <div class="offer-claimed-banner" id="offer-claimed-banner">
+    ✓ 50% off applied to your next month — enjoy!
+  </div>
+  <script>
+    setTimeout(() => {
+      const b = document.getElementById('offer-claimed-banner');
+      if (b) { b.style.transition = 'opacity .5s'; b.style.opacity = '0'; setTimeout(() => b.remove(), 500); }
+    }, 4000);
+  </script>
+  {% endif %}
 
-    <!-- Account -->
-    <div class="section-label">Account</div>
-    <div class="card">
-      <div class="row">
-        <span class="row-label">Name</span>
-        <span class="row-value">{{ full_name }}</span>
-      </div>
-      <div class="row">
-        <span class="row-label">Username</span>
-        <span class="row-value">{{ username }}</span>
-      </div>
-      <div class="row">
-        <span class="row-label">Email</span>
-        <span class="row-value">{{ email }}</span>
-      </div>
-      <div class="row">
-        <span class="row-label">Plan</span>
-        <span>
-          {% if account_level == 'unlimited' %}
-            <span class="badge-unlimited"><span>Unlimited</span></span>
-          {% elif account_level == 'paid' %}
-            <span class="badge-paid">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }} left</span>
-          {% else %}
-            <span style="font-size:0.85rem;color:var(--muted);">{{ account_level|capitalize }}</span>
-          {% endif %}
-        </span>
-      </div>
-    </div>
+  <div class="settings-wrap">
+    <div class="settings-grid">
 
-    <!-- Billing -->
-    <div class="section-label">Billing</div>
-    <div class="card">
-      {% if account_level == 'unlimited' %}
-        <div class="row">
-          <span class="row-label">Status</span>
-          {% if sub_cancel_at %}
-            <span style="font-size:0.82rem;color:var(--danger);font-weight:600;">Cancels {{ sub_cancel_at }}</span>
-          {% else %}
-            <span style="font-size:0.82rem;color:var(--accent);font-weight:600;">Active subscription</span>
-          {% endif %}
+      <!-- ══ LEFT SIDEBAR ══════════════════════════════════════════ -->
+      <aside class="settings-sidebar" id="settings-sidebar">
+
+        <!-- Identity card -->
+        <div class="sidebar-identity">
+          <div class="sidebar-avatar">{{ (full_name[0] if full_name else username[0])|upper }}</div>
+          <div class="sidebar-name">{{ full_name or username }}</div>
+          <div class="sidebar-uname">@{{ username }}</div>
+          <div class="sidebar-plan">
+            {% if account_level == 'unlimited' %}
+              <span class="plan-pill pill-unlimited">Unlimited</span>
+            {% elif account_level == 'paid' %}
+              <span class="plan-pill pill-paid">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}</span>
+            {% else %}
+              <span class="plan-pill pill-free">{{ account_level|capitalize }}</span>
+            {% endif %}
+          </div>
         </div>
-        {% if not sub_cancel_at %}
-          <a class="action-row cancel" href="/billing/cancel">
-            Cancel subscription <span class="chevron">›</span>
-          </a>
-        {% else %}
-          <a class="action-row upgrade" href="/billing/portal">
-            Manage billing <span class="chevron">›</span>
-          </a>
-        {% endif %}
-      {% elif account_level == 'paid' %}
-        <div class="row">
-          <span class="row-label">Sessions</span>
-          <span class="row-value">{{ sessions_remaining }} remaining</span>
-        </div>
-        <a class="action-row upgrade" href="/pricing">
-          Top up sessions <span class="chevron">›</span>
-        </a>
-        <a class="action-row upgrade-sub" href="/billing/checkout?plan=subscription">
-          Upgrade to Unlimited <span class="chevron">›</span>
-        </a>
-      {% else %}
-        <a class="action-row upgrade" href="/pricing">
-          Upgrade plan <span class="chevron">›</span>
-        </a>
-      {% endif %}
-    </div>
 
-    <!-- Referral -->
-    <div class="section-label">Refer &amp; Earn</div>
-    <div class="card">
-      <a class="action-row upgrade" href="/referral">
-        Share your link, earn up to £5 per friend <span class="chevron">›</span>
-      </a>
-      {% if ref_success %}
-        <div class="ref-feedback success">Referral applied — £5 off your first full payment at checkout.</div>
-      {% elif is_referred %}
-        <div class="ref-feedback applied">&#10003; Referral applied — £5 off your first full payment.</div>
-      {% else %}
-        <div class="ref-form">
-          <div style="font-size:0.78rem;color:var(--muted);">Have a friend's referral code or link?</div>
-          <form action="/referral/apply" method="post">
-            <input type="hidden" name="source" value="settings">
-            <div class="ref-form-row">
-              <input class="ref-input" type="text" name="code" placeholder="Code or full link" maxlength="200" autocomplete="off" required>
-              <button class="ref-apply-btn" type="submit">Apply</button>
+        <!-- Nav -->
+        <nav class="sidebar-nav" id="sidebar-nav">
+          <button class="sidebar-nav-btn active" data-section="response"    onclick="sidebarScroll('response')">How answers appear</button>
+          <button class="sidebar-nav-btn"         data-section="appearance" onclick="sidebarScroll('appearance')">Appearance</button>
+          <button class="sidebar-nav-btn"         data-section="capture"    onclick="sidebarScroll('capture')">Capture &amp; replay</button>
+          <button class="sidebar-nav-btn"         data-section="shortcuts"  onclick="sidebarScroll('shortcuts')">Shortcuts</button>
+          <button class="sidebar-nav-btn"         data-section="extension"  onclick="sidebarScroll('extension')">Extension</button>
+          <button class="sidebar-nav-btn"         data-section="account"    onclick="sidebarScroll('account')">Account</button>
+          <button class="sidebar-nav-btn"         data-section="billing"    onclick="sidebarScroll('billing')">Billing &amp; referral</button>
+        </nav>
+
+        <!-- Sign out -->
+        <form action="/auth/logout" method="post" style="margin-top:auto;">
+          <button type="submit" class="sidebar-signout">Sign out</button>
+        </form>
+
+      </aside>
+
+      <!-- ══ MAIN CONTENT ══════════════════════════════════════════ -->
+      <div class="settings-content">
+
+        <!-- ─── 1. How answers appear ────────────────────────────── -->
+        <section class="settings-section" id="response">
+          <div class="section-hd">
+            <h2 class="section-title">How answers appear</h2>
+            <p class="section-sub">Format and depth for every AI response.</p>
+          </div>
+
+          <div class="response-grid">
+            <!-- Controls column -->
+            <div class="response-controls">
+
+              <!-- Style pills -->
+              <div class="ctrl-group">
+                <div class="ctrl-label">Response style</div>
+                <div class="style-pills" id="style-pills">
+                  {% set styles = [
+                    ('conversational', 'Conversational'),
+                    ('bullets',        'Bullet points'),
+                    ('summary',        'Summary'),
+                    ('one_liner',      'One liner'),
+                  ] %}
+                  {% for value, label in styles %}
+                    <button
+                      class="style-pill{% if response_style == value %} active{% endif %}"
+                      data-style="{{ value }}"
+                      onclick="setStyle('{{ value }}', this)"
+                    >{{ label }}</button>
+                  {% endfor %}
+                </div>
+                <div id="style-status" class="save-status"></div>
+              </div>
+
+              <!-- Complexity stepper -->
+              <div class="ctrl-group">
+                <div class="ctrl-label">Detail level</div>
+                <div class="complexity-row">
+                  <button class="cmplx-btn" onclick="changeComplexity(-1)" aria-label="decrease complexity">−</button>
+                  <div class="cmplx-dots">
+                    <span class="cmplx-dot{% if complexity >= 1 %} on{% endif %}" id="cdot-1"></span>
+                    <span class="cmplx-dot{% if complexity >= 2 %} on{% endif %}" id="cdot-2"></span>
+                    <span class="cmplx-dot{% if complexity >= 3 %} on{% endif %}" id="cdot-3"></span>
+                  </div>
+                  <button class="cmplx-btn" onclick="changeComplexity(1)" aria-label="increase complexity">+</button>
+                </div>
+                <div id="complexity-val" class="complexity-level-name"></div>
+                <div id="complexity-desc" class="complexity-desc"></div>
+                <div id="complexity-status" class="save-status"></div>
+              </div>
+
+            </div><!-- /response-controls -->
+
+            <!-- Live preview column -->
+            <div class="response-preview">
+              <div class="preview-card">
+                <div class="preview-card-header">
+                  <span class="preview-card-title">Preview · Two Sum</span>
+                  <div class="preview-tags" id="preview-tags"></div>
+                </div>
+                <div class="preview-body" id="preview-body"></div>
+              </div>
             </div>
-          </form>
-          {% if ref_error_msg %}
-            <div class="ref-feedback error">{{ ref_error_msg }}</div>
-          {% endif %}
-        </div>
-      {% endif %}
-    </div>
-
-    <!-- Extension -->
-    <div class="section-label">Browser Extension</div>
-    <div class="card">
-
-      <!-- Connected state (shown by JS if extension responds) -->
-      <div id="ext-connected" class="ext-connected" style="display:none;">
-        <span class="dot"></span>
-        Extension connected
-        <button class="reconnect" onclick="showConnect()">reconnect</button>
-      </div>
-
-      <!-- Connect row (shown if not connected) -->
-      <div id="connect-row">
-        <p>Open this page in the browser where your extension is installed, then click below.</p>
-        <button id="connect-btn" onclick="connectExtension()">Connect Extension</button>
-        <p id="connect-status"></p>
-      </div>
-
-      <!-- API token fallback -->
-      <details id="fallback-details">
-        <summary class="fallback-toggle">
-          Not working? Try the manual token <span class="arrow">›</span>
-        </summary>
-        <div class="fallback-body">
-          <p>Paste this token into the extension popup along with your server URL.</p>
-          <div class="token-row">
-            <code id="api-token">{{ api_token }}</code>
-            <button class="btn-sm" onclick="copyText('api-token', this)">Copy</button>
           </div>
-          <div class="regen-row">
-            <button class="btn-sm" id="regen-btn" onclick="regenToken()">Regenerate token</button>
+
+        </section>
+
+        <!-- ─── 2. Appearance ───────────────────────────────────── -->
+        <section class="settings-section" id="appearance">
+          <div class="section-hd">
+            <h2 class="section-title">Appearance</h2>
+            <p class="section-sub">Theme for all app pages. The landing page has its own toggle.</p>
           </div>
-        </div>
-      </details>
-
-    </div>
-
-    <!-- Response Style -->
-    <div class="section-label">AI Response Style</div>
-    <div class="card">
-      <div class="style-row">
-        <span class="row-label" style="color:var(--muted);font-size:0.82rem;">How should responses be formatted?</span>
-        <div class="style-pills" id="style-pills">
-          {% set styles = [
-            ('conversational', 'Conversational'),
-            ('bullets',        'Bullet points'),
-            ('summary',        'Summary'),
-            ('one_liner',      'One liner'),
-          ] %}
-          {% for value, label in styles %}
-            <button
-              class="style-pill {% if response_style == value %}active{% endif %}"
-              data-style="{{ value }}"
-              onclick="setStyle('{{ value }}', this)"
-            >{{ label }}</button>
-          {% endfor %}
-        </div>
-      </div>
-      <div id="style-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
-    </div>
-
-    <!-- Complexity -->
-    <div class="section-label">Response Complexity</div>
-    <div class="card">
-      <div class="row">
-        <div>
-          <span class="row-label">Detail level</span>
-          <div id="complexity-desc" style="font-size:0.75rem;color:var(--muted);margin-top:2px;line-height:1.4;"></div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-          <button class="hotkey-reset" onclick="changeComplexity(-1)">−</button>
-          <span id="complexity-val" style="font-size:1.1rem;font-weight:700;color:var(--accent2);min-width:16px;text-align:center;">{{ complexity }}</span>
-          <button class="hotkey-reset" onclick="changeComplexity(1)">+</button>
-        </div>
-      </div>
-      <div id="complexity-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
-    </div>
-
-    <!-- Instant Replay -->
-    <div class="section-label">Instant Replay</div>
-    <div class="card">
-      <div class="row" style="align-items:flex-start;">
-        <div>
-          <span class="row-label">Enable instant replay</span>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
-            Buffers audio from a locked browser tab. Lock a tab in the extension popup,<br>
-            then press the hotkey to send the last N seconds to Whisper + Claude.<br>
-            Audio never leaves your browser unless you press the hotkey.
+          <div class="settings-card">
+            <div class="card-row">
+              <div class="card-row-left">
+                <div class="card-row-label">Light mode</div>
+                <div class="card-row-desc">Switch between the dark and light theme. Your preference is saved locally.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="theme-toggle" onchange="onThemeToggle()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
           </div>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="replay-toggle" {% if replay_enabled %}checked{% endif %} onchange="onReplayToggle()">
-          <span class="toggle-track"></span>
-        </label>
-      </div>
-      <div class="row" id="replay-seconds-row" {% if not replay_enabled %}style="opacity:0.4;pointer-events:none;"{% endif %}>
-        <span class="row-label">Buffer window</span>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input
-            type="range" id="replay-slider"
-            min="1" max="30" value="{{ replay_seconds }}"
-            style="width:110px;"
-            oninput="document.getElementById('replay-seconds-label').textContent=this.value+'s'"
-            onchange="saveReplay()"
-          >
-          <span id="replay-seconds-label" style="font-size:0.82rem;min-width:28px;">{{ replay_seconds }}s</span>
-        </div>
-      </div>
-      <div id="replay-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
-    </div>
+        </section>
 
-    <!-- Typing Mode -->
-    <div class="section-label">Typing Mode</div>
-    <div class="card">
-      <div class="row" style="align-items:flex-start;">
-        <div>
-          <span class="row-label">Passthrough</span>
-          <div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">
-            Press the typing hotkey to start capturing what you type, press again to send it.<br>
-            <strong>On</strong> — your typing also appears in the page.
-            <strong>Off</strong> — your typing is hidden and sent only to your phone.
+        <!-- ─── 3. Capture & replay ──────────────────────────────── -->
+        <section class="settings-section" id="capture">
+          <div class="section-hd">
+            <h2 class="section-title">Capture &amp; replay</h2>
           </div>
-        </div>
-        <label class="toggle-switch">
-          <input type="checkbox" id="passthrough-toggle" {% if typing_passthrough %}checked{% endif %} onchange="savePassthrough()">
-          <span class="toggle-track"></span>
-        </label>
-      </div>
-      <div id="passthrough-status" style="padding:0 16px 10px;font-size:0.75rem;color:var(--muted);display:none;"></div>
-    </div>
 
-    <!-- Shortcuts -->
-    <div class="section-label">Shortcuts</div>
-    <div class="card">
-      <div class="row">
-        <span class="row-label">Screen capture</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="hotkey-btn" id="hk-capture" onclick="recordHotkey('capture', this)">{{ hotkey_capture }}</button>
-          <button class="hotkey-reset" onclick="resetHotkey('capture')">reset</button>
-        </div>
-      </div>
-      <div class="row">
-        <span class="row-label">Voice capture</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="hotkey-btn" id="hk-audio" onclick="recordHotkey('audio', this)">{{ hotkey_audio }}</button>
-          <button class="hotkey-reset" onclick="resetHotkey('audio')">reset</button>
-        </div>
-      </div>
-      <div class="row">
-        <span class="row-label">Toggle on/off</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
-          <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
-        </div>
-      </div>
-      <div class="row">
-        <span class="row-label">Instant replay</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="hotkey-btn" id="hk-replay" onclick="recordHotkey('replay', this)">{{ hotkey_replay }}</button>
-          <button class="hotkey-reset" onclick="resetHotkey('replay')">reset</button>
-        </div>
-      </div>
-      <div class="row">
-        <span class="row-label">Typing mode</span>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <button class="hotkey-btn" id="hk-typing" onclick="recordHotkey('typing', this)">{{ hotkey_typing }}</button>
-          <button class="hotkey-reset" onclick="resetHotkey('typing')">reset</button>
-        </div>
-      </div>
-      <div id="hk-status" style="padding:8px 16px;font-size:0.75rem;color:var(--muted);display:none;"></div>
-    </div>
+          <!-- Replay toggle -->
+          <div class="settings-card">
+            <div class="card-row">
+              <div class="card-row-left">
+                <div class="card-row-label">Instant replay</div>
+                <div class="card-row-desc">Buffers audio from a locked browser tab. Lock a tab in the extension popup, then press the hotkey to send the last N seconds to Whisper + Claude. Audio never leaves your browser unless you press the hotkey.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="replay-toggle" {% if replay_enabled %}checked{% endif %} onchange="onReplayToggle()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="card-row" id="replay-seconds-row" {% if not replay_enabled %}style="opacity:.4;pointer-events:none;"{% endif %}>
+              <span class="card-row-label">Buffer window</span>
+              <div class="slider-group">
+                <input type="range" id="replay-slider" min="1" max="30" value="{{ replay_seconds }}"
+                  oninput="document.getElementById('replay-seconds-label').textContent=this.value+'s'"
+                  onchange="saveReplay()">
+                <span id="replay-seconds-label" class="slider-label">{{ replay_seconds }}s</span>
+              </div>
+            </div>
+            <div id="replay-status" class="save-status" style="padding:0 0 4px;"></div>
+          </div>
 
-    <!-- Actions -->
-    <div class="card">
-      <form action="/auth/logout" method="post">
-        <button type="submit" class="action-row signout">
-          Sign out <span class="chevron">›</span>
-        </button>
-      </form>
-    </div>
+          <!-- Passthrough toggle -->
+          <div class="settings-card">
+            <div class="card-row">
+              <div class="card-row-left">
+                <div class="card-row-label">Typing passthrough</div>
+                <div class="card-row-desc">Press the typing hotkey to start capturing what you type, press again to send it. <strong>On</strong> — your typing also appears in the page. <strong>Off</strong> — your typing is hidden and sent only to your phone.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="passthrough-toggle" {% if typing_passthrough %}checked{% endif %} onchange="savePassthrough()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div id="passthrough-status" class="save-status" style="padding:0 0 4px;"></div>
+          </div>
 
-  </main>
+        </section>
+
+        <!-- ─── 3. Shortcuts ─────────────────────────────────────── -->
+        <section class="settings-section" id="shortcuts">
+          <div class="section-hd">
+            <h2 class="section-title">Shortcuts</h2>
+          </div>
+          <div class="settings-card">
+            <div class="hk-row">
+              <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-capture"></span>
+                <span class="hk-label">Screen capture</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-capture" onclick="recordHotkey('capture', this)">{{ hotkey_capture }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('capture')">reset</button>
+              </div>
+            </div>
+            <div class="hk-row">
+              <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-audio"></span>
+                <span class="hk-label">Voice capture</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-audio" onclick="recordHotkey('audio', this)">{{ hotkey_audio }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('audio')">reset</button>
+              </div>
+            </div>
+            <div class="hk-row">
+              <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-toggle"></span>
+                <span class="hk-label">Toggle on/off</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
+              </div>
+            </div>
+            <div class="hk-row">
+              <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-replay"></span>
+                <span class="hk-label">Instant replay</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-replay" onclick="recordHotkey('replay', this)">{{ hotkey_replay }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('replay')">reset</button>
+              </div>
+            </div>
+            <div class="hk-row">
+              <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-typing"></span>
+                <span class="hk-label">Typing mode</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-typing" onclick="recordHotkey('typing', this)">{{ hotkey_typing }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('typing')">reset</button>
+              </div>
+            </div>
+            <div id="hk-status" class="save-status" style="padding:8px 0 0;"></div>
+          </div>
+        </section>
+
+        <!-- ─── 4. Extension ─────────────────────────────────────── -->
+        <section class="settings-section" id="extension">
+          <div class="section-hd">
+            <h2 class="section-title">Extension</h2>
+          </div>
+          <div class="settings-card">
+
+            <!-- Connected state -->
+            <div id="ext-connected" class="ext-connected" style="display:none;">
+              <span class="dot"></span>
+              Extension connected
+              <button class="reconnect" onclick="showConnect()">reconnect</button>
+            </div>
+
+            <!-- Connect row -->
+            <div id="connect-row" style="display:flex;flex-direction:column;gap:12px;">
+              <p class="card-row-desc">Open this page in the browser where your extension is installed, then click below.</p>
+              <button id="connect-btn" class="settings-btn" onclick="connectExtension()">Connect Extension</button>
+              <p id="connect-status" class="save-status"></p>
+            </div>
+
+            <!-- API token fallback -->
+            <details id="fallback-details" class="fallback-details">
+              <summary class="fallback-toggle">
+                Not working? Try the manual token <span class="arrow">›</span>
+              </summary>
+              <div class="fallback-body">
+                <p class="card-row-desc">Paste this token into the extension popup along with your server URL.</p>
+                <div class="token-row">
+                  <code id="api-token" class="token-code">{{ api_token }}</code>
+                  <button class="settings-btn-sm" onclick="copyText('api-token', this)">Copy</button>
+                </div>
+                <div class="regen-row">
+                  <button class="settings-btn-sm" id="regen-btn" onclick="regenToken()">Regenerate token</button>
+                </div>
+              </div>
+            </details>
+
+          </div>
+        </section>
+
+        <!-- ─── 5. Account ───────────────────────────────────────── -->
+        <section class="settings-section" id="account">
+          <div class="section-hd">
+            <h2 class="section-title">Account</h2>
+          </div>
+          <div class="settings-card">
+            <div class="account-fields">
+              <div class="field-group">
+                <label class="field-label" for="account-name">Full name</label>
+                <input class="field-input" id="account-name" type="text" name="full_name" value="{{ full_name or '' }}" autocomplete="name">
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="account-username">Username</label>
+                <input class="field-input" id="account-username" type="text" name="username" value="{{ username }}" autocomplete="username">
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="account-email">Email</label>
+                <input class="field-input" id="account-email" type="email" name="email" value="{{ email }}" autocomplete="email">
+              </div>
+            </div>
+            <div id="account-status" class="save-status"></div>
+            <button class="settings-btn" onclick="saveAccount()">Save changes</button>
+          </div>
+
+          <!-- Change password -->
+          <div class="settings-card">
+            <div class="card-row-label" style="margin-bottom:10px;">Change password</div>
+            <button class="settings-btn-sm" id="pwd-reveal-btn" onclick="togglePwdForm()">Change password</button>
+            <div id="pwd-form" style="display:none;margin-top:14px;" class="account-fields">
+              <div class="field-group">
+                <label class="field-label" for="pwd-current">Current password</label>
+                <input class="field-input" id="pwd-current" type="password" autocomplete="current-password" placeholder="••••••••">
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="pwd-new">New password</label>
+                <input class="field-input" id="pwd-new" type="password" autocomplete="new-password" placeholder="••••••••">
+              </div>
+              <button class="settings-btn" onclick="savePassword()">Update password</button>
+              <div id="password-status" class="save-status"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ─── 6. Billing & referral ────────────────────────────── -->
+        <section class="settings-section" id="billing">
+          <div class="section-hd">
+            <h2 class="section-title">Billing &amp; referral</h2>
+          </div>
+
+          <!-- Billing card -->
+          <div class="settings-card">
+            <div class="card-row-label">Subscription</div>
+            {% if account_level == 'unlimited' %}
+              <div class="billing-status-row">
+                {% if sub_cancel_at %}
+                  <span class="billing-status danger">Cancels {{ sub_cancel_at }}</span>
+                {% else %}
+                  <span class="billing-status ok">Active</span>
+                {% endif %}
+                <span class="billing-level">Unlimited</span>
+              </div>
+              {% if not sub_cancel_at %}
+                <a class="action-link danger" href="/billing/cancel">Cancel subscription ›</a>
+              {% else %}
+                <a class="action-link" href="/billing/portal">Manage billing ›</a>
+              {% endif %}
+            {% elif account_level == 'paid' %}
+              <div class="billing-status-row">
+                <span class="billing-level">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }} remaining</span>
+              </div>
+              <a class="action-link" href="/pricing">Top up sessions ›</a>
+              <a class="action-link upgrade" href="/billing/checkout?plan=subscription">Upgrade to Unlimited ›</a>
+            {% else %}
+              <div class="billing-status-row">
+                <span class="billing-level">{{ account_level|capitalize }}</span>
+              </div>
+              <a class="action-link upgrade" href="/pricing">Upgrade plan ›</a>
+            {% endif %}
+          </div>
+
+          <!-- Referral promo card -->
+          <div class="settings-card referral-promo-card">
+            <div class="referral-promo-left">
+              <div class="card-row-label" style="margin-bottom:4px;">Refer &amp; Earn</div>
+              <p class="card-row-desc">Share your link, earn up to £5 per friend.</p>
+            </div>
+            <a class="settings-btn" href="/referral">View referral page ›</a>
+          </div>
+
+          <!-- Referral apply card -->
+          <div class="settings-card">
+            <div class="card-row-label" style="margin-bottom:8px;">Have a referral code?</div>
+            {% if ref_success or is_referred %}
+              <p class="ref-applied-msg">
+                {% if ref_success %}✓ Applied —{% else %}✓{% endif %}
+                {% if referral_discount_active %}£5 off your first full payment at checkout.{% else %}Referral applied.{% endif %}
+              </p>
+            {% else %}
+              <p class="card-row-desc" style="margin-bottom:10px;">Paste a friend's referral code or link to get £5 off your first full payment.</p>
+              <form action="/referral/apply" method="post">
+                <input type="hidden" name="source" value="settings">
+                <div class="ref-form-row">
+                  <input class="field-input" type="text" name="code" placeholder="Code or full link" maxlength="200" autocomplete="off" required>
+                  <button class="settings-btn" type="submit">Apply</button>
+                </div>
+              </form>
+              {% if ref_error_msg %}
+                <div class="save-status" style="color:var(--danger);margin-top:8px;">{{ ref_error_msg }}</div>
+              {% endif %}
+            {% endif %}
+          </div>
+
+        </section>
+
+      </div><!-- /settings-content -->
+    </div><!-- /settings-grid -->
+  </div><!-- /settings-wrap -->
+
+  <!-- ══ SCRIPTS (all preserved exactly) ══════════════════════════ -->
 
   <script>
-    // ── Complexity ────────────────────────────────────────────────────────
+    // ── Complexity ─────────────────────────────────────────────────
     const _complexityDescs = {
       1: 'Concise hint — naive approach, simple readable code, brief explanation.',
       2: 'Full solution — clean code with a clear walkthrough.',
       3: 'Optimal — best time/space complexity, production-quality code, trade-offs covered.',
     };
+    const _complexityNames = { 1: 'Concise', 2: 'Balanced', 3: 'Optimal' };
     let _complexity = {{ complexity }};
 
     function _applyComplexityUI() {
-      document.getElementById('complexity-val').textContent  = _complexity;
+      document.getElementById('complexity-val').textContent  = _complexityNames[_complexity];
       document.getElementById('complexity-desc').textContent = _complexityDescs[_complexity];
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById('cdot-' + i).classList.toggle('on', i <= _complexity);
+      }
+      _updatePreview();
     }
     _applyComplexityUI();
 
@@ -316,13 +438,13 @@
       _applyComplexityUI();
       const statusEl = document.getElementById('complexity-status');
       statusEl.style.display = 'block';
-      statusEl.style.color   = 'var(--muted)';
+      statusEl.style.color   = 'var(--text-3)';
       statusEl.textContent   = 'Saving…';
       try {
         const resp = await fetch('/settings/complexity/' + (delta > 0 ? 'up' : 'down'), { method: 'POST' });
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
-          statusEl.style.color = 'var(--accent2)';
+          statusEl.style.color = 'var(--accent)';
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -336,13 +458,17 @@
   </script>
 
   <script>
-    // ── Response style ────────────────────────────────────────────────────
+    // ── Response style ─────────────────────────────────────────────
+    let _style = '{{ response_style }}';
+
     async function setStyle(value, btn) {
+      _style = value;
       document.querySelectorAll('.style-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
+      _updatePreview();
       const statusEl = document.getElementById('style-status');
       statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
+      statusEl.style.color = 'var(--text-3)';
       statusEl.textContent = 'Saving…';
       try {
         const resp = await fetch('/api/settings/response-style', {
@@ -352,7 +478,7 @@
         });
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
-          statusEl.style.color = 'var(--accent2)';
+          statusEl.style.color = 'var(--accent)';
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -363,10 +489,85 @@
         statusEl.style.color = 'var(--danger)';
       }
     }
+
+    // ── Live preview matrix ────────────────────────────────────────
+    const _previewContent = {
+      1: {
+        bullets: ['Use a hash map', 'Store complement at each step', 'Return indices when match found'],
+        summary: 'One-pass hash map — O(n) time, O(n) space.',
+        oneLiner: 'Hash map storing num→index, return match on lookup.',
+        prose: 'Try a hash map. For each number, check if its complement is already stored. If yes, return the indices.',
+        code: `def two_sum(nums, target):
+    seen = {}
+    for i, n in enumerate(nums):
+        if target - n in seen:
+            return [seen[target - n], i]
+        seen[n] = i`,
+        tags: ['O(n)', 'Hash map'],
+      },
+      2: {
+        bullets: ['Create empty hash map: {value → index}', 'For each number, compute complement = target − num', 'If complement in map → return [map[complement], i]', 'Else store num → i'],
+        summary: 'Single-pass hash map — O(n) time, O(n) space — returns first valid pair.',
+        oneLiner: 'One-pass hash map: check complement existence before storing; return indices on hit.',
+        prose: 'Use a hash map to find the complement in one pass. For each element, check if target − num exists in the map. If it does, return both indices. Otherwise store the element.',
+        code: `def two_sum(nums: list[int], target: int) -> list[int]:
+    seen: dict[int, int] = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []  # guaranteed by problem`,
+        tags: ['O(n) time', 'O(n) space', 'Hash map'],
+      },
+      3: {
+        bullets: ['Brute force: O(n²) nested loops — works but too slow for n=10⁴', 'Optimal: O(n) one-pass hash map', 'Key insight: track complement, not the element itself', 'Edge case: same element twice → valid only if index differs'],
+        summary: 'One-pass hash map is optimal: O(n) time, O(n) space. Brute-force O(n²) also accepted but slow.',
+        oneLiner: 'Hash map (complement → index) beats O(n²) brute force; handles duplicates via distinct indices.',
+        prose: 'Brute force checks every pair in O(n²) — unacceptable at scale. The optimal approach is a one-pass hash map: store each seen number mapped to its index, then for each new number check if its complement is already stored. This gives O(n) time and O(n) space with a single scan.',
+        code: `def two_sum(nums: list[int], target: int) -> list[int]:
+    # O(n) time, O(n) space — optimal
+    seen: dict[int, int] = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []  # unreachable per constraints`,
+        tags: ['O(n) optimal', 'O(n²) naive', 'Hash map', 'Trade-offs'],
+      },
+    };
+
+    function _updatePreview() {
+      const c = _previewContent[_complexity];
+      if (!c) return;
+      const bodyEl = document.getElementById('preview-body');
+      const tagsEl = document.getElementById('preview-tags');
+
+      // Tags
+      tagsEl.innerHTML = c.tags.map(t => `<span class="preview-tag">${t}</span>`).join('');
+
+      // Body based on style
+      let lines = [];
+      if (_style === 'bullets') {
+        lines = c.bullets;
+      } else if (_style === 'summary') {
+        lines = [c.summary];
+      } else if (_style === 'one_liner') {
+        lines = [c.oneLiner];
+      } else {
+        lines = [c.prose];
+      }
+
+      const textHtml = lines.map(l => `<p class="preview-line">${l}</p>`).join('');
+      const codeHtml = `<pre class="preview-code"><code>${c.code}</code></pre>`;
+      bodyEl.innerHTML = textHtml + (_style !== 'one_liner' ? codeHtml : '');
+    }
+    _updatePreview();
   </script>
 
   <script>
-    // ── Replay settings ────────────────────────────────────────────────────
+    // ── Replay settings ────────────────────────────────────────────
     function onReplayToggle() {
       const enabled = document.getElementById('replay-toggle').checked;
       const row = document.getElementById('replay-seconds-row');
@@ -380,7 +581,7 @@
       const seconds = parseInt(document.getElementById('replay-slider').value, 10);
       const statusEl = document.getElementById('replay-status');
       statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
+      statusEl.style.color = 'var(--text-3)';
       statusEl.textContent = 'Saving…';
       try {
         const resp = await fetch('/api/settings/replay', {
@@ -390,7 +591,7 @@
         });
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
-          statusEl.style.color = 'var(--accent2)';
+          statusEl.style.color = 'var(--accent)';
           document.dispatchEvent(new CustomEvent('interview-ace:replay', { detail: { enabled, seconds } }));
         } else {
           statusEl.textContent = 'Failed to save.';
@@ -403,12 +604,12 @@
       }
     }
 
-    // ── Typing passthrough ─────────────────────────────────────────────────
+    // ── Typing passthrough ─────────────────────────────────────────
     async function savePassthrough() {
       const enabled = document.getElementById('passthrough-toggle').checked;
       const statusEl = document.getElementById('passthrough-status');
       statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
+      statusEl.style.color = 'var(--text-3)';
       statusEl.textContent = 'Saving…';
       try {
         const resp = await fetch('/api/settings/passthrough', {
@@ -418,7 +619,7 @@
         });
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
-          statusEl.style.color = 'var(--accent2)';
+          statusEl.style.color = 'var(--accent)';
           document.dispatchEvent(new CustomEvent('interview-ace:passthrough', { detail: { enabled } }));
         } else {
           statusEl.textContent = 'Failed to save.';
@@ -431,7 +632,7 @@
       }
     }
 
-    // ── Hotkey recording ───────────────────────────────────────────────────
+    // ── Hotkey recording ───────────────────────────────────────────
     const _hotkeys = {
       capture: '{{ hotkey_capture }}',
       audio:   '{{ hotkey_audio }}',
@@ -461,32 +662,24 @@
 
     document.addEventListener('keydown', (e) => {
       if (!_recording) return;
-      // Ignore bare modifier keys — wait for the actual key
       if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
       e.preventDefault();
-
       if (e.key === 'Escape') {
         _recording.btn.textContent = _hotkeys[_recording.action];
         _recording.btn.classList.remove('recording');
         _recording = null;
         return;
       }
-
-      // Must include Ctrl/Cmd or Alt — Shift alone isn't a useful trigger modifier
       if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
-
-      // Use e.code (layout-independent) so Ctrl+Shift+7 gives '7', not '&'
       const digitMatch = e.code.match(/^Digit(\d)$/);
       const letterMatch = e.code.match(/^Key([A-Z])$/);
       if (!digitMatch && !letterMatch) return;
       const key = digitMatch ? digitMatch[1] : letterMatch[1];
-
       const parts = [];
       if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
       if (e.shiftKey) parts.push('Shift');
       if (e.altKey)   parts.push('Alt');
       parts.push(key);
-
       const hotkey = parts.join('+');
       _hotkeys[_recording.action] = hotkey;
       _recording.btn.textContent = hotkey;
@@ -498,7 +691,7 @@
     async function saveHotkeys() {
       const statusEl = document.getElementById('hk-status');
       statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--muted)';
+      statusEl.style.color = 'var(--text-3)';
       statusEl.textContent = 'Saving…';
       try {
         const resp = await fetch('/api/settings/hotkeys', {
@@ -507,10 +700,9 @@
           body: JSON.stringify(_hotkeys),
         });
         if (resp.ok) {
-          // Push changes to the extension immediately — no reload needed
           document.dispatchEvent(new CustomEvent('interview-ace:hotkeys', { detail: _hotkeys }));
           statusEl.textContent = 'Saved — active in all open tabs.';
-          statusEl.style.color = 'var(--accent2)';
+          statusEl.style.color = 'var(--accent)';
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -524,7 +716,7 @@
   </script>
 
   <script>
-    // Ping extension on load — show connected state if it responds
+    // ── Extension connect ──────────────────────────────────────────
     let extensionDetected = false;
 
     const pingTimeout = setTimeout(() => {
@@ -545,7 +737,6 @@
       document.getElementById('ext-connected').style.display = 'flex';
       document.getElementById('connect-row').style.display = 'none';
     }
-
     function showConnect() {
       document.getElementById('ext-connected').style.display = 'none';
       document.getElementById('connect-row').style.display = 'flex';
@@ -557,7 +748,6 @@
       btn.disabled = true;
       btn.textContent = 'Connecting…';
       status.textContent = '';
-
       const timeout = setTimeout(() => {
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
@@ -565,12 +755,10 @@
         status.style.color = 'var(--danger)';
         document.getElementById('fallback-details').open = true;
       }, 2000);
-
       document.addEventListener('interview-ace:connected', () => {
         clearTimeout(timeout);
         showConnected();
       }, { once: true });
-
       document.dispatchEvent(new CustomEvent('interview-ace:connect', {
         detail: { token: '{{ api_token }}', serverUrl: window.location.origin }
       }));
@@ -580,7 +768,7 @@
       navigator.clipboard.writeText(document.getElementById(id).textContent.trim()).then(() => {
         const orig = btn.textContent;
         btn.textContent = 'Copied!';
-        btn.style.color = 'var(--accent2)';
+        btn.style.color = 'var(--accent)';
         setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 1500);
       });
     }
@@ -596,4 +784,125 @@
       btn.disabled = false;
     }
   </script>
+
+  <script>
+    // ── Account + password (new endpoints) ────────────────────────
+    async function saveAccount() {
+      const statusEl = document.getElementById('account-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = 'Saving…';
+      const body = {
+        full_name: document.getElementById('account-name').value.trim(),
+        username:  document.getElementById('account-username').value.trim(),
+        email:     document.getElementById('account-email').value.trim(),
+      };
+      try {
+        const resp = await fetch('/api/settings/account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await resp.json();
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent)';
+        } else {
+          statusEl.textContent = json.detail || 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
+    function togglePwdForm() {
+      const form = document.getElementById('pwd-form');
+      const btn  = document.getElementById('pwd-reveal-btn');
+      const show = form.style.display === 'none';
+      form.style.display = show ? '' : 'none';
+      btn.textContent = show ? 'Cancel' : 'Change password';
+    }
+
+    async function savePassword() {
+      const statusEl = document.getElementById('password-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = 'Saving…';
+      const body = {
+        current_password: document.getElementById('pwd-current').value,
+        new_password:     document.getElementById('pwd-new').value,
+      };
+      try {
+        const resp = await fetch('/api/settings/password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const json = await resp.json();
+        if (resp.ok) {
+          statusEl.textContent = 'Password updated.';
+          statusEl.style.color = 'var(--accent)';
+          document.getElementById('pwd-current').value = '';
+          document.getElementById('pwd-new').value = '';
+        } else {
+          statusEl.textContent = json.detail || 'Failed to update password.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
+    // ── Theme toggle ───────────────────────────────────────────────
+    (function() {
+      document.getElementById('theme-toggle').checked = localStorage.getItem('theme') === 'light';
+    })();
+
+    function onThemeToggle() {
+      var light = document.getElementById('theme-toggle').checked;
+      if (light) {
+        document.documentElement.setAttribute('data-theme', 'light');
+        localStorage.setItem('theme', 'light');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        localStorage.setItem('theme', 'dark');
+      }
+    }
+
+    // ── Scrollspy ──────────────────────────────────────────────────
+    const _sections = ['response', 'appearance', 'capture', 'shortcuts', 'extension', 'account', 'billing'];
+
+    function sidebarScroll(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 88;
+      window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+
+    function _setActiveNav(id) {
+      document.querySelectorAll('.sidebar-nav-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.section === id);
+      });
+    }
+
+    const _observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) _setActiveNav(entry.target.id);
+        }
+      },
+      { threshold: 0.2, rootMargin: '-80px 0px -60% 0px' }
+    );
+
+    _sections.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) _observer.observe(el);
+    });
+  </script>
+
 {% endblock %}

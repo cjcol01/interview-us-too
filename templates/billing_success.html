@@ -3,17 +3,24 @@
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/billing_success.css">{% endblock %}
 {% block content %}
-  <div class="card" id="card">
-    <div class="spinner" id="spinner"></div>
-    <h1 id="title">Processing payment…</h1>
-    <p id="body">Confirming your order, hang on a second.</p>
+  <div class="bs-wrap">
+    <div class="bs-glow" aria-hidden="true"></div>
+    <div class="bs-card" id="card">
+      <!-- icon area: spinner while polling, check on success -->
+      <div class="bs-icon-wrap" id="icon-wrap">
+        <div class="bs-spinner" id="spinner"></div>
+      </div>
+      <h1 class="bs-title" id="title">Processing payment…</h1>
+      <p class="bs-body" id="body">Confirming your order, hang on a second.</p>
+    </div>
   </div>
 
   <script>
-    const card  = document.getElementById('card');
+    const card    = document.getElementById('card');
+    const iconWrap = document.getElementById('icon-wrap');
     const spinner = document.getElementById('spinner');
-    const title = document.getElementById('title');
-    const body  = document.getElementById('body');
+    const title   = document.getElementById('title');
+    const body    = document.getElementById('body');
 
     let attempts = 0;
     const MAX = 20;
@@ -42,10 +49,18 @@
       setTimeout(poll, 1000);
     }
 
-    function showSuccess(level, sessions) {
+    function _checkIcon() {
       spinner.remove();
+      iconWrap.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>`;
+    }
+
+    function showSuccess(level, sessions) {
+      _checkIcon();
       card.classList.add('success');
-      title.textContent = 'You\'re all set!';
+      title.textContent = "You're all set!";
       if (level === 'unlimited') {
         body.innerHTML = 'Your free week has started. <strong>Unlimited sessions</strong> — good luck out there.';
       } else {
@@ -53,24 +68,29 @@
       }
       const btn = document.createElement('a');
       btn.href = '/app';
-      btn.className = 'btn btn-primary';
+      btn.className = 'bs-btn';
       btn.textContent = 'Open InterviewAce →';
       card.appendChild(btn);
     }
 
     function showDeclined() {
       spinner.remove();
+      iconWrap.innerHTML = `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--danger)"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>`;
+      iconWrap.classList.add('declined');
       card.classList.add('declined');
       title.textContent = 'Intro offer already used';
       body.innerHTML = 'This card has already redeemed the intro offer on another account. Your payment has been <strong>fully refunded</strong> — nothing was charged.<br><br>You can still get sessions with the regular pack.';
       const btn = document.createElement('a');
       btn.href = '/billing/checkout?plan=sessions_pack';
-      btn.className = 'btn btn-primary';
+      btn.className = 'bs-btn';
       btn.textContent = 'Get 3 sessions — £10';
       card.appendChild(btn);
       const back = document.createElement('a');
       back.href = '/pricing';
-      back.className = 'btn btn-secondary';
+      back.className = 'bs-btn bs-btn-outline';
       back.textContent = 'Back to pricing';
       card.appendChild(back);
     }
@@ -78,7 +98,7 @@
     function showTimeout() {
       spinner.remove();
       title.textContent = 'Still processing…';
-      body.innerHTML = 'This is taking longer than expected. Check your <strong>email from Stripe</strong> — if you were charged, your sessions will appear shortly. <a href="/settings" style="color:#6c63ff">Go to settings</a>.';
+      body.innerHTML = 'This is taking longer than expected. Check your <strong>email from Stripe</strong> — if you were charged, your sessions will appear shortly. <a href="/settings" style="color:var(--accent)">Go to settings</a>.';
     }
 
     poll();

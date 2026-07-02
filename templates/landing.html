@@ -1,283 +1,146 @@
 {% extends "base.html" %}
-{% block title %}InterviewAce &mdash; Your Silent Co-Pilot{% endblock %}
+{% block title %}InterviewAce — Your Silent Co-Pilot{% endblock %}
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/landing.css">
 <script>
-  /* Runs before CSS paints — prevents flash of wrong theme */
+  /* Anti-FOUC: mobile defaults to light, desktop defaults to dark; saved choice wins */
   (function(){
-    var stored = localStorage.getItem('theme');
-    var preferred = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    var theme = stored || preferred;
-    if (theme === 'dark') document.documentElement.dataset.theme = 'dark';
+    var t = localStorage.getItem('theme');
+    if (!t) { t = window.matchMedia('(max-width: 768px)').matches ? 'light' : 'dark'; }
+    if (t === 'dark') document.documentElement.dataset.theme = 'dark';
   })();
 </script>
 {% endblock %}
 {% block content %}
 
-  <!-- Nav -->
-  <nav>
-    <a class="logo" href="/">InterviewAce</a>
-    <div class="nav-links">
-      <a href="#how-it-works">How it works</a>
-      <a href="#demo">Demo</a>
-      <a href="#features">Features</a>
-      <a href="#pricing">Pricing</a>
-      <a href="#referral">Refer &amp; earn</a>
-      {% if user %}
-      <a class="btn btn-primary" href="/app">Go to app</a>
-      {% else %}
-      <a class="btn btn-outline" href="/login">Sign in</a>
-      <a class="btn btn-primary" href="/login?register=1">Try free</a>
-      {% endif %}
-    </div>
-  </nav>
-
-  <!-- Hero -->
-  <section class="hero">
-    <div class="hero-inner">
-      <div class="hero-badge">
-        <span class="hero-badge-dot"></span>
-        AI-powered interview assistance
-      </div>
-      <h1>Stop blanking.<br><span>Start acing.</span></h1>
-      <p>You know the material &mdash; but the moment someone's watching, your mind goes blank. InterviewAce streams a working solution to your phone before you've typed a line. Your silent co-pilot, off-screen and out of sight.</p>
-      <div class="hero-cta">
-        {% if user %}
-        <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
-        {% else %}
-        <a class="btn btn-primary btn-lg" href="/login?register=1">Try free — no card</a>
-        {% endif %}
-        <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
-      </div>
-    </div>
-    <div class="hero-scroll">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 9 12 15 18 9"/>
-      </svg>
-    </div>
-  </section>
-
-  <!-- Stats Strip -->
-  <div class="stats-strip reveal">
-    <div class="stat-item">
-      <span class="stat-num" data-count="3" data-suffix=" modes">3 modes</span>
-      <span class="stat-label">capture options</span>
-    </div>
-    <div class="stat-div"></div>
-    <div class="stat-item">
-      <span class="stat-num">&lt;&thinsp;3s</span>
-      <span class="stat-label">response time</span>
-    </div>
-    <div class="stat-div"></div>
-    <div class="stat-item">
-      <span class="stat-num" data-count="2.5" data-suffix="hr">2.5hr</span>
-      <span class="stat-label">per session</span>
-    </div>
-    <div class="stat-div"></div>
-    <div class="stat-item">
-      <span class="stat-num">Free</span>
-      <span class="stat-label">trial</span>
-    </div>
+<!-- ===== NAV ===== -->
+<nav class="ia-nav">
+  <a class="ia-nav-logo" href="#top">
+    <span class="ia-logo-dot"></span>
+    InterviewAce
+  </a>
+  <div class="ia-nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
   </div>
+  <div class="ia-nav-actions">
+    <a href="/faq" class="ia-nav-faq">FAQ</a>
+    {% if user %}
+    <a href="/app" class="ia-nav-cta">Go to app</a>
+    {% else %}
+    <a href="/login" class="ia-nav-signin">Sign in</a>
+    <a href="/login?register=1" class="ia-nav-cta">Try free</a>
+    {% endif %}
+  </div>
+</nav>
 
-  <!-- Pain Points -->
-  <section class="pain">
-    <div class="container">
-      <div class="section-label reveal">Sound familiar?</div>
-      <h2 class="reveal">Interviews are broken.<br>Pressure kills performance.</h2>
-      <p class="section-sub reveal">Being watched changes everything. The same problems you solve at home become impossible under a stranger's gaze.</p>
+<!-- ===== HERO ===== -->
+<section class="ia-hero" id="top">
+  <div class="ia-hero-inner">
 
-      <div class="pain-grid">
-        <div class="pain-card reveal">
-          <div class="pain-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-            </svg>
-          </div>
-          <h3>Mind goes completely blank</h3>
-          <p>You've solved this exact problem before. But now, with the interviewer staring, nothing comes. Every algorithm just&hellip; disappears.</p>
-        </div>
-        <div class="pain-card reveal">
-          <div class="pain-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </div>
-          <h3>Can't think while being watched</h3>
-          <p>The screen share is on, the timer's ticking, and you can feel their eyes. Anxiety takes over before you've even read the question.</p>
-        </div>
-        <div class="pain-card reveal">
-          <div class="pain-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2"/>
-              <rect x="9" y="9" width="6" height="6"/>
-              <line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/>
-              <line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>
-              <line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/>
-              <line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>
-            </svg>
-          </div>
-          <h3>Forget the optimal approach</h3>
-          <p>You know there's a better solution. You've seen it. But under pressure, only the naive brute-force comes to mind.</p>
-        </div>
-        <div class="pain-card reveal">
-          <div class="pain-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="15" y1="9" x2="9" y2="15"/>
-              <line x1="9" y1="9" x2="15" y2="15"/>
-            </svg>
-          </div>
-          <h3>One mistake ends it</h3>
-          <p>One bad day, one anxiety spike, one blank moment &mdash; and months of prep go to waste. The stakes are too high to leave to chance.</p>
-        </div>
+    <!-- Left: copy -->
+    <div class="ia-hero-copy" data-reveal>
+      <div class="ia-eyebrow">
+        <span class="ia-eyebrow-dot"></span>
+        Streams in under 3 seconds
+      </div>
+      <h1 class="ia-h1">Stop blanking.<br>Start <span class="ia-h1-accent">acing</span>.</h1>
+      <p class="ia-hero-sub">You know the material — but the moment someone's watching, your mind goes blank. InterviewAce streams a working solution to your phone before you've typed a line. Your silent co-pilot, off-screen and out of sight.</p>
+      <div class="ia-hero-btns">
+        {% if user %}
+        <a class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
+        {% else %}
+        <a class="ia-btn-primary ia-btn-hero" href="/login?register=1">Try free — no card</a>
+        {% endif %}
+        <a class="ia-btn-ghost ia-btn-hero" href="#how">See how it works</a>
+      </div>
+      <div class="ia-trust-row">
+        <span><span class="ia-check">✓</span> OS-level capture</span>
+        <span><span class="ia-check">✓</span> Zero browser footprint</span>
       </div>
     </div>
-  </section>
 
-  <!-- How it works -->
-  <section id="how-it-works">
-    <div class="container">
-      <div class="section-label reveal">How it works</div>
-      <h2 class="reveal">Two ways to capture.<br>One silent result.</h2>
-      <p class="section-sub reveal">Works in the background while you interview. No suspicious activity, no window switching, no browser tabs.</p>
+    <!-- Right: interactive cycling demo -->
+    <div class="ia-hero-demo" data-reveal>
 
-      <div class="steps">
-        <div class="step reveal">
-          <div class="step-num">1</div>
-          <div>
-            <h3>Tap or hold a hidden hotkey</h3>
-            <p><strong>Tap</strong> to capture your screen instantly &mdash; intercepted at the OS level, invisible to screen-monitoring software. <strong>Hold</strong> while the interviewer speaks and release to send their words straight to AI.</p>
-          </div>
-        </div>
-        <div class="step reveal">
-          <div class="step-num">2</div>
-          <div>
-            <h3>AI reads or listens</h3>
-            <p>For screenshots, Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first, then Claude reasons through it &mdash; same output, hands-free input.</p>
-          </div>
-        </div>
-        <div class="step reveal">
-          <div class="step-num">3</div>
-          <div>
-            <h3>Answer streams to your phone</h3>
-            <p>Results appear in seconds with syntax-highlighted code and explanation. Miss something? Hit instant replay to capture and send the last 15 seconds of speech to AI.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Demo -->
-  <section class="demo" id="demo">
-    <div class="container">
-      <div class="section-label reveal">See it in action</div>
-      <h2 class="reveal">The interview continues.<br><span style="background:linear-gradient(135deg,var(--accent),#8b5cf6,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">The answer's already there.</span></h2>
-      <p class="section-sub reveal">Three ways to use it &mdash; all streaming to your phone while you stay focused.</p>
-
-      <!-- Scenario tabs -->
       <div class="demo-tabs">
         <div class="demo-tab active" data-tab="0">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-            <circle cx="12" cy="13" r="4"/>
-          </svg>
-          Screenshot capture
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Screenshot
         </div>
         <div class="demo-tab" data-tab="1">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
-          </svg>
-          Voice capture
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          Voice
         </div>
         <div class="demo-tab" data-tab="2">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="1 4 1 10 7 10"/>
-            <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
-          </svg>
-          Instant replay
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
+          Replay
         </div>
       </div>
 
+      <div class="ia-demo-frame">
       <div class="demo-stage" id="demoStage">
 
-        <!-- macOS menu bar -->
         <div class="demo-menubar">
           <span class="demo-menubar-apple">&#xF8FF;</span>
           <div class="demo-menubar-items">
             <span id="demoAppName">Chrome</span>
-            <span>File</span><span>Edit</span><span>View</span><span>Window</span>
+            <span>File</span><span>Edit</span><span>View</span>
           </div>
           <span class="demo-menubar-time">9:41 AM</span>
         </div>
 
-        <!-- Browser chrome -->
         <div class="demo-chrome">
           <div class="demo-dots"><span></span><span></span><span></span></div>
           <div class="demo-url-bar">
             <div class="demo-url" id="demoUrl">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                <rect x="3" y="11" width="18" height="11" rx="2"/>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-              </svg>
-              <span id="demoUrlText">leetcode.com/problems/two-sum</span>
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span id="demoUrlText">leetcode.com/problems/reverse-linked-list</span>
             </div>
           </div>
           <div class="demo-chrome-spacer"></div>
         </div>
 
-        <!-- Body: scenes + phone -->
         <div class="demo-body">
 
-          <!-- Left: browser scenes -->
           <div class="demo-computer">
             <div class="demo-scenes">
 
-              <!-- Scene 0: LeetCode problem -->
+              <!-- Scene 0: LeetCode -->
               <div class="demo-scene active" data-s="0">
                 <div class="sc-lc-header">
                   <span class="sc-lc-title">206. Reverse Linked List</span>
                   <span class="demo-badge-easy">Easy</span>
                 </div>
                 <div class="sc-lc-body">
-                  <p class="sc-lc-desc">
-                    Reverse a singly-linked list.
-                    Return <em>the reversed list</em>.
-                  </p>
+                  <p class="sc-lc-desc">Reverse a singly-linked list. Return <em>the reversed list</em>.</p>
                   <div class="sc-lc-example">
                     <pre>Input:  1&#8594;2&#8594;3&#8594;4&#8594;5
 Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   </div>
                 </div>
                 <div class="sc-editor">
-                  <div class="sc-editor-tabs">
-                    <span class="active">Python3</span><span>JavaScript</span>
-                  </div>
+                  <div class="sc-editor-tabs"><span class="active">Python3</span><span>JavaScript</span></div>
                   <pre class="sc-editor-stub">class Solution:
     def reverseList(self, head):
         <span class="demo-cursor"></span></pre>
                 </div>
                 <div class="demo-capture-bar">
                   <div class="demo-capture-btn" id="s0CaptureBtn">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     Capture
                   </div>
                   <kbd class="demo-hotkey">&#8997; Space</kbd>
-                  <span class="demo-intercepted" id="s0Intercepted">OS-intercepted &mdash; undetectable</span>
+                  <span class="demo-intercepted" id="s0Intercepted">OS-intercepted — undetectable</span>
                 </div>
               </div>
 
-              <!-- Scene 1: Zoom call (voice) -->
+              <!-- Scene 1: Zoom voice -->
               <div class="demo-scene" data-s="1">
                 <div class="sc-zoom">
                   <div class="sc-zoom-grid">
@@ -285,10 +148,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                       <div class="zoom-avatar">A</div>
                       <div class="zoom-name">Alex (Interviewer)</div>
                       <div class="zoom-speaking-dots" id="s1SpeakDots">
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span><span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span><span class="zoom-speaking-dot"></span>
                         <span class="zoom-speaking-dot"></span>
                       </div>
                     </div>
@@ -300,12 +161,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   <div class="zoom-caption-bar" id="s1Caption">&nbsp;</div>
                   <div class="demo-voice-bar">
                     <div class="demo-voice-btn" id="s1VoiceBtn">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                        <line x1="12" y1="19" x2="12" y2="23"/>
-                        <line x1="8" y1="23" x2="16" y2="23"/>
-                      </svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
                       Hold to record
                     </div>
                     <kbd class="demo-hotkey">&#8997; V</kbd>
@@ -314,7 +170,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                 </div>
               </div>
 
-              <!-- Scene 2: Zoom call (replay) -->
+              <!-- Scene 2: Zoom replay -->
               <div class="demo-scene" data-s="2">
                 <div class="sc-zoom">
                   <div class="sc-zoom-grid">
@@ -322,10 +178,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                       <div class="zoom-avatar">A</div>
                       <div class="zoom-name">Alex (Interviewer)</div>
                       <div class="zoom-speaking-dots" id="s2SpeakDots">
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
-                        <span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span><span class="zoom-speaking-dot"></span>
+                        <span class="zoom-speaking-dot"></span><span class="zoom-speaking-dot"></span>
                         <span class="zoom-speaking-dot"></span>
                       </div>
                     </div>
@@ -337,725 +191,567 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   <div class="zoom-caption-bar" id="s2Caption">&nbsp;</div>
                   <div class="demo-voice-bar">
                     <div class="demo-replay-btn" id="s2ReplayBtn">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="1 4 1 10 7 10"/>
-                        <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
-                      </svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
                       Instant replay
                     </div>
                     <kbd class="demo-hotkey">&#8997; R</kbd>
-                    <span class="demo-voice-hint" id="s2Hint">Captures &amp; sends the last 15s of speech</span>
+                    <span class="demo-voice-hint" id="s2Hint">Captures &amp; sends the last 15s</span>
                   </div>
                 </div>
               </div>
 
-            </div><!-- /demo-scenes -->
-          </div><!-- /demo-computer -->
+            </div>
+          </div>
 
-          <!-- Right: phone mockup -->
-          <div class="demo-phone-panel">
-            <div class="demo-phone-label">Your phone</div>
-            <div class="phone-frame">
-              <div class="phone-notch-wrap"></div>
-              <div class="phone-status-bar">
-                <span>9:41</span><span>&#9679;&#9679;&#9679;</span>
+
+        </div>
+      </div>
+
+      <!-- Phone: floats in front of stage -->
+      <div class="demo-phone-panel">
+        <div class="phone-frame">
+          <div class="phone-notch-wrap"></div>
+          <div class="phone-status-bar"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div class="phone-screen">
+
+            <div class="phone-state visible" id="phIdle">
+              <div class="phone-idle-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2.5"/></svg>
               </div>
-              <div class="phone-screen">
+              <p class="phone-idle">Waiting&hellip;</p>
+            </div>
 
-                <!-- idle -->
-                <div class="phone-state visible" id="phIdle">
-                  <div class="phone-idle-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="5" y="2" width="14" height="20" rx="2"/>
-                      <line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2.5"/>
-                    </svg>
-                  </div>
-                  <p class="phone-idle" style="font-size:0.56rem;color:var(--muted);text-align:center;">Waiting&hellip;</p>
-                </div>
+            <div class="phone-state" id="phRecording">
+              <div class="phone-recording-row">
+                <span class="phone-recording-dot"></span>
+                <span class="phone-recording-label">Recording</span>
+              </div>
+              <div class="phone-waveform">
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+              </div>
+              <span class="phone-recording-hint">Release to send&hellip;</span>
+            </div>
 
-                <!-- recording -->
-                <div class="phone-state" id="phRecording">
-                  <div class="phone-recording-row">
-                    <span class="phone-recording-dot"></span>
-                    <span class="phone-recording-label">Recording</span>
-                  </div>
-                  <div class="phone-waveform">
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                  </div>
-                  <span class="phone-recording-hint">Release to send&hellip;</span>
-                </div>
+            <div class="phone-state" id="phCapturing">
+              <div class="phone-capturing-row">
+                <span class="phone-capturing-dot"></span>
+                <span class="phone-capturing-label">Last 15s&hellip;</span>
+              </div>
+              <div class="phone-waveform phone-waveform-replay">
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+                <span class="phone-wave-bar"></span><span class="phone-wave-bar"></span>
+              </div>
+              <span class="phone-recording-hint">Sending to AI&hellip;</span>
+            </div>
 
-                <!-- capturing (replay) -->
-                <div class="phone-state" id="phCapturing">
-                  <div class="phone-capturing-row">
-                    <span class="phone-capturing-dot"></span>
-                    <span class="phone-capturing-label">Last 15s&hellip;</span>
-                  </div>
-                  <div class="phone-waveform phone-waveform-replay">
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                    <span class="phone-wave-bar"></span>
-                  </div>
-                  <span class="phone-recording-hint">Sending to AI&hellip;</span>
-                </div>
+            <div class="phone-state" id="phAnalyzing">
+              <div class="phone-spinner"></div>
+              <span class="phone-analyzing-label">Analyzing&hellip;</span>
+            </div>
 
-                <!-- analyzing -->
-                <div class="phone-state" id="phAnalyzing">
-                  <div class="phone-spinner"></div>
-                  <span class="phone-analyzing-label">Analyzing&hellip;</span>
-                </div>
+            <div class="phone-state phone-answer" id="phAnswerCode">
+              <div class="phone-answer-header">
+                <span class="phone-answer-dot"></span>
+                <span class="phone-answer-label">InterviewAce</span>
+              </div>
+              <pre class="phone-code" id="phCode"></pre>
+              <div class="phone-complexity-row" id="phComplexity">
+                <span class="phone-badge">Time O(n)</span>
+                <span class="phone-badge">Space O(n)</span>
+              </div>
+              <div class="phone-flash" id="phFlash"></div>
+            </div>
 
-                <!-- answer (code) -->
-                <div class="phone-state phone-answer" id="phAnswerCode">
-                  <div class="phone-answer-header">
-                    <span class="phone-answer-dot"></span>
-                    <span class="phone-answer-label">InterviewAce</span>
-                  </div>
-                  <pre class="phone-code" id="phCode"></pre>
-                  <div class="phone-complexity-row" id="phComplexity">
-                    <span class="phone-badge">Time O(n)</span>
-                    <span class="phone-badge">Space O(n)</span>
-                  </div>
-                  <div class="phone-flash" id="phFlash"></div>
-                </div>
+            <div class="phone-state phone-answer" id="phAnswerProse">
+              <div class="phone-answer-header">
+                <span class="phone-answer-dot"></span>
+                <span class="phone-answer-label">InterviewAce</span>
+              </div>
+              <pre class="phone-prose" id="phProse"></pre>
+              <div class="phone-flash" id="phFlash2"></div>
+            </div>
 
-                <!-- answer (prose) -->
-                <div class="phone-state phone-answer" id="phAnswerProse">
-                  <div class="phone-answer-header">
-                    <span class="phone-answer-dot"></span>
-                    <span class="phone-answer-label">InterviewAce</span>
-                  </div>
-                  <pre class="phone-prose" id="phProse"></pre>
-                  <div class="phone-flash" id="phFlash2"></div>
-                </div>
+          </div>
+          <div class="phone-home-bar"></div>
+        </div>
+      </div>
+      </div>
+    </div>
 
-              </div><!-- /phone-screen -->
-              <div class="phone-home-bar"></div>
-            </div><!-- /phone-frame -->
-          </div><!-- /demo-phone-panel -->
+  </div>
+</section>
 
-        </div><!-- /demo-body -->
-      </div><!-- /demo-stage -->
-    </div><!-- /container -->
-  </section>
+<!-- ===== PLATFORM STRIP ===== -->
+<div class="ia-platform-strip">
+  <div class="ia-platform-inner">
+    <span class="ia-platform-label">Works with</span>
+    <span class="ia-platform-item">LeetCode</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">HackerRank</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">CoderPad</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">HireVue</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">Kira</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">Zoom</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">Teams</span>
+    <span class="ia-platform-sep">·</span>
+    <span class="ia-platform-item">Meet</span>
+  </div>
+</div>
 
-  <script>
-  (function () {
-    var SCREENSHOT_CODE = 'def reverseList(head):\n    prev = None\n    while head:\n        nxt = head.next\n        head.next = prev\n        prev = head\n        head = nxt\n    return prev';
+<!-- ===== PAIN ===== -->
+<section class="ia-section ia-section--light">
+  <div class="ia-container">
+    <div class="ia-section-hd" data-reveal>
+      <div class="ia-kicker"><span class="ia-kicker-n">01</span> &nbsp;·&nbsp; Sound familiar?</div>
+      <h2 class="ia-h2">Interviews are broken. Pressure kills performance.</h2>
+    </div>
+    <div class="ia-pain-grid">
+      <div class="ia-pain-card" data-reveal>
+        <div class="ia-card-num">01</div>
+        <h3>Mind goes completely blank</h3>
+        <p>You've solved this exact problem before. But now, with the interviewer staring, every algorithm just disappears.</p>
+      </div>
+      <div class="ia-pain-card" data-reveal>
+        <div class="ia-card-num">02</div>
+        <h3>Can't think while watched</h3>
+        <p>The screen share is on, the timer's ticking, and you can feel their eyes. Anxiety takes over before you've read the question.</p>
+      </div>
+      <div class="ia-pain-card" data-reveal>
+        <div class="ia-card-num">03</div>
+        <h3>Forget the optimal approach</h3>
+        <p>You know there's a better solution. But under pressure, only the naive brute-force comes to mind.</p>
+      </div>
+      <div class="ia-pain-card" data-reveal>
+        <div class="ia-card-num">04</div>
+        <h3>One mistake ends it</h3>
+        <p>One bad day, one blank moment — and months of prep go to waste. The stakes are too high to leave to chance.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-    var VOICE_ANSWER = 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound';
+<!-- ===== HOW IT WORKS ===== -->
+<section class="ia-section ia-section--panel" id="how">
+  <div class="ia-container">
+    <div class="ia-section-hd" data-reveal>
+      <div class="ia-kicker"><span class="ia-kicker-n">02</span> &nbsp;·&nbsp; How it works</div>
+      <h2 class="ia-h2">Two ways to capture. One silent result.</h2>
+    </div>
+    <div class="ia-steps">
+      <div class="ia-step" data-reveal>
+        <div class="ia-step-top">
+          <div class="ia-step-num">1</div>
+          <div class="ia-step-rule"></div>
+        </div>
+        <h3>Tap or hold a hidden hotkey</h3>
+        <p>Tap to capture your screen instantly — intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI.</p>
+      </div>
+      <div class="ia-step" data-reveal>
+        <div class="ia-step-top">
+          <div class="ia-step-num">2</div>
+          <div class="ia-step-rule"></div>
+        </div>
+        <h3>AI reads or listens</h3>
+        <p>Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first — same output, hands-free.</p>
+      </div>
+      <div class="ia-step" data-reveal>
+        <div class="ia-step-top">
+          <div class="ia-step-num">3</div>
+          <div class="ia-step-rule"></div>
+        </div>
+        <h3>Answer streams to your phone</h3>
+        <p>Results appear in seconds with syntax-highlighted code and explanation. Missed something? Instant replay captures the last 15 seconds of speech.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-    var REPLAY_ANSWER = 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.';
+<!-- ===== FEATURES BENTO ===== -->
+<section class="ia-section ia-section--light" id="features">
+  <div class="ia-container">
+    <div class="ia-section-hd" data-reveal>
+      <div class="ia-kicker"><span class="ia-kicker-n">03</span> &nbsp;·&nbsp; Features</div>
+      <h2 class="ia-h2">Everything you need. Nothing they'll notice.</h2>
+    </div>
+    <div class="ia-bento">
 
-    var Q1 = 'Explain the difference between concurrency and parallelism.';
-    var Q2 = 'What are the time and space\ncomplexity tradeoffs here?';
+      <div class="ia-tile ia-tile--wide ia-tile--accent" data-reveal>
+        <div class="ia-tile-icon ia-tile-icon--accent">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h3>Undetectable by design</h3>
+        <p>Hotkeys are intercepted at the OS level — not inside the browser. No window switching, no tabs, no clipboard access. Screen-monitoring software sees nothing unusual because nothing unusual is happening.</p>
+        <div class="ia-tile-badge">OS-level interception · Zero browser footprint</div>
+      </div>
 
-    var timers = [];
-    var activeTab = 0;
+      <div class="ia-tile ia-tile--wide" data-reveal>
+        <div class="ia-tile-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+        </div>
+        <h3>Streams to your phone</h3>
+        <p>The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation — formatted to read at a glance. Also works on a second monitor.</p>
+      </div>
 
-    function after(ms, fn) { var t = setTimeout(fn, ms); timers.push(t); return t; }
-    function clearAll() { timers.forEach(clearTimeout); timers = []; }
+      <div class="ia-tile ia-tile--third" data-reveal>
+        <div class="ia-tile-tag">Capture</div>
+        <h3>Screen or voice</h3>
+        <p>Tap to screenshot the question, or hold to record the interviewer. Both stream the same Claude analysis.</p>
+      </div>
 
-    function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-    function highlight(c) {
-      return esc(c)
-        .replace(/(#[^\n]*)/g,'<span class="tok-cm">$1</span>')
-        .replace(/\b(def|for|in|if|return)\b/g,'<span class="tok-kw">$1</span>')
-        .replace(/\b(enumerate|range|len)\b/g,'<span class="tok-fn">$1</span>')
-        .replace(/\b(\d+)\b/g,'<span class="tok-num">$1</span>');
-    }
+      <div class="ia-tile ia-tile--third" data-reveal>
+        <div class="ia-tile-tag">Replay</div>
+        <h3>Instant replay</h3>
+        <p>Missed what they said? Replay sends the last 15s of their question to AI after the fact.</p>
+      </div>
 
-    function streamText(el, text, done, useHighlight) {
-      var i = 0;
-      function tick() {
-        if (i >= text.length) {
-          if (useHighlight) el.innerHTML = highlight(text);
-          if (done) done();
-          return;
-        }
-        el.textContent = text.slice(0, i + 1);
-        var ch = text[i];
-        var delay = ch === '\n' ? 50 + Math.random()*40 : ch === ' ' ? 5 : 12 + Math.random()*12;
-        i++;
-        timers.push(setTimeout(tick, delay));
+      <div class="ia-tile ia-tile--third" data-reveal>
+        <div class="ia-tile-tag">Analysis</div>
+        <h3>Smart analysis</h3>
+        <p>Auto language detection. Switch between optimal, intermediate, and naive on the fly.</p>
+      </div>
+
+      <div class="ia-tile ia-tile--full" data-reveal>
+        <div class="ia-tile-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg>
+        </div>
+        <div class="ia-tile-body">
+          <h3>Live calls &amp; recorded tests</h3>
+          <p>On live calls the answer goes to your phone. On recorded tests that flag tab switching — you never switch, so there's nothing to flag. Zoom, Teams, HireVue, Kira &amp; more.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section class="ia-section ia-section--panel" id="pricing">
+  <div class="ia-container ia-container--pricing">
+    <div class="ia-section-hd ia-section-hd--center" data-reveal>
+      <div class="ia-kicker"><span class="ia-kicker-n">04</span> &nbsp;·&nbsp; Pricing</div>
+      <h2 class="ia-h2">Start free. Pay when it matters.</h2>
+    </div>
+    <div class="ia-pricing">
+
+      <div class="ia-plan" data-reveal>
+        <div class="ia-plan-label">Sessions</div>
+        <div class="ia-plan-price">
+          <span class="ia-plan-amount">£2</span>
+          <span class="ia-plan-per">/ 3 sessions</span>
+        </div>
+        <div class="ia-plan-note">Intro offer — normally £10</div>
+        <p class="ia-plan-desc">Buy sessions when you need them. No subscription.</p>
+        <ul class="ia-plan-features">
+          <li><span class="ia-check">✓</span> 3 full 2.5-hour sessions</li>
+          <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
+          <li><span class="ia-check">✓</span> Instant replay</li>
+          <li><span class="ia-check">✓</span> Sessions never expire</li>
+        </ul>
+        <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?register=1">Claim £2 intro</a>
+      </div>
+
+      <div class="ia-plan ia-plan--featured" data-reveal>
+        <div class="ia-plan-badge">Most popular</div>
+        <div class="ia-plan-label ia-plan-label--accent">Unlimited</div>
+        <div class="ia-plan-price">
+          <span class="ia-plan-amount">£20</span>
+          <span class="ia-plan-per">/ month</span>
+        </div>
+        <div class="ia-plan-note">Free 1-week trial</div>
+        <p class="ia-plan-desc">For active job seekers. Unlimited sessions, cancel anytime.</p>
+        <ul class="ia-plan-features">
+          <li><span class="ia-check">✓</span> Unlimited sessions</li>
+          <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
+          <li><span class="ia-check">✓</span> Instant replay</li>
+          <li><span class="ia-check">✓</span> Cancel anytime</li>
+        </ul>
+        <a class="ia-plan-cta ia-plan-cta--lime" href="/login?register=1">Start free week</a>
+      </div>
+
+    </div>
+    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a></p>
+  </div>
+</section>
+
+<!-- ===== CLOSING CTA ===== -->
+<section class="ia-cta-section">
+  <div class="ia-container ia-container--cta" data-reveal>
+    <h2 class="ia-cta-h2">Your next interview doesn't have to be a gamble.</h2>
+    <p class="ia-cta-sub">Join developers who stopped leaving it to chance.</p>
+    {% if user %}
+    <a class="ia-btn-primary ia-btn-cta" href="/app">Go to app</a>
+    {% else %}
+    <a class="ia-btn-primary ia-btn-cta" href="/login?register=1">Try free — no card</a>
+    {% endif %}
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer class="ia-footer">
+  <div class="ia-container">
+    <a class="ia-footer-logo" href="#top">
+      <span class="ia-logo-dot ia-logo-dot--sm"></span>
+      InterviewAce
+    </a>
+    <p class="ia-footer-copy">&copy; 2026 InterviewAce. All rights reserved.</p>
+    <div class="ia-footer-links">
+      <a href="/faq">FAQ</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/faq">Support</a>
+      <a href="#">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Theme switcher -->
+<style>
+  #theme-switcher {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(12,12,18,0.88);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 999px; padding: 9px 16px;
+  }
+  .tsw-icon { width: 15px; height: 15px; flex-shrink: 0; display: block; transition: color 0.25s; }
+  .tsw-icon.tsw-sun  { color: rgba(255,200,60,0.75); }
+  .tsw-icon.tsw-moon { color: rgba(180,210,255,0.55); }
+  .tsw-label { display: inline-flex; align-items: center; cursor: pointer; }
+  #tsw-input { display: none; }
+  .tsw-track {
+    display: block; width: 40px; height: 22px; border-radius: 999px;
+    background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.1);
+    position: relative; transition: background 0.25s, border-color 0.25s;
+  }
+  .tsw-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: rgba(255,255,255,0.92);
+    transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #tsw-input:checked + .tsw-track { background: rgba(198,242,78,0.45); border-color: rgba(198,242,78,0.4); }
+  #tsw-input:checked + .tsw-track .tsw-thumb { transform: translateX(18px); }
+</style>
+
+<div id="theme-switcher">
+  <svg class="tsw-icon tsw-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/>
+    <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+    <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+    <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+    <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </svg>
+  <label class="tsw-label">
+    <input type="checkbox" id="tsw-input">
+    <span class="tsw-track"><span class="tsw-thumb"></span></span>
+  </label>
+  <svg class="tsw-icon tsw-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>
+</div>
+
+<script>
+(function () {
+  /* ── Demo Engine ── */
+  var SCREENSHOT_CODE = 'def reverseList(head):\n    prev = None\n    while head:\n        nxt = head.next\n        head.next = prev\n        prev = head\n        head = nxt\n    return prev';
+  var VOICE_ANSWER = 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound';
+  var REPLAY_ANSWER = 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.';
+  var Q1 = 'Explain the difference between concurrency and parallelism.';
+  var Q2 = 'What are the time and space\ncomplexity tradeoffs here?';
+
+  var timers = [];
+  var activeTab = 0;
+
+  function after(ms, fn) { var t = setTimeout(fn, ms); timers.push(t); return t; }
+  function clearAll() { timers.forEach(clearTimeout); timers = []; }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function highlight(c) {
+    return esc(c)
+      .replace(/(#[^\n]*)/g,'<span class="tok-cm">$1</span>')
+      .replace(/\b(def|for|in|if|return)\b/g,'<span class="tok-kw">$1</span>')
+      .replace(/\b(enumerate|range|len)\b/g,'<span class="tok-fn">$1</span>')
+      .replace(/\b(\d+)\b/g,'<span class="tok-num">$1</span>');
+  }
+
+  function streamText(el, text, done, useHighlight) {
+    if (!el) { if (done) done(); return; }
+    var i = 0;
+    function tick() {
+      if (i >= text.length) {
+        if (useHighlight) el.innerHTML = highlight(text);
+        if (done) done();
+        return;
       }
-      tick();
+      el.textContent = text.slice(0, i + 1);
+      var ch = text[i];
+      var delay = ch === '\n' ? 50 + Math.random()*40 : ch === ' ' ? 5 : 12 + Math.random()*12;
+      i++;
+      timers.push(setTimeout(tick, delay));
     }
+    tick();
+  }
 
-    function phoneShow(id) {
-      ['phIdle','phRecording','phCapturing','phAnalyzing','phAnswerCode','phAnswerProse'].forEach(function(s) {
-        var el = document.getElementById(s);
-        el.classList.remove('visible');
-      });
-      if (id) document.getElementById(id).classList.add('visible');
-    }
+  function phoneShow(id) {
+    ['phIdle','phRecording','phCapturing','phAnalyzing','phAnswerCode','phAnswerProse'].forEach(function(s) {
+      var el = document.getElementById(s); if (el) el.classList.remove('visible');
+    });
+    if (id) { var el = document.getElementById(id); if (el) el.classList.add('visible'); }
+  }
 
-    function flashPhone() {
-      var frame = document.querySelector('.phone-frame');
-      frame.classList.remove('answer-arriving');
-      void frame.offsetWidth;
-      frame.classList.add('answer-arriving');
-    }
+  function flashPhone() {
+    var frame = document.querySelector('.phone-frame');
+    if (!frame) return;
+    frame.classList.remove('answer-arriving');
+    void frame.offsetWidth;
+    frame.classList.add('answer-arriving');
+  }
 
-    function scheduleAdvance() {
-      after(3500, function() { runScenario((activeTab + 1) % 3); });
-    }
+  function scheduleAdvance() { after(3500, function() { runScenario((activeTab + 1) % 3); }); }
 
-    function switchScene(idx) {
-      document.querySelectorAll('.demo-scene').forEach(function(s, i) {
-        s.classList.toggle('active', i === idx);
-      });
-      var urls = ['leetcode.com/problems/reverse-linked-list','us02web.zoom.us/j/83726491','us02web.zoom.us/j/83726491'];
-      var apps = ['Chrome','Zoom','Zoom'];
-      document.getElementById('demoUrlText').textContent = urls[idx];
-      document.getElementById('demoAppName').textContent = apps[idx];
-    }
+  function switchScene(idx) {
+    document.querySelectorAll('.demo-scene').forEach(function(s, i) { s.classList.toggle('active', i === idx); });
+    var urls = ['leetcode.com/problems/reverse-linked-list','us02web.zoom.us/j/83726491','us02web.zoom.us/j/83726491'];
+    var apps = ['Chrome','Zoom','Zoom'];
+    var ue = document.getElementById('demoUrlText'); if (ue) ue.textContent = urls[idx];
+    var ae = document.getElementById('demoAppName'); if (ae) ae.textContent = apps[idx];
+  }
 
-    /* ── Scenario 0: Screenshot ── */
-    function runScreenshot() {
-      switchScene(0);
-      phoneShow('phIdle');
-      after(900, function() {
-        var btn = document.getElementById('s0CaptureBtn');
-        btn.classList.add('pressing');
-        after(180, function() { btn.classList.remove('pressing'); });
-
-        var intcpt = document.getElementById('s0Intercepted');
-        intcpt.classList.add('visible');
-        after(1900, function() { intcpt.classList.remove('visible'); });
-
-        after(400, function() {
-          phoneShow('phAnalyzing');
-          after(900, function() {
-            phoneShow('phAnswerCode');
-            document.getElementById('phCode').textContent = '';
-            document.getElementById('phComplexity').style.display = 'none';
-            flashPhone();
-            streamText(document.getElementById('phCode'), SCREENSHOT_CODE, function() {
-              document.getElementById('phComplexity').style.display = 'flex';
-              scheduleAdvance();
-            }, true);
-          });
-        });
-      });
-    }
-
-    /* ── Scenario 1: Voice ── */
-    function runVoice() {
-      switchScene(1);
-      phoneShow('phIdle');
-      var caption = document.getElementById('s1Caption');
-      var voiceBtn = document.getElementById('s1VoiceBtn');
-      var hint = document.getElementById('s1Hint');
-      caption.textContent = '';
-
+  function runScreenshot() {
+    switchScene(0); phoneShow('phIdle');
+    after(900, function() {
+      var btn = document.getElementById('s0CaptureBtn');
+      if (btn) { btn.classList.add('pressing'); after(180, function() { btn.classList.remove('pressing'); }); }
+      var intcpt = document.getElementById('s0Intercepted');
+      if (intcpt) { intcpt.classList.add('visible'); after(1900, function() { intcpt.classList.remove('visible'); }); }
       after(400, function() {
-        streamText(caption, Q1, null, false);
-      });
-
-      after(750, function() {
-        voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Recording…';
-        voiceBtn.classList.add('recording');
-        hint.textContent = 'Release to send…';
-        phoneShow('phRecording');
-
-        after(2200, function() {
-          voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> Hold to record';
-          voiceBtn.classList.remove('recording');
-          hint.textContent = 'Hold while interviewer speaks';
-          phoneShow('phAnalyzing');
-
-          after(1000, function() {
-            phoneShow('phAnswerProse');
-            document.getElementById('phProse').textContent = '';
-            flashPhone();
-            streamText(document.getElementById('phProse'), VOICE_ANSWER, scheduleAdvance, false);
-          });
+        phoneShow('phAnalyzing');
+        after(900, function() {
+          phoneShow('phAnswerCode');
+          var code = document.getElementById('phCode');
+          var cpx = document.getElementById('phComplexity');
+          if (code) code.textContent = '';
+          if (cpx) cpx.style.display = 'none';
+          flashPhone();
+          streamText(code, SCREENSHOT_CODE, function() { if (cpx) cpx.style.display = 'flex'; scheduleAdvance(); }, true);
         });
       });
-    }
+    });
+  }
 
-    /* ── Scenario 2: Replay ── */
-    function runReplay() {
-      switchScene(2);
-      phoneShow('phIdle');
+  function runVoice() {
+    switchScene(1); phoneShow('phIdle');
+    var caption = document.getElementById('s1Caption');
+    var voiceBtn = document.getElementById('s1VoiceBtn');
+    var hint = document.getElementById('s1Hint');
+    if (caption) caption.textContent = '';
+    after(400, function() { streamText(caption, Q1, null, false); });
+    after(750, function() {
+      var svg = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+      if (voiceBtn) { voiceBtn.innerHTML = svg + ' Recording…'; voiceBtn.classList.add('recording'); }
+      if (hint) hint.textContent = 'Release to send…';
+      phoneShow('phRecording');
+      after(2200, function() {
+        if (voiceBtn) { voiceBtn.innerHTML = svg + ' Hold to record'; voiceBtn.classList.remove('recording'); }
+        if (hint) hint.textContent = 'Hold while interviewer speaks';
+        phoneShow('phAnalyzing');
+        after(1000, function() {
+          phoneShow('phAnswerProse');
+          var prose = document.getElementById('phProse');
+          if (prose) prose.textContent = '';
+          flashPhone();
+          streamText(prose, VOICE_ANSWER, scheduleAdvance, false);
+        });
+      });
+    });
+  }
 
-      var caption = document.getElementById('s2Caption');
-      var replayBtn = document.getElementById('s2ReplayBtn');
-      caption.textContent = '';
-
-      after(700, function() {
-        streamText(caption, Q2, function() {
-          after(600, function() {
-            replayBtn.classList.add('pressed');
-            after(220, function() { replayBtn.classList.remove('pressed'); });
-
-            phoneShow('phCapturing');
-
-            after(950, function() {
-              phoneShow('phAnalyzing');
-
-              after(1000, function() {
-                phoneShow('phAnswerProse');
-                document.getElementById('phProse').textContent = '';
-                flashPhone();
-                streamText(document.getElementById('phProse'), REPLAY_ANSWER, scheduleAdvance, false);
-              });
+  function runReplay() {
+    switchScene(2); phoneShow('phIdle');
+    var caption = document.getElementById('s2Caption');
+    var replayBtn = document.getElementById('s2ReplayBtn');
+    if (caption) caption.textContent = '';
+    after(700, function() {
+      streamText(caption, Q2, function() {
+        after(600, function() {
+          if (replayBtn) { replayBtn.classList.add('pressed'); after(220, function() { replayBtn.classList.remove('pressed'); }); }
+          phoneShow('phCapturing');
+          after(950, function() {
+            phoneShow('phAnalyzing');
+            after(1000, function() {
+              phoneShow('phAnswerProse');
+              var prose = document.getElementById('phProse');
+              if (prose) prose.textContent = '';
+              flashPhone();
+              streamText(prose, REPLAY_ANSWER, scheduleAdvance, false);
             });
           });
-        }, false);
-      });
-    }
-
-    var runners = [runScreenshot, runVoice, runReplay];
-
-    function runScenario(idx) {
-      clearAll();
-      phoneShow('phIdle');
-      activeTab = idx;
-      document.querySelectorAll('.demo-tab').forEach(function(t, i) {
-        t.classList.toggle('active', i === idx);
-      });
-      runners[idx]();
-    }
-
-    document.querySelectorAll('.demo-tab').forEach(function(tab, i) {
-      tab.addEventListener('click', function() { runScenario(i); });
+        });
+      }, false);
     });
+  }
 
-    /* Auto-start on scroll */
-    var stage = document.getElementById('demoStage');
+  var runners = [runScreenshot, runVoice, runReplay];
+
+  function runScenario(idx) {
+    clearAll(); phoneShow('phIdle');
+    activeTab = idx;
+    document.querySelectorAll('.demo-tab').forEach(function(t, i) { t.classList.toggle('active', i === idx); });
+    runners[idx]();
+  }
+
+  document.querySelectorAll('.demo-tab').forEach(function(tab, i) {
+    tab.addEventListener('click', function() { runScenario(i); });
+  });
+
+  var stage = document.getElementById('demoStage');
+  if (stage) {
     if ('IntersectionObserver' in window) {
       var obs = new IntersectionObserver(function(entries) {
         if (entries[0].isIntersecting) { after(500, function() { runScenario(0); }); obs.disconnect(); }
-      }, { threshold: 0.2 });
+      }, { threshold: 0.15 });
       obs.observe(stage);
     } else {
       runScenario(0);
     }
-  })();
-  </script>
+  }
 
-  <!-- Features Bento -->
-  <section class="features" id="features">
-    <div class="container">
-      <div class="section-label reveal">Features</div>
-      <h2 class="reveal">Everything you need.<br>Nothing they'll notice.</h2>
-
-      <div class="features-bento">
-
-        <!-- feat-a: Undetectable — 2-col wide -->
-        <div class="feature feat-a reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            </svg>
-          </div>
-          <h3>Undetectable by design</h3>
-          <h4>Rebind all three hotkeys to anything you like</h4>
-          <p>Hotkeys are intercepted at the OS level &mdash; not inside the browser. No window switching, no browser tabs, no clipboard access. Screen-monitoring software sees nothing unusual because nothing unusual is happening.</p>
-          <div class="stealth-badge">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-              <polyline points="22 4 12 14.01 9 11.01"/>
-            </svg>
-            OS-level interception &bull; Zero browser footprint
-          </div>
-        </div>
-
-        <!-- feat-b: Streams to phone -->
-        <div class="feature feat-b reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="2" width="14" height="20" rx="2"/>
-              <line x1="12" y1="18" x2="12" y2="18.01"/>
-            </svg>
-          </div>
-          <h3>Streams to your phone</h3>
-          <h4>Also works on a second monitor or laptop</h4>
-          <p>The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation &mdash; formatted to read at a glance.</p>
-        </div>
-
-        <!-- feat-c: Screen or voice -->
-        <div class="feature feat-c reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
-          </div>
-          <h3>Screen capture or voice</h3>
-          <h4>Audio transcription + Claude's most powerful model</h4>
-          <p>Tap to screenshot the question, or hold to record the interviewer speaking. Both paths stream the same Claude analysis.</p>
-        </div>
-
-        <!-- feat-d: Instant replay -->
-        <div class="feature feat-d reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="1 4 1 10 7 10"/>
-              <path d="M3.51 15a9 9 0 1 0 .49-5.07"/>
-            </svg>
-          </div>
-          <h3>Instant replay</h3>
-          <h4>Didn't catch the question?</h4>
-          <p>If you missed what the interviewer said, instant replay sends their question to AI after the fact.</p>
-        </div>
-
-        <!-- feat-e: Smart analysis — 2-col wide -->
-        <div class="feature feat-e reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </div>
-          <h3>Smart analysis</h3>
-          <h4>Auto language detection &bull; adjustable complexity</h4>
-          <p>Detects Python, JavaScript, Java, C++, and more automatically. Switch between optimal, intermediate, and naive solutions on the fly &mdash; get the answer at exactly the level the interviewer expects.</p>
-        </div>
-
-        <!-- feat-f: Live calls + recorded tests -->
-        <div class="feature feat-f reveal">
-          <div class="feature-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
-              <rect x="1" y="6" width="14" height="12" rx="2"/>
-            </svg>
-          </div>
-          <h3>Live calls &amp; recorded tests</h3>
-          <h4>Zoom, Teams, HireVue, Kira &amp; more</h4>
-          <p>On live calls the answer goes to your phone. On recorded tests that flag tab switching &mdash; you never switch, so there's nothing to flag.</p>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- Referral -->
-  <section id="referral" class="referral">
-    <div class="container">
-      <div class="section-label reveal">Refer &amp; earn</div>
-      <h2 class="reveal">Share the edge.<br>Get rewarded.</h2>
-      <p class="section-sub reveal">Invite a friend to InterviewAce. Every time they buy, you both earn &mdash; no limits on referrals.</p>
-
-      <div class="referral-inner">
-        <div class="referral-rewards">
-          <div class="reward-row reveal">
-            <div class="reward-icon green">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-              </svg>
-            </div>
-            <div class="reward-content">
-              <h4>Friend buys the intro offer</h4>
-              <p>They grab the £2 intro deal using your link</p>
-            </div>
-            <div class="reward-amount">+£2</div>
-          </div>
-
-          <div class="reward-row reveal">
-            <div class="reward-icon green">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="17 1 21 5 17 9"/>
-                <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-                <polyline points="7 23 3 19 7 15"/>
-                <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-              </svg>
-            </div>
-            <div class="reward-content">
-              <h4>Friend subscribes</h4>
-              <p>They upgrade to the monthly plan &mdash; you get the remaining credit</p>
-            </div>
-            <div class="reward-amount">+£3</div>
-          </div>
-
-          <div class="reward-row reveal">
-            <div class="reward-icon purple">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 12 20 22 4 22 4 12"/>
-                <rect x="2" y="7" width="20" height="5"/>
-                <line x1="12" y1="22" x2="12" y2="7"/>
-                <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/>
-                <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/>
-              </svg>
-            </div>
-            <div class="reward-content">
-              <h4>Friend gets rewarded too</h4>
-              <p>£5 off their first full payment &mdash; applied automatically at checkout</p>
-            </div>
-            <div class="reward-amount" style="background:linear-gradient(135deg,var(--accent),#8b5cf6);-webkit-background-clip:text;background-clip:text;">£5</div>
-          </div>
-
-          {% if user %}
-          <a class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:8px;">
-            Get your referral link &rarr;
-          </a>
-          {% else %}
-          <a class="btn btn-primary" href="/login?register=1" style="align-self:flex-start;margin-top:8px;">
-            Sign up to refer friends &rarr;
-          </a>
-          {% endif %}
-        </div>
-
-        <div class="referral-visual">
-          <div class="flow-card reveal">
-            <h3>£5</h3>
-            <p>credit per referral you earn</p>
-          </div>
-          <div class="flow-divider"><span>and</span></div>
-          <div class="flow-card reveal">
-            <h3>&#8734;</h3>
-            <p>no limit on how many friends you refer</p>
-          </div>
-          <div class="flow-divider"><span>plus</span></div>
-          <div class="flow-card reveal" style="border-color:rgba(0,212,170,0.18);background:linear-gradient(160deg,rgba(0,212,170,0.04),var(--surface));">
-            <h3 style="font-size:1rem;font-weight:700;background:none;-webkit-text-fill-color:var(--text);">Credits apply to your next bill automatically</h3>
-            <p style="margin-top:6px;">No voucher codes, no manual redemption</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Pricing -->
-  <section id="pricing">
-    <div class="container">
-      <div class="section-label reveal">Pricing</div>
-      <h2 class="reveal">Start free. Pay when it matters.</h2>
-      <p class="section-sub reveal"><a href="/login?register=1" style="color:var(--accent);text-decoration:none;">Try a free short session</a> with no card needed. Upgrade when you're ready.</p>
-
-      <div class="pricing-grid">
-        <div class="plan reveal">
-          <div class="plan-name">Sessions</div>
-          <div class="plan-price">£2 <span>/ 3 sessions</span></div>
-          <div style="font-size:0.7rem;color:#a78bfa;margin-bottom:8px;font-weight:500;">Introductory offer &mdash; normally £10 for 3 sessions</div>
-          <div class="plan-desc">Buy sessions when you need them. No subscription.</div>
-          <ul class="plan-features">
-            <li>3 full 2.5-hour sessions</li>
-            <li>Screen &amp; voice capture</li>
-            <li>Instant replay</li>
-            <li>Sessions never expire</li>
-          </ul>
-          <a class="btn btn-outline" href="/login?register=1" style="width:100%;justify-content:center;">Claim £2 intro</a>
-        </div>
-
-        <div class="plan featured reveal">
-          <div class="plan-badge">Most popular</div>
-          <div class="plan-name">Unlimited</div>
-          <div class="plan-price">£20 <span>/ month</span></div>
-          <div style="font-size:0.7rem;color:#a78bfa;margin-bottom:8px;font-weight:500;">Free 1-week trial included &mdash; no card needed</div>
-          <div class="plan-desc">For active job seekers. Unlimited sessions, cancel anytime.</div>
-          <ul class="plan-features">
-            <li>Unlimited sessions</li>
-            <li>Screen &amp; voice capture</li>
-            <li>Instant replay</li>
-            <li>Cancel anytime</li>
-          </ul>
-          <a class="btn btn-primary" href="/login?register=1" style="width:100%;justify-content:center;">Start free week</a>
-        </div>
-      </div>
-
-      <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-top:28px;">
-        {% if user %}
-        <a href="/app" style="color:var(--accent);text-decoration:none;">Go to your dashboard &rarr;</a>
-        {% else %}
-        No card needed to try &mdash; <a href="/login?register=1" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
-        {% endif %}
-      </p>
-    </div>
-  </section>
-
-  <!-- CTA Banner -->
-  <div class="cta-banner reveal">
-    <div class="section-label">Get started today</div>
-    <h2>Your next interview<br>doesn't have to be a gamble.</h2>
-    <p>Join developers who stopped leaving it to chance.</p>
-    {% if user %}
-    <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
-    {% else %}
-    <a class="btn btn-primary btn-lg" href="/login?register=1">Try free — no card</a>
-    {% endif %}
-  </div>
-
-  <script>
-  (function () {
-    var noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    /* ── Scroll Entrance Animations ── */
-    if (!noMotion && 'IntersectionObserver' in window) {
-      var revealObs = new IntersectionObserver(function (entries) {
-        entries.forEach(function (e) {
-          if (e.isIntersecting) {
-            e.target.classList.add('visible');
-            revealObs.unobserve(e.target);
-          }
-        });
-      }, { threshold: 0.1 });
-      document.querySelectorAll('.reveal').forEach(function (el) {
-        revealObs.observe(el);
+  /* ── Scroll Reveal ── */
+  var noMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!noMotion && 'IntersectionObserver' in window) {
+    var revObs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(e) {
+        if (e.isIntersecting) { e.target.classList.add('ia-visible'); revObs.unobserve(e.target); }
       });
-    } else {
-      document.querySelectorAll('.reveal').forEach(function (el) {
-        el.classList.add('visible');
-      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('[data-reveal]').forEach(function(el) { revObs.observe(el); });
+  } else {
+    document.querySelectorAll('[data-reveal]').forEach(function(el) { el.classList.add('ia-visible'); });
+  }
+
+  /* ── Theme Switcher ── */
+  var html = document.documentElement;
+  var inp = document.getElementById('tsw-input');
+  if (inp) {
+    function setTheme(dark) {
+      if (dark) { html.dataset.theme = 'dark'; localStorage.setItem('theme','dark'); }
+      else { delete html.dataset.theme; localStorage.setItem('theme','light'); }
+      inp.checked = dark;
     }
-
-    /* ── Cursor-Tracking Card Spotlight ── */
-    if (!noMotion) {
-      document.querySelectorAll('.pain-card, .feature').forEach(function (card) {
-        card.addEventListener('mousemove', function (e) {
-          var r = card.getBoundingClientRect();
-          card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
-          card.style.setProperty('--my', (e.clientY - r.top) + 'px');
-        });
-      });
-    }
-
-    /* ── Stats Strip Count-Up ── */
-    function countUp(el, target, suffix, duration) {
-      var isDecimal = target % 1 !== 0;
-      var start = 0;
-      var startTime = null;
-      function step(ts) {
-        if (!startTime) startTime = ts;
-        var prog = Math.min((ts - startTime) / duration, 1);
-        var ease = 1 - Math.pow(1 - prog, 3);
-        var val = start + (target - start) * ease;
-        el.textContent = (isDecimal ? val.toFixed(1) : Math.round(val)) + suffix;
-        if (prog < 1) requestAnimationFrame(step);
-        else el.textContent = (isDecimal ? target.toFixed(1) : target) + suffix;
-      }
-      requestAnimationFrame(step);
-    }
-
-    var statsStrip = document.querySelector('.stats-strip');
-    if (statsStrip && 'IntersectionObserver' in window) {
-      var statsObs = new IntersectionObserver(function (entries) {
-        if (entries[0].isIntersecting) {
-          statsStrip.querySelectorAll('.stat-num[data-count]').forEach(function (el) {
-            var target = parseFloat(el.getAttribute('data-count'));
-            var suffix = el.getAttribute('data-suffix') || '';
-            if (!noMotion) countUp(el, target, suffix, 900);
-          });
-          statsObs.disconnect();
-        }
-      }, { threshold: 0.5 });
-      statsObs.observe(statsStrip);
-    }
-  })();
-  </script>
-
-  <!-- Footer -->
-  <footer>
-    <a class="logo" href="/">InterviewAce</a>
-    <p>&copy; 2026 InterviewAce. All rights reserved.</p>
-    <div style="display:flex;gap:20px;">
-      {% if user %}
-      <a href="/app" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Dashboard</a>
-      <a href="/referral" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Refer &amp; earn</a>
-      <a href="/settings" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Settings</a>
-      {% else %}
-      <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
-      <a href="/login?register=1" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
-      {% endif %}
-    </div>
-  </footer>
-
-  <style>
-    #theme-switcher {
-      position: fixed;
-      bottom: 24px;
-      right: 24px;
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: rgba(12, 12, 18, 0.88);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 999px;
-      padding: 9px 16px;
-    }
-    .tsw-icon {
-      width: 15px; height: 15px;
-      flex-shrink: 0; display: block;
-      transition: color 0.25s;
-    }
-    .tsw-icon.tsw-sun  { color: rgba(255, 200, 60, 0.75); }
-    .tsw-icon.tsw-moon { color: rgba(180, 210, 255, 0.55); }
-    .tsw-label { display: inline-flex; align-items: center; cursor: pointer; }
-    #tsw-input { display: none; }
-    .tsw-track {
-      display: block; width: 40px; height: 22px;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.14);
-      border: 1px solid rgba(255,255,255,0.1);
-      position: relative;
-      transition: background 0.25s, border-color 0.25s;
-    }
-    .tsw-thumb {
-      position: absolute; top: 3px; left: 3px;
-      width: 14px; height: 14px; border-radius: 50%;
-      background: rgba(255,255,255,0.92);
-      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
-    }
-    #tsw-input:checked + .tsw-track { background: rgba(108,99,255,0.55); border-color: rgba(108,99,255,0.4); }
-    #tsw-input:checked + .tsw-track .tsw-thumb { transform: translateX(18px); }
-  </style>
-
-  <div id="theme-switcher">
-    <svg class="tsw-icon tsw-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="5"/>
-      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-    </svg>
-    <label class="tsw-label">
-      <input type="checkbox" id="tsw-input">
-      <span class="tsw-track"><span class="tsw-thumb"></span></span>
-    </label>
-    <svg class="tsw-icon tsw-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
-  </div>
-
-  <script>
-    (function(){
-      var html = document.documentElement;
-      var inp  = document.getElementById('tsw-input');
-
-      function setTheme(dark) {
-        if (dark) {
-          html.dataset.theme = 'dark';
-          localStorage.setItem('theme', 'dark');
-        } else {
-          delete html.dataset.theme;
-          localStorage.setItem('theme', 'light');
-        }
-        inp.checked = dark;
-      }
-
-      /* Sync toggle to current state (set by anti-FOUC script in <head>) */
-      inp.checked = html.dataset.theme === 'dark';
-
-      inp.addEventListener('change', function() { setTheme(inp.checked); });
-    })();
-  </script>
+    inp.checked = html.dataset.theme === 'dark';
+    inp.addEventListener('change', function() { setTheme(inp.checked); });
+  }
+})();
+</script>
 
 {% endblock %}

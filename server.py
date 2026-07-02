@@ -27,7 +27,7 @@ from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
 from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, POSTHOG_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
-from mailer import send_cancel_feedback_email, send_verification_email
+from mailer import send_cancel_feedback_email, send_password_reset_email, send_verification_email
 from database import get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
 
@@ -275,6 +275,15 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
 class CaptureRequest(BaseModel):
     image: str        # base64 PNG, optionally prefixed with "data:image/png;base64,"
     complexity: int = Field(default=2, ge=1, le=3)
@@ -388,6 +397,52 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     if user.account_level == AccountLevel.trial:
         return RedirectResponse("/onboarding")
     return RedirectResponse("/app")
+
+
+@app.get("/forgot-password")
+async def forgot_password_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+    if user:
+        return RedirectResponse("/app")
+    return templates.TemplateResponse(request=request, name="forgot_password.html", context={})
+
+
+@app.post("/auth/forgot-password")
+async def auth_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
+    if user:
+        user.reset_token = secrets.token_urlsafe(32)
+        user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+        db.commit()
+        send_password_reset_email(user.email, user.reset_token)
+    # Always return ok — never reveal whether the email is registered
+    return {"status": "ok"}
+
+
+@app.get("/reset-password")
+async def reset_password_page(request: Request, token: str = "", db: Session = Depends(get_db)):
+    # Pre-validate so we can show a useful error on stale/bad links
+    user = db.query(User).filter(User.reset_token == token).first() if token else None
+    invalid = not user or not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow()
+    return templates.TemplateResponse(
+        request=request,
+        name="reset_password.html",
+        context={"token": token, "invalid": invalid},
+    )
+
+
+@app.post("/auth/reset-password")
+async def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.reset_token == body.token).first()
+    if not user or not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link.")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    user.password_hash = hash_password(body.new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
+    db.commit()
+    track(user.id, "password_reset")
+    return {"status": "ok"}
 
 
 @app.post("/auth/logout")
@@ -601,6 +656,23 @@ async def partner_page(
     })
 
 
+@app.get("/faq")
+async def faq_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    ctx: dict = {}
+    if user:
+        ctx.update({
+            "user": user,
+            "user_email": user.email,
+            "show_navbar": True,
+            "account_level": user.account_level.value,
+            "sessions_remaining": user.sessions_remaining,
+        })
+    return templates.TemplateResponse(request=request, name="faq.html", context=ctx)
+
+
 @app.post("/partner/waitlist")
 async def partner_waitlist(
     user: User = Depends(get_current_user),
@@ -638,6 +710,7 @@ async def settings_page(
         "is_referred": user.referred_by_id is not None,
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
+        "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
         "offer_claimed": offer == "claimed",
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
@@ -1018,6 +1091,52 @@ async def regenerate_api_token(user: User = Depends(get_current_user), db: Sessi
     user.api_token = secrets.token_urlsafe(32)
     db.commit()
     return {"token": user.api_token}
+
+
+class AccountUpdateRequest(BaseModel):
+    full_name: Optional[str] = None
+    username:  Optional[str] = None
+    email:     Optional[str] = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password:     str
+
+
+@app.post("/api/settings/account")
+async def update_account(
+    body: AccountUpdateRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if body.username and body.username != user.username:
+        if db.query(User).filter(User.username == body.username, User.id != user.id).first():
+            raise HTTPException(status_code=400, detail="Username already taken.")
+        user.username = body.username
+    if body.email and body.email != user.email:
+        if db.query(User).filter(User.email == body.email, User.id != user.id).first():
+            raise HTTPException(status_code=400, detail="Email already registered.")
+        user.email = body.email
+    if body.full_name is not None:
+        user.full_name = body.full_name
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/settings/password")
+async def change_password(
+    body: PasswordChangeRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return {"status": "ok"}
 
 
 # ---------------------------------------------------------------------------

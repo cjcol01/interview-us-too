@@ -2,105 +2,101 @@
 {% block title %}Trial complete — InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/trial_end.css">{% endblock %}
 {% block content %}
-  <header>
-    <span class="logo">InterviewAce</span>
+  <header class="te-header">
+    <a href="/app" class="te-logo">
+      <span class="te-logo-dot"></span>InterviewAce
+    </a>
   </header>
 
-  <main>
-    <div class="hero">
-      <div class="hero-icon">&#10003;</div>
-      <h1>Trial complete</h1>
-      <p>You've seen how it works. Before you decide what's next, here are a couple of things worth knowing.</p>
+  <main class="te-main">
+
+    <!-- hero -->
+    <div class="te-hero">
+      <div class="te-check-circle">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+          stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <h1 class="te-heading">Trial complete</h1>
+      <p class="te-sub">You've seen how it works. Before you decide what's next, here are a couple of things worth knowing.</p>
     </div>
 
-    <!-- Pin the extension -->
-    <div class="tip-card">
-      <div class="tip-icon">&#128204;</div>
-      <div class="tip-body">
+    <!-- tip cards -->
+    <div class="te-tips">
+      <div class="te-card">
         <h2>Pin the extension</h2>
-        <p>Click the puzzle piece icon in the top right of Chrome, find <strong style="color:#ccc;">InterviewAce</strong>, and click the pin icon to keep it visible in your toolbar.</p>
-        <p class="tip-note">You don't have to do this, but it lets you know at a glance whether it's running.</p>
+        <p>Click the puzzle piece icon in the top right of Chrome, find <strong>InterviewAce</strong>, and click the pin icon to keep it visible in your toolbar.</p>
+        <p class="te-note">You don't have to do this, but it lets you know at a glance whether it's running.</p>
       </div>
-    </div>
-
-    <!-- Key bindings -->
-    <div class="tip-card">
-      <div class="tip-icon">&#9000;</div>
-      <div class="tip-body">
-        <h2>Key bindings</h2>
-        <div class="keybind-list" id="keybind-list">
-          <div class="keybind-row">
-            <span class="keybind-desc">Capture screen &amp; analyse</span>
-            <span class="keybind-keys" id="kb-capture"></span>
-          </div>
-          <div class="keybind-row">
-            <span class="keybind-desc">Record voice &amp; analyse</span>
-            <span class="keybind-keys" id="kb-audio"></span>
-          </div>
-          <div class="keybind-row">
-            <span class="keybind-desc">Instant replay (last few seconds)</span>
-            <span class="keybind-keys" id="kb-replay"></span>
-          </div>
-          <div class="keybind-row">
-            <span class="keybind-desc">Arm the extension</span>
-            <span class="keybind-keys" id="kb-toggle"></span>
-          </div>
-        </div>
-        <p class="tip-note" style="margin-top:10px;">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>.</p>
-      </div>
-    </div>
-
-    <!-- Complexity control -->
-    <div class="tip-card">
-      <div class="tip-icon">&#9881;</div>
-      <div class="tip-body">
+      <div class="te-card">
         <h2>Tune the response detail</h2>
-        <p>The <strong style="color:#ccc;">+&thinsp;/&thinsp;&minus;</strong> buttons on the monitor page control how detailed the AI's answers are — fewer dots for a quick nudge, more dots for a full walkthrough.</p>
-        <p class="tip-note">Useful if the default responses feel too brief or too verbose for your style.</p>
+        <p>The <strong>+&thinsp;/&thinsp;−</strong> buttons on the monitor page control how detailed the AI's answers are — fewer dots for a quick nudge, more dots for a full walkthrough.</p>
+        <p class="te-note">Useful if the default responses feel too brief or too verbose for your style.</p>
       </div>
-    </div>
-
-    <!-- Two-device tip -->
-    <div class="tip-card">
-      <div class="tip-icon">&#128241;</div>
-      <div class="tip-body">
+      <div class="te-card">
         <h2>Keep the monitor off the interviewer's screen</h2>
-        <p>Open the monitor page on your <strong style="color:#ccc;">phone or a second device</strong> — not on the same screen the interviewer can see. The extension captures from your main computer; the hints appear wherever you're logged in.</p>
-        <p class="tip-note">Most people prop their phone out of frame or use a second monitor positioned behind the camera.</p>
+        <p>Open the monitor page on your <strong>phone or a second device</strong> — not on the same screen the interviewer can see. The extension captures from your main computer; the hints appear wherever you're logged in.</p>
+        <p class="te-note">Most people prop their phone out of frame or use a second monitor positioned behind the camera.</p>
       </div>
     </div>
 
-    <script>
-      (function() {
-        const hk = {
-          capture: '{{ hotkey_capture }}',
-          audio:   '{{ hotkey_audio }}',
-          replay:  '{{ hotkey_replay }}',
-          toggle:  '{{ hotkey_toggle }}',
-        };
-        const isMac = /Mac/.test(navigator.platform);
-        function renderKeys(hotkey) {
-          return hotkey.split('+').map((p, i, arr) => {
-            const label = isMac && p === 'Ctrl' ? 'Cmd' : p;
-            return `<kbd>${label}</kbd>${i < arr.length - 1 ? '<span class="sep">+</span>' : ''}`;
-          }).join('');
-        }
-        document.getElementById('kb-capture').innerHTML = renderKeys(hk.capture);
-        document.getElementById('kb-audio').innerHTML   = renderKeys(hk.audio);
-        document.getElementById('kb-replay').innerHTML  = renderKeys(hk.replay);
-        document.getElementById('kb-toggle').innerHTML  = renderKeys(hk.toggle);
-      })();
-    </script>
+    <!-- key bindings -->
+    <div class="te-card te-bindings">
+      <h2>Key bindings</h2>
+      <div class="te-keybind-list">
+        <div class="te-keybind-row">
+          <span class="te-keybind-desc">Capture screen &amp; analyse</span>
+          <span class="te-keybind-keys" id="kb-capture"></span>
+        </div>
+        <div class="te-keybind-row">
+          <span class="te-keybind-desc">Record voice &amp; analyse</span>
+          <span class="te-keybind-keys" id="kb-audio"></span>
+        </div>
+        <div class="te-keybind-row">
+          <span class="te-keybind-desc">Instant replay (last few seconds)</span>
+          <span class="te-keybind-keys" id="kb-replay"></span>
+        </div>
+        <div class="te-keybind-row">
+          <span class="te-keybind-desc">Arm the extension</span>
+          <span class="te-keybind-keys" id="kb-toggle"></span>
+        </div>
+      </div>
+      <p class="te-note" style="margin-top:14px">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>.</p>
+    </div>
 
-    <!-- Upgrade CTA -->
-    <div class="upgrade-section">
+    <!-- upgrade CTA -->
+    <div class="te-upgrade">
       <h2>Ready to use it for real?</h2>
       <p>Upgrade to get full 2.5-hour sessions — long enough for any interview. Pay per session or go unlimited.</p>
-      <a href="/pricing" class="upgrade-btn">See plans &amp; upgrade &rarr;</a>
-      <div class="footer-links">
+      <a href="/pricing" class="te-upgrade-btn">See plans &amp; upgrade →</a>
+      <div class="te-footer-links">
         <a href="/app">Back to monitor</a>
         <a href="/auth/logout">Sign out</a>
       </div>
     </div>
+
   </main>
+
+  <script>
+    (function() {
+      const hk = {
+        capture: '{{ hotkey_capture }}',
+        audio:   '{{ hotkey_audio }}',
+        replay:  '{{ hotkey_replay }}',
+        toggle:  '{{ hotkey_toggle }}',
+      };
+      const isMac = /Mac/.test(navigator.platform);
+      function renderKeys(hotkey) {
+        return hotkey.split('+').map((p, i, arr) => {
+          const label = isMac && p === 'Ctrl' ? 'Cmd' : p;
+          return `<kbd>${label}</kbd>${i < arr.length - 1 ? '<span class="te-sep">+</span>' : ''}`;
+        }).join('');
+      }
+      document.getElementById('kb-capture').innerHTML = renderKeys(hk.capture);
+      document.getElementById('kb-audio').innerHTML   = renderKeys(hk.audio);
+      document.getElementById('kb-replay').innerHTML  = renderKeys(hk.replay);
+      document.getElementById('kb-toggle').innerHTML  = renderKeys(hk.toggle);
+    })();
+  </script>
 {% endblock %}

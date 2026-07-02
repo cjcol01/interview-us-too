@@ -37,6 +37,8 @@ class User(Base):
     api_token          = Column(String, nullable=True, unique=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True)
+    reset_token        = Column(String, nullable=True)
+    reset_token_expiry = Column(DateTime, nullable=True)
     setup_complete     = Column(Boolean, default=False, nullable=False)
     sessions_remaining = Column(Integer, default=0, nullable=False, server_default="0")
     intro_redeemed     = Column(Boolean, default=False, nullable=False, server_default="0")

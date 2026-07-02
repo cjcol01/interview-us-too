@@ -50,6 +50,8 @@ def init_db():
             ("sub_invoice_paid",       "BOOLEAN DEFAULT 0"),
             ("retention_offer_claimed","BOOLEAN DEFAULT 0"),
             ("partner_waitlist",       "BOOLEAN DEFAULT 0"),
+            ("reset_token",            "VARCHAR"),
+            ("reset_token_expiry",     "DATETIME"),
         ]
         for col, definition in migrations:
             if col not in existing:
