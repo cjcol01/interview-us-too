@@ -1,0 +1,17 @@
+name: Deploy to Home Server
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest & restart
+        run: |
+          cd ~/interview-us-too
+          git pull origin main
+          source .venv/bin/activate
+          pip install -r requirements.txt
+          sudo systemctl restart interviewace
