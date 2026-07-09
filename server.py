@@ -12,6 +12,7 @@ from typing import Optional
 
 import anthropic
 import redis.asyncio as aioredis
+import redis.exceptions as redis_exceptions
 import uvicorn
 from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -45,8 +46,24 @@ async def lifespan(app: FastAPI):
         import fakeredis.aioredis
         app.state.redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     else:
-        app.state.redis = aioredis.from_url(REDIS_URL, decode_responses=True)
-        await app.state.redis.ping()
+        app.state.redis = aioredis.from_url(
+            REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=3,
+            socket_timeout=3,
+            socket_keepalive=True,
+            retry_on_timeout=True,
+            health_check_interval=30,
+        )
+        for attempt in range(5):
+            try:
+                await app.state.redis.ping()
+                break
+            except (redis_exceptions.TimeoutError, redis_exceptions.ConnectionError):
+                if attempt == 4:
+                    raise
+                logger.warning("Redis not reachable yet (attempt %d/5) — retrying in 2s", attempt + 1)
+                await asyncio.sleep(2)
     logger.info("[ready] http://localhost:%d", SERVER_PORT)
     try:
         yield
@@ -130,6 +147,19 @@ RESPONSE_STYLE_SUFFIX = {
 
 class ResponseStyleRequest(BaseModel):
     style: ResponseStyle
+
+
+CUSTOM_CONTEXT_MAX_LENGTH = 2000
+
+
+class CustomContextRequest(BaseModel):
+    text: str = Field(default="", max_length=CUSTOM_CONTEXT_MAX_LENGTH)
+
+
+def _custom_context_suffix(user) -> str:
+    if not user.custom_context:
+        return ""
+    return f"\n\nAdditional context provided by the candidate about this interview:\n{user.custom_context}"
 
 
 def _user_hotkeys(user) -> dict:
@@ -724,6 +754,8 @@ async def settings_page(
         "complexity": await get_complexity(r, user.id),
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
+        "custom_context": user.custom_context or "",
+        "custom_context_max_length": CUSTOM_CONTEXT_MAX_LENGTH,
         "show_navbar": True,
     })
 
@@ -871,7 +903,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style]
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
 
     full_text = ""
     async with async_client.messages.stream(
@@ -925,7 +957,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style]
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
 
     full_text = ""
     async with async_client.messages.stream(
@@ -978,7 +1010,7 @@ async def api_audio_capture(
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
-        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
+        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
         full_text = ""
         async with async_client.messages.stream(
             model="claude-sonnet-4-6",
@@ -1070,6 +1102,13 @@ async def save_response_style(data: ResponseStyleRequest, user: User = Depends(g
     user.response_style = data.style
     db.commit()
     return {"status": "ok", "style": data.style.value}
+
+
+@app.post("/api/settings/context")
+async def save_custom_context(data: CustomContextRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.custom_context = data.text.strip() or None
+    db.commit()
+    return {"status": "ok"}
 
 
 @app.post("/api/notify/disabled")

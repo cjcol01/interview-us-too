@@ -52,6 +52,7 @@ def init_db():
             ("partner_waitlist",       "BOOLEAN DEFAULT 0"),
             ("reset_token",            "VARCHAR"),
             ("reset_token_expiry",     "DATETIME"),
+            ("custom_context",         "TEXT"),
         ]
         for col, definition in migrations:
             if col not in existing:

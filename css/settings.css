@@ -576,6 +576,18 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 }
 .field-input::placeholder { color: var(--text-3); }
 .field-input:focus { border-color: var(--accent); }
+.field-textarea {
+  min-height: 110px;
+  resize: vertical;
+  font-family: 'Hanken Grotesk', sans-serif;
+  line-height: 1.5;
+}
+.context-count {
+  font-size: 11.5px;
+  color: var(--text-3);
+  text-align: right;
+  margin-top: 4px;
+}
 
 /* ── Billing section ── */
 .billing-status-row {

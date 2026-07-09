@@ -74,6 +74,10 @@ with TestClient(app) as client:
     import tests.test_response_style
     tests.test_response_style.register(test, skip, client)
 
+    section("Interview Context")
+    import tests.test_context
+    tests.test_context.register(test, skip, client)
+
     section("Audio Capture")
     import tests.test_audio
     tests.test_audio.register(test, skip, client)

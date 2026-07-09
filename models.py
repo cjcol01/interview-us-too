@@ -60,6 +60,7 @@ class User(Base):
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
+    custom_context     = Column(Text, nullable=True)
 
 
 class ReferralStatus(str, enum.Enum):
