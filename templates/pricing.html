@@ -48,7 +48,7 @@
           </div>
         </div>
         <div class="intro-right">
-          <a class="plan-cta cta-intro" href="/billing/checkout?plan=sessions">
+          <a class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/login?next=/billing/checkout?plan=sessions' }}">
             Claim deal — £2
           </a>
           <p class="plan-fine">Single payment · No auto-renewal</p>
@@ -104,7 +104,7 @@
           </div>
         </div>
 
-        <a class="plan-cta cta-sessions" href="/billing/checkout?plan=sessions_pack">
+        <a class="plan-cta cta-sessions" href="{{ '/billing/checkout?plan=sessions_pack' if logged_in else '/login?next=/billing/checkout?plan=sessions_pack' }}">
           Get 3 sessions — £10
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
@@ -160,10 +160,10 @@
             </div>
           </div>
 
-          <a class="plan-cta cta-sub" href="/billing/checkout?plan=subscription">
+          <a class="plan-cta cta-sub" href="{{ '/billing/checkout?plan=subscription' if logged_in else '/login?next=/billing/checkout?plan=subscription' }}">
             Start free week &rarr;
           </a>
-          <p class="plan-fine">Card required to hold your trial.</p>
+          <p class="plan-fine">Card required · {% if sub_price_pence %}£{{ "%.0f"|format(sub_price_pence / 100) }}/month after trial{% else %}billed monthly after trial{% endif %}</p>
           {% if is_referred and referral_discount_active %}
           <p class="plan-fine credit-note">&#10003; £5 off your first full payment applied at checkout</p>
           {% endif %}

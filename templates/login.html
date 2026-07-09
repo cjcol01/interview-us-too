@@ -116,7 +116,8 @@
         if (!res.ok) {
           errEl.textContent = json.detail || 'Something went wrong.';
         } else {
-          window.location.href = '/app';
+          const next = new URLSearchParams(location.search).get('next');
+          window.location.href = next || '/app';
         }
       } catch (err) {
         errEl.textContent = 'Network error: ' + err.message;

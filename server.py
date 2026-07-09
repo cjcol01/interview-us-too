@@ -305,9 +305,9 @@ async def favicon():
 # ---------------------------------------------------------------------------
 
 @app.get("/login")
-async def login_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+async def login_page(request: Request, user: Optional[User] = Depends(get_optional_user), next: Optional[str] = None):
     if user:
-        return RedirectResponse("/app")
+        return RedirectResponse(next or "/app")
     return templates.TemplateResponse(request=request, name="login.html", context={})
 
 
@@ -524,17 +524,19 @@ async def trial_end(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/pricing")
-async def pricing_page(request: Request, user: User = Depends(require_user)):
-    if user.account_level == AccountLevel.unlimited:
+async def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+    if user and user.account_level == AccountLevel.unlimited:
         return RedirectResponse("/settings", status_code=302)
-    track(user.id, "pricing_viewed", account_level=user.account_level.value)
+    if user:
+        track(user.id, "pricing_viewed", account_level=user.account_level.value)
     return templates.TemplateResponse(request=request, name="pricing.html", context={
-        "intro_redeemed": user.intro_redeemed,
-        "sessions_remaining": user.sessions_remaining,
-        "account_level": user.account_level.value,
-        "is_referred": user.referred_by_id is not None,
+        "logged_in": user is not None,
+        "intro_redeemed": user.intro_redeemed if user else False,
+        "sessions_remaining": user.sessions_remaining if user else 0,
+        "account_level": user.account_level.value if user else "free",
+        "is_referred": user.referred_by_id is not None if user else False,
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
-        "referral_credit_pence": user.referral_credit_pence,
+        "referral_credit_pence": user.referral_credit_pence if user else 0,
         "sub_price_pence": STRIPE_SUB_PRICE_PENCE,
         "show_navbar": True,
     })
