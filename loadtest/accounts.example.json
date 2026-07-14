@@ -1,0 +1,16 @@
+[
+  {
+    "username": "loadtest_0",
+    "password": "loadtest-pw-123",
+    "api_token": "example-token-replace-me",
+    "account_level": "free",
+    "session_token": "example-jwt-replace-me"
+  },
+  {
+    "username": "loadtest_1",
+    "password": "loadtest-pw-123",
+    "api_token": "example-token-replace-me-2",
+    "account_level": "free",
+    "session_token": "example-jwt-replace-me-2"
+  }
+]
