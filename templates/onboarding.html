@@ -54,8 +54,7 @@
       <div class="ob-step-body">
         <h2>Connect the extension to your account</h2>
         <p>Open this page in the same browser where you installed the extension, then click below to link it automatically.</p>
-        <p>Click the puzzle piece icon in the top right of Chrome, find InterviewAce, and click the pin icon to keep it visible in your toolbar.</p>
-        <p>You don't have to do this, but it lets you know if it's running!</p>
+        <p class="ob-manual-hint">Tip: pin it — click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
         <div class="ob-connect-wrap">
           <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
           <p id="connect-status" class="ob-connect-status"></p>
@@ -96,21 +95,25 @@
         </div>
         <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
         <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
         <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
 
-        <div class="ob-feature-callout">
-          <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
-          <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
-        </div>
+        <button class="ob-manual-toggle" onclick="toggleAdvanced()">Show advanced features (optional)</button>
+        <div id="advanced-section" class="ob-manual-section">
+          <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
+          <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
 
-        <div class="ob-feature-callout">
-          <div class="ob-fc-title">⌨️ Typing mode &amp; passthrough</div>
-          <p>Press the typing hotkey to enter typing mode — type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
-          <div class="ob-passthrough-row">
-            <span class="ob-passthrough-label"><strong>Passthrough mode</strong> — keystrokes also reach the page (useful in online IDEs)</span>
-            <button id="passthrough-btn" class="ob-toggle-pill active" onclick="togglePassthrough()">On</button>
+          <div class="ob-feature-callout">
+            <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
+            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
+          </div>
+
+          <div class="ob-feature-callout">
+            <div class="ob-fc-title">⌨️ Typing mode &amp; passthrough</div>
+            <p>Press the typing hotkey to enter typing mode — type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
+            <div class="ob-passthrough-row">
+              <span class="ob-passthrough-label"><strong>Passthrough mode</strong> — keystrokes also reach the page (useful in online IDEs)</span>
+              <button id="passthrough-btn" class="ob-toggle-pill active" onclick="togglePassthrough()">On</button>
+            </div>
           </div>
         </div>
 
@@ -203,6 +206,10 @@
 
     function toggleManual() {
       document.getElementById('manual-section').classList.toggle('open');
+    }
+
+    function toggleAdvanced() {
+      document.getElementById('advanced-section').classList.toggle('open');
     }
 
     function copyText(id, btn) {

@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import bcrypt as _bcrypt
-from fastapi import Cookie, Depends, HTTPException
+from fastapi import Cookie, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
@@ -48,17 +48,21 @@ def decode_user_id(token: str) -> Optional[int]:
 
 
 def get_optional_user(
+    request: Request,
     session: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
-    if not session:
-        return None
-    try:
-        payload = jwt.decode(session, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = int(payload["sub"])
-    except (JWTError, KeyError, ValueError):
-        return None
-    return db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    user = None
+    if session:
+        try:
+            payload = jwt.decode(session, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = int(payload["sub"])
+            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        except (JWTError, KeyError, ValueError):
+            user = None
+    # Cached so the Jinja2 context processor can reuse it without another query.
+    request.state.user = user
+    return user
 
 
 def get_current_user(user: Optional[User] = Depends(get_optional_user)) -> User:

@@ -2,6 +2,7 @@ import asyncio
 import base64
 import json
 import os
+import re
 import secrets
 import tempfile
 import time
@@ -23,16 +24,46 @@ from fastapi.templating import Jinja2Templates
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
-from billing import apply_retention_coupon, cancel_subscription, create_checkout_session, create_portal_session, handle_webhook_event
+from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event
 from config import AI_PROMPT, ANTHROPIC_API_KEY, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, POSTHOG_API_KEY, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
-from mailer import send_cancel_feedback_email, send_password_reset_email, send_verification_email
-from database import get_db, init_db
+from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
+from database import SessionLocal, get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
 
-templates = Jinja2Templates(directory="templates")
+def _optional_user_from_request(request: Request) -> Optional[User]:
+    # Reuse the user cached by get_optional_user() when it already ran as a route dependency.
+    if hasattr(request.state, "user"):
+        return request.state.user
+    token = request.cookies.get("session")
+    user_id = decode_user_id(token) if token else None
+    user = None
+    if user_id:
+        db = SessionLocal()
+        try:
+            user = db.query(User).filter(User.id == user_id, User.is_active == True).first()  # noqa: E712
+        finally:
+            db.close()
+    request.state.user = user
+    return user
+
+
+def _template_globals(request: Request) -> dict:
+    """Jinja2 context processor: makes `user`/`account_level`/`sessions_remaining`
+    available on every template render so routes can't forget the navbar's auth
+    state (this previously drifted out of sync on several pages)."""
+    user = _optional_user_from_request(request)
+    return {
+        "user": user,
+        "account_level": user.account_level.value if user else "free",
+        "sessions_remaining": user.sessions_remaining if user else 0,
+    }
+
+
+templates = Jinja2Templates(directory="templates", context_processors=[_template_globals])
 templates.env.globals["POSTHOG_KEY"] = POSTHOG_API_KEY
 templates.env.globals["POSTHOG_HOST"] = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 SCREENSHOTS_DIR = Path("screenshots")
@@ -73,6 +104,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.mount("/css", StaticFiles(directory="css"), name="css")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -101,6 +133,19 @@ async def _request_logger(request: Request, call_next):
 async def _unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
+
+
+def _build_404_ref(path: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", path).strip("-").upper()
+    return f"REQ-00404-{slug}" if slug else "REQ-00404-NF"
+
+
+@app.exception_handler(StarletteHTTPException)
+async def _http_exception_handler(request: Request, exc: StarletteHTTPException):
+    if exc.status_code == 404 and "text/html" in request.headers.get("accept", ""):
+        ctx = {"ref_code": _build_404_ref(request.url.path), "show_navbar": True}
+        return templates.TemplateResponse(request=request, name="404.html", context=ctx, status_code=404)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
@@ -328,7 +373,7 @@ class TextCaptureRequest(BaseModel):
 # ---------------------------------------------------------------------------
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    return Response(status_code=204)
+    return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
 
 # Auth routes
@@ -490,7 +535,8 @@ async def auth_logout():
 @app.get("/")
 async def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
     template = "landing.html" if LANDING_PROD else "landing_prep.html"
-    return templates.TemplateResponse(request=request, name=template, context={"user": user})
+    ctx = {"show_navbar": True, "show_landing_links": True}
+    return templates.TemplateResponse(request=request, name=template, context=ctx)
 
 
 @app.get("/app")
@@ -504,8 +550,6 @@ async def index(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="index.html", context={
         **_user_hotkeys(user),
         "show_navbar": True,
-        "account_level": user.account_level.value,
-        "sessions_remaining": user.sessions_remaining,
     })
 
 
@@ -562,8 +606,6 @@ async def pricing_page(request: Request, user: Optional[User] = Depends(get_opti
     return templates.TemplateResponse(request=request, name="pricing.html", context={
         "logged_in": user is not None,
         "intro_redeemed": user.intro_redeemed if user else False,
-        "sessions_remaining": user.sessions_remaining if user else 0,
-        "account_level": user.account_level.value if user else "free",
         "is_referred": user.referred_by_id is not None if user else False,
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
         "referral_credit_pence": user.referral_credit_pence if user else 0,
@@ -634,8 +676,6 @@ async def referral_page(
         "ref_success": ref_success == "1",
         "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "show_navbar": True,
-        "account_level": user.account_level.value,
-        "sessions_remaining": user.sessions_remaining,
     })
 
 
@@ -679,12 +719,9 @@ async def partner_page(
     joined: str = Query(default=""),
 ):
     return templates.TemplateResponse(request=request, name="partner.html", context={
-        "user": user,
         "user_email": user.email,
         "joined": user.partner_waitlist or joined == "1",
         "show_navbar": True,
-        "account_level": user.account_level.value,
-        "sessions_remaining": user.sessions_remaining,
     })
 
 
@@ -693,16 +730,7 @@ async def faq_page(
     request: Request,
     user: Optional[User] = Depends(get_optional_user),
 ):
-    ctx: dict = {}
-    if user:
-        ctx.update({
-            "user": user,
-            "user_email": user.email,
-            "show_navbar": True,
-            "account_level": user.account_level.value,
-            "sessions_remaining": user.sessions_remaining,
-        })
-    return templates.TemplateResponse(request=request, name="faq.html", context=ctx)
+    return templates.TemplateResponse(request=request, name="faq.html", context={"show_navbar": True})
 
 
 @app.post("/partner/waitlist")
@@ -734,8 +762,6 @@ async def settings_page(
         "full_name": user.full_name,
         "username": user.username,
         "email": user.email,
-        "account_level": user.account_level.value,
-        "sessions_remaining": user.sessions_remaining,
         "api_token": user.api_token,
         "base_url": BASE_URL,
         "sub_cancel_at": cancel_at,
@@ -743,7 +769,7 @@ async def settings_page(
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
-        "offer_claimed": offer == "claimed",
+        "offer_claimed": offer == "claimed" and user.retention_offer_claimed,
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
@@ -1180,6 +1206,51 @@ async def change_password(
     return {"status": "ok"}
 
 
+@app.get("/account/delete")
+async def account_delete_page(request: Request, user: User = Depends(get_current_user)):
+    return templates.TemplateResponse(request=request, name="account_delete.html", context={
+        "has_active_sub": user.account_level == AccountLevel.unlimited and not user.sub_cancel_at,
+    })
+
+
+@app.post("/account/delete/confirm")
+async def account_delete_confirm(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    password: str = Form(...),
+    reason: str = Form(default=""),
+    detail: str = Form(default=""),
+):
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Incorrect password.")
+
+    if user.stripe_sub_id:
+        try:
+            cancel_subscription_immediately(user)
+        except Exception as e:
+            logger.error("[account-delete] failed to cancel stripe sub for %s: %s", user.email, e)
+
+    track(user.id, "account_deleted", reason=reason)
+    if reason:
+        send_account_deletion_email(user.email, reason, detail)
+
+    user_id = user.id
+    db.query(InterviewSession).filter(InterviewSession.user_id == user_id).delete()
+    db.query(Referral).filter(Referral.referrer_id == user_id).delete()
+    db.query(Referral).filter(Referral.referee_id == user_id).delete()
+    db.query(User).filter(User.referred_by_id == user_id).update({"referred_by_id": None})
+    db.delete(user)
+    db.commit()
+
+    r = request.app.state.redis
+    await r.delete(_capture_key(user_id), _complexity_key(user_id))
+
+    response = RedirectResponse("/login?deleted=1", status_code=303)
+    response.delete_cookie("session")
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Billing routes
 # ---------------------------------------------------------------------------
@@ -1284,6 +1355,7 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
     try:
         handle_webhook_event(payload, sig, db)
     except Exception as e:
+        logger.exception("[webhook] unhandled error processing event")
         raise HTTPException(status_code=400, detail=str(e))
     return Response(status_code=200)
 

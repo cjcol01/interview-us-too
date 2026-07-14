@@ -1,7 +1,16 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "sqlite:///./users.db"
+# SQLite's file locking is unreliable on WSL2's 9p-mounted Windows drives (e.g. /mnt/d/...),
+# where this repo lives — concurrent access there reliably produces "disk I/O error" on commit.
+# Data files live on the native Linux filesystem instead; only the repo/code stays on /mnt/d.
+DATA_DIR = os.path.expanduser("~/.interview-us-too")
+os.makedirs(DATA_DIR, exist_ok=True)
+
+_DB_FILENAME = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"
+DATABASE_URL = f"sqlite:///{os.path.join(DATA_DIR, _DB_FILENAME)}"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

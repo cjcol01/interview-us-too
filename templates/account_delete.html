@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Delete account — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/account_delete.css">{% endblock %}
+{% block content %}
+
+  <header>
+    <a class="back-btn" href="/settings" aria-label="Back to settings">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    </a>
+    <span class="logo">InterviewAce</span>
+  </header>
+
+  <main>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>Delete your account</h1>
+      <p>This permanently removes your InterviewAce account and personal data. It cannot be undone.</p>
+    </div>
+
+    {% if has_active_sub %}
+    <div class="warn-card">
+      <span class="warn-icon">&#9888;</span>
+      <span class="warn-text">You have an <strong>active subscription</strong>. Deleting your account cancels it immediately — you'll lose access right away rather than at the end of your billing period. If you'd rather keep your remaining time, <a href="/billing/cancel">cancel your subscription</a> instead.</span>
+    </div>
+    {% elif sessions_remaining and sessions_remaining > 0 %}
+    <div class="warn-card">
+      <span class="warn-icon">&#9888;</span>
+      <span class="warn-text">You have <strong>{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}</strong> remaining. Deleting your account forfeits them — they can't be refunded or restored.</span>
+    </div>
+    {% endif %}
+
+    <!-- What happens -->
+    <div class="card">
+      <div class="card-header">What gets deleted</div>
+      <div class="card-body">
+        <div class="info-list">
+          <div class="info-row">
+            <span class="info-icon">&#128100;</span>
+            <span class="info-text">Your profile, login credentials, hotkeys, and saved interview context are <strong>permanently erased</strong>.</span>
+          </div>
+          <div class="info-row">
+            <span class="info-icon">&#128203;</span>
+            <span class="info-text">Your session history and referral records are deleted.</span>
+          </div>
+          <div class="info-row">
+            <span class="info-icon">&#128179;</span>
+            <span class="info-text">Billing records are kept by our payment processor (Stripe) as required by law for tax and accounting purposes — they're no longer linked to an active InterviewAce account.</span>
+          </div>
+          <div class="info-row">
+            <span class="info-icon">&#9203;</span>
+            <span class="info-text">This happens immediately. There's no recovery window — you'd need to create a new account to come back.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reason (optional) -->
+    <div class="card">
+      <div class="card-header">Before you go — why are you leaving? (optional)</div>
+      <div class="radio-list" id="radio-list">
+        <label class="radio-item" data-val="got_job">
+          <input type="radio" name="reason" value="got_job">
+          <span>I got the job!</span>
+        </label>
+        <label class="radio-item" data-val="too_expensive">
+          <input type="radio" name="reason" value="too_expensive">
+          <span>Too expensive</span>
+        </label>
+        <label class="radio-item" data-val="not_used_enough">
+          <input type="radio" name="reason" value="not_used_enough">
+          <span>Didn't use it enough</span>
+        </label>
+        <label class="radio-item" data-val="had_issues">
+          <input type="radio" name="reason" value="had_issues">
+          <span>It was buggy / I had issues</span>
+        </label>
+        <label class="radio-item" data-val="privacy">
+          <input type="radio" name="reason" value="privacy">
+          <span>Privacy / data concerns</span>
+        </label>
+        <label class="radio-item" data-val="other">
+          <input type="radio" name="reason" value="other">
+          <span>Other</span>
+        </label>
+      </div>
+      <div class="card-body" style="padding-top:0;">
+        <textarea class="ctx-textarea" id="detail-text" placeholder="Anything you'd like to share? (optional)"></textarea>
+      </div>
+    </div>
+
+    <!-- Confirm + delete -->
+    <div class="card">
+      <div class="card-header">Confirm deletion</div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div class="field-group">
+          <label class="field-label" for="delete-password">Enter your password</label>
+          <input class="field-input" id="delete-password" type="password" autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <div id="delete-error" class="delete-error"></div>
+        <label class="confirm-check">
+          <input type="checkbox" id="confirm-checkbox">
+          <span>I understand this is permanent and cannot be undone.</span>
+        </label>
+      </div>
+    </div>
+
+    <form method="POST" action="/account/delete/confirm" class="delete-actions" id="delete-form">
+      <input type="hidden" name="password" id="hidden-password">
+      <input type="hidden" name="reason" id="hidden-reason">
+      <input type="hidden" name="detail" id="hidden-detail">
+      <button type="submit" class="btn-delete" id="delete-btn" disabled>Permanently delete my account</button>
+      <a class="btn-back" href="/settings">Cancel, keep my account</a>
+    </form>
+
+  </main>
+
+  <script>
+    const radios     = document.querySelectorAll('input[name="reason"]');
+    const radioItems = document.querySelectorAll('.radio-item');
+    radios.forEach(r => {
+      r.addEventListener('change', () => {
+        radioItems.forEach(li => li.classList.remove('selected'));
+        r.closest('.radio-item').classList.add('selected');
+      });
+    });
+
+    const pwdInput   = document.getElementById('delete-password');
+    const checkbox   = document.getElementById('confirm-checkbox');
+    const deleteBtn  = document.getElementById('delete-btn');
+    const errEl      = document.getElementById('delete-error');
+
+    function updateDeleteBtn() {
+      deleteBtn.disabled = !(pwdInput.value.length > 0 && checkbox.checked);
+    }
+    pwdInput.addEventListener('input', updateDeleteBtn);
+    checkbox.addEventListener('change', updateDeleteBtn);
+
+    document.getElementById('delete-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      errEl.textContent = '';
+      deleteBtn.disabled = true;
+
+      const checked = document.querySelector('input[name="reason"]:checked');
+      document.getElementById('hidden-password').value = pwdInput.value;
+      document.getElementById('hidden-reason').value = checked ? checked.value : '';
+      document.getElementById('hidden-detail').value = document.getElementById('detail-text').value.trim();
+
+      const form = e.target;
+      fetch(form.action, { method: 'POST', body: new FormData(form) }).then(async (res) => {
+        if (res.redirected) {
+          window.location.href = res.url;
+        } else if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          errEl.textContent = body.detail || 'Something went wrong.';
+          updateDeleteBtn();
+        }
+      }).catch((err) => {
+        errEl.textContent = 'Network error: ' + err.message;
+        updateDeleteBtn();
+      });
+    });
+  </script>
+{% endblock %}

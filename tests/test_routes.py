@@ -15,6 +15,11 @@ def register(test, skip, client):
     def test_login_page_200():
         assert client.get("/login").status_code == 200
 
+    def test_pricing_accessible_without_auth():
+        """Pricing is a public page — it only redirects away already-unlimited users."""
+        r = client.get("/pricing", follow_redirects=False)
+        assert r.status_code == 200
+
     # -- Auth: unauthenticated redirects -------------------------------------
 
     def test_app_redirects_to_login():
@@ -26,10 +31,6 @@ def register(test, skip, client):
         r = client.get("/settings", follow_redirects=False)
         assert r.status_code in (302, 307)
         assert "login" in r.headers.get("location", "")
-
-    def test_pricing_requires_auth():
-        r = client.get("/pricing", follow_redirects=False)
-        assert r.status_code in (302, 307)
 
     def test_billing_success_requires_auth():
         r = client.get("/billing/success", follow_redirects=False)
@@ -330,9 +331,9 @@ def register(test, skip, client):
 
     test("Landing page returns 200",                           test_landing_200)
     test("Login page returns 200",                             test_login_page_200)
+    test("/pricing accessible without auth",                   test_pricing_accessible_without_auth)
     test("Unauthenticated /app redirects to login",            test_app_redirects_to_login)
     test("/settings requires auth",                            test_settings_requires_auth)
-    test("/pricing requires auth",                             test_pricing_requires_auth)
     test("/billing/success requires auth",                     test_billing_success_requires_auth)
     test("/trial-end requires auth",                           test_trial_end_requires_auth)
     test("Login rejects wrong credentials",                    test_login_rejects_wrong_credentials)

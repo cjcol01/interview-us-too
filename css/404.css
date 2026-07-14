@@ -1,0 +1,160 @@
+/* ===== 404 — Not Shortlisted ===== */
+.nf-wrap {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.nf-glow {
+  position: absolute;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 620px;
+  height: 460px;
+  background: radial-gradient(circle, rgba(224,106,106,.06), transparent 65%);
+  pointer-events: none;
+}
+
+/* ── Main ── */
+.nf-main {
+  position: relative;
+  flex: 1;
+  max-width: 620px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 40px 18px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nf-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 22px;
+}
+.nf-badge {
+  background: rgba(224,106,106,.10);
+  border: 1px solid rgba(224,106,106,.28);
+  color: var(--danger);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 4px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.nf-badge-sep { color: var(--text-3); }
+
+/* ── Letter ── */
+.nf-letter {
+  position: relative;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 30px 30px 26px;
+  overflow: hidden;
+}
+
+.nf-stamp {
+  position: absolute;
+  top: 22px;
+  right: -8px;
+  transform: rotate(11deg);
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.15;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--danger);
+  border: 3px solid var(--danger);
+  border-radius: 8px;
+  padding: 8px 14px;
+  opacity: .8;
+  pointer-events: none;
+  user-select: none;
+}
+.nf-stamp::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--danger);
+  border-radius: 4px;
+}
+
+.nf-mailhead {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  border-bottom: 1px dashed var(--line-strong);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 82%;
+}
+.nf-mailrow { display: flex; gap: 10px; }
+.nf-mailkey {
+  flex-shrink: 0;
+  width: 42px;
+  color: var(--text-3);
+}
+.nf-mailval { color: var(--text-2); word-break: break-word; }
+.nf-mailval.nf-mono { color: var(--text-1); }
+
+.nf-body {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text-2);
+}
+.nf-body p { margin-bottom: 14px; }
+.nf-body p:last-child { margin-bottom: 0; }
+.nf-body strong { color: var(--text-1); font-weight: 600; }
+
+.nf-sign { color: var(--text-1); margin-bottom: 4px !important; }
+.nf-footnote {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-bottom: 18px !important;
+}
+.nf-ps {
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-3);
+  border-top: 1px dashed var(--line-strong);
+  padding-top: 14px;
+}
+
+/* ── Actions ── */
+.nf-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 24px;
+}
+.nf-btn { flex: 1; justify-content: center; }
+
+/* ── Small print ── */
+.nf-small-print {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+  margin-top: 26px;
+}
+
+@media (max-width: 480px) {
+  .nf-letter { padding: 24px 18px 20px; border-radius: 14px; }
+  .nf-mailhead { max-width: 100%; }
+  .nf-stamp { font-size: 12px; padding: 6px 10px; top: 16px; right: -6px; }
+  .nf-actions { flex-direction: column; }
+}

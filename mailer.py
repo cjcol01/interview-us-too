@@ -84,6 +84,7 @@ _REASON_LABELS = {
     "not_used_enough": "Didn't use it enough",
     "had_issues":      "It was buggy / I had issues",
     "missing_feature": "Missing a feature",
+    "privacy":         "Privacy / data concerns",
     "other":           "Other",
 }
 
@@ -136,3 +137,46 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
         })
     except Exception as e:
         logger.error("[email] failed to send cancel feedback: %s", e)
+
+
+def send_account_deletion_email(user_email: str, reason: str, detail: str) -> None:
+    reason_label = _REASON_LABELS.get(reason, reason or "—")
+    detail_block = (
+        f'<p style="margin:12px 0 0;padding:12px;background:#1a1a2e;border-radius:8px;'
+        f'color:#ccc;font-size:0.9rem;line-height:1.6;">{detail}</p>'
+        if detail else
+        '<p style="margin:12px 0 0;color:#555;font-size:0.85rem;">No additional detail.</p>'
+    )
+
+    logger.info("[account-delete] user=%s reason=%s", user_email, reason_label)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": NOTIFY_EMAIL,
+            "subject": f"[InterviewAce] Account deleted — {reason_label}",
+            "html": f"""
+            <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
+                        padding:32px;background:#0d0d0d;color:#e0e0e0;">
+              <h2 style="margin:0 0 4px;color:#fff;font-size:1.1rem;">Account deletion</h2>
+              <p style="margin:0 0 24px;color:#555;font-size:0.82rem;">
+                from <strong style="color:#888;">{user_email}</strong>
+              </p>
+
+              <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <tr>
+                  <td style="padding:10px 0;color:#666;width:110px;">Reason</td>
+                  <td style="padding:10px 0;color:#e0e0e0;font-weight:600;">{reason_label}</td>
+                </tr>
+              </table>
+
+              <p style="margin:16px 0 4px;color:#666;font-size:0.82rem;">Detail</p>
+              {detail_block}
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send account deletion notice: %s", e)

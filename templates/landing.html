@@ -17,28 +17,6 @@
 {% endblock %}
 {% block content %}
 
-<!-- ===== NAV ===== -->
-<nav class="ia-nav">
-  <a class="ia-nav-logo" href="#top">
-    <span class="ia-logo-dot"></span>
-    InterviewAce
-  </a>
-  <div class="ia-nav-links">
-    <a href="#how">How it works</a>
-    <a href="#features">Features</a>
-    <a href="#pricing">Pricing</a>
-  </div>
-  <div class="ia-nav-actions">
-    <a href="/faq" class="ia-nav-faq">FAQ</a>
-    {% if user %}
-    <a href="/app" class="ia-nav-cta">Go to app</a>
-    {% else %}
-    <a href="/login" class="ia-nav-signin">Sign in</a>
-    <a href="/login?register=1" class="ia-nav-cta">Try free</a>
-    {% endif %}
-  </div>
-</nav>
-
 <!-- ===== HERO ===== -->
 <section class="ia-hero" id="top">
   <div class="ia-hero-inner">
@@ -392,7 +370,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     </div>
     <div class="ia-bento">
 
-      <div class="ia-tile ia-tile--wide ia-tile--accent" data-reveal>
+      <div class="ia-tile ia-tile--wide" data-reveal>
         <div class="ia-tile-icon ia-tile-icon--accent">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </div>
@@ -402,39 +380,27 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       </div>
 
       <div class="ia-tile ia-tile--wide" data-reveal>
-        <div class="ia-tile-icon">
+        <div class="ia-tile-icon ia-tile-icon--accent">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
         </div>
         <h3>Streams to your phone</h3>
         <p>The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation — formatted to read at a glance. Also works on a second monitor.</p>
       </div>
 
-      <div class="ia-tile ia-tile--third" data-reveal>
-        <div class="ia-tile-tag">Capture</div>
+      <div class="ia-tile ia-tile--wide" data-reveal>
+        <div class="ia-tile-icon ia-tile-icon--accent">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
         <h3>Screen or voice</h3>
         <p>Tap to screenshot the question, or hold to record the interviewer. Both stream the same Claude analysis.</p>
       </div>
 
-      <div class="ia-tile ia-tile--third" data-reveal>
-        <div class="ia-tile-tag">Replay</div>
+      <div class="ia-tile ia-tile--wide" data-reveal>
+        <div class="ia-tile-icon ia-tile-icon--accent">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
+        </div>
         <h3>Instant replay</h3>
         <p>Missed what they said? Replay sends the last 15s of their question to AI after the fact.</p>
-      </div>
-
-      <div class="ia-tile ia-tile--third" data-reveal>
-        <div class="ia-tile-tag">Analysis</div>
-        <h3>Smart analysis</h3>
-        <p>Auto language detection. Switch between optimal, intermediate, and naive on the fly.</p>
-      </div>
-
-      <div class="ia-tile ia-tile--full" data-reveal>
-        <div class="ia-tile-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 10l4.553-2.277A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg>
-        </div>
-        <div class="ia-tile-body">
-          <h3>Live calls &amp; recorded tests</h3>
-          <p>On live calls the answer goes to your phone. On recorded tests that flag tab switching — you never switch, so there's nothing to flag. Zoom, Teams, HireVue, Kira &amp; more.</p>
-        </div>
       </div>
 
     </div>
@@ -471,7 +437,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         <div class="ia-plan-badge">Most popular</div>
         <div class="ia-plan-label ia-plan-label--accent">Unlimited</div>
         <div class="ia-plan-price">
-          <span class="ia-plan-amount">£20</span>
+          <span class="ia-plan-amount">£15</span>
           <span class="ia-plan-per">/ month</span>
         </div>
         <div class="ia-plan-note">Free 7-day trial &middot; card required</div>
@@ -486,7 +452,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       </div>
 
     </div>
-    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a></p>
+    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a>{% if not user or user.account_level.value != 'unlimited' %}<br>or<br>see our full <a href="/pricing">pricing page</a>{% endif %}</p>
   </div>
 </section>
 
@@ -513,7 +479,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     <p class="ia-footer-copy">&copy; 2026 InterviewAce. All rights reserved.</p>
     <div class="ia-footer-links">
       <a href="/faq">FAQ</a>
-      <a href="#pricing">Pricing</a>
+      <a href="/pricing" class="ia-footer-link--highlight">Pricing</a>
       <a href="/faq">Support</a>
       <a href="#">Privacy</a>
     </div>

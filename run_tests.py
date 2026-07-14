@@ -12,9 +12,16 @@ warnings.filterwarnings("ignore")
 import logging
 logging.disable(logging.CRITICAL)
 
-os.environ.setdefault("TESTING", "1")  # use fakeredis — must be set before importing server
+os.environ.setdefault("TESTING", "1")  # use fakeredis + an isolated SQLite file — must be set before importing server
 
-from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, skip, test
+# Start from a clean test database each run. If a prior run crashed mid-test, a leftover
+# fixed-name row (e.g. tests using hardcoded usernames) would otherwise cause spurious
+# UNIQUE-constraint cascades on the next run.
+_test_db_path = os.path.join(os.path.expanduser("~/.interview-us-too"), "test_users.db")
+if os.path.exists(_test_db_path):
+    os.remove(_test_db_path)
+
+from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, skip, test
 
 
 def section(title):
@@ -26,6 +33,7 @@ from fastapi.testclient import TestClient
 from server import app
 
 with TestClient(app) as client:
+    set_client(client)
 
     section("Config")
     import tests.test_config

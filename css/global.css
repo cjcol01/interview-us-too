@@ -219,6 +219,14 @@ input[type=range]::-moz-range-thumb {
   background: var(--accent);
   box-shadow: 0 0 8px var(--accent);
 }
+.navbar-center-links {
+  display: flex;
+  align-items: center;
+  gap: 26px;
+  font-size: 14px;
+}
+.navbar-center-links a { color: var(--text-2); text-decoration: none; transition: color .15s; }
+.navbar-center-links a:hover { color: var(--text-1); }
 .navbar-links {
   display: flex;
   align-items: center;
@@ -241,6 +249,21 @@ input[type=range]::-moz-range-thumb {
 .navbar-link:hover { color: var(--text); background: rgba(255,255,255,.04); }
 .navbar-link.active { color: var(--text); background: rgba(255,255,255,.06); }
 .navbar-link.navbar-logout:hover { color: var(--danger); }
+.navbar-link.navbar-cta {
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+.navbar-link.navbar-cta:hover {
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(255,255,255,.16);
+}
+[data-theme="light"] .navbar-link.navbar-cta:hover { box-shadow: 0 8px 24px rgba(0,0,0,.20); }
 .navbar-hamburger {
   display: none;
   background: none;
@@ -257,6 +280,7 @@ input[type=range]::-moz-range-thumb {
 @media (max-width: 640px) {
   .navbar { flex-wrap: wrap; height: auto; min-height: 64px; padding: 0 20px; }
   .navbar-logo { padding: 16px 0; }
+  .navbar-center-links { display: none; }
   .navbar-links {
     display: none;
     flex-direction: column;
