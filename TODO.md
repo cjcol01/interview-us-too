@@ -3,12 +3,11 @@
 ## Now
 
 - [ ] trial-end page needs updating and navbar
-- [ ] navbar on all pages renders conditionally for logged in/ logged out state
 - [ ] do i want db in new place?
 - [ ] set up server hot reloading?
 - [ ] create backup plans and security and reliability plans
 - [ ] error 500 page 
-- [ ] stress test site
+- [ ] stress test site - locust/k6
 
 
 
@@ -17,6 +16,12 @@
 
 - [ ] Desktop app with invisible-to-screen-share overlay (native, not a plain extension port)
 - [ ] Video demonstration for landing page
+- [ ] zero downtime deploy
+- [ ] privacy
+- [ ] terms and conditions
+- [ ] refund policy
+- [ ] cookie policy
+
 ## Done
 
 - [x] Widen main app page (index.css 600→680px) and onboarding (onboarding.css 580→640px) on desktop
@@ -28,3 +33,4 @@
 - [x] Investigated /settings?offer=claimed — confirmed it applied NO real discount, just a misleading "50% off applied" banner. Fixed: banner now gated on user.retention_offer_claimed (the real DB flag set only by POST /billing/offer), so typing the URL directly no longer shows a false claim.
 - [x] Enlarged the landing hero demo (grid ratio + demo stage height) to fill more of the right column, as a substitute for landing-page respacing (that concern turned out to be about /app, handled above)
 - [x] testing script
+- [x] navbar on all pages renders conditionally for logged in/ logged out state

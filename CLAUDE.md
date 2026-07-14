@@ -12,6 +12,9 @@ Always use double-quoted paths in Bash commands (e.g. `ls "/Users/cjcoleman/CJ A
 # Run the server
 python server.py
 
+# Run the server with auto-reload on file changes (dev only)
+RELOAD=1 python server.py
+
 # Run all tests (uses fakeredis, no real services needed)
 python run_tests.py
 

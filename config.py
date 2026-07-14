@@ -25,6 +25,7 @@ APP_VERSION = f"{APP_VERSION_MAJOR}.{APP_VERSION_MINOR}.{_commit_count()}"
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
 SERVER_PORT = int(os.getenv("SERVER_PORT", 8000))
+RELOAD = os.getenv("RELOAD", "0") == "1"
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 if SECRET_KEY == "change-me-in-production":
     raise RuntimeError("SECRET_KEY env var is not set — add a secure random value to .env")
