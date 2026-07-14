@@ -795,3 +795,32 @@ def register_http(test, skip, client):
     test("Webhook: checkout.completed grants sessions",       test_webhook_checkout_sessions_purchase)
     test("GET /billing/checkout requires auth",               test_checkout_requires_auth)
     test("GET /billing/checkout redirects to Stripe",         test_checkout_redirects_to_stripe)
+
+    def test_webhook_bad_signature_returns_400():
+        import stripe as _stripe
+        with patch("billing.stripe.Webhook.construct_event",
+                   side_effect=_stripe.error.SignatureVerificationError("bad sig", "sig_header")):
+            r = client.post("/billing/webhook", content=b"payload",
+                            headers={"stripe-signature": "bogus"})
+        assert r.status_code == 400
+
+    def test_webhook_unhandled_event_type_is_noop_200():
+        cid = _stripe_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            fake_event = {
+                "type": "customer.updated",
+                "data": {"object": _FakeStripeObject({"customer": cid})},
+            }
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.account_level == AccountLevel.trial
+        finally:
+            cleanup(db, u); db.close()
+
+    test("Webhook: bad signature -> 400",                      test_webhook_bad_signature_returns_400)
+    test("Webhook: unhandled event type -> 200 no-op",         test_webhook_unhandled_event_type_is_noop_200)

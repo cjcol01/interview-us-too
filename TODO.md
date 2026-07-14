@@ -5,6 +5,13 @@
 - [ ] trial-end page needs updating and navbar
 - [ ] navbar on all pages renders conditionally for logged in/ logged out state
 - [ ] do i want db in new place?
+- [ ] set up server hot reloading?
+- [ ] create backup plans and security and reliability plans
+- [ ] error 500 page 
+- [ ] stress test site
+
+
+
 
 ## Later
 
@@ -20,3 +27,4 @@
 - [x] Changed pricing to £15/month unlimited (landing.html, landing_prep.html hardcoded text; STRIPE_SUB_PRICE_PENCE already updated)
 - [x] Investigated /settings?offer=claimed — confirmed it applied NO real discount, just a misleading "50% off applied" banner. Fixed: banner now gated on user.retention_offer_claimed (the real DB flag set only by POST /billing/offer), so typing the URL directly no longer shows a false claim.
 - [x] Enlarged the landing hero demo (grid ratio + demo stage height) to fill more of the right column, as a substitute for landing-page respacing (that concern turned out to be about /app, handled above)
+- [x] testing script

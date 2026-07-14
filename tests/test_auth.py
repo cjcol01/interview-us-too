@@ -248,8 +248,49 @@ def register(test, skip, client=None):
                 db.commit()
             db.close()
 
+    def test_decode_user_id_garbage_returns_none():
+        from auth import decode_user_id
+        assert decode_user_id("not.a.jwt") is None
+
+    def test_decode_user_id_expired_returns_none():
+        from auth import decode_user_id
+        from config import SECRET_KEY
+        from datetime import datetime, timedelta
+        from jose import jwt
+        expired = jwt.encode(
+            {"sub": "1", "exp": datetime.utcnow() - timedelta(days=1)},
+            SECRET_KEY, algorithm="HS256",
+        )
+        assert decode_user_id(expired) is None
+
+    def test_login_rejects_inactive_user():
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from models import AccountLevel, User
+        init_db()
+        db = SessionLocal()
+        try:
+            u = User(
+                username="_inactive_login_test", email="_inactive_login@test.internal",
+                full_name="Inactive", password_hash=hash_password("testpass123"),
+                account_level=AccountLevel.trial, is_active=False,
+            )
+            db.add(u)
+            db.commit()
+            res = client.post("/auth/login", json={"username": "_inactive_login_test", "password": "testpass123"})
+            assert res.status_code == 403
+        finally:
+            u2 = db.query(User).filter(User.username == "_inactive_login_test").first()
+            if u2:
+                db.delete(u2)
+                db.commit()
+            db.close()
+
     test("Password hashing and verification",         test_password_hashing)
     test("JWT token creation and decode",             test_token_roundtrip)
+    test("decode_user_id: garbage token -> None",     test_decode_user_id_garbage_returns_none)
+    test("decode_user_id: expired token -> None",     test_decode_user_id_expired_returns_none)
+    test("Login rejects inactive user (403)",         test_login_rejects_inactive_user)
     test("Duplicate username rejected",               test_duplicate_username_rejected)
     test("Referral code generation — 10 unique",     test_referral_code_generation)
     test("Referral code is URL-safe",                 test_referral_code_is_url_safe)

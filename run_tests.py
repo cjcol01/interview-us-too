@@ -59,6 +59,18 @@ with TestClient(app) as client:
     import tests.test_routes
     tests.test_routes.register(test, skip, client)
 
+    section("Account Settings")
+    import tests.test_account
+    tests.test_account.register(test, skip, client)
+
+    section("Mobile Login")
+    import tests.test_mobile_login
+    tests.test_mobile_login.register(test, skip, client)
+
+    section("Rate Limiting")
+    import tests.test_rate_limit
+    tests.test_rate_limit.register(test, skip, client)
+
     section("Referrals")
     import tests.test_referrals
     tests.test_referrals.register(test, skip, client)
