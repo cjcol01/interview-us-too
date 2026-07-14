@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}404 — Not Shortlisted | InterviewAce{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/css/404.css">
+<meta name="robots" content="noindex">
+{% endblock %}
+{% block content %}
+
+  <div class="nf-wrap">
+    <div class="nf-glow" aria-hidden="true"></div>
+
+    <main class="nf-main">
+
+      <div class="nf-eyebrow">
+        <span class="nf-badge">Error 404</span>
+        <span class="nf-badge-sep">&middot;</span>
+        <span>Page Not Found</span>
+      </div>
+
+      <div class="nf-letter">
+        <div class="nf-stamp" aria-hidden="true">Not<br>Shortlisted</div>
+
+        <div class="nf-mailhead">
+          <div class="nf-mailrow"><span class="nf-mailkey">To</span><span class="nf-mailval">you@yourbrowser.com</span></div>
+          <div class="nf-mailrow"><span class="nf-mailkey">From</span><span class="nf-mailval">pages@interviewace.co</span></div>
+          <div class="nf-mailrow"><span class="nf-mailkey">Re</span><span class="nf-mailval">Your request for this URL</span></div>
+          <div class="nf-mailrow"><span class="nf-mailkey">Ref</span><span class="nf-mailval nf-mono">{{ ref_code }}</span></div>
+        </div>
+
+        <div class="nf-body">
+          <p>Dear Applicant,</p>
+
+          <p>Thank you for taking the time to navigate to this page. After careful consideration, we regret to inform you that this URL has not been successful in progressing to the next stage.</p>
+
+          <p>This was an exceptionally competitive round. We received a high volume of requests this quarter and, while your typing ability was commendable, we have decided to move forward with pages that exist.</p>
+
+          <p>Please be assured that this decision is final and reflects no judgement of your character, your Wi-Fi signal, or your choice of browser.</p>
+
+          <p><strong>Next steps:</strong> We encourage you to return to our homepage, where a number of exciting pages remain available.</p>
+
+          <p class="nf-sign">
+            Warm regards,<br>
+            The InterviewAce Team
+          </p>
+
+          <p class="nf-ps">P.S. InterviewAce has helped thousands of candidates land their dream role. Unfortunately, none of them were this URL.</p>
+        </div>
+      </div>
+
+      <div class="nf-actions">
+        <a href="/" class="btn btn-primary nf-btn">Return to homepage</a>
+        <button type="button" class="btn btn-outline nf-btn" id="nf-back-btn">Go back</button>
+      </div>
+
+      <p class="footer-note nf-small-print">Error 404 &mdash; Page Not Found</p>
+
+    </main>
+  </div>
+
+  <script>
+    document.getElementById('nf-back-btn').addEventListener('click', function () {
+      history.back();
+    });
+  </script>
+{% endblock %}

@@ -40,6 +40,7 @@
         <!-- Nav -->
         <nav class="sidebar-nav" id="sidebar-nav">
           <button class="sidebar-nav-btn active" data-section="response"    onclick="sidebarScroll('response')">How answers appear</button>
+          <button class="sidebar-nav-btn"         data-section="context"    onclick="sidebarScroll('context')">Interview context</button>
           <button class="sidebar-nav-btn"         data-section="appearance" onclick="sidebarScroll('appearance')">Appearance</button>
           <button class="sidebar-nav-btn"         data-section="capture"    onclick="sidebarScroll('capture')">Capture &amp; replay</button>
           <button class="sidebar-nav-btn"         data-section="shortcuts"  onclick="sidebarScroll('shortcuts')">Shortcuts</button>
@@ -121,6 +122,28 @@
             </div>
           </div>
 
+        </section>
+
+        <!-- ─── 1b. Interview context ─────────────────────────────── -->
+        <section class="settings-section" id="context">
+          <div class="section-hd">
+            <h2 class="section-title">Interview context</h2>
+            <p class="section-sub">Anything you add here is appended to every prompt sent to the AI — the company you're interviewing with, the role, tech stack, or anything else it should keep in mind.</p>
+          </div>
+          <div class="settings-card">
+            <div class="field-group">
+              <textarea
+                class="field-input field-textarea"
+                id="context-input"
+                maxlength="{{ custom_context_max_length }}"
+                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Go and Kafka. Focus on system design trade-offs."
+                oninput="document.getElementById('context-count').textContent = this.value.length + ' / {{ custom_context_max_length }}'"
+              >{{ custom_context }}</textarea>
+              <div id="context-count" class="context-count">{{ custom_context|length }} / {{ custom_context_max_length }}</div>
+            </div>
+            <div id="context-status" class="save-status"></div>
+            <button class="settings-btn" onclick="saveContext()">Save</button>
+          </div>
         </section>
 
         <!-- ─── 2. Appearance ───────────────────────────────────── -->
@@ -331,6 +354,13 @@
               <button class="settings-btn" onclick="savePassword()">Update password</button>
               <div id="password-status" class="save-status"></div>
             </div>
+          </div>
+
+          <!-- Delete account -->
+          <div class="settings-card">
+            <div class="card-row-label" style="margin-bottom:6px;">Delete account</div>
+            <p class="card-row-desc" style="margin-bottom:10px;">Permanently erase your account and personal data. This cannot be undone.</p>
+            <a class="action-link danger" href="/account/delete">Delete my account ›</a>
           </div>
         </section>
 
@@ -858,6 +888,32 @@
       }
     }
 
+    // ── Interview context ──────────────────────────────────────────
+    async function saveContext() {
+      const statusEl = document.getElementById('context-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: document.getElementById('context-input').value }),
+        });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent)';
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // ── Theme toggle ───────────────────────────────────────────────
     (function() {
       document.getElementById('theme-toggle').checked = localStorage.getItem('theme') === 'light';
@@ -875,7 +931,7 @@
     }
 
     // ── Scrollspy ──────────────────────────────────────────────────
-    const _sections = ['response', 'appearance', 'capture', 'shortcuts', 'extension', 'account', 'billing'];
+    const _sections = ['response', 'context', 'appearance', 'capture', 'shortcuts', 'extension', 'account', 'billing'];
 
     function sidebarScroll(id) {
       const el = document.getElementById(id);

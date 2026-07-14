@@ -1,0 +1,237 @@
+/* ===== Account Delete ===== */
+header {
+  background: rgba(10,10,12,.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.logo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.logo::before {
+  content: '';
+  display: block;
+  width: 8px; height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.back-btn {
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+}
+
+main {
+  flex: 1;
+  padding: 28px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Hero ── */
+.hero { padding: 4px 0 2px; }
+.hero h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.hero p { font-size: 14px; color: var(--text-2); line-height: 1.6; }
+
+/* ── Warning card ── */
+.warn-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: rgba(224,106,106,.06);
+  border: 1px solid rgba(224,106,106,.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.warn-icon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+.warn-text { font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+.warn-text strong { color: var(--text-1); font-weight: 600; }
+.warn-text a { color: var(--accent); }
+
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.card-header {
+  padding: 11px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  border-bottom: 1px solid var(--line);
+}
+.card-body { padding: 16px; }
+
+/* ── What happens ── */
+.info-list { display: flex; flex-direction: column; gap: 14px; padding: 16px; }
+.info-row  { display: flex; gap: 12px; align-items: flex-start; }
+.info-icon { flex-shrink: 0; font-size: 16px; width: 22px; text-align: center; margin-top: 1px; }
+.info-text { font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+.info-text strong { color: var(--text-1); font-weight: 600; }
+
+/* ── Radio list ── */
+.radio-list { display: flex; flex-direction: column; }
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background .12s;
+}
+.radio-item:last-child { border-bottom: none; }
+.radio-item:hover { background: rgba(255,255,255,.02); }
+.radio-item.selected {
+  background: var(--accent-soft);
+  border-left: 2px solid var(--accent);
+}
+.radio-item input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color .15s;
+}
+.radio-item input[type="radio"]:checked {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 45%, transparent 46%);
+}
+.radio-item span { font-size: 14px; color: var(--text-1); cursor: pointer; flex: 1; }
+
+textarea.ctx-textarea {
+  width: 100%;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  padding: 10px 12px;
+  resize: vertical;
+  min-height: 64px;
+  line-height: 1.5;
+  outline: none;
+  transition: border-color .15s;
+}
+textarea.ctx-textarea::placeholder { color: var(--text-3); }
+textarea.ctx-textarea:focus { border-color: var(--accent); }
+
+/* ── Password field ── */
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+.field-input {
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  padding: 11px 12px;
+  outline: none;
+  transition: border-color .15s;
+}
+.field-input::placeholder { color: var(--text-3); }
+.field-input:focus { border-color: var(--accent); }
+
+.delete-error {
+  font-size: 13px;
+  color: var(--danger);
+  min-height: 16px;
+  line-height: 1.4;
+}
+
+/* ── Confirm checkbox ── */
+.confirm-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.confirm-check input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 17px; height: 17px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.confirm-check input[type="checkbox"]:checked {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+.confirm-check span { font-size: 13.5px; color: var(--text-2); line-height: 1.5; }
+
+/* ── Delete actions ── */
+.delete-actions { display: flex; flex-direction: column; gap: 8px; }
+
+.btn-delete {
+  width: 100%;
+  background: var(--danger);
+  border: none;
+  color: #fff;
+  padding: 13px 20px;
+  border-radius: 10px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: opacity .15s, filter .15s;
+}
+.btn-delete:not(:disabled):hover { filter: brightness(1.08); }
+.btn-delete:disabled { opacity: .3; cursor: not-allowed; }
+
+.btn-back {
+  display: block;
+  width: 100%;
+  text-align: center;
+  color: var(--text-3);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13px;
+  background: none;
+  border: none;
+  text-decoration: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color .15s;
+}
+.btn-back:hover { color: var(--text-1); }

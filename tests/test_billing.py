@@ -15,6 +15,13 @@ from tests.helpers import cleanup, delete_by_name, make_cookie, make_user
 # Helpers
 # ---------------------------------------------------------------------------
 
+class _FakeStripeObject(dict):
+    """Mimics the real stripe.StripeObject's .to_dict() so mocked
+    stripe.Webhook.construct_event() results work with handle_webhook_event(),
+    which calls event["data"]["object"].to_dict()."""
+    def to_dict(self):
+        return dict(self)
+
 def _stripe_id():
     return f"cus_test_{_sec.token_hex(6)}"
 
@@ -22,24 +29,24 @@ def _sub_id():
     return f"sub_test_{_sec.token_hex(6)}"
 
 def _fake_sub(customer_id, sub_id, status="active", cancel_at_period_end=False):
-    return {
+    return _FakeStripeObject({
         "id": sub_id,
         "customer": customer_id,
         "status": status,
         "cancel_at_period_end": cancel_at_period_end,
         "cancel_at": None,
         "trial_end": None,
-    }
+    })
 
 def _fake_checkout_event(customer_id, plan, payment_intent="pi_test"):
     return {
         "type": "checkout.session.completed",
-        "data": {"object": {
+        "data": {"object": _FakeStripeObject({
             "customer": customer_id,
             "mode": "payment",
             "payment_intent": payment_intent,
             "metadata": {"plan": plan},
-        }},
+        })},
     }
 
 
@@ -638,6 +645,63 @@ def register_http(test, skip, client):
             db.close()
             delete_by_name(uname)
 
+    def test_account_delete_page_requires_auth():
+        r = client.get("/account/delete", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_account_delete_page_accessible():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.get("/account/delete", cookies={"session": token})
+            assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_account_delete_confirm_requires_auth():
+        r = client.post("/account/delete/confirm",
+                        data={"password": "testpass123"},
+                        follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    def test_account_delete_confirm_wrong_password_returns_400():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.post("/account/delete/confirm",
+                            data={"password": "wrongpassword", "reason": "other", "detail": ""},
+                            cookies={"session": token},
+                            follow_redirects=False)
+            assert r.status_code == 400
+        finally:
+            delete_by_name(uname)
+
+    def test_account_delete_confirm_success():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.stripe_sub_id = _sub_id()
+            db.commit()
+            user_id = u.id
+
+            mock_cancel = MagicMock(return_value=None)
+            with patch("server.cancel_subscription_immediately", mock_cancel):
+                r = client.post("/account/delete/confirm",
+                                data={"password": "testpass123", "reason": "privacy", "detail": "test"},
+                                cookies={"session": token},
+                                follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert r.headers.get("location", "").startswith("/login")
+            mock_cancel.assert_called_once()
+
+            db.expire_all()
+            assert db.query(User).filter(User.id == user_id).first() is None
+        finally:
+            db.close()
+            delete_by_name(uname)
+
     def test_portal_requires_auth():
         r = client.post("/billing/portal", follow_redirects=False)
         assert r.status_code in (302, 307, 401, 403)
@@ -669,7 +733,7 @@ def register_http(test, skip, client):
             db.commit()
             fake_event = {
                 "type": "customer.subscription.deleted",
-                "data": {"object": {"customer": cid, "id": sid}},
+                "data": {"object": _FakeStripeObject({"customer": cid, "id": sid})},
             }
             with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
                 r = client.post("/billing/webhook", content=b"payload",
@@ -720,9 +784,43 @@ def register_http(test, skip, client):
     test("POST /billing/cancel/confirm requires auth",        test_cancel_confirm_requires_auth)
     test("POST /billing/cancel/confirm: no sub → 400",       test_cancel_confirm_no_subscription_returns_400)
     test("POST /billing/cancel/confirm success flow",         test_cancel_confirm_success)
+    test("GET /account/delete requires auth",                 test_account_delete_page_requires_auth)
+    test("GET /account/delete accessible when authed",        test_account_delete_page_accessible)
+    test("POST /account/delete/confirm requires auth",        test_account_delete_confirm_requires_auth)
+    test("POST /account/delete/confirm: wrong password → 400", test_account_delete_confirm_wrong_password_returns_400)
+    test("POST /account/delete/confirm success flow",         test_account_delete_confirm_success)
     test("POST /billing/portal requires auth",                test_portal_requires_auth)
     test("Webhook: subscription.created sets unlimited",      test_webhook_subscription_created)
     test("Webhook: subscription.deleted sets free",           test_webhook_subscription_deleted)
     test("Webhook: checkout.completed grants sessions",       test_webhook_checkout_sessions_purchase)
     test("GET /billing/checkout requires auth",               test_checkout_requires_auth)
     test("GET /billing/checkout redirects to Stripe",         test_checkout_redirects_to_stripe)
+
+    def test_webhook_bad_signature_returns_400():
+        import stripe as _stripe
+        with patch("billing.stripe.Webhook.construct_event",
+                   side_effect=_stripe.error.SignatureVerificationError("bad sig", "sig_header")):
+            r = client.post("/billing/webhook", content=b"payload",
+                            headers={"stripe-signature": "bogus"})
+        assert r.status_code == 400
+
+    def test_webhook_unhandled_event_type_is_noop_200():
+        cid = _stripe_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            fake_event = {
+                "type": "customer.updated",
+                "data": {"object": _FakeStripeObject({"customer": cid})},
+            }
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.account_level == AccountLevel.trial
+        finally:
+            cleanup(db, u); db.close()
+
+    test("Webhook: bad signature -> 400",                      test_webhook_bad_signature_returns_400)
+    test("Webhook: unhandled event type -> 200 no-op",         test_webhook_unhandled_event_type_is_noop_200)

@@ -15,6 +15,11 @@ def register(test, skip, client):
     def test_login_page_200():
         assert client.get("/login").status_code == 200
 
+    def test_pricing_accessible_without_auth():
+        """Pricing is a public page — it only redirects away already-unlimited users."""
+        r = client.get("/pricing", follow_redirects=False)
+        assert r.status_code == 200
+
     # -- Auth: unauthenticated redirects -------------------------------------
 
     def test_app_redirects_to_login():
@@ -26,10 +31,6 @@ def register(test, skip, client):
         r = client.get("/settings", follow_redirects=False)
         assert r.status_code in (302, 307)
         assert "login" in r.headers.get("location", "")
-
-    def test_pricing_requires_auth():
-        r = client.get("/pricing", follow_redirects=False)
-        assert r.status_code in (302, 307)
 
     def test_billing_success_requires_auth():
         r = client.get("/billing/success", follow_redirects=False)
@@ -330,9 +331,9 @@ def register(test, skip, client):
 
     test("Landing page returns 200",                           test_landing_200)
     test("Login page returns 200",                             test_login_page_200)
+    test("/pricing accessible without auth",                   test_pricing_accessible_without_auth)
     test("Unauthenticated /app redirects to login",            test_app_redirects_to_login)
     test("/settings requires auth",                            test_settings_requires_auth)
-    test("/pricing requires auth",                             test_pricing_requires_auth)
     test("/billing/success requires auth",                     test_billing_success_requires_auth)
     test("/trial-end requires auth",                           test_trial_end_requires_auth)
     test("Login rejects wrong credentials",                    test_login_rejects_wrong_credentials)
@@ -341,7 +342,9 @@ def register(test, skip, client):
     test("Register rejects duplicate username",                test_register_rejects_duplicate_username)
     test("Register rejects duplicate email",                   test_register_rejects_duplicate_email)
     test("/api/capture requires auth header",                  test_capture_requires_auth_header)
-    test("/api/capture rejects invalid token",                 test_stream_requires_auth)
+    test("/api/capture rejects invalid token",                 test_capture_rejects_invalid_token)
+    test("/api/me rejects invalid token",                      test_api_me_rejects_invalid_token)
+    test("/stream requires authentication",                    test_stream_requires_auth)
     test("/latest requires authentication",                    test_latest_requires_auth)
     test("Free user blocked from subscription routes",         test_free_user_blocked_from_gated_routes)
     test("Trial user can access /latest",                      test_trial_user_can_access_latest)
@@ -551,3 +554,87 @@ def register(test, skip, client):
 
     test("POST /billing/feedback requires auth",                   test_billing_feedback_requires_auth)
     test("POST /billing/feedback redirects to /settings",          test_billing_feedback_redirects_to_settings)
+
+    # -- GET /screenshot -------------------------------------------------------
+
+    def test_screenshot_blocked_for_free_user():
+        token, uname = make_cookie(AccountLevel.free)
+        try:
+            r = client.get("/screenshot", cookies={"session": token})
+            assert r.status_code == 403
+        finally:
+            delete_by_name(uname)
+
+    def test_screenshot_404_when_none_taken():
+        from auth import create_token
+        from server import SCREENSHOTS_DIR
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            token = create_token(u.id)
+            # A prior test run's leftover screenshot file for a reused (autoincrement)
+            # user id would otherwise make this a false 200 — clear it defensively.
+            leftover = SCREENSHOTS_DIR / f"{u.id}.png"
+            leftover.unlink(missing_ok=True)
+            r = client.get("/screenshot", cookies={"session": token})
+            assert r.status_code == 404
+        finally:
+            cleanup(db, u)
+            db.close()
+
+    test("GET /screenshot blocked for free user (403)",             test_screenshot_blocked_for_free_user)
+    test("GET /screenshot: 404 when none taken yet",                test_screenshot_404_when_none_taken)
+
+    # -- POST /partner/waitlist -------------------------------------------------
+
+    def test_partner_waitlist_join_sets_flag():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            assert u.partner_waitlist is False
+            r = client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "joined=1" in r.headers.get("location", "")
+            db.refresh(u)
+            assert u.partner_waitlist is True
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_partner_waitlist_join_is_idempotent():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
+            r = client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "joined=1" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    def test_partner_waitlist_requires_auth():
+        r = client.post("/partner/waitlist", follow_redirects=False)
+        assert r.status_code in (302, 307, 401, 403)
+
+    test("POST /partner/waitlist sets partner_waitlist flag",       test_partner_waitlist_join_sets_flag)
+    test("POST /partner/waitlist is idempotent",                    test_partner_waitlist_join_is_idempotent)
+    test("POST /partner/waitlist requires auth",                    test_partner_waitlist_requires_auth)
+
+    # -- Misc public pages -------------------------------------------------------
+
+    def test_partner_page_200():
+        assert client.get("/partner").status_code == 200
+
+    def test_faq_page_200():
+        assert client.get("/faq").status_code == 200
+
+    def test_forgot_password_page_200():
+        assert client.get("/forgot-password").status_code == 200
+
+    def test_reset_password_page_200():
+        assert client.get("/reset-password?token=notarealtoken").status_code == 200
+
+    test("/partner page returns 200",                               test_partner_page_200)
+    test("/faq page returns 200",                                   test_faq_page_200)
+    test("/forgot-password page returns 200",                       test_forgot_password_page_200)
+    test("/reset-password page returns 200",                        test_reset_password_page_200)

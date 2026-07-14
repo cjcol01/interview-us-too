@@ -112,9 +112,19 @@ def cancel_subscription(user: User) -> datetime | None:
     if not user.stripe_sub_id:
         raise ValueError("No active subscription found.")
     stripe.Subscription.modify(user.stripe_sub_id, cancel_at_period_end=True)
-    sub = stripe.Subscription.retrieve(user.stripe_sub_id)
+    sub = stripe.Subscription.retrieve(user.stripe_sub_id).to_dict()
     period_end = sub.get("cancel_at") or sub.get("trial_end")
     return datetime.utcfromtimestamp(period_end) if period_end else None
+
+
+def cancel_subscription_immediately(user: User) -> None:
+    """Used for account deletion — ends the subscription now rather than at period end."""
+    if not user.stripe_sub_id:
+        return
+    try:
+        stripe.Subscription.delete(user.stripe_sub_id)
+    except stripe.error.InvalidRequestError:
+        pass  # already cancelled / no longer exists
 
 
 def create_portal_session(user: User) -> str:
@@ -127,7 +137,7 @@ def create_portal_session(user: User) -> str:
 
 def handle_webhook_event(payload: bytes, sig_header: str, db: Session):
     event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    data = event["data"]["object"]
+    data = event["data"]["object"].to_dict()
 
     if event["type"] in ("customer.subscription.created", "customer.subscription.updated"):
         _sync_subscription(data, db)

@@ -87,25 +87,7 @@ body {
 }
 a { color: inherit; text-decoration: none; }
 
-/* ===== NAV ===== */
-.ia-nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  height: 64px;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 max(28px,4vw);
-  background: var(--nav-bg);
-  backdrop-filter: saturate(160%) blur(16px);
-  -webkit-backdrop-filter: saturate(160%) blur(16px);
-  border-bottom: 1px solid var(--line);
-}
-
-.ia-nav-logo {
-  display: flex; align-items: center; gap: 9px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600; font-size: 17px; letter-spacing: -0.02em;
-  color: var(--text-1);
-}
-
+/* ===== NAV (shared .navbar from global.css; landing-only logo dot kept for footer) ===== */
 .ia-logo-dot {
   display: inline-block;
   width: 9px; height: 9px;
@@ -115,47 +97,17 @@ a { color: inherit; text-decoration: none; }
 }
 .ia-logo-dot--sm { width: 8px; height: 8px; }
 
-.ia-nav-links {
-  display: flex; align-items: center; gap: 26px;
-  font-size: 14px; color: var(--text-2);
-}
-.ia-nav-links a { transition: color .15s; }
-.ia-nav-links a:hover { color: var(--text-1); }
-
-.ia-nav-actions { display: flex; align-items: center; gap: 12px; }
-
-.ia-nav-faq {
-  font-size: 14px; color: var(--text-2);
-  transition: color .15s;
-}
-.ia-nav-faq:hover { color: var(--text-1); }
-
-.ia-nav-signin {
-  font-size: 14px; color: var(--text-2);
-  transition: color .15s;
-}
-.ia-nav-signin:hover { color: var(--text-1); }
-
-.ia-nav-cta {
-  font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 14px; font-weight: 600;
-  color: var(--btn-text); background: var(--btn-bg);
-  padding: 9px 18px; border-radius: 8px;
-  transition: transform .15s, box-shadow .15s;
-}
-.ia-nav-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 24px var(--btn-shadow); }
-
 /* ===== HERO ===== */
 .ia-hero {
   position: relative;
-  padding: 130px max(28px,4vw) 80px;
+  padding: 64px max(28px,4vw) 80px;
   max-width: 1280px;
   margin: 0 auto;
 }
 
 .ia-hero-inner {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 1fr 1.15fr;
   gap: 56px;
   align-items: flex-start;
   position: relative;
@@ -301,7 +253,7 @@ a { color: inherit; text-decoration: none; }
 .demo-url svg { color: #67676F; flex-shrink: 0; }
 .demo-chrome-spacer { width: 46px; }
 
-.demo-body { display: flex; min-height: 320px; }
+.demo-body { display: flex; min-height: 360px; }
 
 .demo-computer { flex: 1; min-width: 0; overflow: hidden; }
 .demo-scenes { height: 100%; }
@@ -502,16 +454,13 @@ a { color: inherit; text-decoration: none; }
 .ia-video-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
 /* ===== FEATURES BENTO ===== */
-.ia-bento { display: grid; grid-template-columns: repeat(6,1fr); gap: 12px; }
+.ia-bento { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
 .ia-tile {
   background: var(--card); border: 1px solid var(--line);
   border-radius: 16px; padding: 22px; transition: border-color .25s;
 }
-.ia-tile:hover { border-color: var(--line-strong); }
-.ia-tile--accent:hover { border-color: var(--accent-line); }
-.ia-tile--wide  { grid-column: span 3; }
-.ia-tile--third { grid-column: span 2; padding: 20px; }
-.ia-tile--full  { grid-column: span 6; display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.ia-tile:hover { border-color: var(--accent-line); }
+.ia-tile--wide { grid-column: span 1; }
 
 .ia-tile-icon {
   width: 40px; height: 40px; border-radius: 10px;
@@ -522,19 +471,13 @@ a { color: inherit; text-decoration: none; }
 .ia-tile-icon--accent { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
 
 .ia-tile h3 { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; color: var(--text-1); margin-bottom: 7px; }
-.ia-tile--third h3 { font-size: 15.5px; }
 .ia-tile p { font-size: 13.5px; color: var(--text-2); line-height: 1.6; max-width: 420px; }
-.ia-tile--third p { font-size: 13px; max-width: none; }
 
-.ia-tile-tag { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
 .ia-tile-badge {
   display: inline-flex; align-items: center; gap: 7px; margin-top: 14px;
   font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--accent);
   border: 1px solid var(--accent-line); border-radius: 7px; padding: 6px 11px;
 }
-.ia-tile--full .ia-tile-icon { margin-bottom: 0; flex-shrink: 0; }
-.ia-tile-body { flex: 1; min-width: 220px; }
-.ia-tile-body h3 { font-size: 17px; margin-bottom: 7px; }
 
 /* ===== PRICING ===== */
 .ia-pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
@@ -604,6 +547,12 @@ a { color: inherit; text-decoration: none; }
 .ia-footer-links { display: flex; gap: 22px; font-size: 13px; color: var(--text-2); }
 .ia-footer-links a { transition: color .15s; }
 .ia-footer-links a:hover { color: var(--text-1); }
+.ia-footer-links a.ia-footer-link--highlight {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ia-footer-links a.ia-footer-link--highlight:hover { color: var(--accent); }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 960px) {
@@ -614,24 +563,19 @@ a { color: inherit; text-decoration: none; }
   .ia-pain-grid { grid-template-columns: repeat(2,1fr); }
   .ia-steps { grid-template-columns: 1fr; gap: 36px; }
   .ia-step-rule { display: none; }
-  .ia-bento { grid-template-columns: repeat(2,1fr); }
-  .ia-tile--wide, .ia-tile--third, .ia-tile--full { grid-column: span 2; }
   .ia-pricing { grid-template-columns: 1fr; max-width: 480px; }
 }
 
 @media (max-width: 720px) {
-  .ia-nav-links { display: none; }
   .ia-section { padding: 80px max(20px,4vw); }
   .ia-cta-section { padding: 80px max(20px,4vw); }
-  .ia-hero { padding: 110px max(20px,4vw) 60px; }
+  .ia-hero { padding: 48px max(20px,4vw) 60px; }
   .ia-h1 { font-size: clamp(38px,10vw,60px); }
 }
 
 @media (max-width: 500px) {
   .ia-pain-grid { grid-template-columns: 1fr; }
   .ia-bento { grid-template-columns: 1fr; }
-  .ia-tile--wide, .ia-tile--third, .ia-tile--full { grid-column: span 1; }
-  .ia-tile--full { flex-direction: column; gap: 16px; }
   .ia-hero-btns { flex-direction: column; align-items: flex-start; }
   .ia-hero-demo { width: 100%; }
   .phone-frame { width: 120px; height: 240px; border-radius: 26px; }

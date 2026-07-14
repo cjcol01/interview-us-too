@@ -12,9 +12,16 @@ warnings.filterwarnings("ignore")
 import logging
 logging.disable(logging.CRITICAL)
 
-os.environ.setdefault("TESTING", "1")  # use fakeredis — must be set before importing server
+os.environ.setdefault("TESTING", "1")  # use fakeredis + an isolated SQLite file — must be set before importing server
 
-from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, skip, test
+# Start from a clean test database each run. If a prior run crashed mid-test, a leftover
+# fixed-name row (e.g. tests using hardcoded usernames) would otherwise cause spurious
+# UNIQUE-constraint cascades on the next run.
+_test_db_path = os.path.join(os.path.expanduser("~/.interview-us-too"), "test_users.db")
+if os.path.exists(_test_db_path):
+    os.remove(_test_db_path)
+
+from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, skip, test
 
 
 def section(title):
@@ -26,6 +33,7 @@ from fastapi.testclient import TestClient
 from server import app
 
 with TestClient(app) as client:
+    set_client(client)
 
     section("Config")
     import tests.test_config
@@ -51,6 +59,18 @@ with TestClient(app) as client:
     import tests.test_routes
     tests.test_routes.register(test, skip, client)
 
+    section("Account Settings")
+    import tests.test_account
+    tests.test_account.register(test, skip, client)
+
+    section("Mobile Login")
+    import tests.test_mobile_login
+    tests.test_mobile_login.register(test, skip, client)
+
+    section("Rate Limiting")
+    import tests.test_rate_limit
+    tests.test_rate_limit.register(test, skip, client)
+
     section("Referrals")
     import tests.test_referrals
     tests.test_referrals.register(test, skip, client)
@@ -73,6 +93,10 @@ with TestClient(app) as client:
     section("Response Style & Complexity API")
     import tests.test_response_style
     tests.test_response_style.register(test, skip, client)
+
+    section("Interview Context")
+    import tests.test_context
+    tests.test_context.register(test, skip, client)
 
     section("Audio Capture")
     import tests.test_audio

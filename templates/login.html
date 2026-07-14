@@ -15,6 +15,8 @@
     <!-- card -->
     <div class="auth-card">
 
+      <div id="deleted-notice" class="auth-notice" style="display:none;">Your account has been deleted.</div>
+
       <!-- tabs -->
       <div class="auth-tabs">
         <button class="auth-tab active" id="tab-login" onclick="switchTab('login')">Sign in</button>
@@ -83,6 +85,7 @@
 
   <script>
     if (new URLSearchParams(location.search).get('register')) switchTab('register');
+    if (new URLSearchParams(location.search).get('deleted')) document.getElementById('deleted-notice').style.display = 'block';
 
     function switchTab(tab) {
       const isLogin = tab === 'login';
