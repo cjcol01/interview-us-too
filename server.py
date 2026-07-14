@@ -378,6 +378,14 @@ async def favicon():
     return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
 
+@app.get("/502", include_in_schema=False)
+async def preview_502():
+    # Dev-only preview of the static page the reverse proxy serves when the app
+    # itself is down (see static/502.html) — served at 200 here since the app
+    # answering at all means there's no real gateway error to report.
+    return FileResponse("static/502.html", media_type="text/html")
+
+
 # Auth routes
 # ---------------------------------------------------------------------------
 

@@ -6,7 +6,7 @@
 - [ ] do i want db in new place?
 - [ ] create backup plans and security and reliability plans
 - [ ] error 500 page 
-- [ ] stress test site - locust/k6
+
 
 
 
@@ -34,3 +34,4 @@
 - [x] testing script
 - [x] navbar on all pages renders conditionally for logged in/ logged out state
 - [x] set up server hot reloading?
+- [x] stress test site - locust/k6
