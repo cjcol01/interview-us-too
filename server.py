@@ -34,6 +34,7 @@ from mailer import send_account_deletion_email, send_cancel_feedback_email, send
 from database import SessionLocal, get_db, init_db
 from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
 
+# test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
     # Reuse the user cached by get_optional_user() when it already ran as a route dependency.
     if hasattr(request.state, "user"):
