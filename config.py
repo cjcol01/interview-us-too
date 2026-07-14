@@ -1,7 +1,26 @@
 from dotenv import load_dotenv
 import os
+import subprocess
 
 load_dotenv()
+
+# Bump these manually for major/minor releases; the patch number is the
+# commit count, so it advances automatically on every push to main.
+APP_VERSION_MAJOR = 0
+APP_VERSION_MINOR = 3
+
+def _commit_count() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except Exception:
+        return "0"
+
+APP_VERSION = f"{APP_VERSION_MAJOR}.{APP_VERSION_MINOR}.{_commit_count()}"
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
