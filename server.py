@@ -29,10 +29,10 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
 from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
 from database import SessionLocal, get_db, init_db
-from models import AccountLevel, InterviewSession, Referral, ReferralStatus, ResponseStyle, User
+from models import AccountLevel, CommissionStatus, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, User
 
 # test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
@@ -722,14 +722,35 @@ async def apply_referral_code(
     return redirect("ref_success", "1")
 
 
+def _partner_counts(user: User, db: Session) -> tuple[int, int]:
+    """(total referral signups, fully-paying referees) for a given referrer."""
+    signup_count = db.query(Referral).filter(Referral.referrer_id == user.id).count()
+    paid_count = db.query(Referral).filter(
+        Referral.referrer_id == user.id,
+        Referral.status == ReferralStatus.subscribed,
+    ).count()
+    return signup_count, paid_count
+
+
 @app.get("/partner")
 async def partner_page(
     request: Request,
     user: User = Depends(require_user),
+    db: Session = Depends(get_db),
     joined: str = Query(default=""),
 ):
+    signup_count, paid_count = _partner_counts(user, db)
     return templates.TemplateResponse(request=request, name="partner.html", context={
         "user_email": user.email,
+        "is_partner": user.partner_status == "active",
+        "partner_tier": user.partner_tier,
+        "eligible": signup_count >= PARTNER_JOIN_MIN_SIGNUPS,
+        "signup_count": signup_count,
+        "paid_count": paid_count,
+        "join_min_signups": PARTNER_JOIN_MIN_SIGNUPS,
+        "tier2_min_paid": PARTNER_TIER2_MIN_PAID,
+        "tier1_pct": PARTNER_TIER1_BPS // 100,
+        "tier2_pct": PARTNER_TIER2_BPS // 100,
         "joined": user.partner_waitlist or joined == "1",
         "show_navbar": True,
     })
@@ -753,6 +774,118 @@ async def partner_waitlist(
         db.commit()
         track(user.id, "partner_waitlist_joined")
     return RedirectResponse("/partner?joined=1", status_code=303)
+
+
+@app.post("/partner/join")
+async def partner_join(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user.partner_status != "active":
+        signup_count, paid_count = _partner_counts(user, db)
+        if signup_count < PARTNER_JOIN_MIN_SIGNUPS:
+            return RedirectResponse("/partner", status_code=303)
+        user.partner_status = "active"
+        user.partner_tier = 2 if paid_count >= PARTNER_TIER2_MIN_PAID else 1
+        db.commit()
+        track(user.id, "partner_joined", tier=user.partner_tier)
+    return RedirectResponse("/partner/dashboard", status_code=303)
+
+
+@app.get("/partner/dashboard")
+async def partner_dashboard(
+    request: Request,
+    user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    if user.partner_status != "active":
+        return RedirectResponse("/partner", status_code=303)
+    if not user.referral_code:
+        user.referral_code = generate_unique_referral_code(db)
+        db.commit()
+
+    signup_count, paid_count = _partner_counts(user, db)
+
+    commission_rows = (
+        db.query(PartnerCommission, User)
+        .join(User, User.id == PartnerCommission.referee_id)
+        .filter(PartnerCommission.partner_id == user.id)
+        .order_by(PartnerCommission.created_at.desc())
+        .all()
+    )
+    now = datetime.utcnow()
+    pending_pence = available_pence = lifetime_pence = 0
+    commissions = []
+    for c, referee in commission_rows:
+        if c.status == CommissionStatus.reversed:
+            continue
+        lifetime_pence += c.amount_pence
+        matured = c.mature_at <= now
+        if c.status == CommissionStatus.paid:
+            display_status = "paid"
+        elif matured:
+            available_pence += c.amount_pence
+            display_status = "available"
+        else:
+            pending_pence += c.amount_pence
+            display_status = "pending"
+        commissions.append({
+            "referee_name": referee.username,
+            "amount_pence": c.amount_pence,
+            "kind": c.kind,
+            "status": display_status,
+            "date": f"{c.created_at.day} {c.created_at.strftime('%b %Y')}",
+            "matures": f"{c.mature_at.day} {c.mature_at.strftime('%b %Y')}" if display_status == "pending" else None,
+        })
+
+    return templates.TemplateResponse(request=request, name="partner_dashboard.html", context={
+        "referral_code": user.referral_code,
+        "partner_tier": user.partner_tier,
+        "rate_pct": (PARTNER_TIER2_BPS if user.partner_tier >= 2 else PARTNER_TIER1_BPS) // 100,
+        "tier2_pct": PARTNER_TIER2_BPS // 100,
+        "signup_count": signup_count,
+        "paid_count": paid_count,
+        "tier2_min_paid": PARTNER_TIER2_MIN_PAID,
+        "hold_days": PARTNER_HOLD_DAYS,
+        "pending_pence": pending_pence,
+        "available_pence": available_pence,
+        "lifetime_pence": lifetime_pence,
+        "commissions": commissions,
+        "show_navbar": True,
+    })
+
+
+@app.get("/partner/admin")
+async def partner_admin(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    partners = db.query(User).filter(User.partner_status == "active").order_by(User.id).all()
+    now = datetime.utcnow()
+    rows = []
+    for p in partners:
+        signup_count, paid_count = _partner_counts(p, db)
+        rows_c = db.query(PartnerCommission).filter(PartnerCommission.partner_id == p.id).all()
+        lifetime = sum(c.amount_pence for c in rows_c if c.status != CommissionStatus.reversed)
+        available = sum(
+            c.amount_pence for c in rows_c
+            if c.status not in (CommissionStatus.paid, CommissionStatus.reversed) and c.mature_at <= now
+        )
+        pending = sum(
+            c.amount_pence for c in rows_c
+            if c.status not in (CommissionStatus.paid, CommissionStatus.reversed) and c.mature_at > now
+        )
+        rows.append({
+            "email": p.email,
+            "tier": p.partner_tier,
+            "signup_count": signup_count,
+            "paid_count": paid_count,
+            "pending_pence": pending,
+            "available_pence": available,
+            "lifetime_pence": lifetime,
+        })
+    return templates.TemplateResponse(request=request, name="partner_admin.html", context={"partners": rows})
 
 
 @app.get("/settings")
@@ -1398,6 +1531,11 @@ async def stream(request: Request, user: User = Depends(require_subscription)):
 
 if __name__ == "__main__":
     if RELOAD:
+        # This repo lives on a 9p-mounted WSL2 drive (/mnt/d/...), where inotify events
+        # don't reliably fire — the same constraint noted in database.py for SQLite locking.
+        # watchfiles (uvicorn's --reload backend) needs polling mode here or it silently
+        # never restarts on file changes.
+        os.environ.setdefault("WATCHFILES_FORCE_POLLING", "true")
         uvicorn.run("server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True)
     else:
         uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)

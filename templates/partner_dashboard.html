@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Partner Dashboard — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/partner_dashboard.css">{% endblock %}
+{% block content %}
+
+  <main>
+
+    <div class="pitch">
+      <div class="pitch-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Partner dashboard
+      </div>
+      <h1>Tier {{ partner_tier }} partner<br><span>Earning {{ rate_pct }}% on every payment</span></h1>
+      <p>Commission accrues automatically whenever someone you referred pays — renewals included.</p>
+    </div>
+
+    <!-- Balances -->
+    <div class="balance-grid">
+      <div class="card balance-card">
+        <div class="card-label">Available</div>
+        <div class="balance-amount">£{{ "%.2f" | format(available_pence / 100) }}</div>
+        <div class="balance-note">Ready to withdraw — cash payouts launching soon.</div>
+      </div>
+      <div class="card balance-card">
+        <div class="card-label">Pending</div>
+        <div class="balance-amount pending">£{{ "%.2f" | format(pending_pence / 100) }}</div>
+        <div class="balance-note">Held for {{ hold_days }} days on a referral's first payment, to cover refunds and chargebacks.</div>
+      </div>
+      <div class="card balance-card">
+        <div class="card-label">Lifetime earned</div>
+        <div class="balance-amount">£{{ "%.2f" | format(lifetime_pence / 100) }}</div>
+        <div class="balance-note">&nbsp;</div>
+      </div>
+    </div>
+
+    <!-- Tier progress -->
+    <div class="card">
+      <div class="card-label">Tier progress</div>
+      {% if partner_tier >= 2 %}
+        <p class="progress-copy">You've reached Tier 2 — the top rate. You're earning {{ tier2_pct }}% on every payment your referrals make.</p>
+      {% else %}
+        <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}%).</p>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ (100 * paid_count / tier2_min_paid) | round(0, 'floor') if tier2_min_paid else 0 }}%;"></div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Partner link -->
+    <div class="card link-card">
+      <div class="card-label">Your partner link</div>
+      <div class="link-row">
+        <input
+          class="link-input"
+          id="ref-link"
+          type="text"
+          readonly
+          value="https://interviewace.co/r/{{ referral_code }}"
+        >
+        <button class="copy-btn" id="copy-btn" onclick="copyLink()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+      </div>
+    </div>
+
+    <!-- Commissions -->
+    <div class="card tracker-card">
+      <div class="tracker-header">
+        <div class="card-label">Commissions</div>
+        <div class="tracker-header-right">{{ signup_count }} referred</div>
+      </div>
+      <div class="referral-list">
+        {% if commissions %}
+          {% for c in commissions %}
+          <div class="referral-row">
+            <div class="referral-info">
+              <div class="referral-name">{{ c.referee_name }}</div>
+              <div class="referral-date">{{ c.kind.replace('_', ' ') | capitalize }} &middot; {{ c.date }}</div>
+            </div>
+            <div class="referral-status">
+              <span class="status-pill {{ c.status }}">{{ c.status | capitalize }}</span>
+              <div class="referral-amount">+£{{ "%.2f" | format(c.amount_pence / 100) }}</div>
+              {% if c.matures %}<div class="referral-date">Matures {{ c.matures }}</div>{% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            No commissions yet.<br>
+            Share your link to start earning.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <p class="footer-note">
+      <a href="/partner">&#8592; Back to partner programme</a>
+    </p>
+
+  </main>
+
+  <script>
+    function copyLink() {
+      const link = document.getElementById('ref-link').value;
+      const btn = document.getElementById('copy-btn');
+      navigator.clipboard.writeText(link).then(() => {
+        btn.classList.add('copied');
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Copied`;
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
+        }, 2000);
+      });
+    }
+  </script>
+
+{% endblock %}

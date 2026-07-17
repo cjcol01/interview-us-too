@@ -173,6 +173,59 @@
     .compare-val.muted { color: var(--muted); }
     .compare-val.accent { color: var(--accent2); }
 
+    /* ── Tiers ── */
+    .tier-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 480px) { .tier-grid { grid-template-columns: 1fr; } }
+
+    .tier-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.15s;
+    }
+    .tier-item.current {
+      border-color: rgba(108,99,255,0.4);
+      background: linear-gradient(160deg, rgba(108,99,255,0.08), var(--bg));
+    }
+    .tier-name {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .tier-rate {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--accent2);
+      margin-bottom: 8px;
+    }
+    .tier-item p { font-size: 0.79rem; color: var(--muted); line-height: 1.6; }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      width: 100%;
+      max-width: 320px;
+      height: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 4px 0;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #8b5cf6);
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+
     /* ── Waitlist card ── */
     .waitlist-card {
       border-color: rgba(108,99,255,0.25);

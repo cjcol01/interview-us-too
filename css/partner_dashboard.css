@@ -1,0 +1,235 @@
+/* ===== Partner dashboard ===== */
+main {
+  flex: 1;
+  padding: 32px max(20px, 3vw) 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 720px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Hero pitch ── */
+.pitch {
+  text-align: center;
+  padding: 12px 4px 4px;
+}
+.pitch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 5px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--accent);
+  margin-bottom: 16px;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+}
+.pitch h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 12px;
+  line-height: 1.2;
+  color: var(--text);
+}
+.pitch h1 span { color: var(--accent); font-size: 0.55em; display: block; margin-top: 6px; }
+.pitch p {
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.7;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ── Card base ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+}
+.card-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+/* ── Balances ── */
+.balance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 640px) { .balance-grid { grid-template-columns: 1fr; } }
+
+.balance-card { display: flex; flex-direction: column; }
+.balance-amount {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.balance-amount.pending { color: var(--text-2); }
+.balance-note {
+  font-size: 12px;
+  color: var(--text-3);
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
+/* ── Tier progress ── */
+.progress-copy { font-size: 13px; color: var(--text-2); line-height: 1.6; margin-bottom: 10px; }
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s;
+}
+
+/* ── Partner link ── */
+.link-card {
+  border-color: var(--accent-line);
+  background: linear-gradient(160deg, var(--accent-soft), var(--card));
+}
+.link-row { display: flex; gap: 10px; align-items: stretch; }
+.link-input {
+  flex: 1;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 11px 14px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  outline: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+  user-select: all;
+}
+.link-input:focus { border-color: var(--accent); }
+.copy-btn {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 11px 18px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform .15s, box-shadow .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.copy-btn:hover { transform: translateY(-1px); box-shadow: 0 10px 28px rgba(255,255,255,.14); }
+.copy-btn.copied {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-line);
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── Commissions tracker ── */
+.tracker-card { padding: 0; overflow: visible; }
+.tracker-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+  border-radius: 14px 14px 0 0;
+}
+.tracker-header .card-label { margin: 0; }
+.tracker-header-right { font-size: 12px; color: var(--text-3); }
+
+.referral-list { display: flex; flex-direction: column; }
+.referral-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+.referral-row:last-child { border-bottom: none; border-radius: 0 0 14px 14px; }
+.referral-info { display: flex; flex-direction: column; gap: 2px; }
+.referral-name { font-size: 14px; font-weight: 600; color: var(--text-1); }
+.referral-date { font-size: 12px; color: var(--text-3); }
+.referral-status { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.status-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.status-pill.pending {
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.25);
+  color: #fbbf24;
+}
+.status-pill.available {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+.status-pill.paid {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--line-strong);
+  color: var(--text-3);
+}
+.status-pill.reversed {
+  background: rgba(224,106,106,.08);
+  border: 1px solid rgba(224,106,106,.25);
+  color: var(--danger);
+}
+
+.referral-amount { font-size: 13px; font-weight: 600; color: var(--accent); }
+.empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1.7;
+  border-radius: 0 0 14px 14px;
+}
+
+.footer-note {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--text-3);
+  line-height: 1.7;
+  padding: 0 8px;
+}
+.footer-note a { color: var(--text-3); text-decoration: none; }
+.footer-note a:hover { color: var(--text-1); }
+
+@media (max-width: 640px) { main { padding: 24px 16px 56px; } }

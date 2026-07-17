@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Partner Admin — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    main.partner-admin-main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+    .pa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pa-table th, .pa-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
+    .pa-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
+    .pa-empty { padding: 40px 0; text-align: center; color: var(--text-3, #888); }
+  </style>
+{% endblock %}
+{% block content %}
+  <main class="partner-admin-main">
+    <h1>Active partners</h1>
+    {% if partners %}
+    <table class="pa-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Tier</th>
+          <th>Signups</th>
+          <th>Paid referrals</th>
+          <th>Pending</th>
+          <th>Available</th>
+          <th>Lifetime</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in partners %}
+        <tr>
+          <td>{{ p.email }}</td>
+          <td>{{ p.tier }}</td>
+          <td>{{ p.signup_count }}</td>
+          <td>{{ p.paid_count }}</td>
+          <td>£{{ "%.2f" | format(p.pending_pence / 100) }}</td>
+          <td>£{{ "%.2f" | format(p.available_pence / 100) }}</td>
+          <td>£{{ "%.2f" | format(p.lifetime_pence / 100) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="pa-empty">No active partners yet.</div>
+    {% endif %}
+  </main>
+{% endblock %}

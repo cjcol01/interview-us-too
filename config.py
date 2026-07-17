@@ -40,6 +40,13 @@ STRIPE_REFERRAL_COUPON_ID     = os.getenv("STRIPE_REFERRAL_COUPON_ID", "")
 STRIPE_RETENTION_COUPON_ID   = os.getenv("STRIPE_RETENTION_COUPON_ID", "")
 STRIPE_SUB_PRICE_PENCE        = int(os.getenv("STRIPE_SUB_PRICE_PENCE", "0"))
 
+# Partner (affiliate) programme — rates in basis points (1500 = 15%).
+PARTNER_TIER1_BPS        = int(os.getenv("PARTNER_TIER1_BPS", "1500"))
+PARTNER_TIER2_BPS        = int(os.getenv("PARTNER_TIER2_BPS", "2500"))
+PARTNER_JOIN_MIN_SIGNUPS = int(os.getenv("PARTNER_JOIN_MIN_SIGNUPS", "3"))
+PARTNER_TIER2_MIN_PAID   = int(os.getenv("PARTNER_TIER2_MIN_PAID", "15"))
+PARTNER_HOLD_DAYS        = int(os.getenv("PARTNER_HOLD_DAYS", "60"))
+
 _missing = [
     name for name, val in [
         ("STRIPE_SECRET_KEY",             STRIPE_SECRET_KEY),

@@ -78,6 +78,10 @@ with TestClient(app) as client:
     section("Billing — HTTP")
     tests.test_billing.register_http(test, skip, client)
 
+    section("Partner Programme")
+    import tests.test_partner
+    tests.test_partner.register(test, skip, client)
+
     section("Author Page")
     import tests.test_author
     tests.test_author.register(test, skip, client)

@@ -1,10 +1,10 @@
 import stripe
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from analytics import logger, track
-from config import BASE_URL, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
-from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
+from config import BASE_URL, PARTNER_HOLD_DAYS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
+from models import AccountLevel, CommissionStatus, IntroCardFingerprint, PartnerCommission, Referral, ReferralStatus, User
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -34,6 +34,59 @@ def _credit_referrer(referrer: User, amount_pence: int, description: str) -> Non
         logger.info("[referral] credited %s %dp: %s", referrer.email, amount_pence, description)
     except stripe.error.StripeError as e:
         logger.error("[referral] Stripe balance mirror failed for %s: %s", referrer.email, e)
+
+
+def _partner_rate_bps(partner: User) -> int:
+    return PARTNER_TIER2_BPS if partner.partner_tier >= 2 else PARTNER_TIER1_BPS
+
+
+def _recompute_partner_tier(partner: User, db: Session) -> None:
+    """Re-derive a partner's tier from how many of their referees have fully paid."""
+    if partner.partner_status != "active":
+        return
+    # The session is autoflush=False (database.py) — the caller's just-set
+    # Referral.status=subscribed wouldn't be visible to this count without a flush.
+    db.flush()
+    paid_count = db.query(Referral).filter(
+        Referral.referrer_id == partner.id,
+        Referral.status == ReferralStatus.subscribed,
+    ).count()
+    partner.partner_tier = 2 if paid_count >= PARTNER_TIER2_MIN_PAID else 1
+
+
+def _accrue_commission(referrer: User, referee: User, amount_pence: int, kind: str, stripe_ref: str | None, db: Session) -> None:
+    """Record a partner's commission on a payment made by one of their referees. Idempotent on stripe_ref —
+    caller commits."""
+    if amount_pence <= 0 or referrer.partner_status != "active":
+        return
+    if stripe_ref and db.query(PartnerCommission).filter(PartnerCommission.stripe_ref == stripe_ref).first():
+        return  # already recorded — webhook retry
+    rate_bps = _partner_rate_bps(referrer)
+    commission = amount_pence * rate_bps // 10000
+    if commission <= 0:
+        return
+    is_first_for_referee = db.query(PartnerCommission).filter(
+        PartnerCommission.partner_id == referrer.id,
+        PartnerCommission.referee_id == referee.id,
+    ).first() is None
+    now = datetime.utcnow()
+    # Only the first commission earned on a given referee is held (refund/chargeback window);
+    # every later payment from that same referee matures immediately.
+    mature_at = now + timedelta(days=PARTNER_HOLD_DAYS) if is_first_for_referee else now
+    status = CommissionStatus.pending if is_first_for_referee else CommissionStatus.available
+    db.add(PartnerCommission(
+        partner_id=referrer.id,
+        referee_id=referee.id,
+        source_amount_pence=amount_pence,
+        rate_bps=rate_bps,
+        amount_pence=commission,
+        kind=kind,
+        stripe_ref=stripe_ref,
+        status=status,
+        created_at=now,
+        mature_at=mature_at,
+    ))
+    logger.info("[partner] accrued %dp commission (%d bps) for %s from %s (%s)", commission, rate_bps, referrer.email, referee.email, kind)
 
 
 def apply_retention_coupon(user: User) -> None:
@@ -179,11 +232,15 @@ def _sync_subscription(sub: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    credit = 300 if ref.intro_credited else 500
-                    _credit_referrer(referrer, credit, f"Referral — {user.email} subscribed")
+                    # Partners earn %-commission (accrued in _handle_invoice_paid, off the real
+                    # amount paid) instead of the flat one-off credit non-partners get.
+                    if referrer.partner_status != "active":
+                        credit = 300 if ref.intro_credited else 500
+                        _credit_referrer(referrer, credit, f"Referral — {user.email} subscribed")
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
+                    _recompute_partner_tier(referrer, db)
         track(user.id, "subscription_created", via_referral=bool(user.referred_by_id))
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
@@ -245,7 +302,10 @@ def _handle_sessions_purchase(data: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    _credit_referrer(referrer, 200, f"Referral — {user.email} bought intro")
+                    if referrer.partner_status != "active":
+                        _credit_referrer(referrer, 200, f"Referral — {user.email} bought intro")
+                    else:
+                        _accrue_commission(referrer, user, data.get("amount_total") or 0, "intro", data.get("id"), db)
                     ref.intro_credited = True
                     ref.status = ReferralStatus.intro
                     ref.intro_at = datetime.utcnow()
@@ -261,11 +321,15 @@ def _handle_sessions_purchase(data: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    credit = 300 if ref.intro_credited else 500
-                    _credit_referrer(referrer, credit, f"Referral — {user.email} bought sessions pack")
+                    if referrer.partner_status != "active":
+                        credit = 300 if ref.intro_credited else 500
+                        _credit_referrer(referrer, credit, f"Referral — {user.email} bought sessions pack")
+                    else:
+                        _accrue_commission(referrer, user, data.get("amount_total") or 0, "sessions_pack", data.get("id"), db)
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
+                    _recompute_partner_tier(referrer, db)
         track(user.id, "sessions_purchased", plan="sessions_pack", sessions_added=3)
 
     else:
@@ -311,4 +375,10 @@ def _handle_invoice_paid(inv: dict, db: Session):
     if consumed > 0:
         user.referral_credit_pence = max(0, user.referral_credit_pence - consumed)
         logger.info("[referral] invoice paid — deducted %dp credit for %s", consumed, user.email)
+    # Subscription commission (first payment and every renewal) accrues here, off the real
+    # amount Stripe collected — not in _sync_subscription, which only sees status transitions.
+    if user.referred_by_id:
+        referrer = db.query(User).filter(User.id == user.referred_by_id).first()
+        if referrer:
+            _accrue_commission(referrer, user, inv.get("amount_paid") or 0, "subscription", inv.get("id"), db)
     db.commit()

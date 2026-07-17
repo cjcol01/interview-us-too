@@ -2,7 +2,7 @@ import secrets as _sec
 
 from auth import create_token, generate_unique_referral_code, hash_password
 from database import SessionLocal
-from models import AccountLevel, InterviewSession, Referral, User
+from models import AccountLevel, InterviewSession, PartnerCommission, Referral, User
 
 
 def make_user(db, account_level=AccountLevel.trial, *, with_code=True, stripe_id=None):
@@ -51,6 +51,9 @@ def cleanup(db, *users):
         db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
         db.query(Referral).filter(
             (Referral.referrer_id == u.id) | (Referral.referee_id == u.id)
+        ).delete()
+        db.query(PartnerCommission).filter(
+            (PartnerCommission.partner_id == u.id) | (PartnerCommission.referee_id == u.id)
         ).delete()
         db.delete(u)
     db.commit()

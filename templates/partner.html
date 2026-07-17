@@ -15,13 +15,13 @@
         Partner programme
       </div>
       <h1>Refer more.<br><span>Earn more.</span></h1>
-      <p>For power referrers. Higher commissions, real cash payouts, and a direct line to the team. Join the waitlist and we'll reach out when we launch.</p>
+      <p>For power referrers. Earn {{ tier1_pct }}% of everything your referrals pay us — {{ tier2_pct }}% once you hit Tier 2. Paid as account credit today, with cash payouts coming soon.</p>
     </div>
 
-    {% if joined %}
+    {% if is_partner %}
     <div class="joined-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-      You're on the waitlist — we'll be in touch.
+      You're a Tier {{ partner_tier }} partner, earning {{ tier2_pct if partner_tier >= 2 else tier1_pct }}% on every payment your referrals make.
     </div>
     {% endif %}
 
@@ -35,8 +35,8 @@
               <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
             </svg>
           </div>
-          <h3>Higher commissions</h3>
-          <p>Earn significantly more per referral than the standard programme — exact rates confirmed at launch.</p>
+          <h3>Percentage commissions</h3>
+          <p>{{ tier1_pct }}% of every payment your referrals make, for as long as they keep paying — {{ tier2_pct }}% once you reach Tier 2.</p>
         </div>
         <div class="benefit-item">
           <div class="benefit-icon">
@@ -45,7 +45,7 @@
             </svg>
           </div>
           <h3>Cash withdrawals</h3>
-          <p>Get paid directly to your bank. No credits, no waiting for renewals — real money, your way.</p>
+          <p>Get paid directly to your bank once cash payouts launch. Your balance carries over — nothing is lost.</p>
         </div>
         <div class="benefit-item">
           <div class="benefit-icon">
@@ -78,14 +78,19 @@
           <div class="compare-col-label highlight">Partner</div>
         </div>
         <div class="compare-row">
-          <div class="compare-feature">Commission per referral</div>
-          <div class="compare-val muted">Up to £5</div>
-          <div class="compare-val accent">More — TBC</div>
+          <div class="compare-feature">Commission</div>
+          <div class="compare-val muted">Up to £5 flat</div>
+          <div class="compare-val accent">{{ tier1_pct }}%&ndash;{{ tier2_pct }}% of revenue</div>
+        </div>
+        <div class="compare-row">
+          <div class="compare-feature">Applies to</div>
+          <div class="compare-val muted">First conversion only</div>
+          <div class="compare-val accent">Every payment, ongoing, forever</div>
         </div>
         <div class="compare-row">
           <div class="compare-feature">Payout method</div>
           <div class="compare-val muted">Account credit</div>
-          <div class="compare-val accent">Cash or credit</div>
+          <div class="compare-val accent">Account credit &rarr; cash soon</div>
         </div>
         <div class="compare-row">
           <div class="compare-feature">Referral limit</div>
@@ -97,30 +102,54 @@
           <div class="compare-val muted">—</div>
           <div class="compare-val accent">&#10003;</div>
         </div>
-        <div class="compare-row">
-          <div class="compare-feature">Early access</div>
-          <div class="compare-val muted">—</div>
-          <div class="compare-val accent">&#10003;</div>
+      </div>
+    </div>
+
+    <!-- Tiers -->
+    <div class="card">
+      <div class="card-label">Tiers</div>
+      <div class="tier-grid">
+        <div class="tier-item{% if partner_tier == 1 %} current{% endif %}">
+          <div class="tier-name">Tier 1</div>
+          <div class="tier-rate">{{ tier1_pct }}%</div>
+          <p>Unlocked once {{ join_min_signups }} people sign up through your link.</p>
+        </div>
+        <div class="tier-item{% if partner_tier >= 2 %} current{% endif %}">
+          <div class="tier-name">Tier 2</div>
+          <div class="tier-rate">{{ tier2_pct }}%</div>
+          <p>Unlocked once {{ tier2_min_paid }} of your referrals become full paying customers.</p>
         </div>
       </div>
     </div>
 
-    <!-- Waitlist CTA -->
-    {% if not joined %}
+    <!-- Join / progress / dashboard CTA -->
+    {% if is_partner %}
+    <div class="card waitlist-card joined">
+      <div class="waitlist-content">
+        <h2>You're in</h2>
+        <p>Track your commissions, balance and progress toward Tier 2 on your partner dashboard.</p>
+        <a class="waitlist-btn" href="/partner/dashboard" style="text-decoration:none;display:inline-block;">View dashboard</a>
+      </div>
+    </div>
+    {% elif eligible %}
     <div class="card waitlist-card">
       <div class="waitlist-content">
-        <h2>Be first in line</h2>
-        <p>We're onboarding a small group of partners to start. Join the waitlist and we'll reach out directly when spots open.</p>
-        <form action="/partner/waitlist" method="post">
-          <button class="waitlist-btn" type="submit">Join waitlist</button>
+        <h2>You're eligible</h2>
+        <p>You've referred {{ signup_count }} people — enough to join the partner programme right now.</p>
+        <form action="/partner/join" method="post">
+          <button class="waitlist-btn" type="submit">Become a partner</button>
         </form>
       </div>
     </div>
     {% else %}
-    <div class="card waitlist-card joined">
+    <div class="card waitlist-card">
       <div class="waitlist-content">
-        <h2>You're on the list</h2>
-        <p>We'll email you at <strong>{{ user_email }}</strong> when partner spots open. Keep referring in the meantime!</p>
+        <h2>Almost there</h2>
+        <p>Refer {{ join_min_signups }} people to unlock the partner programme. You're at <strong>{{ signup_count }} of {{ join_min_signups }}</strong>.</p>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ (100 * signup_count / join_min_signups) | round(0, 'floor') if join_min_signups else 0 }}%;"></div>
+        </div>
+        <a class="waitlist-btn" href="/referral" style="text-decoration:none;display:inline-block;">Share your referral link</a>
       </div>
     </div>
     {% endif %}

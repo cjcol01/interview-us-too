@@ -60,6 +60,8 @@ class User(Base):
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
+    partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active
+    partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0 (not joined) | 1 | 2
     custom_context     = Column(Text, nullable=True)
 
 
@@ -81,6 +83,29 @@ class Referral(Base):
     created_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
     intro_at       = Column(DateTime, nullable=True)
     sub_at         = Column(DateTime, nullable=True)
+
+
+class CommissionStatus(str, enum.Enum):
+    pending   = "pending"    # within the hold window
+    available = "available"  # matured, withdrawable (future payout)
+    paid      = "paid"       # cash paid out (future)
+    reversed  = "reversed"   # refund/chargeback clawback (future)
+
+
+class PartnerCommission(Base):
+    __tablename__ = "partner_commissions"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    partner_id          = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    referee_id          = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    source_amount_pence = Column(Integer, nullable=False)  # what we earned on this payment
+    rate_bps            = Column(Integer, nullable=False)  # 1500 / 2500 at time of accrual
+    amount_pence        = Column(Integer, nullable=False)  # the commission itself
+    kind                = Column(String, nullable=False)   # subscription | sessions_pack | intro
+    stripe_ref          = Column(String, nullable=True, unique=True, index=True)  # invoice/session id — idempotency
+    status              = Column(Enum(CommissionStatus), default=CommissionStatus.pending, nullable=False)
+    created_at          = Column(DateTime, default=datetime.utcnow, nullable=False)
+    mature_at           = Column(DateTime, nullable=False)  # created_at, or +hold for first commission per referee
 
 
 class InterviewSession(Base):
