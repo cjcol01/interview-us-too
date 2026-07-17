@@ -21,8 +21,6 @@
 ### Security
 - [ ] Tighten CORS: change `allow_origins=["*"]` to your actual domain (`server.py:48`)
 - [ ] Enable card fingerprinting for the £2 intro deal — currently toggled off in dev (`billing.py:142-183`)
-- [x] Add rate limiting to `/api/capture` and `/api/audio-capture` — no guard against a single token hammering Anthropic/OpenAI (consider `slowapi` or a token-bucket per user)
-- [x] Replace `print()` logging throughout with Python's `logging` module (structured, levelled — required for host log aggregators)
 
 ### Config
 - [ ] Update `BASE_URL` — currently hardcoded to LAN IP `192.168.4.21:8000` (`config.py:31`)

@@ -3,12 +3,8 @@
 ## Now
 
 - [ ] trial-end page needs updating and navbar
-- [ ] do i want db in new place?
 - [ ] create backup plans and security and reliability plans
 - [ ] error 500 page (created - need reverse proxy)
-- [ ] get ssh working into server
-- [ ] set up stripe and redis if required on server
-- [ ] check above 2 are worth it if migrating to VPS or similar
 
 
 
@@ -26,6 +22,10 @@
 
 ## Done
 
+- [x] do i want db in new place?
+- [x] get ssh working into server
+- [x] set up stripe and redis if required on server
+- [x] check above 2 are worth it if migrating to VPS or similar
 - [x] Widen main app page (index.css 600→680px) and onboarding (onboarding.css 580→640px) on desktop
 - [x] Tighten up features — bento trimmed from 6 tiles to 4, equal-width 2x2, green accent icon on "Streams to your phone"
 - [x] Add "or see our full pricing page for more details" to footer pricing nudge + fixed footer Pricing link to point at /pricing
