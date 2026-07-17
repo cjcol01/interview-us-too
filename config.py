@@ -66,5 +66,12 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
 REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
+# Where the SQLite data files (and their WAL/SHM sidecars) live. Defaults to a path outside
+# the repo because on WSL2 dev machines the repo is 9p-mounted (e.g. /mnt/d/...), and SQLite's
+# file locking is unreliable there — reliably produces "disk I/O error" on commit under WAL.
+# On servers/VPS this has no locking requirement to satisfy, so set DB_DATA_DIR explicitly to
+# whatever path your deploy/backup process actually manages, rather than relying on the default.
+DB_DATA_DIR      = os.getenv("DB_DATA_DIR", "~/.interview-us-too")
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
 LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"

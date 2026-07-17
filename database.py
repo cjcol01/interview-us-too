@@ -3,13 +3,12 @@ import os
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-# SQLite's file locking is unreliable on WSL2's 9p-mounted Windows drives (e.g. /mnt/d/...),
-# where this repo lives — concurrent access there reliably produces "disk I/O error" on commit.
-# Data files live on the native Linux filesystem instead; only the repo/code stays on /mnt/d.
-#
-# That native-filesystem requirement also applies to WAL mode below (its -wal/-shm sidecar
-# files need real shared-memory-capable locking) — don't point DATA_DIR at /mnt/d.
-DATA_DIR = os.path.expanduser("~/.interview-us-too")
+from config import DB_DATA_DIR
+
+# See DB_DATA_DIR in config.py for why this is configurable and what it defaults to.
+# WAL mode below needs a real shared-memory-capable filesystem for its -wal/-shm sidecar
+# files — don't point DB_DATA_DIR at a 9p/network mount.
+DATA_DIR = os.path.expanduser(DB_DATA_DIR)
 os.makedirs(DATA_DIR, exist_ok=True)
 
 _DB_FILENAME = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"

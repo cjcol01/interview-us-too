@@ -61,6 +61,7 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | `STRIPE_SESSIONS_PACK_PRICE_ID` | Yes | |
 | `REDIS_URL` | No | Defaults to `redis://localhost:6379/0` |
 | `BASE_URL` | No | Used in extension setup; defaults to local IP |
+| `DB_DATA_DIR` | No | Where SQLite files live. Defaults to `~/.interview-us-too` (a WSL2 workaround — see `config.py`). Set explicitly on servers/VPS to a path your deploy/backup process actually manages. |
 | `AI_PROMPT` | No | System prompt for Claude |
 | `RESEND_API_KEY` | No | Email verification |
 | `AUTHOR_PASSWORD` | No | HTTP Basic auth for `/verify-author` |

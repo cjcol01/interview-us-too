@@ -5,7 +5,10 @@
 - [ ] trial-end page needs updating and navbar
 - [ ] do i want db in new place?
 - [ ] create backup plans and security and reliability plans
-- [ ] error 500 page 
+- [ ] error 500 page (created - need reverse proxy)
+- [ ] get ssh working into server
+- [ ] set up stripe and redis if required on server
+- [ ] check above 2 are worth it if migrating to VPS or similar
 
 
 
