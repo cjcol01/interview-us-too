@@ -1365,7 +1365,7 @@ async def regenerate_api_token(user: User = Depends(get_current_user), db: Sessi
 class AccountUpdateRequest(BaseModel):
     full_name: Optional[str] = None
     username:  Optional[str] = None
-    email:     Optional[str] = None
+    current_password: Optional[str] = None
 
 
 class PasswordChangeRequest(BaseModel):
@@ -1380,13 +1380,11 @@ async def update_account(
     db: Session = Depends(get_db),
 ):
     if body.username and body.username != user.username:
+        if not body.current_password or not verify_password(body.current_password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Current password is required to change your username.")
         if db.query(User).filter(User.username == body.username, User.id != user.id).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
         user.username = body.username
-    if body.email and body.email != user.email:
-        if db.query(User).filter(User.email == body.email, User.id != user.id).first():
-            raise HTTPException(status_code=400, detail="Email already registered.")
-        user.email = body.email
     if body.full_name is not None:
         user.full_name = body.full_name
     db.commit()

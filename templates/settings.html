@@ -367,7 +367,11 @@
               </div>
               <div class="field-group">
                 <label class="field-label" for="account-email">Email</label>
-                <input class="field-input" id="account-email" type="email" name="email" value="{{ email }}" autocomplete="email">
+                <input class="field-input" id="account-email" type="email" value="{{ email }}" autocomplete="email" disabled>
+              </div>
+              <div class="field-group" id="account-password-group" style="display:none;">
+                <label class="field-label" for="account-current-password">Current password</label>
+                <input class="field-input" id="account-current-password" type="password" autocomplete="current-password" placeholder="Required to change your username">
               </div>
             </div>
             <div id="account-status" class="save-status"></div>
@@ -853,6 +857,13 @@
 
   <script>
     // ── Account + password (new endpoints) ────────────────────────
+    const ORIGINAL_USERNAME = {{ username|tojson }};
+
+    document.getElementById('account-username').addEventListener('input', function() {
+      const changed = this.value.trim() !== ORIGINAL_USERNAME;
+      document.getElementById('account-password-group').style.display = changed ? 'flex' : 'none';
+    });
+
     async function saveAccount() {
       const statusEl = document.getElementById('account-status');
       statusEl.style.display = 'block';
@@ -861,7 +872,7 @@
       const body = {
         full_name: document.getElementById('account-name').value.trim(),
         username:  document.getElementById('account-username').value.trim(),
-        email:     document.getElementById('account-email').value.trim(),
+        current_password: document.getElementById('account-current-password').value,
       };
       try {
         const resp = await fetch('/api/settings/account', {
@@ -871,6 +882,8 @@
         });
         const json = await resp.json();
         if (resp.ok) {
+          document.getElementById('account-current-password').value = '';
+          document.getElementById('account-password-group').style.display = 'none';
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
         } else {

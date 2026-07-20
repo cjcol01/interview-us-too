@@ -576,6 +576,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 }
 .field-input::placeholder { color: var(--text-3); }
 .field-input:focus { border-color: var(--accent); }
+.field-input:disabled { color: var(--text-3); cursor: not-allowed; }
 .field-textarea {
   min-height: 110px;
   resize: vertical;
