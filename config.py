@@ -75,3 +75,9 @@ REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DB_DATA_DIR      = os.getenv("DB_DATA_DIR", "~/.interview-us-too")
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
 LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"
+
+# --- Dev-only settings: review/change before deploying to production -------
+# SKIP_EMAIL_VERIFICATION: when "1", new accounts are marked verified on signup
+# and no verification email is sent. Convenient for local dev; must be unset
+# (or "0") in production or every signup skips email verification.
+SKIP_EMAIL_VERIFICATION = os.getenv("SKIP_EMAIL_VERIFICATION", "0") == "1"

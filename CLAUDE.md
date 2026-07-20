@@ -65,3 +65,4 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | `AI_PROMPT` | No | System prompt for Claude |
 | `RESEND_API_KEY` | No | Email verification |
 | `AUTHOR_PASSWORD` | No | HTTP Basic auth for `/verify-author` |
+| `SKIP_EMAIL_VERIFICATION` | No | Dev only. `1` marks new accounts verified on signup and skips sending the verification email. Must be unset/`0` in production — see the "DEV ONLY" section in `.env`. |

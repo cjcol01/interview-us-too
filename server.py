@@ -29,7 +29,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
 from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
 from database import SessionLocal, get_db, init_db
 from models import AccountLevel, CommissionStatus, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, User
@@ -446,10 +446,14 @@ async def auth_register(
             user.referred_by_id = referrer.id
             db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
 
-    verify_token = secrets.token_urlsafe(32)
-    user.verify_token = verify_token
+    if SKIP_EMAIL_VERIFICATION:
+        user.email_verified = True
+    else:
+        verify_token = secrets.token_urlsafe(32)
+        user.verify_token = verify_token
+        db.commit()
+        send_verification_email(user.email, verify_token)
     db.commit()
-    send_verification_email(user.email, verify_token)
     identify(user.id, user.email, user.full_name, user.account_level.value)
     track(user.id, "signup", referred=bool(ref))
 
