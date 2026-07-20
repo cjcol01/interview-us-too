@@ -32,7 +32,7 @@ from billing import apply_retention_coupon, cancel_subscription, cancel_subscrip
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
 from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
 from database import SessionLocal, get_db, init_db
-from models import AccountLevel, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, User
+from models import AccountLevel, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
 
 # test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
@@ -307,6 +307,21 @@ async def _rate_limit(r, user_id: int, endpoint: str, cooldown: int, limit: int,
             await broadcast(r, user_id, "rate_limited", {"message": window_msg})
             raise HTTPException(status_code=429, detail=window_msg)
     await r.set(last_key, time.time(), ex=cooldown + 5)
+
+
+def _record_usage(db: Session, user_id: int, kind: str):
+    """Persistent per-user, per-UTC-day counter for the admin usage page — separate from
+    the short-lived Redis rate-limit keys, which expire after minutes."""
+    today = datetime.utcnow().date()
+    row = db.query(UsageDaily).filter(UsageDaily.user_id == user_id, UsageDaily.date == today).first()
+    if not row:
+        row = UsageDaily(user_id=user_id, date=today, capture_count=0, audio_count=0)
+        db.add(row)
+    if kind == "capture":
+        row.capture_count += 1
+    else:
+        row.audio_count += 1
+    db.commit()
 
 
 async def broadcast(r, user_id: int, event_type: str, data: dict):
@@ -674,7 +689,7 @@ def _require_author(
 
 @app.get("/verify-author")
 async def author_page(request: Request, _: None = Depends(_require_author)):
-    return templates.TemplateResponse(request=request, name="author.html", context={})
+    return templates.TemplateResponse(request=request, name="author.html", context={"show_navbar": True})
 
 
 @app.get("/r/{code}")
@@ -930,7 +945,40 @@ async def partner_admin(
             "available_pence": available,
             "lifetime_pence": lifetime,
         })
-    return templates.TemplateResponse(request=request, name="partner_admin.html", context={"partners": rows})
+    return templates.TemplateResponse(request=request, name="partner_admin.html", context={"partners": rows, "show_navbar": True})
+
+
+@app.get("/admin/usage")
+async def admin_usage(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    days: int = 7,
+):
+    since = datetime.utcnow().date() - timedelta(days=days - 1)
+    rows = (
+        db.query(UsageDaily, User)
+        .join(User, User.id == UsageDaily.user_id)
+        .filter(UsageDaily.date >= since)
+        .all()
+    )
+    by_user = {}
+    for usage, u in rows:
+        total = usage.capture_count + usage.audio_count
+        entry = by_user.setdefault(u.id, {
+            "email": u.email,
+            "account_level": u.account_level.value,
+            "period_total": 0,
+            "max_day": 0,
+        })
+        entry["period_total"] += total
+        entry["max_day"] = max(entry["max_day"], total)
+    entries = sorted(by_user.values(), key=lambda e: e["period_total"], reverse=True)
+    return templates.TemplateResponse(request=request, name="admin_usage.html", context={
+        "entries": entries,
+        "days": days,
+        "show_navbar": True,
+    })
 
 
 @app.get("/settings")
@@ -1096,6 +1144,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
                       cooldown_msg="Capturing too fast — wait 5 seconds between captures",
                       limit_msg="Capture limit reached — you can capture up to 6 times per minute",
                       window_limit=15, window_msg="Capture limit reached — you can capture up to 15 times per 5 minutes")
+    _record_usage(db, user.id, "capture")
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -1160,6 +1209,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
                       cooldown_msg="Sending too fast — wait 5 seconds between submissions",
                       limit_msg="Limit reached — you can submit up to 6 times per minute",
                       window_limit=15, window_msg="Limit reached — you can submit up to 15 times per 5 minutes")
+    _record_usage(db, user.id, "capture")
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -1215,6 +1265,7 @@ async def api_audio_capture(
                       cooldown_msg="Recording too fast — wait 5 seconds between recordings",
                       limit_msg="Recording limit reached — you can record up to 10 times per minute",
                       window_limit=25, window_msg="Recording limit reached — you can record up to 25 times per 5 minutes")
+    _record_usage(db, user.id, "audio")
     await broadcast(r, user.id, "audio-working", {})
 
     audio_bytes = await audio.read()

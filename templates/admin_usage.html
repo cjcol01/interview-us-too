@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Usage Admin — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <style>
+    main.usage-admin-main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+    .ua-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ua-table th, .ua-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
+    .ua-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
+    .ua-empty { padding: 40px 0; text-align: center; color: var(--text-3, #888); }
+    .ua-sub { color: var(--text-3, #888); font-size: 13px; margin: -8px 0 24px; }
+  </style>
+{% endblock %}
+{% block content %}
+  <main class="usage-admin-main">
+    <h1>API usage — last {{ days }} days</h1>
+    <p class="ua-sub">Capture + audio calls per user. Sorted by total volume — a real 2.5h session tops out in the dozens, not hundreds.</p>
+    {% if entries %}
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Account level</th>
+          <th>Total ({{ days }}d)</th>
+          <th>Highest single day</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.email }}</td>
+          <td>{{ e.account_level }}</td>
+          <td>{{ e.period_total }}</td>
+          <td>{{ e.max_day }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="ua-empty">No usage recorded in this window yet.</div>
+    {% endif %}
+  </main>
+{% endblock %}

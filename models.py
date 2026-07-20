@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime
+from datetime import date as _date, datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 
 from database import Base
 
@@ -127,6 +127,17 @@ class InterviewSession(Base):
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     ended_at   = Column(DateTime, nullable=True)
+
+
+class UsageDaily(Base):
+    __tablename__ = "usage_daily"
+    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_usage_daily_user_date"),)
+
+    id            = Column(Integer, primary_key=True, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    date          = Column(Date, nullable=False, default=_date.today, index=True)
+    capture_count = Column(Integer, default=0, nullable=False)
+    audio_count   = Column(Integer, default=0, nullable=False)
 
 
 class IntroCardFingerprint(Base):
