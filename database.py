@@ -47,7 +47,7 @@ def get_db():
 
 
 def init_db():
-    from models import IntroCardFingerprint, InterviewSession, PartnerCommission, Referral, User  # noqa: F401 — ensures tables are registered
+    from models import IntroCardFingerprint, InterviewContext, InterviewSession, PartnerCommission, Referral, User  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -84,7 +84,7 @@ def init_db():
             ("partner_tier",           "INTEGER DEFAULT 0"),
             ("reset_token",            "VARCHAR"),
             ("reset_token_expiry",     "DATETIME"),
-            ("custom_context",         "TEXT"),
+            ("active_context_slot",    "INTEGER"),
         ]
         for col, definition in migrations:
             if col not in existing:
@@ -98,3 +98,19 @@ def init_db():
         db.commit()
     finally:
         db.close()
+    # one-off: migrate the old single custom_context text column (pre-multi-context) into
+    # the new interview_contexts table, as slot 1, marked active for that user.
+    if "custom_context" in existing:
+        db = SessionLocal()
+        try:
+            rows = db.execute(text(
+                "SELECT id, custom_context FROM users WHERE custom_context IS NOT NULL AND custom_context != ''"
+            )).fetchall()
+            for user_id, ctx_text in rows:
+                if db.query(InterviewContext).filter(InterviewContext.user_id == user_id).first():
+                    continue
+                db.add(InterviewContext(user_id=user_id, slot=1, name="Imported context", text=ctx_text))
+                db.query(User).filter(User.id == user_id).update({"active_context_slot": 1})
+            db.commit()
+        finally:
+            db.close()

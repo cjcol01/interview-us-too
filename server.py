@@ -32,7 +32,7 @@ from billing import apply_retention_coupon, cancel_subscription, cancel_subscrip
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
 from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
 from database import SessionLocal, get_db, init_db
-from models import AccountLevel, CommissionStatus, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, User
+from models import AccountLevel, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, User
 
 # test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
@@ -196,17 +196,31 @@ class ResponseStyleRequest(BaseModel):
     style: ResponseStyle
 
 
-CUSTOM_CONTEXT_MAX_LENGTH = 2000
+MAX_CONTEXTS_PER_USER   = 5
+CONTEXT_NAME_MAX_LENGTH = 60
+CONTEXT_TEXT_MAX_LENGTH = 2000
 
 
-class CustomContextRequest(BaseModel):
-    text: str = Field(default="", max_length=CUSTOM_CONTEXT_MAX_LENGTH)
+class ContextSaveRequest(BaseModel):
+    slot: int = Field(ge=1, le=MAX_CONTEXTS_PER_USER)
+    name: str = Field(default="", max_length=CONTEXT_NAME_MAX_LENGTH)
+    text: str = Field(default="", max_length=CONTEXT_TEXT_MAX_LENGTH)
 
 
-def _custom_context_suffix(user) -> str:
-    if not user.custom_context:
+class ContextActivateRequest(BaseModel):
+    slot: Optional[int] = Field(default=None, ge=1, le=MAX_CONTEXTS_PER_USER)
+
+
+def _context_suffix(user, db: Session) -> str:
+    if not user.active_context_slot:
         return ""
-    return f"\n\nAdditional context provided by the candidate about this interview:\n{user.custom_context}"
+    ctx = db.query(InterviewContext).filter(
+        InterviewContext.user_id == user.id,
+        InterviewContext.slot == user.active_context_slot,
+    ).first()
+    if not ctx or not ctx.text:
+        return ""
+    return f"\n\nAdditional context provided by the candidate about this interview:\n{ctx.text}"
 
 
 def _user_hotkeys(user) -> dict:
@@ -905,6 +919,11 @@ async def settings_page(
     r = request.app.state.redis
     cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
     hk = _user_hotkeys(user)
+    saved_contexts = {c.slot: c for c in db.query(InterviewContext).filter(InterviewContext.user_id == user.id).all()}
+    contexts = [
+        {"slot": i, "name": saved_contexts[i].name if i in saved_contexts else "", "text": saved_contexts[i].text if i in saved_contexts else ""}
+        for i in range(1, MAX_CONTEXTS_PER_USER + 1)
+    ]
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
@@ -927,8 +946,11 @@ async def settings_page(
         "complexity": await get_complexity(r, user.id),
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
-        "custom_context": user.custom_context or "",
-        "custom_context_max_length": CUSTOM_CONTEXT_MAX_LENGTH,
+        "contexts": contexts,
+        "active_context_slot": user.active_context_slot,
+        "max_contexts": MAX_CONTEXTS_PER_USER,
+        "context_name_max_length": CONTEXT_NAME_MAX_LENGTH,
+        "context_text_max_length": CONTEXT_TEXT_MAX_LENGTH,
         "show_navbar": True,
     })
 
@@ -1076,7 +1098,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
 
     full_text = ""
     async with async_client.messages.stream(
@@ -1130,7 +1152,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
+    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
 
     full_text = ""
     async with async_client.messages.stream(
@@ -1183,7 +1205,7 @@ async def api_audio_capture(
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
-        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style] + _custom_context_suffix(user)
+        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
         full_text = ""
         async with async_client.messages.stream(
             model="claude-sonnet-4-6",
@@ -1278,10 +1300,43 @@ async def save_response_style(data: ResponseStyleRequest, user: User = Depends(g
 
 
 @app.post("/api/settings/context")
-async def save_custom_context(data: CustomContextRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    user.custom_context = data.text.strip() or None
+async def save_context(data: ContextSaveRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    name = data.name.strip()
+    text = data.text.strip()
+    ctx = db.query(InterviewContext).filter(
+        InterviewContext.user_id == user.id,
+        InterviewContext.slot == data.slot,
+    ).first()
+
+    if not name and not text:
+        if ctx:
+            if user.active_context_slot == data.slot:
+                user.active_context_slot = None
+            db.delete(ctx)
+            db.commit()
+        return {"status": "ok", "slot": data.slot, "name": "", "text": ""}
+
+    if ctx:
+        ctx.name = name
+        ctx.text = text
+    else:
+        db.add(InterviewContext(user_id=user.id, slot=data.slot, name=name, text=text))
     db.commit()
-    return {"status": "ok"}
+    return {"status": "ok", "slot": data.slot, "name": name, "text": text}
+
+
+@app.post("/api/settings/context/activate")
+async def activate_context(data: ContextActivateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if data.slot is not None:
+        ctx = db.query(InterviewContext).filter(
+            InterviewContext.user_id == user.id,
+            InterviewContext.slot == data.slot,
+        ).first()
+        if not ctx or not ctx.text:
+            raise HTTPException(status_code=400, detail="That context slot is empty.")
+    user.active_context_slot = data.slot
+    db.commit()
+    return {"status": "ok", "slot": data.slot}
 
 
 @app.post("/api/notify/disabled")
@@ -1384,6 +1439,7 @@ async def account_delete_confirm(
 
     user_id = user.id
     db.query(InterviewSession).filter(InterviewSession.user_id == user_id).delete()
+    db.query(InterviewContext).filter(InterviewContext.user_id == user_id).delete()
     db.query(Referral).filter(Referral.referrer_id == user_id).delete()
     db.query(Referral).filter(Referral.referee_id == user_id).delete()
     db.query(User).filter(User.referred_by_id == user_id).update({"referred_by_id": None})

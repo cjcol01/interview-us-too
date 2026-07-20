@@ -589,6 +589,37 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   margin-top: 4px;
 }
 
+/* Context tabs */
+.context-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.context-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 20px;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  transition: border-color .15s, color .15s, background .15s;
+  white-space: nowrap;
+}
+.context-tab:hover { border-color: var(--accent); color: var(--text-1); }
+.context-tab.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.context-tab-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
 /* ── Billing section ── */
 .billing-status-row {
   display: flex;

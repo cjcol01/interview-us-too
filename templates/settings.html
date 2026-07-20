@@ -128,19 +128,55 @@
         <section class="settings-section" id="context">
           <div class="section-hd">
             <h2 class="section-title">Interview context</h2>
-            <p class="section-sub">Anything you add here is appended to every prompt sent to the AI — the company you're interviewing with, the role, tech stack, or anything else it should keep in mind.</p>
+            <p class="section-sub">Save up to {{ max_contexts }} interview contexts — the company, role, tech stack, or anything else the AI should keep in mind. Only the one marked "Use for AI" below is appended to prompts.</p>
           </div>
           <div class="settings-card">
+            <div class="context-tabs" id="context-tabs">
+              {% for ctx in contexts %}
+                <button
+                  type="button"
+                  class="context-tab{% if ctx.slot == 1 %} active{% endif %}"
+                  data-slot="{{ ctx.slot }}"
+                  onclick="selectContextSlot({{ ctx.slot }})"
+                >
+                  <span class="context-tab-label">{{ ctx.name if ctx.name else 'Slot ' ~ ctx.slot }}</span>
+                  <span class="context-tab-dot" style="display:{{ 'inline-block' if active_context_slot == ctx.slot else 'none' }};" title="Used for AI"></span>
+                </button>
+              {% endfor %}
+            </div>
+
             <div class="field-group">
+              <label class="field-label" for="context-name-input">Name</label>
+              <input
+                class="field-input"
+                id="context-name-input"
+                maxlength="{{ context_name_max_length }}"
+                placeholder="e.g. Acme Corp — backend role"
+              >
+            </div>
+
+            <div class="field-group" style="margin-top:10px;">
               <textarea
                 class="field-input field-textarea"
-                id="context-input"
-                maxlength="{{ custom_context_max_length }}"
-                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Go and Kafka. Focus on system design trade-offs."
-                oninput="document.getElementById('context-count').textContent = this.value.length + ' / {{ custom_context_max_length }}'"
-              >{{ custom_context }}</textarea>
-              <div id="context-count" class="context-count">{{ custom_context|length }} / {{ custom_context_max_length }}</div>
+                id="context-text-input"
+                maxlength="{{ context_text_max_length }}"
+                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Focus on system design trade-offs. A time i demonstrated leadership skills is when..."
+                oninput="document.getElementById('context-count').textContent = this.value.length + ' / {{ context_text_max_length }}'"
+              ></textarea>
+              <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>
             </div>
+
+            <div class="card-row" style="border-top:none; padding-top:14px;">
+              <div class="card-row-left">
+                <div class="card-row-label">Use for AI</div>
+                <div class="card-row-desc">When on, this context is appended to every prompt sent to the AI. Only one context can be active at a time.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="context-active-toggle" onchange="onContextActiveToggle()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+
             <div id="context-status" class="save-status"></div>
             <button class="settings-btn" onclick="saveContext()">Save</button>
           </div>
@@ -889,22 +925,59 @@
     }
 
     // ── Interview context ──────────────────────────────────────────
+    const CONTEXTS = {{ contexts|tojson }};
+    let activeContextSlot = {{ active_context_slot|tojson }};
+    let currentContextSlot = 1;
+
+    function renderContextTabs() {
+      document.querySelectorAll('.context-tab').forEach(btn => {
+        const slot = parseInt(btn.dataset.slot, 10);
+        btn.classList.toggle('active', slot === currentContextSlot);
+        const dot = btn.querySelector('.context-tab-dot');
+        dot.style.display = slot === activeContextSlot ? 'inline-block' : 'none';
+        const ctx = CONTEXTS.find(c => c.slot === slot);
+        btn.querySelector('.context-tab-label').textContent = (ctx && ctx.name) ? ctx.name : ('Slot ' + slot);
+      });
+    }
+
+    function selectContextSlot(slot) {
+      currentContextSlot = slot;
+      const ctx = CONTEXTS.find(c => c.slot === slot) || { name: '', text: '' };
+      document.getElementById('context-name-input').value = ctx.name || '';
+      document.getElementById('context-text-input').value = ctx.text || '';
+      document.getElementById('context-count').textContent = (ctx.text || '').length + ' / {{ context_text_max_length }}';
+      document.getElementById('context-active-toggle').checked = activeContextSlot === slot;
+      renderContextTabs();
+    }
+
     async function saveContext() {
       const statusEl = document.getElementById('context-status');
       statusEl.style.display = 'block';
       statusEl.style.color = 'var(--text-3)';
       statusEl.textContent = 'Saving…';
+      const name = document.getElementById('context-name-input').value;
+      const text = document.getElementById('context-text-input').value;
       try {
         const resp = await fetch('/api/settings/context', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: document.getElementById('context-input').value }),
+          body: JSON.stringify({ slot: currentContextSlot, name, text }),
         });
+        const json = await resp.json().catch(() => ({}));
         if (resp.ok) {
+          let ctx = CONTEXTS.find(c => c.slot === currentContextSlot);
+          if (!ctx) { ctx = { slot: currentContextSlot, name: '', text: '' }; CONTEXTS.push(ctx); }
+          ctx.name = json.name;
+          ctx.text = json.text;
+          if (!json.name && !json.text && activeContextSlot === currentContextSlot) {
+            activeContextSlot = null;
+            document.getElementById('context-active-toggle').checked = false;
+          }
+          renderContextTabs();
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
         } else {
-          statusEl.textContent = 'Failed to save.';
+          statusEl.textContent = json.detail || 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
         }
         setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
@@ -913,6 +986,29 @@
         statusEl.style.color = 'var(--danger)';
       }
     }
+
+    async function onContextActiveToggle() {
+      const toggleEl = document.getElementById('context-active-toggle');
+      const checked = toggleEl.checked;
+      const slot = checked ? currentContextSlot : null;
+      try {
+        const resp = await fetch('/api/settings/context/activate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slot }),
+        });
+        if (resp.ok) {
+          activeContextSlot = slot;
+        } else {
+          toggleEl.checked = !checked;
+        }
+      } catch {
+        toggleEl.checked = !checked;
+      }
+      renderContextTabs();
+    }
+
+    selectContextSlot(currentContextSlot);
 
     // ── Theme toggle ───────────────────────────────────────────────
     (function() {

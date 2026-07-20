@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 
 from database import Base
 
@@ -62,7 +62,18 @@ class User(Base):
     partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active
     partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0 (not joined) | 1 | 2
-    custom_context     = Column(Text, nullable=True)
+    active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (if any) is sent to the AI
+
+
+class InterviewContext(Base):
+    __tablename__ = "interview_contexts"
+    __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_interview_context_user_slot"),)
+
+    id      = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    slot    = Column(Integer, nullable=False)  # 1..MAX_CONTEXTS_PER_USER (server.py)
+    name    = Column(String, nullable=False, default="")
+    text    = Column(Text, nullable=False, default="")
 
 
 class ReferralStatus(str, enum.Enum):

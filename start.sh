@@ -52,4 +52,4 @@ else
 fi
 
 echo "=== Starting server ==="
-"$PYTHON" server.py
+RELOAD=1 "$PYTHON" server.py
