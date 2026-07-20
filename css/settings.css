@@ -12,6 +12,24 @@
   text-align: center;
 }
 
+/* ── Account flag banner ── */
+.account-flag-banner {
+  background: rgba(248,113,113,.08);
+  border: 1px solid rgba(248,113,113,.3);
+  border-radius: 10px;
+  color: var(--danger, #f87171);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 20px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.account-flag-banner.account-flag-banner-ok {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+
 /* ── Page layout ── */
 .settings-wrap {
   flex: 1;

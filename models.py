@@ -63,6 +63,8 @@ class User(Base):
     partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active
     partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0 (not joined) | 1 | 2
     active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (if any) is sent to the AI
+    account_flag        = Column(String, nullable=True)  # e.g. "paused" — set by admin actions, cleared once seen
+    account_flag_seen   = Column(Boolean, default=True, nullable=False, server_default="1")
 
 
 class InterviewContext(Base):

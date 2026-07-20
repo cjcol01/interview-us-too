@@ -85,6 +85,8 @@ def init_db():
             ("reset_token",            "VARCHAR"),
             ("reset_token_expiry",     "DATETIME"),
             ("active_context_slot",    "INTEGER"),
+            ("account_flag",           "VARCHAR"),
+            ("account_flag_seen",      "BOOLEAN DEFAULT 1"),
         ]
         for col, definition in migrations:
             if col not in existing:

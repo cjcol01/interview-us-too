@@ -11,9 +11,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+from urllib.parse import urlencode
+
 import anthropic
 import redis.asyncio as aioredis
 import redis.exceptions as redis_exceptions
+import stripe
 import uvicorn
 from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
@@ -23,14 +26,15 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session, aliased
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
-from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event
+from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
-from mailer import send_account_deletion_email, send_cancel_feedback_email, send_password_reset_email, send_verification_email
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_cancel_feedback_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import SessionLocal, get_db, init_db
 from models import AccountLevel, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
 
@@ -61,6 +65,7 @@ def _template_globals(request: Request) -> dict:
         "user": user,
         "account_level": user.account_level.value if user else "free",
         "sessions_remaining": user.sessions_remaining if user else 0,
+        "unseen_account_flag": bool(user and user.account_flag and not user.account_flag_seen),
     }
 
 
@@ -443,7 +448,7 @@ async def auth_login(body: LoginRequest, db: Session = Depends(get_db)):
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
     if not user.is_active:
-        raise HTTPException(status_code=403, detail="Account is disabled.")
+        raise HTTPException(status_code=403, detail="This account has been suspended. Contact support if you think this is a mistake.")
 
     user.last_login = datetime.utcnow()
     db.commit()
@@ -966,8 +971,12 @@ async def admin_usage(
     for usage, u in rows:
         total = usage.capture_count + usage.audio_count
         entry = by_user.setdefault(u.id, {
+            "id": u.id,
             "email": u.email,
             "account_level": u.account_level.value,
+            "is_active": u.is_active,
+            "has_sub": bool(u.stripe_sub_id),
+            "is_paused": u.account_flag == "paused",
             "period_total": 0,
             "max_day": 0,
         })
@@ -978,7 +987,215 @@ async def admin_usage(
         "entries": entries,
         "days": days,
         "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
     })
+
+
+@app.get("/admin/users")
+async def admin_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    q: str = "",
+):
+    query = db.query(User)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
+    users = query.order_by(User.created_at.desc()).limit(50).all()
+
+    referrer_ids = {u.referred_by_id for u in users if u.referred_by_id}
+    referrers = {u.id: u.email for u in db.query(User).filter(User.id.in_(referrer_ids)).all()} if referrer_ids else {}
+
+    entries = [{
+        "id": u.id,
+        "email": u.email,
+        "username": u.username,
+        "account_level": u.account_level.value,
+        "is_active": u.is_active,
+        "has_sub": bool(u.stripe_sub_id),
+        "is_paused": u.account_flag == "paused",
+        "sessions_remaining": u.sessions_remaining,
+        "created_at": u.created_at.strftime("%d %b %Y"),
+        "referred_by": referrers.get(u.referred_by_id),
+        "partner_status": u.partner_status,
+    } for u in users]
+
+    return templates.TemplateResponse(request=request, name="admin_users.html", context={
+        "entries": entries,
+        "q": q,
+        "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
+    })
+
+
+# Referrers with several signups but zero paid conversions — worth a manual look for
+# Sybil/reciprocal-loop farming. Threshold is a starting point, not a hard rule.
+_REFERRAL_FLAG_MIN_SIGNUPS = 5
+
+
+@app.get("/admin/referrals")
+async def admin_referrals(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    Referrer = aliased(User)
+    Referee = aliased(User)
+    rows = (
+        db.query(Referral, Referrer, Referee)
+        .join(Referrer, Referrer.id == Referral.referrer_id)
+        .join(Referee, Referee.id == Referral.referee_id)
+        .order_by(Referral.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    referrals = [{
+        "referrer_email": referrer.email,
+        "referee_email": referee.email,
+        "status": ref.status.value,
+        "intro_credited": ref.intro_credited,
+        "sub_credited": ref.sub_credited,
+        "created_at": ref.created_at.strftime("%d %b %Y"),
+    } for ref, referrer, referee in rows]
+
+    signup_counts = dict(db.query(Referral.referrer_id, func.count(Referral.id)).group_by(Referral.referrer_id).all())
+    paid_counts = dict(
+        db.query(Referral.referrer_id, func.count(Referral.id))
+        .filter(Referral.status == ReferralStatus.subscribed)
+        .group_by(Referral.referrer_id)
+        .all()
+    )
+    flagged_ids = [rid for rid, signups in signup_counts.items() if signups >= _REFERRAL_FLAG_MIN_SIGNUPS and paid_counts.get(rid, 0) == 0]
+    flagged_users = {u.id: u for u in db.query(User).filter(User.id.in_(flagged_ids)).all()} if flagged_ids else {}
+    flagged = sorted([{
+        "id": rid,
+        "email": flagged_users[rid].email,
+        "signups": signup_counts[rid],
+        "is_active": flagged_users[rid].is_active,
+        "is_paused": flagged_users[rid].account_flag == "paused",
+        "has_sub": bool(flagged_users[rid].stripe_sub_id),
+    } for rid in flagged_ids if rid in flagged_users], key=lambda f: f["signups"], reverse=True)
+
+    return templates.TemplateResponse(request=request, name="admin_referrals.html", context={
+        "referrals": referrals,
+        "flagged": flagged,
+        "flag_threshold": _REFERRAL_FLAG_MIN_SIGNUPS,
+        "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
+    })
+
+
+def _admin_redirect(return_to: str, msg: str) -> RedirectResponse:
+    if not return_to.startswith("/admin/"):
+        return_to = "/admin/usage"
+    sep = "&" if "?" in return_to else "?"
+    return RedirectResponse(f"{return_to}{sep}{urlencode({'admin_msg': msg})}", status_code=303)
+
+
+@app.post("/admin/users/{user_id}/ban")
+async def admin_ban_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.is_active = False
+    db.commit()
+    send_account_banned_email(target.email)
+    track(target.id, "admin_user_banned")
+    logger.warning("[admin] banned user=%s", target.email)
+    return _admin_redirect(return_to, f"Banned {target.email}")
+
+
+@app.post("/admin/users/{user_id}/unban")
+async def admin_unban_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    target.is_active = True
+    db.commit()
+    send_account_unbanned_email(target.email)
+    track(target.id, "admin_user_unbanned")
+    logger.warning("[admin] unbanned user=%s", target.email)
+    return _admin_redirect(return_to, f"Unbanned {target.email}")
+
+
+@app.post("/admin/users/{user_id}/pause-subscription")
+async def admin_pause_subscription(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        pause_subscription(target)
+    except ValueError:
+        return _admin_redirect(return_to, f"{target.email} has no active subscription to pause")
+    except stripe.error.StripeError as e:
+        logger.error("[admin] failed to pause subscription for %s: %s", target.email, e)
+        return _admin_redirect(return_to, f"Stripe error pausing {target.email} — see logs")
+    target.account_level = AccountLevel.free
+    target.account_flag = "paused"
+    target.account_flag_seen = False
+    db.commit()
+    send_subscription_paused_email(target.email)
+    track(target.id, "admin_subscription_paused")
+    logger.warning("[admin] paused subscription for user=%s", target.email)
+    return _admin_redirect(return_to, f"Paused subscription for {target.email}")
+
+
+@app.post("/admin/users/{user_id}/resume-subscription")
+async def admin_resume_subscription(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    try:
+        resume_subscription(target, db)
+    except ValueError:
+        return _admin_redirect(return_to, f"{target.email} has no active subscription to resume")
+    except stripe.error.StripeError as e:
+        logger.error("[admin] failed to resume subscription for %s: %s", target.email, e)
+        return _admin_redirect(return_to, f"Stripe error resuming {target.email} — see logs")
+    target.account_flag = "resumed"
+    target.account_flag_seen = False
+    db.commit()
+    send_subscription_resumed_email(target.email)
+    track(target.id, "admin_subscription_resumed")
+    logger.warning("[admin] resumed subscription for user=%s", target.email)
+    return _admin_redirect(return_to, f"Resumed subscription for {target.email}")
+
+
+@app.post("/admin/users/{user_id}/warn")
+async def admin_warn_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    send_usage_warning_email(target.email)
+    track(target.id, "admin_usage_warning_sent")
+    logger.info("[admin] usage warning sent to user=%s", target.email)
+    return _admin_redirect(return_to, f"Warning emailed to {target.email}")
 
 
 @app.get("/settings")
@@ -992,6 +1209,10 @@ async def settings_page(
 ):
     _ensure_api_token(user, db)
     r = request.app.state.redis
+    account_flag_notice = user.account_flag if not user.account_flag_seen else None
+    if not user.account_flag_seen:
+        user.account_flag_seen = True
+        db.commit()
     cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
     hk = _user_hotkeys(user)
     saved_contexts = {c.slot: c for c in db.query(InterviewContext).filter(InterviewContext.user_id == user.id).all()}
@@ -1026,6 +1247,7 @@ async def settings_page(
         "max_contexts": MAX_CONTEXTS_PER_USER,
         "context_name_max_length": CONTEXT_NAME_MAX_LENGTH,
         "context_text_max_length": CONTEXT_TEXT_MAX_LENGTH,
+        "account_flag_notice": account_flag_notice,
         "show_navbar": True,
     })
 

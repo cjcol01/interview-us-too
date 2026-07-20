@@ -3,9 +3,10 @@
 ## Now
 
 - [ ] trial-end page needs updating and navbar
-- [ ] create backup plans and security and reliability plans
+- [x] create backup plans and security and reliability plans
 - [ ] error 500 page (created - need reverse proxy)
-
+- [ ] overlay window?
+- [ ] typing mode to edit question - not start new question
 
 
 

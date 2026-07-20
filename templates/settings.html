@@ -3,6 +3,16 @@
 {% block head %}<link rel="stylesheet" href="/css/settings.css">{% endblock %}
 {% block content %}
 
+  {% if account_flag_notice == 'paused' %}
+  <div class="account-flag-banner">
+    Your subscription was paused by an admin — your plan has been downgraded and you won't be billed further while paused. Contact support if you think this is a mistake.
+  </div>
+  {% elif account_flag_notice == 'resumed' %}
+  <div class="account-flag-banner account-flag-banner-ok">
+    Your subscription has been resumed and billing is active again.
+  </div>
+  {% endif %}
+
   {% if offer_claimed %}
   <div class="offer-claimed-banner" id="offer-claimed-banner">
     ✓ 50% off applied to your next month — enjoy!

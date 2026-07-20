@@ -139,6 +139,149 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
         logger.error("[email] failed to send cancel feedback: %s", e)
 
 
+def send_usage_warning_email(to_email: str) -> None:
+    logger.info("[email] usage warning sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Unusual activity on your InterviewAce account",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">We've noticed unusual activity</h2>
+              <p style="margin:0 0 16px;color:#4a4a5e;line-height:1.6;">
+                Your account has been sending far more requests than a typical interview session
+                involves. This is a heads-up that we've flagged it for review.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                If this was you and there's a good reason for it, no action is needed. If it
+                continues, we may pause or restrict access to keep the service fair for everyone.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send usage warning: %s", e)
+
+
+def send_account_banned_email(to_email: str) -> None:
+    logger.info("[email] ban notice sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce account has been suspended",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Your account has been suspended</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                We've suspended access to your InterviewAce account. You won't be able to log in
+                or use the extension while it's suspended.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                If you think this is a mistake, just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send ban notice: %s", e)
+
+
+def send_account_unbanned_email(to_email: str) -> None:
+    logger.info("[email] unban notice sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce account has been restored",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Your account has been restored</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Your InterviewAce account is no longer suspended. You can log in and use the
+                extension again as normal.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send unban notice: %s", e)
+
+
+def send_subscription_paused_email(to_email: str) -> None:
+    logger.info("[email] subscription-paused notice sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce subscription has been paused",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Your subscription has been paused</h2>
+              <p style="margin:0 0 16px;color:#4a4a5e;line-height:1.6;">
+                We've paused your InterviewAce subscription. Billing has stopped and your plan has
+                been downgraded for now.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                If you think this is a mistake, just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send subscription-paused notice: %s", e)
+
+
+def send_subscription_resumed_email(to_email: str) -> None:
+    logger.info("[email] subscription-resumed notice sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce subscription has been resumed",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Your subscription has been resumed</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Your InterviewAce subscription is active again and billing has resumed as normal.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send subscription-resumed notice: %s", e)
+
+
 def send_account_deletion_email(user_email: str, reason: str, detail: str) -> None:
     reason_label = _REASON_LABELS.get(reason, reason or "—")
     detail_block = (

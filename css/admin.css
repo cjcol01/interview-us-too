@@ -1,0 +1,43 @@
+/* ===== Shared admin pages (usage / users / referrals) ===== */
+main.admin-main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+.ua-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ua-table th, .ua-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
+.ua-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
+.ua-empty { padding: 40px 0; text-align: center; color: var(--text-3, #888); }
+.ua-sub { color: var(--text-3, #888); font-size: 13px; margin: -8px 0 24px; }
+.ua-msg {
+  margin: 0 0 20px; padding: 10px 14px; border-radius: 8px; font-size: 13px;
+  background: rgba(120,200,255,.08); border: 1px solid rgba(120,200,255,.25); color: var(--text, #eee);
+}
+.ua-banned { color: var(--danger, #f87171); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.ua-flagged { color: #f5a623; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.ua-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.ua-actions form { display: inline; }
+.ua-btn {
+  font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line, #333);
+  background: none; color: var(--text-2, #aaa); cursor: pointer; font-family: inherit;
+}
+.ua-btn:hover { color: var(--text, #eee); background: rgba(255,255,255,.05); }
+.ua-btn:disabled { opacity: .35; cursor: not-allowed; }
+/* Severity scale: notice (mild, blue) → caution (medium, amber) → danger (severe, red).
+   ok (green) is the one positive/reversing action, not part of the severity scale. */
+.ua-btn-notice { color: #7dc4f5; border-color: rgba(125,196,245,.35); }
+.ua-btn-notice:hover { color: #7dc4f5; background: rgba(125,196,245,.1); border-color: #7dc4f5; }
+.ua-btn-caution { color: #f5a623; border-color: rgba(245,166,35,.4); }
+.ua-btn-caution:hover { color: #f5a623; background: rgba(245,166,35,.1); border-color: #f5a623; }
+.ua-btn-ok { color: #4ade80; border-color: rgba(74,222,128,.4); }
+.ua-btn-ok:hover { color: #4ade80; background: rgba(74,222,128,.1); border-color: #4ade80; }
+.ua-btn-danger { color: var(--danger, #f87171); border-color: rgba(248,113,113,.4); }
+.ua-btn-danger:hover { color: var(--danger, #f87171); background: rgba(248,113,113,.1); border-color: var(--danger, #f87171); }
+
+/* Search box (user lookup page) */
+.ua-search { display: flex; gap: 8px; margin: 0 0 24px; }
+.ua-search input[type="text"] {
+  flex: 1; max-width: 360px; padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line, #333);
+  background: none; color: var(--text, #eee); font-size: 13px; font-family: inherit;
+}
+.ua-search button {
+  padding: 8px 16px; border-radius: 7px; border: 1px solid var(--line, #333); background: none;
+  color: var(--text-2, #aaa); cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
+}
+.ua-search button:hover { color: var(--text, #eee); background: rgba(255,255,255,.05); }

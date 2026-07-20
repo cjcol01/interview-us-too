@@ -180,6 +180,26 @@ def cancel_subscription_immediately(user: User) -> None:
         pass  # already cancelled / no longer exists
 
 
+def pause_subscription(user: User) -> None:
+    """Admin action — stop Stripe from billing this subscriber without cancelling the
+    subscription outright (reversible from the Stripe dashboard). Caller is responsible for
+    downgrading the local account_level, since a paused sub still reports status=active."""
+    if not user.stripe_sub_id:
+        raise ValueError("No active subscription found.")
+    stripe.Subscription.modify(user.stripe_sub_id, pause_collection={"behavior": "void"})
+
+
+def resume_subscription(user: User, db: Session) -> None:
+    """Admin action — reverses pause_subscription. Resumes Stripe billing and resyncs
+    account_level from Stripe's actual subscription state (same path the webhook uses),
+    rather than assuming it's still active."""
+    if not user.stripe_sub_id:
+        raise ValueError("No active subscription found.")
+    stripe.Subscription.modify(user.stripe_sub_id, pause_collection="")
+    sub = stripe.Subscription.retrieve(user.stripe_sub_id).to_dict()
+    _sync_subscription(sub, db)
+
+
 def create_portal_session(user: User) -> str:
     session = stripe.billing_portal.Session.create(
         customer=user.stripe_customer_id,
@@ -215,7 +235,12 @@ def _sync_subscription(sub: dict, db: Session):
     if not user:
         return
     user.stripe_sub_id = sub["id"]
-    if sub["status"] in ("active", "trialing"):
+    # pause_collection doesn't change status — a paused sub still reports active/trialing.
+    # Treat it as free while paused, and skip the "just activated" side effects (referral
+    # credit, trial flag, tracking) below, since a pause isn't a genuine activation event.
+    if sub.get("pause_collection"):
+        user.account_level = AccountLevel.free
+    elif sub["status"] in ("active", "trialing"):
         user.account_level = AccountLevel.unlimited
         user.sub_trial_used = True
         period_end = sub.get("cancel_at") or sub.get("trial_end")
