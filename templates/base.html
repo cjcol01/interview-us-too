@@ -41,6 +41,10 @@
     {% if account_level != 'unlimited' %}
     <a href="/pricing" class="navbar-link{% if request.url.path == '/pricing' %} active{% endif %}">{% if sessions_remaining and sessions_remaining > 0 %}Upgrade{% else %}Pricing{% endif %}</a>
     {% endif %}
+    {% if user.username == 'cjcol01' %}
+    <a href="/verify-author" class="navbar-link{% if request.url.path == '/verify-author' %} active{% endif %}">Author</a>
+    <a href="/partner/admin" class="navbar-link{% if request.url.path == '/partner/admin' %} active{% endif %}">Admin</a>
+    {% endif %}
     {% else %}
     <a href="/faq" class="navbar-link{% if request.url.path == '/faq' %} active{% endif %}">FAQ</a>
     <a href="/pricing" class="navbar-link{% if request.url.path == '/pricing' %} active{% endif %}">Plans</a>

@@ -147,7 +147,7 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
     if exc.status_code == 404 and "text/html" in request.headers.get("accept", ""):
         ctx = {"ref_code": _build_404_ref(request.url.path), "show_navbar": True}
         return templates.TemplateResponse(request=request, name="404.html", context=ctx, status_code=404)
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail}, headers=exc.headers)
 
 
 async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
@@ -283,9 +283,12 @@ def require_subscription(user: User = Depends(get_current_user)) -> User:
 
 async def _rate_limit(r, user_id: int, endpoint: str, cooldown: int, limit: int,
                       cooldown_msg: str = "Too fast — wait a moment before trying again",
-                      limit_msg: str = "Rate limit exceeded — try again in a minute"):
+                      limit_msg: str = "Rate limit exceeded — try again in a minute",
+                      window_limit: int = None, window_seconds: int = 300,
+                      window_msg: str = "Rate limit exceeded — try again in a few minutes"):
     last_key  = f"rl:{user_id}:{endpoint}:last"
     count_key = f"rl:{user_id}:{endpoint}:count"
+    window_key = f"rl:{user_id}:{endpoint}:window_count"
     last = await r.get(last_key)
     if last and (time.time() - float(last)) < cooldown:
         await broadcast(r, user_id, "rate_limited", {"message": cooldown_msg})
@@ -296,6 +299,13 @@ async def _rate_limit(r, user_id: int, endpoint: str, cooldown: int, limit: int,
     if count > limit:
         await broadcast(r, user_id, "rate_limited", {"message": limit_msg})
         raise HTTPException(status_code=429, detail=limit_msg)
+    if window_limit is not None:
+        window_count = await r.incr(window_key)
+        if window_count == 1:
+            await r.expire(window_key, window_seconds)
+        if window_count > window_limit:
+            await broadcast(r, user_id, "rate_limited", {"message": window_msg})
+            raise HTTPException(status_code=429, detail=window_msg)
     await r.set(last_key, time.time(), ex=cooldown + 5)
 
 
@@ -344,9 +354,11 @@ def _ensure_api_token(user: User, db: Session):
 
 
 _REFERRAL_ERROR_MESSAGES = {
-    "invalid_code":    "That code doesn't look right — double-check and try again.",
-    "already_referred": "You've already applied a referral code.",
-    "self_referral":   "You can't use your own referral code.",
+    "invalid_code":       "That code doesn't look right — double-check and try again.",
+    "already_referred":   "You've already applied a referral code.",
+    "self_referral":      "You can't use your own referral code.",
+    "reciprocal_referral": "That person already used your referral code — you can't refer each other.",
+    "already_paid":       "Referral codes can only be applied before your first payment.",
 }
 
 
@@ -642,12 +654,23 @@ async def pricing_page(request: Request, user: Optional[User] = Depends(get_opti
     })
 
 
-_basic = HTTPBasic()
+_basic = HTTPBasic(auto_error=False)
+_ADMIN_USERNAME = "cjcol01"
 
-def _require_author(credentials: HTTPBasicCredentials = Depends(_basic)):
-    ok = AUTHOR_PASSWORD and secrets.compare_digest(credentials.password.encode(), AUTHOR_PASSWORD.encode())
-    if not ok:
-        raise HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
+def _require_author(
+    user: Optional[User] = Depends(get_optional_user),
+    credentials: Optional[HTTPBasicCredentials] = Depends(_basic),
+):
+    if user and user.username == _ADMIN_USERNAME:
+        return
+    if (
+        credentials
+        and AUTHOR_PASSWORD
+        and secrets.compare_digest(credentials.username.encode(), _ADMIN_USERNAME.encode())
+        and secrets.compare_digest(credentials.password.encode(), AUTHOR_PASSWORD.encode())
+    ):
+        return
+    raise HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
 
 @app.get("/verify-author")
 async def author_page(request: Request, _: None = Depends(_require_author)):
@@ -728,11 +751,15 @@ async def apply_referral_code(
 
     if user.referred_by_id or db.query(Referral).filter(Referral.referee_id == user.id).first():
         return redirect("ref_error", "already_referred")
+    if user.intro_redeemed or user.sub_invoice_paid or user.account_level in (AccountLevel.paid, AccountLevel.unlimited):
+        return redirect("ref_error", "already_paid")
     referrer = db.query(User).filter(User.referral_code == _parse_referral_code(code)).first()
     if not referrer:
         return redirect("ref_error", "invalid_code")
     if referrer.id == user.id:
         return redirect("ref_error", "self_referral")
+    if db.query(Referral).filter(Referral.referrer_id == user.id, Referral.referee_id == referrer.id).first():
+        return redirect("ref_error", "reciprocal_referral")
     user.referred_by_id = referrer.id
     db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
     db.commit()
@@ -1067,7 +1094,8 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await _gate_basic_access(r, user, db)
     await _rate_limit(r, user.id, "capture", cooldown=5, limit=6,
                       cooldown_msg="Capturing too fast — wait 5 seconds between captures",
-                      limit_msg="Capture limit reached — you can capture up to 6 times per minute")
+                      limit_msg="Capture limit reached — you can capture up to 6 times per minute",
+                      window_limit=15, window_msg="Capture limit reached — you can capture up to 15 times per 5 minutes")
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -1130,7 +1158,8 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
     await _gate_basic_access(r, user, db)
     await _rate_limit(r, user.id, "capture", cooldown=5, limit=6,
                       cooldown_msg="Sending too fast — wait 5 seconds between submissions",
-                      limit_msg="Limit reached — you can submit up to 6 times per minute")
+                      limit_msg="Limit reached — you can submit up to 6 times per minute",
+                      window_limit=15, window_msg="Limit reached — you can submit up to 15 times per 5 minutes")
 
     if user.account_level == AccountLevel.paid:
         now = datetime.utcnow()
@@ -1184,7 +1213,8 @@ async def api_audio_capture(
     await _gate_basic_access(r, user, db)
     await _rate_limit(r, user.id, "audio", cooldown=5, limit=10,
                       cooldown_msg="Recording too fast — wait 5 seconds between recordings",
-                      limit_msg="Recording limit reached — you can record up to 10 times per minute")
+                      limit_msg="Recording limit reached — you can record up to 10 times per minute",
+                      window_limit=25, window_msg="Recording limit reached — you can record up to 25 times per 5 minutes")
     await broadcast(r, user.id, "audio-working", {})
 
     audio_bytes = await audio.read()
