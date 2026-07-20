@@ -1,0 +1,348 @@
+/* ===== Mock interview: Zoom-style practice call (on /app) ===== */
+
+#mock-interview-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.92);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#mock-interview-overlay.visible { display: flex; }
+
+#mock-interview-overlay kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.mi-modal {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 30px 24px 24px;
+  max-width: 900px;
+  width: 100%;
+  height: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mi-close-x {
+  position: absolute;
+  top: 12px; right: 12px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px;
+  transition: color .15s;
+  z-index: 2;
+}
+.mi-close-x:hover { color: var(--text-1); }
+
+.mi-screen { display: none; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+.mi-screen.active { display: flex; }
+
+/* ── Green room ── */
+.mi-greenroom { text-align: center; max-width: 460px; width: 100%; margin: 0 auto; justify-content: center; }
+.mi-gr-icon { font-size: 2rem; margin-bottom: 6px; }
+.mi-greenroom h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.mi-gr-sub { font-size: 13.5px; color: var(--text-2); line-height: 1.6; margin-bottom: 16px; }
+.mi-gr-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  text-align: left;
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 13px 15px;
+  margin-bottom: 18px;
+}
+.mi-gr-item { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; color: var(--text-2); line-height: 1.5; }
+.mi-gr-item span:last-child { flex: 1; }
+
+.mi-btn-primary {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 13px 20px;
+  width: 100%;
+  margin-bottom: 8px;
+  transition: transform .15s, box-shadow .15s;
+}
+.mi-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,.14); }
+.mi-btn-ghost {
+  background: none;
+  border: none;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13px;
+  padding: 8px;
+  width: 100%;
+  transition: color .15s;
+}
+.mi-btn-ghost:hover { color: var(--text-1); }
+
+/* ── Call ── */
+.mi-call { flex-direction: column; gap: 16px; }
+.mi-call-left, .mi-call-right { display: flex; flex-direction: column; gap: 14px; }
+
+@media (min-width: 720px) {
+  .mi-call { flex-direction: row; align-items: flex-start; }
+  .mi-call-left, .mi-call-right { flex: 1; min-width: 0; }
+}
+
+/* Shared-screen panel — replaces the code-tile idea with a real screenshot */
+.mi-screenshot {
+  display: none;
+  background: #0D0D10;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.mi-screenshot.active { display: block; animation: mi-hint-in .3s ease; }
+.mi-screenshot-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #9C9CA6;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02);
+}
+.mi-screenshot-dot { width: 6px; height: 6px; border-radius: 50%; background: #C6F24E; flex-shrink: 0; animation: mi-rec-pulse 1.3s ease-in-out infinite; }
+@keyframes mi-rec-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .mi-screenshot-dot { animation: none; } }
+.mi-screenshot-img { display: block; width: 100%; max-height: 210px; object-fit: cover; object-position: top; }
+
+/* Shrink the participant tiles to a thumbnail strip while screen-sharing, like a real call */
+.mi-call-left.sharing .mi-zoom-grid { gap: 6px; margin-top: 8px; }
+.mi-call-left.sharing .mi-zoom-tile { min-height: 56px; padding: 8px 6px; gap: 3px; }
+.mi-call-left.sharing .mi-zoom-avatar { width: 26px; height: 26px; font-size: 10px; }
+.mi-call-left.sharing .mi-zoom-name { font-size: 8.5px; }
+.mi-call-left.sharing .mi-zoom-speaking-dots { bottom: 4px; right: 5px; transform: scale(.7); }
+
+.mi-zoom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; transition: gap .2s; }
+.mi-zoom-tile {
+  background: #1A1A1F;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 14px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  position: relative;
+  min-height: 110px;
+  transition: border-color .2s, min-height .2s, padding .2s;
+}
+.mi-zoom-tile.speaking { border-color: rgba(198,242,78,0.4); }
+.mi-zoom-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg,rgba(108,99,255,0.35),rgba(0,212,170,0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #E2E2F0;
+}
+.mi-zoom-avatar-you { background: linear-gradient(135deg,rgba(0,212,170,0.3),rgba(0,180,140,0.2)); }
+.mi-zoom-name { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #9C9CA6; text-align: center; }
+.mi-zoom-speaking-dots {
+  display: flex;
+  gap: 3px;
+  position: absolute;
+  bottom: 8px; right: 9px;
+  opacity: 0;
+  transition: opacity .2s;
+}
+.mi-zoom-tile.speaking .mi-zoom-speaking-dots { opacity: 1; }
+.mi-zoom-speaking-dots span { width: 4px; background: #C6F24E; border-radius: 2px; animation: mi-zoom-wave 1s ease-in-out infinite; }
+.mi-zoom-speaking-dots span:nth-child(1) { height: 9px;  animation-delay: 0s; }
+.mi-zoom-speaking-dots span:nth-child(2) { height: 14px; animation-delay: .1s; }
+.mi-zoom-speaking-dots span:nth-child(3) { height: 6px;  animation-delay: .2s; }
+.mi-zoom-speaking-dots span:nth-child(4) { height: 12px; animation-delay: .15s; }
+.mi-zoom-speaking-dots span:nth-child(5) { height: 9px;  animation-delay: .05s; }
+@keyframes mi-zoom-wave { 0%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.4); } }
+@media (prefers-reduced-motion: reduce) { .mi-zoom-speaking-dots span { animation: none; } }
+
+@media (max-width: 420px) {
+  .mi-zoom-grid { grid-template-columns: 1fr; }
+}
+
+.mi-caption-bar {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #9C9CA6;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
+  padding: 9px 12px;
+  min-height: 38px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.mi-cursor {
+  display: inline-block;
+  width: 2px; height: 0.9em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: mi-cur-blink 1.1s step-end infinite;
+}
+@keyframes mi-cur-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mi-cursor { animation: none; } }
+
+/* Need-help prompt */
+.mi-need-help {
+  display: none;
+  background: var(--card-inset);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.mi-need-help.active { display: block; animation: mi-hint-in .25s ease; }
+@keyframes mi-hint-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.mi-nh-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 5px;
+}
+.mi-nh-text { font-size: 13px; color: var(--text-2); line-height: 1.55; margin: 0 0 10px; }
+.mi-nh-key { margin-bottom: 10px; }
+.mi-nh-btn {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  transition: background .15s;
+}
+.mi-nh-btn:hover { background: rgba(198,242,78,.1); }
+
+/* Typing-mode input */
+.mi-typing-row { display: none; }
+.mi-typing-row.active { display: flex; }
+.mi-typing-field {
+  flex: 1;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-1);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  padding: 10px 12px;
+  outline: none;
+  transition: background .2s, border-color .2s;
+}
+.mi-typing-field:focus { border-color: var(--accent-line); }
+.mi-typing-field.sent { background: var(--accent-soft); border-color: var(--accent-line); }
+
+/* Answer card — mirrors #analysis-card on the real /app dashboard */
+.mi-answer-card { display: none; background: var(--card); border-radius: 12px; padding: 14px; border: 1px solid var(--line); }
+.mi-answer-card.active { display: block; }
+.mi-answer-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.mi-answer-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+}
+.mi-answer-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--card-inset);
+  color: var(--text-3);
+  border: 1px solid var(--line-strong);
+  letter-spacing: 0.04em;
+}
+.mi-answer-status.working { background: rgba(251,191,36,.06); color: #fbbf24; border-color: rgba(251,191,36,.2); }
+.mi-answer-status.live { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); }
+
+.mi-answer-transcription { display: none; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; }
+.mi-answer-transcription.active { display: block; }
+.mi-answer-transcription-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+#mi-answer-transcription-text { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+
+.mi-answer-body { font-size: 14.5px; line-height: 1.65; color: var(--text-1); min-height: 1.6em; }
+.mi-answer-body p { margin: 6px 0; }
+.mi-answer-body p:first-child { margin-top: 0; }
+.mi-answer-body ul, .mi-answer-body ol { padding-left: 1.3em; margin: 6px 0; }
+.mi-answer-body strong { color: var(--text-1); }
+.mi-answer-body pre { border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; margin: 9px 0; }
+.mi-answer-body pre code.hljs { font-family: 'JetBrains Mono', 'Menlo', 'Consolas', monospace; font-size: 12.5px; line-height: 1.55; border-radius: 8px; padding: 11px 13px; display: block; }
+.mi-answer-body code { font-family: 'JetBrains Mono', 'Menlo', monospace; font-size: 12.5px; background: rgba(224,106,106,.07); color: var(--danger); padding: 1px 5px; border-radius: 3px; }
+
+/* ── Done ── */
+.mi-done { text-align: center; gap: 4px; max-width: 460px; width: 100%; margin: 0 auto; justify-content: center; }
+.mi-done-title { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: var(--accent); margin: 0 0 6px; }
+.mi-done-sub { font-size: 13.5px; color: var(--text-2); margin: 0 0 14px; }
+.mi-platform-links { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 18px; }
+.mi-platform-link {
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  color: var(--text-2);
+  text-decoration: none;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 13px;
+  transition: border-color .15s, color .15s;
+}
+.mi-platform-link:hover { border-color: var(--accent); color: var(--text-1); }
+.mi-done-actions { display: flex; flex-direction: column; gap: 8px; }
