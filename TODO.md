@@ -2,14 +2,17 @@
 
 ## Now
 
-- [ ] trial-end page needs updating and navbar
-- [x] create backup plans and security and reliability plans
 - [ ] error 500 page (created - need reverse proxy)
-- [ ] overlay window?
+ 
+## Soon 
 - [ ] typing mode to edit question - not start new question
-- [ ] check app works in trial - get a subscription required message on extension
-
-
+- [ ] google login
+- [ ] shorten landing page
+- [ ] dark mode text can be hard to read
+- [ ] find new name 
+- [ ] change AI content 
+- [ ] change stop blanking, start acing tagline
+- [ ] accidental session start warning for session users 
 
 
 ## Later
@@ -24,6 +27,10 @@
 
 ## Done
 
+- [x] trial-end page navbar now uses the standard show_navbar layout (auth-state links) instead of its own custom header
+- [x] verified trial-expiry -> "subscription required" flow end to end (server + extension popup + monitor page all already wired; full test suite green)
+- [x] reworded pricing page stat so "4-6 months" reads as avg. job-search length, not an InterviewAce commitment (added "cancel anytime" framing elsewhere)
+- [x] added scrolling social-proof testimonial bar to landing page (placeholder reviews, labeled "Early access feedback" — swap for real beta-tester reviews before public launch)
 - [x] do i want db in new place?
 - [x] get ssh working into server
 - [x] set up stripe and redis if required on server
@@ -40,3 +47,4 @@
 - [x] navbar on all pages renders conditionally for logged in/ logged out state
 - [x] set up server hot reloading?
 - [x] stress test site - locust/k6
+- [x] create backup plans and security and reliability plans

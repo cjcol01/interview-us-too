@@ -1,29 +1,4 @@
 /* ===== Trial End ===== */
-.te-header {
-  display: flex;
-  align-items: center;
-  padding: 18px max(28px,4vw);
-  border-bottom: 1px solid var(--line);
-}
-.te-logo {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 600;
-  font-size: 17px;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  text-decoration: none;
-}
-.te-logo-dot {
-  display: block;
-  width: 9px; height: 9px;
-  border-radius: 2px;
-  background: var(--accent);
-  box-shadow: 0 0 8px var(--accent);
-}
-
 .te-main {
   max-width: 620px;
   margin: 0 auto;

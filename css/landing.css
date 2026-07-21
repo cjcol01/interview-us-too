@@ -395,6 +395,70 @@ a { color: inherit; text-decoration: none; }
 .ia-platform-item { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-2); }
 .ia-platform-sep { color: var(--text-3); }
 
+/* ===== SOCIAL PROOF ===== */
+.ia-proof-strip {
+  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  background: var(--bg-panel);
+  padding: 40px 0;
+  overflow: hidden;
+}
+.ia-proof-head {
+  max-width: 1180px; margin: 0 auto 26px; padding: 0 max(28px,4vw);
+  text-align: center;
+}
+.ia-proof-kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-3); margin-bottom: 8px;
+}
+.ia-proof-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text);
+}
+.ia-proof-track-wrap {
+  width: 100%; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, black 6%, black 94%, transparent);
+}
+.ia-proof-track {
+  display: flex; width: max-content;
+  animation: ia-proof-scroll 40s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+.ia-proof-track-wrap:hover .ia-proof-track { animation-play-state: paused; }
+@keyframes ia-proof-scroll {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+.ia-proof-card {
+  flex: 0 0 300px;
+  margin-right: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.ia-proof-stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; }
+.ia-proof-quote { font-size: 13.5px; color: var(--text-2); line-height: 1.6; flex: 1; }
+.ia-proof-person { display: flex; align-items: center; gap: 10px; }
+.ia-proof-avatar {
+  width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg,rgba(108,99,255,0.35),rgba(0,212,170,0.2));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Space Grotesk', sans-serif; font-size: 12px; font-weight: 600; color: #E2E2F0;
+}
+.ia-proof-name { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.ia-proof-role { font-size: 11.5px; color: var(--text-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ia-proof-track { animation: none; }
+  .ia-proof-track-wrap { overflow-x: auto; }
+}
+@media (max-width: 460px) { .ia-proof-card { flex-basis: 260px; } }
+
 /* ===== SECTION UTILITIES ===== */
 .ia-section { padding: 100px max(28px,4vw); }
 .ia-section--light { background: var(--bg); }

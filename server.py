@@ -654,6 +654,7 @@ async def trial_end(request: Request, user: User = Depends(require_user)):
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
+        "show_navbar": True,
     })
 
 

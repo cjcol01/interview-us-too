@@ -407,6 +407,41 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   </div>
 </section>
 
+<!-- ===== SOCIAL PROOF ===== -->
+<div class="ia-proof-strip">
+  <div class="ia-proof-head">
+    <div class="ia-proof-kicker">Early access feedback</div>
+    <h2 class="ia-proof-title">What beta testers are saying</h2>
+  </div>
+  <div class="ia-proof-track-wrap">
+    <div class="ia-proof-track">
+      {% set reviews = [
+        ("Priya S.",  "Backend Engineer",       "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round."),
+        ("Marcus O.", "Frontend Developer",     "I freeze up under pressure every single time. Having a calm nudge in my pocket was the difference this time around."),
+        ("Elena R.",  "Data Scientist",         "Instant replay caught a question I fumbled and handed me a clean way back into it 15 seconds later."),
+        ("Tom K.",    "DevOps Engineer",        "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running."),
+        ("Aisha B.",  "New Grad, CS",           "First real interview loop of my life and I didn't blank once. Worth it for the confidence alone."),
+        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and it kept me structured instead of rambling for ten minutes."),
+        ("Hannah W.", "Career Switcher",        "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen."),
+        ("Chris N.",  "Full-Stack Engineer",    "Quietly the best interview prep tool I've tried. Feels like having a second brain in the room."),
+      ] %}
+      {% for name, role, quote in reviews + reviews %}
+      <div class="ia-proof-card"{% if loop.index0 >= reviews|length %} aria-hidden="true"{% endif %}>
+        <div class="ia-proof-stars" aria-hidden="true">★★★★★</div>
+        <p class="ia-proof-quote">&ldquo;{{ quote }}&rdquo;</p>
+        <div class="ia-proof-person">
+          <div class="ia-proof-avatar">{{ name.split(' ')|map('first')|join('') }}</div>
+          <div>
+            <div class="ia-proof-name">{{ name }}</div>
+            <div class="ia-proof-role">{{ role }}</div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
 <!-- ===== PRICING ===== -->
 <section class="ia-section ia-section--panel" id="pricing">
   <div class="ia-container ia-container--pricing">

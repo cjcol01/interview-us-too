@@ -93,15 +93,7 @@ main {
   letter-spacing: -0.04em;
   line-height: 1;
 }
-.stat-suffix { font-size: 1.4rem; font-weight: 700; }
-.stat-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-3);
-}
+.stat-suffix { font-size: 1.4rem; font-weight: 700; margin-left: 2px; }
 .stat-label { font-size: 11px; color: var(--text-3); line-height: 1.35; text-align: center; }
 
 .pitch-body { font-size: 14px; color: var(--text-2); line-height: 1.7; max-width: 480px; margin: 0 auto; }
