@@ -286,7 +286,19 @@ def require_subscription(user: User = Depends(get_current_user)) -> User:
     return user
 
 
-async def _rate_limit(r, user_id: int, endpoint: str, cooldown: int, limit: int,
+def _client_ip(request: Request) -> str:
+    """Best-effort real client IP, trusting Cloudflare/reverse-proxy headers over the raw
+    socket peer (which behind a proxy is just the proxy's own address)."""
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+async def _rate_limit(r, user_id: int | str, endpoint: str, cooldown: int, limit: int,
                       cooldown_msg: str = "Too fast — wait a moment before trying again",
                       limit_msg: str = "Rate limit exceeded — try again in a minute",
                       window_limit: int = None, window_seconds: int = 300,
@@ -443,7 +455,22 @@ async def login_page(request: Request, user: Optional[User] = Depends(get_option
 
 
 @app.post("/auth/login")
-async def auth_login(body: LoginRequest, db: Session = Depends(get_db)):
+async def auth_login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    r = request.app.state.redis
+    # IP-based: a loose backstop against one connection spraying guesses across many
+    # accounts. No cooldown, since a shared IP (uni halls, office, CGNAT) can have several
+    # different real people submitting logins within the same second.
+    await _rate_limit(r, _client_ip(request), "login_ip", cooldown=0, limit=20,
+                      limit_msg="Too many login attempts from this connection — try again in a minute",
+                      window_limit=60, window_seconds=300,
+                      window_msg="Too many login attempts from this connection — try again in a few minutes")
+    # Username-based: the real defense against brute-forcing one account — doesn't care how
+    # many other people share your IP, and also catches attempts spread across many IPs.
+    await _rate_limit(r, body.username.lower(), "login_user", cooldown=2, limit=6,
+                      cooldown_msg="Too many attempts — wait a moment before trying again",
+                      limit_msg="Too many attempts on this account — try again in a minute",
+                      window_limit=15, window_seconds=900,
+                      window_msg="Too many attempts on this account — try again later")
     user = db.query(User).filter(User.username == body.username).first()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid username or password.")
@@ -463,9 +490,18 @@ async def auth_login(body: LoginRequest, db: Session = Depends(get_db)):
 @app.post("/auth/register")
 async def auth_register(
     body: RegisterRequest,
+    request: Request,
     db: Session = Depends(get_db),
     ref: Optional[str] = Cookie(default=None),
 ):
+    r = request.app.state.redis
+    # No per-identity axis to split on for signup (that's what's being created), so this stays
+    # purely IP-based — kept loose enough that a shared network signing up together (uni halls,
+    # a class) doesn't get caught, while still bounding a scripted mass-signup bot.
+    await _rate_limit(r, _client_ip(request), "register", cooldown=1, limit=10,
+                      cooldown_msg="Too many attempts — wait a moment before trying again",
+                      limit_msg="Too many signups from this connection — try again in a minute",
+                      window_limit=25, window_msg="Too many signups from this connection — try again later")
     if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(status_code=400, detail="Username already taken.")
     if db.query(User).filter(User.email == body.email).first():
@@ -678,20 +714,46 @@ async def pricing_page(request: Request, user: Optional[User] = Depends(get_opti
 _basic = HTTPBasic(auto_error=False)
 _ADMIN_USERNAME = "cjcol01"
 
-def _require_author(
+_AUTHOR_MAX_FAILS = 5
+_AUTHOR_LOCKOUT_SECONDS = 15 * 60
+
+async def _require_author(
+    request: Request,
     user: Optional[User] = Depends(get_optional_user),
     credentials: Optional[HTTPBasicCredentials] = Depends(_basic),
 ):
     if user and user.username == _ADMIN_USERNAME:
         return
+
+    r = request.app.state.redis
+    fail_key = f"rl:author_fail:{_client_ip(request)}"
+    unauthed = HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
+
+    fails = await r.get(fail_key)
+    if fails and int(fails) >= _AUTHOR_MAX_FAILS:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts — try again later.",
+            headers={"WWW-Authenticate": 'Basic realm="author"'},
+        )
+
     if (
         credentials
         and AUTHOR_PASSWORD
         and secrets.compare_digest(credentials.username.encode(), _ADMIN_USERNAME.encode())
         and secrets.compare_digest(credentials.password.encode(), AUTHOR_PASSWORD.encode())
     ):
+        if fails:
+            await r.delete(fail_key)
         return
-    raise HTTPException(status_code=401, headers={"WWW-Authenticate": 'Basic realm="author"'})
+
+    # Only count actual (wrong) credential submissions against the lockout — not the
+    # first, credential-less request that's a normal part of the Basic Auth handshake.
+    if credentials is not None:
+        new_fails = await r.incr(fail_key)
+        if new_fails == 1:
+            await r.expire(fail_key, _AUTHOR_LOCKOUT_SECONDS)
+    raise unauthed
 
 @app.get("/verify-author")
 async def author_page(request: Request, _: None = Depends(_require_author)):

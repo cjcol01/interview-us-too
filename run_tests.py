@@ -21,7 +21,7 @@ _test_db_path = os.path.join(os.path.expanduser("~/.interview-us-too"), "test_us
 if os.path.exists(_test_db_path):
     os.remove(_test_db_path)
 
-from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, skip, test
+from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, set_redis, skip, test
 
 
 def section(title):
@@ -34,6 +34,7 @@ from server import app
 
 with TestClient(app) as client:
     set_client(client)
+    set_redis(app.state.redis)
 
     section("Config")
     import tests.test_config

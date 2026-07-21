@@ -26,10 +26,6 @@
 - [ ] Update `BASE_URL` — currently hardcoded to LAN IP `192.168.4.21:8000` (`config.py:31`)
 - [ ] Set all required env vars in production (see list below)
 
-### Data / Backend
-- [x] Decide on database: keep SQLite or migrate to Postgres
-  - If Postgres: replace `database.init_db` `ALTER TABLE` block with Alembic migrations (`database.py:24-46`) — the current approach silently breaks on Postgres
-- [x] Replace in-process `_subscribers` / `_capture_states` / `_complexity` dicts with Redis pub/sub + hashes — app can now run with multiple uvicorn workers
 
 ### Bugs
 
@@ -70,16 +66,13 @@
 - [ ] `/api/text-capture` shares the `/api/capture` rate-limit bucket (6/min, 5s cooldown) and deducts a paid session — confirm intended
 
 - [ ] Add a contact form or `mailto` link on landing page footer / settings / pricing
-- [x] Update landing page nav — sign-in/sign-out button behaviour
 - [ ] Improve site navigation — navbar consistency across pages
 - [ ] Add mic settings and mic test
 - [ ] Fix audio keyup edge case — any modifier release stops recording (`content.js:85-97`)
 - [ ] Show "Trial (expired)" label for expired trial users in settings (not just "Trial")
 - [ ] Fix README keyboard shortcut docs — stale (wrong keys, missing audio shortcut)
 - [ ] "Buy me a coffee" link / tip jar
-- [x] add instant replay system for rolling back previously spoken text
 - [ ] check mac mic recording symbol - do we need to spoof a mic
-- [x] change settings i.e. conversational, bullet points, summary, one liner 
 - [ ] upload a paragraph before hand of core company info
 
 ---
@@ -168,12 +161,3 @@
 ---
 
 ## ✅ Already Done
-
-- Stripe price IDs created and in `.env`
-- Sessions plan increments `sessions_remaining` and sets `account_level` via webhook
-- Cancel subscription button in settings
-- Landing page pricing copy updated (£2 / £25/mo)
-- Sign-in/out button switches dynamically on landing page
-- Trial-expired account label fix
-- `/app` redirects `free` users to `/pricing` (not `/settings`)
-- Session count tracking for sessions plan

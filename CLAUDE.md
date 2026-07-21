@@ -64,5 +64,5 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | `DB_DATA_DIR` | No | Where SQLite files live. Defaults to `~/.interview-us-too` (a WSL2 workaround — see `config.py`). Set explicitly on servers/VPS to a path your deploy/backup process actually manages. |
 | `AI_PROMPT` | No | System prompt for Claude |
 | `RESEND_API_KEY` | No | Email verification |
-| `AUTHOR_PASSWORD` | No | HTTP Basic auth for `/verify-author` |
-| `SKIP_EMAIL_VERIFICATION` | No | Dev only. `1` marks new accounts verified on signup and skips sending the verification email. Must be unset/`0` in production — see the "DEV ONLY" section in `.env`. |
+| `AUTHOR_PASSWORD` | No | Gates an internal admin-only page. Keep unset locally; set a strong random value in production. |
+| `SKIP_EMAIL_VERIFICATION` | No | Dev-only convenience flag — see `.env` for details. Must never be set in production. |

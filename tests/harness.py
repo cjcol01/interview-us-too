@@ -6,6 +6,7 @@ RESET = "\033[0m"
 
 results = []
 _client = None
+_redis = None
 
 
 def set_client(client):
@@ -21,9 +22,23 @@ def set_client(client):
     _client = client
 
 
+def set_redis(redis_client):
+    """Register the app's (fake) Redis so test() can flush it between tests.
+
+    IP-keyed rate limits (login/register/author lockout) share one bucket across the whole
+    suite, since every request from TestClient carries the same client IP — without a flush,
+    a test earlier in the file exhausts the budget for an unrelated test later in the file.
+    """
+    global _redis
+    _redis = redis_client
+
+
 def test(name, fn):
     if _client is not None:
         _client.cookies.clear()
+    if _redis is not None:
+        import asyncio
+        asyncio.run(_redis.flushdb())
     try:
         result = fn()
         if result is False:
