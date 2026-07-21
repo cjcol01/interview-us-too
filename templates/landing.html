@@ -836,9 +836,11 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   var proofTrack = document.querySelector('.ia-proof-track');
   var proofHint = document.getElementById('proofHint');
   if (proofWrap && proofTrack) {
-    var DRIFT_SPEED = 1.4;    // px/frame baseline auto-drift
+    var MOBILE_QUERY = window.matchMedia('(max-width: 720px)');
+    var BASE_DRIFT_SPEED = 1.4; // px/frame baseline auto-drift (desktop)
+    var DRIFT_SPEED = MOBILE_QUERY.matches ? BASE_DRIFT_SPEED * 0.7 : BASE_DRIFT_SPEED; // -30% on mobile
     var MAX_FLING_VEL = 40;   // px/frame cap so a fast flick doesn't fly off
-    var FLING_DECAY = 0.94;   // per-frame velocity decay while settling
+    var FLING_DECAY = 0.94;   // per-frame velocity decay while settling, toward baseline drift speed (not zero)
 
     // Measure the true repeat period directly (distance from the first real card
     // to its first duplicate) rather than trusting scrollWidth/2 — scrollWidth can
@@ -851,7 +853,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       return cards[n].offsetLeft - cards[0].offsetLeft;
     }
     var halfWidth = measureHalfWidth();
-    window.addEventListener('resize', function() { halfWidth = measureHalfWidth(); });
+    window.addEventListener('resize', function() {
+      halfWidth = measureHalfWidth();
+      DRIFT_SPEED = MOBILE_QUERY.matches ? BASE_DRIFT_SPEED * 0.7 : BASE_DRIFT_SPEED;
+    });
 
     var pos = 0, vel = 0;
     var dragging = false, settling = false;
@@ -871,9 +876,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       if (dragging) {
         // position is updated directly in the move handler
       } else if (settling) {
+        // Decay toward the baseline drift speed (not toward zero) so a fling never
+        // dips to a near-stop before the auto-drift resumes — it eases straight into it.
+        var target = noMotion ? 0 : -DRIFT_SPEED;
+        vel = target + (vel - target) * FLING_DECAY;
         pos += vel;
-        vel *= FLING_DECAY;
-        if (Math.abs(vel) < 0.02) settling = false;
+        if (Math.abs(vel - target) < 0.02) { vel = target; settling = false; }
         wrap();
         render();
       } else if (!noMotion) {
