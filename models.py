@@ -36,8 +36,8 @@ class User(Base):
     stripe_sub_id      = Column(String, nullable=True, unique=True)
     api_token          = Column(String, nullable=True, unique=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
-    verify_token       = Column(String, nullable=True)
-    reset_token        = Column(String, nullable=True)
+    verify_token       = Column(String, nullable=True, index=True)
+    reset_token        = Column(String, nullable=True, index=True)
     reset_token_expiry = Column(DateTime, nullable=True)
     setup_complete     = Column(Boolean, default=False, nullable=False)
     sessions_remaining = Column(Integer, default=0, nullable=False, server_default="0")
@@ -125,7 +125,7 @@ class InterviewSession(Base):
     __tablename__ = "interview_sessions"
 
     id         = Column(Integer, primary_key=True, index=True)
-    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     ended_at   = Column(DateTime, nullable=True)

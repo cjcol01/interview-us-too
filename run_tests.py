@@ -87,6 +87,10 @@ with TestClient(app) as client:
     import tests.test_author
     tests.test_author.register(test, skip, client)
 
+    section("Admin Routes")
+    import tests.test_admin
+    tests.test_admin.register(test, skip, client)
+
     section("Hotkeys")
     import tests.test_hotkeys
     tests.test_hotkeys.register(test, skip, client)

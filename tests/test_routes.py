@@ -178,6 +178,31 @@ def register(test, skip, client):
         try:
             r = client.post("/settings/complexity/up", cookies={"session": token})
             assert r.status_code == 200
+            assert "complexity" in r.json()
+        finally:
+            delete_by_name(uname)
+
+    def test_complexity_up_clamps_at_max():
+        from server import COMPLEXITY_MAX
+
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            for _ in range(COMPLEXITY_MAX + 3):
+                r = client.post("/settings/complexity/up", cookies={"session": token})
+                assert r.status_code == 200
+            assert r.json()["complexity"] == COMPLEXITY_MAX
+        finally:
+            delete_by_name(uname)
+
+    def test_complexity_down_clamps_at_min():
+        from server import COMPLEXITY_MIN
+
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            for _ in range(COMPLEXITY_MIN + 3):
+                r = client.post("/settings/complexity/down", cookies={"session": token})
+                assert r.status_code == 200
+            assert r.json()["complexity"] == COMPLEXITY_MIN
         finally:
             delete_by_name(uname)
 
@@ -352,6 +377,8 @@ def register(test, skip, client):
     test("/pricing accessible when authenticated",             test_pricing_page_accessible_when_authed)
     test("Complexity: unknown direction is handled",           test_complexity_endpoint_handles_unknown_direction)
     test("Complexity: up increments setting",                  test_complexity_up_increments)
+    test("Complexity: up clamps at COMPLEXITY_MAX",             test_complexity_up_clamps_at_max)
+    test("Complexity: down clamps at COMPLEXITY_MIN",           test_complexity_down_clamps_at_min)
     test("Token regenerate returns new token",                 test_token_regenerate_returns_new_token)
     test("Logout clears session cookie",                       test_logout_clears_session)
     test("GET /auth/logout also redirects to login",          test_get_logout_redirects)

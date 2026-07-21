@@ -91,6 +91,11 @@ def init_db():
         for col, definition in migrations:
             if col not in existing:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))  # no-op if column exists
+        # index=True on a model only applies via create_all() for brand-new tables — add it
+        # explicitly here so existing (pre-change) databases pick it up too.
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_interview_sessions_user_id ON interview_sessions(user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_verify_token ON users(verify_token)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_reset_token ON users(reset_token)"))
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:

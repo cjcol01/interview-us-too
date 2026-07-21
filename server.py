@@ -547,9 +547,15 @@ async def auth_register(
 
 
 @app.post("/auth/resend-verification")
-async def resend_verification(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def resend_verification(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.email_verified:
         raise HTTPException(status_code=400, detail="Email already verified.")
+    r = request.app.state.redis
+    await _rate_limit(r, user.id, "resend_verification", cooldown=30, limit=3,
+                      cooldown_msg="Please wait before requesting another email",
+                      limit_msg="Too many requests — try again in a few minutes",
+                      window_limit=3, window_seconds=600,
+                      window_msg="Too many requests — try again in a few minutes")
     user.verify_token = secrets.token_urlsafe(32)
     db.commit()
     send_verification_email(user.email, user.verify_token)
@@ -578,7 +584,21 @@ async def forgot_password_page(request: Request, user: Optional[User] = Depends(
 
 
 @app.post("/auth/forgot-password")
-async def auth_forgot_password(body: ForgotPasswordRequest, db: Session = Depends(get_db)):
+async def auth_forgot_password(body: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    r = request.app.state.redis
+    # Email-based: caps how many reset emails one target inbox can be flooded with, regardless
+    # of how many different IPs the requests come from.
+    await _rate_limit(r, body.email.lower(), "forgot_password_email", cooldown=30, limit=3,
+                      cooldown_msg="Please wait before requesting another email",
+                      limit_msg="Too many requests for this email — try again in a few minutes",
+                      window_limit=3, window_seconds=600,
+                      window_msg="Too many requests for this email — try again in a few minutes")
+    # IP-based: loose backstop against one connection spraying requests across many target
+    # emails. No cooldown — a shared IP can have several different real people at once.
+    await _rate_limit(r, _client_ip(request), "forgot_password_ip", cooldown=0, limit=10,
+                      limit_msg="Too many requests from this connection — try again in a minute",
+                      window_limit=30, window_seconds=300,
+                      window_msg="Too many requests from this connection — try again in a few minutes")
     user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
     if user:
         user.reset_token = secrets.token_urlsafe(32)

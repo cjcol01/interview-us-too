@@ -7,7 +7,7 @@ import secrets as _sec
 from unittest.mock import MagicMock, patch
 
 from database import SessionLocal, init_db
-from models import AccountLevel, Referral, ReferralStatus, User
+from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
 from tests.helpers import cleanup, delete_by_name, make_cookie, make_user
 
 
@@ -156,6 +156,54 @@ def register(test, skip, client=None):
             _handle_sessions_purchase(data, db)
         finally:
             db.close()
+
+    # -- Card-fingerprint fraud dedup (_get_card_fingerprint / IntroCardFingerprint) --
+    # The dedup branch only runs for a non-test (live) Stripe key, so these tests patch
+    # billing.STRIPE_SECRET_KEY to a fake live-shaped value to exercise it.
+
+    def test_sessions_purchase_duplicate_fingerprint_refunds_and_declines():
+        init_db()
+        db = SessionLocal()
+        fp = f"fp_test_{_sec.token_hex(6)}"
+        try:
+            db.add(IntroCardFingerprint(fingerprint=fp))
+            db.commit()
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            data = _fake_checkout_event(cid, "sessions", payment_intent="pi_dup")["data"]["object"]
+            with patch("billing.STRIPE_SECRET_KEY", "sk_live_fake"), \
+                 patch("billing._get_card_fingerprint", return_value=fp), \
+                 patch("billing.stripe.Refund.create") as mock_refund:
+                _handle_sessions_purchase(data, db)
+            mock_refund.assert_called_once_with(payment_intent="pi_dup")
+            db.refresh(u)
+            assert u.intro_declined is True
+            assert u.sessions_remaining == 0
+            assert u.intro_redeemed is False
+        finally:
+            db.query(IntroCardFingerprint).filter(IntroCardFingerprint.fingerprint == fp).delete()
+            cleanup(db, u); db.close()
+
+    def test_sessions_purchase_fresh_fingerprint_records_and_grants():
+        init_db()
+        db = SessionLocal()
+        fp = f"fp_test_{_sec.token_hex(6)}"
+        try:
+            cid = _stripe_id()
+            u = make_user(db, AccountLevel.trial, stripe_id=cid)
+            data = _fake_checkout_event(cid, "sessions", payment_intent="pi_fresh")["data"]["object"]
+            with patch("billing.STRIPE_SECRET_KEY", "sk_live_fake"), \
+                 patch("billing._get_card_fingerprint", return_value=fp), \
+                 patch("billing.stripe.Refund.create") as mock_refund:
+                _handle_sessions_purchase(data, db)
+            mock_refund.assert_not_called()
+            db.refresh(u)
+            assert u.intro_declined is False
+            assert u.sessions_remaining == 3
+            assert db.query(IntroCardFingerprint).filter(IntroCardFingerprint.fingerprint == fp).first() is not None
+        finally:
+            db.query(IntroCardFingerprint).filter(IntroCardFingerprint.fingerprint == fp).delete()
+            cleanup(db, u); db.close()
 
     # -- Referral credit on intro purchase -----------------------------------
 
@@ -474,6 +522,8 @@ def register(test, skip, client=None):
     test("Sessions pack grants 3 sessions",                      test_sessions_pack_grants_3_sessions)
     test("Sessions purchase: unknown plan is noop",              test_sessions_purchase_unknown_plan_is_noop)
     test("Sessions purchase: no user is noop",                   test_sessions_purchase_no_user_is_noop)
+    test("Sessions purchase: dup card fingerprint → refund+decline", test_sessions_purchase_duplicate_fingerprint_refunds_and_declines)
+    test("Sessions purchase: fresh fingerprint → recorded+granted",  test_sessions_purchase_fresh_fingerprint_records_and_grants)
     test("Referrer credited £2 on referee intro purchase",       test_referrer_credited_on_intro_purchase)
     test("No double-credit on intro (intro_credited guard)",     test_no_double_credit_intro)
     test("Referrer credited £3 when referee subscribes",         test_referrer_credited_on_subscription)
@@ -761,6 +811,57 @@ def register_http(test, skip, client):
         finally:
             cleanup(db, u); db.close()
 
+    def test_webhook_invoice_paid_marks_paid():
+        cid = _stripe_id()
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.unlimited, stripe_id=cid)
+            fake_event = {
+                "type": "invoice.paid",
+                "data": {"object": _FakeStripeObject({
+                    "customer": cid, "amount_paid": 999,
+                    "starting_balance": 0, "ending_balance": 0,
+                })},
+            }
+            with patch("billing.stripe.Webhook.construct_event", return_value=fake_event):
+                r = client.post("/billing/webhook", content=b"payload",
+                                headers={"stripe-signature": "test"})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.sub_invoice_paid is True
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_billing_offer_success_claims_retention():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.stripe_sub_id = _sub_id()
+            db.commit()
+            with patch("billing.stripe.Subscription.modify", return_value=None):
+                r = client.post("/billing/offer", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert r.headers["location"] == "/settings?offer=claimed"
+            db.refresh(u)
+            assert u.retention_offer_claimed is True
+        finally:
+            db.close(); delete_by_name(uname)
+
+    def test_billing_offer_no_subscription_swallows_error():
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.unlimited)  # no stripe_sub_id set
+        db = SessionLocal()
+        try:
+            r = client.post("/billing/offer", cookies={"session": token}, follow_redirects=False)
+            # apply_retention_coupon raises ValueError (no sub) — caught, still redirects cleanly
+            assert r.status_code == 303
+            u = db.query(User).filter(User.username == uname).first()
+            assert u.retention_offer_claimed is False
+        finally:
+            db.close(); delete_by_name(uname)
+
     def test_checkout_requires_auth():
         r = client.get("/billing/checkout?plan=subscription", follow_redirects=False)
         assert r.status_code in (302, 307, 401, 403)
@@ -793,6 +894,9 @@ def register_http(test, skip, client):
     test("Webhook: subscription.created sets unlimited",      test_webhook_subscription_created)
     test("Webhook: subscription.deleted sets free",           test_webhook_subscription_deleted)
     test("Webhook: checkout.completed grants sessions",       test_webhook_checkout_sessions_purchase)
+    test("Webhook: invoice.paid marks sub_invoice_paid",       test_webhook_invoice_paid_marks_paid)
+    test("POST /billing/offer: success claims retention",     test_billing_offer_success_claims_retention)
+    test("POST /billing/offer: failure swallowed, still redirects", test_billing_offer_no_subscription_swallows_error)
     test("GET /billing/checkout requires auth",               test_checkout_requires_auth)
     test("GET /billing/checkout redirects to Stripe",         test_checkout_redirects_to_stripe)
 
