@@ -1,5 +1,7 @@
 /* ===== Shared admin pages (usage / users / referrals) ===== */
 main.admin-main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
+main.admin-main-wide { max-width: 1800px; }
+.ua-table-wrap { overflow-x: auto; }
 .ua-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .ua-table th, .ua-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
 .ua-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
@@ -11,11 +13,14 @@ main.admin-main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
 }
 .ua-banned { color: var(--danger, #f87171); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .ua-flagged { color: #f5a623; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-.ua-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.ua-actions form { display: inline; }
+/* nowrap: the 3 action buttons (warn / pause-resume / ban-unban) wrapping onto separate
+   lines was blowing up row height to 3x normal — force one line and let the table's own
+   .ua-table-wrap scroll horizontally on narrow viewports instead. */
+.ua-actions { display: flex; gap: 6px; flex-wrap: nowrap; }
+.ua-actions form { display: inline; flex-shrink: 0; }
 .ua-btn {
   font-size: 12px; font-weight: 600; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line, #333);
-  background: none; color: var(--text-2, #aaa); cursor: pointer; font-family: inherit;
+  background: none; color: var(--text-2, #aaa); cursor: pointer; font-family: inherit; white-space: nowrap;
 }
 .ua-btn:hover { color: var(--text, #eee); background: rgba(255,255,255,.05); }
 .ua-btn:disabled { opacity: .35; cursor: not-allowed; }
@@ -41,3 +46,132 @@ main.admin-main { max-width: 1100px; margin: 0 auto; padding: 32px 20px 64px; }
   color: var(--text-2, #aaa); cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
 }
 .ua-search button:hover { color: var(--text, #eee); background: rgba(255,255,255,.05); }
+
+/* ===== Growth dashboard ===== */
+.ad-layout { display: flex; align-items: flex-start; gap: 28px; }
+/* The side panel (holding a full 7-column admin table when a segment is selected) is
+   ALWAYS rendered — as a placeholder when idle, with real results once a card is clicked —
+   and both columns use fixed widths rather than flex-grow/shrink. That's deliberate: with
+   the panel appearing/disappearing or the columns resizing based on content, the card grid
+   on the left kept reflowing between 1/2/3-per-row depending on what was selected. Fixed
+   widths on a fixed pair of columns means nothing ever moves when you click a different card. */
+.ad-main { flex: 0 0 460px; }
+.ad-side {
+  flex: 1 1 auto; min-width: 760px;
+  /* Lines the panel's top edge up with the first row of cards rather than with the "Users"
+     section heading above them — that heading (font-size 15px * line-height 1.6 = 24px,
+     plus its 12px margin-bottom) is 36px tall, so the panel is pushed down to match. */
+  margin-top: 36px;
+  position: sticky; top: 56px; max-height: calc(100vh - 76px); overflow-y: auto;
+  border: 1px solid var(--line, #333); border-radius: 12px; padding: 18px;
+  background: rgba(255,255,255,.02);
+}
+.ad-side h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-2, #aaa); font-weight: 600; }
+.ad-side-table-wrap { overflow-x: auto; }
+@media (max-width: 1300px) {
+  .ad-layout { flex-direction: column; }
+  .ad-side { position: static; width: 100%; min-width: 0; max-height: none; }
+}
+.ad-section { margin: 0 0 36px; }
+.ad-section h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-2, #aaa); font-weight: 600; }
+/* Fixed at 2 columns (not auto-fill) — with a variable number of cards per section, an
+   auto-fill grid reflowed between 1/2/3-per-row as .ad-main's available width changed
+   depending on what was selected. A fixed column count never reflows. */
+.ad-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.ad-card {
+  display: block; border: 1px solid var(--line, #333); border-radius: 10px; padding: 14px 16px;
+  background: rgba(255,255,255,.02); text-decoration: none;
+}
+.ad-card-link { cursor: pointer; transition: border-color .12s, background .12s; }
+.ad-card-link:hover { border-color: var(--accent-line, #7dc4f5); background: rgba(125,196,245,.06); }
+.ad-card-active { border-color: var(--accent, #7dc4f5); background: rgba(125,196,245,.09); }
+.ad-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3, #888); margin: 0 0 6px; }
+.ad-card-value { font-size: 22px; font-weight: 700; color: var(--text, #eee); }
+.ad-card-sub { font-size: 12px; color: var(--text-3, #888); margin-top: 4px; }
+.ad-trend { display: flex; align-items: flex-end; gap: 3px; height: 60px; margin-top: 6px; }
+.ad-trend-bar { flex: 1; background: var(--accent, #7dc4f5); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .8; }
+.ad-trend-bar:hover { opacity: 1; }
+
+/* ===== System health ===== */
+.hz-section { margin: 0 0 32px; }
+.hz-section h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-2, #aaa); font-weight: 600; }
+.hz-row {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 10px 12px;
+  border-bottom: 1px solid var(--line, #333); font-size: 13px;
+}
+.hz-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; align-self: center; }
+.hz-dot-ok { background: #4ade80; }
+.hz-dot-warn { background: #f5a623; }
+.hz-dot-fail { background: var(--danger, #f87171); }
+.hz-dot-unknown { background: var(--text-3, #888); }
+.hz-name { width: 160px; flex-shrink: 0; color: var(--text, #eee); font-weight: 600; }
+.hz-detail { flex: 1 1 200px; min-width: 0; color: var(--text-2, #aaa); word-break: break-word; }
+.hz-latency { color: var(--text-3, #888); font-size: 12px; width: 70px; text-align: right; flex-shrink: 0; }
+.hz-config-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.hz-config-item {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; row-gap: 2px; column-gap: 10px;
+  padding: 8px 12px; border: 1px solid var(--line, #333); border-radius: 8px; font-size: 13px;
+}
+.hz-config-item span:first-child { min-width: 0; word-break: break-word; flex: 1 1 auto; }
+.hz-config-item span:last-child { font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+
+/* ===== Announcements ===== */
+.an-form { display: flex; flex-direction: column; gap: 14px; max-width: 640px; margin: 0 0 40px; }
+.an-field label { display: block; font-size: 12px; color: var(--text-3, #888); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.an-field input[type="text"], .an-field input[type="email"], .an-field textarea, .an-field select {
+  width: 100%; padding: 9px 12px; border-radius: 7px; border: 1px solid var(--line, #333);
+  background: none; color: var(--text, #eee); font-size: 13.5px; font-family: inherit; box-sizing: border-box;
+}
+.an-field textarea { resize: vertical; min-height: 90px; }
+.an-radio-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.an-radio-row label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text, #eee); text-transform: none; }
+.an-checkbox-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 12px; margin-bottom: 8px; }
+.an-checkbox-item { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text, #eee); text-transform: none; cursor: pointer; }
+.an-checkbox-item input[type="checkbox"] { accent-color: var(--accent, #7dc4f5); flex-shrink: 0; }
+.an-segment-count-inline { color: var(--text-3, #888); font-size: 12px; }
+.an-confirm-test {
+  padding: 10px 14px; border: 1px solid rgba(245,166,35,.35); border-radius: 8px;
+  background: rgba(245,166,35,.06); font-weight: 600;
+}
+.an-segment-count { color: var(--text-3, #888); font-size: 12px; }
+.an-submit { align-self: flex-start; padding: 9px 20px; border-radius: 7px; border: 1px solid var(--accent-line, #7dc4f5);
+  background: none; color: var(--accent, #7dc4f5); cursor: pointer; font-size: 13.5px; font-weight: 600; font-family: inherit; }
+.an-submit:hover { background: rgba(125,196,245,.1); }
+.an-badge { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 2px 8px; border-radius: 5px; }
+.an-badge-email { color: #7dc4f5; background: rgba(125,196,245,.1); }
+.an-badge-in_app { color: #4ade80; background: rgba(74,222,128,.1); }
+.an-badge-both { color: #f5a623; background: rgba(245,166,35,.1); }
+
+/* ===== Admin home ===== */
+.ah-alerts { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 32px; }
+.ah-alert {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px;
+  font-size: 13.5px; text-decoration: none; color: var(--text, #eee); border: 1px solid var(--line, #333);
+  transition: background .12s;
+}
+.ah-alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+/* Same severity scale as .ua-btn-*: notice (blue, informational) -> caution (amber, worth a
+   look) -> danger (red, broken). ok (green) is the one positive/reassuring state. */
+.ah-alert-notice { border-color: rgba(125,196,245,.3); }
+.ah-alert-notice .ah-alert-dot { background: #7dc4f5; }
+.ah-alert-notice:hover { background: rgba(125,196,245,.07); }
+.ah-alert-caution { border-color: rgba(245,166,35,.35); }
+.ah-alert-caution .ah-alert-dot { background: #f5a623; }
+.ah-alert-caution:hover { background: rgba(245,166,35,.08); }
+.ah-alert-danger { border-color: rgba(248,113,113,.35); }
+.ah-alert-danger .ah-alert-dot { background: var(--danger, #f87171); }
+.ah-alert-danger:hover { background: rgba(248,113,113,.08); }
+.ah-alert-ok { border-color: rgba(74,222,128,.3); cursor: default; }
+.ah-alert-ok .ah-alert-dot { background: #4ade80; }
+
+.ah-nav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.ah-nav-card {
+  display: block; border: 1px solid var(--line, #333); border-radius: 12px; padding: 18px 20px;
+  background: rgba(255,255,255,.02); text-decoration: none; color: var(--text, #eee);
+  transition: border-color .12s, background .12s;
+}
+.ah-nav-card:hover { border-color: var(--accent-line, #7dc4f5); background: rgba(125,196,245,.05); }
+.ah-nav-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.ah-nav-card-title { font-size: 15px; font-weight: 700; color: var(--text, #eee); }
+.ah-nav-card-stat { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-3, #888); white-space: nowrap; }
+.ah-nav-card-desc { font-size: 13px; color: var(--text-2, #aaa); line-height: 1.5; }

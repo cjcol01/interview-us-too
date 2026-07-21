@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Announcements — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% block content %}
+  <main class="admin-main">
+    <h1>Announcements</h1>
+    <p class="ua-sub">Email and/or in-app notify one or more audiences at once. In-app banners show once per user until dismissed.</p>
+    {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
+
+    <form class="an-form" method="post" action="/admin/announcements" onsubmit="return anConfirmSend(this);">
+      <div class="an-field">
+        <label for="an-subject">Subject</label>
+        <input type="text" id="an-subject" name="subject" required maxlength="200">
+      </div>
+      <div class="an-field">
+        <label for="an-body">Message</label>
+        <textarea id="an-body" name="body" required maxlength="4000"></textarea>
+      </div>
+      <div class="an-field">
+        <label>Channel</label>
+        <div class="an-radio-row">
+          <label><input type="radio" name="channel" value="in_app" checked> In-app banner</label>
+          <label><input type="radio" name="channel" value="email"> Email</label>
+          <label><input type="radio" name="channel" value="both"> Both</label>
+        </div>
+      </div>
+      <div class="an-field">
+        <label>Audience (select one or more)</label>
+        <div class="an-checkbox-grid">
+          {% for key, label in segments %}
+          <label class="an-checkbox-item">
+            <input type="checkbox" name="segment" value="{{ key }}" onchange="anUpdateSegment()">
+            {{ label }}{% if key != 'individual' %} <span class="an-segment-count-inline">({{ counts[key] }})</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        <div class="an-segment-count" id="an-segment-count">Select at least one audience.</div>
+      </div>
+      <div class="an-field" id="an-target-email-field" style="display:none;">
+        <label for="an-target-email">Target email (for "Individual")</label>
+        <input type="email" id="an-target-email" name="target_email" oninput="anUpdateSegment()">
+      </div>
+      <label class="an-checkbox-item an-confirm-test">
+        <input type="checkbox" id="an-confirm-test" required>
+        Always test to my admin email or account first
+      </label>
+      <button type="submit" class="an-submit">Send announcement</button>
+    </form>
+
+    <h2 style="font-size:15px;color:var(--text-2,#aaa);margin:0 0 12px;">History</h2>
+    {% if history %}
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Channel</th>
+          <th>Segment</th>
+          <th>Emailed</th>
+          <th>Created</th>
+          <th>In-app</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in history %}
+        <tr>
+          <td>{{ a.subject }}</td>
+          <td><span class="an-badge an-badge-{{ a.channel }}">{{ a.channel }}</span></td>
+          <td>{{ a.segment.replace(',', ', ') }}{% if 'individual' in a.segment.split(',') %} ({{ a.target_email }}){% endif %}</td>
+          <td>{{ a.email_recipient_count if a.email_recipient_count is not none else ("—" if a.channel == "in_app" else "sending…") }}</td>
+          <td>{{ a.created_at.strftime("%d %b %Y %H:%M") }}</td>
+          <td>{{ "active" if a.in_app_active else "—" }}</td>
+          <td>
+            {% if a.in_app_active %}
+            <form method="post" action="/admin/announcements/{{ a.id }}/deactivate">
+              <button type="submit" class="ua-btn ua-btn-caution">Stop showing</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="ua-empty">No announcements sent yet.</div>
+    {% endif %}
+  </main>
+
+  <script>
+    function anSelectedSegments() {
+      return Array.from(document.querySelectorAll('input[name="segment"]:checked')).map(el => el.value);
+    }
+    function anUpdateSegment() {
+      const selected = anSelectedSegments();
+      const countEl = document.getElementById('an-segment-count');
+      const targetField = document.getElementById('an-target-email-field');
+      targetField.style.display = selected.includes('individual') ? '' : 'none';
+      if (!selected.length) { countEl.textContent = 'Select at least one audience.'; return; }
+
+      const params = new URLSearchParams();
+      selected.forEach(s => params.append('segment', s));
+      const emailInput = document.getElementById('an-target-email');
+      if (emailInput && emailInput.value) params.append('target_email', emailInput.value);
+
+      countEl.textContent = 'Calculating…';
+      fetch('/admin/announcements/count?' + params.toString())
+        .then(r => r.json())
+        .then(data => { countEl.textContent = data.count + ' recipient(s) currently match this selection.'; })
+        .catch(() => { countEl.textContent = ''; });
+    }
+    function anConfirmSend(form) {
+      const selected = anSelectedSegments();
+      if (!selected.length) { alert('Select at least one audience.'); return false; }
+      if (selected.includes('individual') && !form.target_email.value.trim()) {
+        alert('The "Individual" audience needs a target email.');
+        return false;
+      }
+      const countEl = document.getElementById('an-segment-count');
+      return confirm('Send this announcement (' + form.channel.value + ') to: ' + selected.join(', ') + '\n\n' + countEl.textContent);
+    }
+    document.addEventListener('DOMContentLoaded', anUpdateSegment);
+  </script>
+{% endblock %}

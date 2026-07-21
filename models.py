@@ -148,3 +148,27 @@ class IntroCardFingerprint(Base):
     id          = Column(Integer, primary_key=True, index=True)
     fingerprint = Column(String, unique=True, nullable=False, index=True)
     used_at     = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id                     = Column(Integer, primary_key=True, index=True)
+    created_at             = Column(DateTime, default=datetime.utcnow, nullable=False)
+    subject                = Column(String, nullable=False)
+    body                   = Column(Text, nullable=False)
+    channel                = Column(String, nullable=False)   # email | in_app | both
+    segment                = Column(String, nullable=False)   # see server.py _SEGMENTS
+    target_email           = Column(String, nullable=True)    # only for segment == "individual"
+    in_app_active          = Column(Boolean, default=False, nullable=False, server_default="0")
+    email_recipient_count  = Column(Integer, nullable=True)   # set once the background send finishes
+
+
+class AnnouncementDismissal(Base):
+    __tablename__ = "announcement_dismissals"
+    __table_args__ = (UniqueConstraint("announcement_id", "user_id", name="uq_dismissal_announcement_user"),)
+
+    id              = Column(Integer, primary_key=True, index=True)
+    announcement_id = Column(Integer, ForeignKey("announcements.id"), nullable=False, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)

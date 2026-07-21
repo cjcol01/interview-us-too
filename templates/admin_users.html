@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="/css/admin.css">
 {% endblock %}
 {% block content %}
-  <main class="admin-main">
+  <main class="admin-main admin-main-wide">
     <h1>User lookup</h1>
     <p class="ua-sub">Search by email or username. Showing {{ "search results" if q else "the 50 most recent signups" }}.</p>
     <form class="ua-search" method="get" action="/admin/users">
@@ -15,6 +15,7 @@
     </form>
     {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
     {% if entries %}
+    <div class="ua-table-wrap">
     <table class="ua-table">
       <thead>
         <tr>
@@ -41,6 +42,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="ua-empty">No matching users.</div>
     {% endif %}

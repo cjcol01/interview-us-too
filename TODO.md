@@ -6,6 +6,7 @@
 - [ ] hot restart breaks on server.py changes
 - [ ] light mode theme changes
 - [ ] social proof improvements
+- [ ] some kind of alert system for health checks
  
 ## Soon 
 - [ ] typing mode to edit question - not start new question
@@ -21,6 +22,12 @@
 
 ## Later
 
+- [ ] Follow-up hotkey — let the candidate type a clarification to the AI's *previous* answer (e.g. "now do it recursively") instead of starting a fresh question. Sent to the same underlying "chat" so the reply has context of what was already said.
+  - New 6th hotkey (`hotkey_followup`) — same keydown/buffer plumbing as the existing `typing` hotkey in `content.js`/`background.js`, so extension-side work is mechanical
+  - Needs a DB migration: new nullable `User.hotkey_followup` column, plus entries in `HOTKEY_DEFAULTS`, `_user_hotkeys()`, `HotkeySettings`, and a settings.html row
+  - Server currently has **no memory** of the last answer to build on — only `/api/capture` (screenshot) persists `analysis` to Redis, and even that has no turn/prompt structure; `/api/text-capture` and `/api/audio-capture` don't persist anything past the SSE push. Needs a short-TTL "last Q&A" Redis entry per user
+  - All 3 capture endpoints currently send Claude a single-turn `messages` array — the follow-up needs `messages: [prior instruction, prior answer, new instruction]` instead
+  - Cost: verified via `count_tokens` against the live model (`claude-sonnet-4-6`) — a single follow-up adds an almost negligible ~$0.0007 (re-sending the ~250-token prior text answer as context). The one hard rule: **never re-send the original screenshot** in that history — only carry forward the text answer. Doing it naively (resending images) roughly 5-6x's the cost of a multi-turn session; doing it right (text-only history, ideally + prompt caching) keeps a full session to ~1.3-2x today's cost
 - [ ] Desktop app with invisible-to-screen-share overlay (native, not a plain extension port)
 - [ ] Video demonstration for landing page
 - [ ] zero downtime deploy

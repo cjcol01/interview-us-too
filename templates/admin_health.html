@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}System Health — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% macro check_row(name, check) %}
+<div class="hz-row">
+  <span class="hz-dot {{ 'hz-dot-ok' if check.ok == true else ('hz-dot-fail' if check.ok == false else 'hz-dot-unknown') }}"></span>
+  <span class="hz-name">{{ name }}</span>
+  <span class="hz-detail">{{ check.detail }}</span>
+  <span class="hz-latency">{{ (check.latency_ms ~ ' ms') if check.latency_ms is not none else '' }}</span>
+</div>
+{% endmacro %}
+{% block content %}
+  <main class="admin-main">
+    <h1>System health</h1>
+    <p class="ua-sub">v{{ app_version }} &middot; up {{ uptime_display }}. Public liveness check for external monitors: <code>/healthz</code>.</p>
+
+    <div class="hz-section">
+      <h2>Core</h2>
+      {{ check_row("Redis", checks.redis) }}
+      {{ check_row("Database", checks.database) }}
+      {{ check_row("Disk", checks.disk) }}
+      {{ check_row("Last Stripe webhook", checks.last_webhook) }}
+    </div>
+
+    <div class="hz-section">
+      <h2>Configuration</h2>
+      <div class="hz-config-grid">
+        {% for c in config_status %}
+        <div class="hz-config-item">
+          <span>{{ c.name }}</span>
+          <span style="color: {{ '#4ade80' if c.configured else 'var(--danger, #f87171)' }};">{{ 'configured' if c.configured else 'missing' }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="hz-section">
+      <h2>Deep checks</h2>
+      <p class="ua-sub" style="margin-top:0;">Real calls to Claude, OpenAI, Stripe, and live page routes — costs a little latency and quota, so these only run on request. Each result appears as soon as it comes back, rather than waiting for the slowest one.</p>
+      <button type="button" class="ua-btn ua-btn-notice" id="hz-deep-btn" onclick="hzRunDeepChecks()">Run deep checks</button>
+      <div id="hz-deep-results" style="margin-top:12px;"></div>
+    </div>
+  </main>
+
+  <script>
+    function hzRowSkeleton(id) {
+      return '<div class="hz-row" id="' + id + '">' +
+        '<span class="hz-dot hz-dot-unknown"></span>' +
+        '<span class="hz-name"></span>' +
+        '<span class="hz-detail">checking…</span>' +
+        '<span class="hz-latency"></span></div>';
+    }
+    function hzFill(rowEl, ok, name, detail, latencyMs) {
+      if (!rowEl) return;
+      rowEl.querySelector('.hz-dot').className = 'hz-dot ' + (ok === true ? 'hz-dot-ok' : ok === false ? 'hz-dot-fail' : 'hz-dot-unknown');
+      rowEl.querySelector('.hz-name').textContent = name;
+      rowEl.querySelector('.hz-detail').textContent = detail;
+      rowEl.querySelector('.hz-latency').textContent = (latencyMs !== null && latencyMs !== undefined) ? latencyMs + ' ms' : '';
+    }
+    function hzRunDeepChecks() {
+      document.getElementById('hz-deep-btn').textContent = 'Re-run deep checks';
+      const container = document.getElementById('hz-deep-results');
+      const checks = [['hz-row-anthropic', 'Anthropic (Claude)', 'anthropic'],
+                      ['hz-row-openai', 'OpenAI', 'openai'],
+                      ['hz-row-stripe', 'Stripe', 'stripe']];
+      container.innerHTML = checks.map(c => hzRowSkeleton(c[0])).join('') +
+        '<p class="ua-sub" style="margin:16px 0 4px;">Page routes</p>' +
+        '<div id="hz-routes-container"></div>';
+
+      checks.forEach(([id, label, name]) => {
+        const rowEl = document.getElementById(id);
+        fetch('/admin/health/deep/' + name)
+          .then(r => r.json())
+          .then(result => hzFill(rowEl, result.ok, label, result.detail, result.latency_ms))
+          .catch(() => hzFill(rowEl, false, label, 'request failed', null));
+      });
+
+      const routesContainer = document.getElementById('hz-routes-container');
+      fetch('/admin/health/deep/routes')
+        .then(r => r.json())
+        .then(data => {
+          routesContainer.innerHTML = data.routes.map((_, i) => hzRowSkeleton('hz-route-' + i)).join('');
+          data.routes.forEach((r, i) => hzFill(document.getElementById('hz-route-' + i), r.ok, r.name, r.detail, r.latency_ms));
+        })
+        .catch(() => { routesContainer.textContent = 'Failed to load route checks.'; });
+    }
+  </script>
+{% endblock %}

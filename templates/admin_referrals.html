@@ -17,6 +17,7 @@
 
     <div class="ua-section-title">Flagged referrers ({{ flag_threshold }}+ signups, 0 paid conversions)</div>
     {% if flagged %}
+    <div class="ua-table-wrap">
     <table class="ua-table">
       <thead>
         <tr>
@@ -37,12 +38,14 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="ua-empty">No referrers past the threshold yet.</div>
     {% endif %}
 
     <div class="ua-section-title">Recent referrals (last 200)</div>
     {% if referrals %}
+    <div class="ua-table-wrap">
     <table class="ua-table">
       <thead>
         <tr>
@@ -67,6 +70,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="ua-empty">No referrals yet.</div>
     {% endif %}

@@ -1,5 +1,11 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Reserves the vertical scrollbar's width permanently instead of only when content is tall
+   enough to need one — without this, any page whose height crosses the viewport threshold
+   (e.g. the admin dashboard's drill-down panel appearing) visibly shifts everything a few
+   pixels sideways as the scrollbar pops in/out. */
+html { scrollbar-gutter: stable; }
+
 /* ========================================================
    InterviewAce — global.css
    Dark design system shared by all app pages.
@@ -257,6 +263,33 @@ input[type=range]::-moz-range-thumb {
 .navbar-link:hover { color: var(--text); background: rgba(255,255,255,.04); }
 .navbar-link.active { color: var(--text); background: rgba(255,255,255,.06); }
 .navbar-link.navbar-logout:hover { color: var(--danger); }
+
+/* ── Site-wide announcement banner (admin-authored, any page) ── */
+.announcement-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--accent-soft);
+  border-bottom: 1px solid var(--accent-line);
+  color: var(--text);
+  padding: 12px max(20px, 3vw);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.announcement-banner-body { flex: 1; }
+.announcement-banner-body strong { color: var(--text); margin-right: 8px; }
+.announcement-banner-body span { color: var(--text-2); }
+.announcement-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.announcement-banner-dismiss:hover { color: var(--text); }
 .navbar-link.navbar-cta {
   color: var(--btn-text);
   background: var(--btn-bg);

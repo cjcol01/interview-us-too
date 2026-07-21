@@ -22,6 +22,22 @@
   {% endif %}
 </head>
 <body>
+{% if active_announcement %}
+<div class="announcement-banner" id="announcement-banner-{{ active_announcement.id }}">
+  <div class="announcement-banner-body">
+    <strong>{{ active_announcement.subject }}</strong>
+    <span>{{ active_announcement.body }}</span>
+  </div>
+  <button type="button" class="announcement-banner-dismiss" aria-label="Dismiss" onclick="dismissAnnouncement({{ active_announcement.id }})">&times;</button>
+</div>
+<script>
+function dismissAnnouncement(id) {
+  var el = document.getElementById('announcement-banner-' + id);
+  if (el) el.remove();
+  fetch('/announcements/' + id + '/dismiss', { method: 'POST' });
+}
+</script>
+{% endif %}
 {% if show_navbar %}
 <nav class="navbar" id="navbar">
   <a href="{{ '/app' if user else '/' }}" class="navbar-logo">InterviewAce</a>
@@ -52,11 +68,15 @@
         <svg class="navbar-dropdown-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="navbar-dropdown-menu" id="admin-dropdown-menu">
+        <a href="/admin" class="navbar-dropdown-item{% if request.url.path == '/admin' %} active{% endif %}">Admin home</a>
         <a href="/verify-author" class="navbar-dropdown-item{% if request.url.path == '/verify-author' %} active{% endif %}">Author</a>
         <a href="/partner/admin" class="navbar-dropdown-item{% if request.url.path == '/partner/admin' %} active{% endif %}">Partners</a>
         <a href="/admin/usage" class="navbar-dropdown-item{% if request.url.path == '/admin/usage' %} active{% endif %}">Usage</a>
         <a href="/admin/users" class="navbar-dropdown-item{% if request.url.path == '/admin/users' %} active{% endif %}">Users</a>
         <a href="/admin/referrals" class="navbar-dropdown-item{% if request.url.path == '/admin/referrals' %} active{% endif %}">Referrals</a>
+        <a href="/admin/dashboard" class="navbar-dropdown-item{% if request.url.path == '/admin/dashboard' %} active{% endif %}">Dashboard</a>
+        <a href="/admin/health" class="navbar-dropdown-item{% if request.url.path == '/admin/health' %} active{% endif %}">Health</a>
+        <a href="/admin/announcements" class="navbar-dropdown-item{% if request.url.path == '/admin/announcements' %} active{% endif %}">Announcements</a>
       </div>
     </div>
     {% endif %}

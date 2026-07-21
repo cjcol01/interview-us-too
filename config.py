@@ -59,7 +59,7 @@ if _missing:
     raise RuntimeError(f"Missing required env vars: {', '.join(_missing)}")
 BASE_URL              = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
-AI_PROMPT      = os.getenv("AI_PROMPT", "Describe what is happening on this screen. Be concise.")
+AI_PROMPT      = os.getenv("AI_PROMPT", "you're an ai agent helping people in interviews. you will be sent a screencapture of a leetcode problem. your task is to reply as helpfully and concisely as possible. no extra fluff needed, like greetings or unnecessary information. if you are sent something that isnt a leetcode (or similar) problem, do your best to help the user in any way you think, bearing in mind the instructions given to you. detect language used, but fall back to python3 if you cant find it. at the end show space and time complexity, if candidate has written some code, continue in their style, correcting any mistakes and pointing out what you changed. For behavioural question, answer in the STAR method where it makes sense with S-content (newline) A-content etc")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 AUTHOR_PASSWORD = os.getenv("AUTHOR_PASSWORD", "")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
@@ -75,6 +75,20 @@ REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 DB_DATA_DIR      = os.getenv("DB_DATA_DIR", "~/.interview-us-too")
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
 LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"
+
+# Manual-install fallback page (/install-manual), for if the Chrome Web Store listing is
+# ever taken down or delisted. Off by default — the route 404s until this is flipped on,
+# so the page doesn't sit around half-finished or confuse users during normal operation.
+# The zip is committed to the repo at static/extension/ (see scripts/build_extension_zip.py)
+# and served two ways: same-origin (SIDELOAD_ZIP_URL default) and via jsDelivr's CDN fronting
+# the public GitHub repo, which stays reachable even if our own server is what's struggling.
+# jsDelivr caches @main aggressively — after updating the zip, purge with a GET to
+# https://purge.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interviewace-extension.zip
+SIDELOAD_ENABLED = os.getenv("SIDELOAD_ENABLED", "0") == "1"
+SIDELOAD_ZIP_URL = os.getenv(
+    "SIDELOAD_ZIP_URL",
+    "https://cdn.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interviewace-extension.zip",
+)
 
 # --- Dev-only settings: review/change before deploying to production -------
 # SKIP_EMAIL_VERIFICATION: when "1", new accounts are marked verified on signup

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% import "_admin_actions.html" as actions %}
+{% block title %}Growth Dashboard — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% macro card(label, value, sub=none) %}
+<div class="ad-card">
+  <div class="ad-card-label">{{ label }}</div>
+  <div class="ad-card-value">{{ value }}</div>
+  {% if sub %}<div class="ad-card-sub">{{ sub }}</div>{% endif %}
+</div>
+{% endmacro %}
+{% macro card_link(label, value, key, drilldown, sub=none) %}
+<a class="ad-card ad-card-link{% if drilldown and drilldown.key == key %} ad-card-active{% endif %}" href="/admin/dashboard?segment={{ key }}">
+  <div class="ad-card-label">{{ label }}</div>
+  <div class="ad-card-value">{{ value }}</div>
+  {% if sub %}<div class="ad-card-sub">{{ sub }}</div>{% endif %}
+</a>
+{% endmacro %}
+{% block content %}
+  <main class="admin-main admin-main-wide">
+    <h1>Growth dashboard</h1>
+    <p class="ua-sub">DB-derived aggregates. MRR is a proxy (active subs &times; list price) — Stripe is the source of truth for actual billing. Click a card to list the matching users on the right.</p>
+
+    <div class="ad-layout">
+      <div class="ad-main">
+        <div class="ad-section">
+          <h2>Users</h2>
+          <div class="ad-grid">
+            {{ card_link("Total users", total_users, "total_users", drilldown) }}
+            {{ card_link("New (7d)", new_7d, "new_7d", drilldown) }}
+            {{ card_link("New (30d)", new_30d, "new_30d", drilldown) }}
+            {{ card_link("Email verified", verified_rate ~ "%", "verified", drilldown) }}
+            {{ card_link("Banned", banned_count, "banned", drilldown) }}
+          </div>
+        </div>
+
+        <div class="ad-section">
+          <h2>Account mix</h2>
+          <div class="ad-grid">
+            {% for level, count in account_mix.items() %}
+            {{ card_link(level, count, "level_" ~ level, drilldown) }}
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ad-section">
+          <h2>Conversion &amp; revenue</h2>
+          <div class="ad-grid">
+            {{ card_link("Ever paid", ever_paid_rate ~ "%", "ever_paid", drilldown, sub="of all signups") }}
+            {{ card_link("Trial → paid", trial_conversion_rate ~ "%", "converted", drilldown, sub="of accounts past trial") }}
+            {{ card_link("Active subscribers", active_subs, "active_subs", drilldown) }}
+            {{ card_link("Cancelling", pending_cancellations, "pending_cancellations", drilldown) }}
+            {{ card_link("MRR (proxy)", "£" ~ "%.2f"|format(mrr_pence / 100), "active_subs", drilldown) }}
+          </div>
+        </div>
+
+        <div class="ad-section">
+          <h2>Activity</h2>
+          <div class="ad-grid">
+            {{ card("Sessions (7d)", sessions_7d) }}
+            {{ card("Sessions (30d)", sessions_30d) }}
+            {{ card("Captures + audio (7d)", captures_7d + audio_7d) }}
+            {{ card("Captures + audio (30d)", captures_30d + audio_30d) }}
+          </div>
+          {% set max_signup = (signup_series | map(attribute='count') | max) %}
+          <p class="ua-sub" style="margin-top:24px;">Daily signups — last 30 days</p>
+          <div class="ad-trend">
+            {% for d in signup_series %}
+            <div class="ad-trend-bar" style="height: {{ (d.count / max_signup * 100) if max_signup else 0 }}%;" title="{{ d.label }}: {{ d.count }}"></div>
+            {% endfor %}
+          </div>
+          {% set max_session = (session_series | map(attribute='count') | max) %}
+          <p class="ua-sub" style="margin-top:24px;">Daily sessions started — last 30 days</p>
+          <div class="ad-trend">
+            {% for d in session_series %}
+            <div class="ad-trend-bar" style="height: {{ (d.count / max_session * 100) if max_session else 0 }}%;" title="{{ d.label }}: {{ d.count }}"></div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="ad-section">
+          <h2>Referrals &amp; partners</h2>
+          <div class="ad-grid">
+            {{ card("Total referrals", total_referrals) }}
+            {{ card("Subscribed referrals", subscribed_referrals) }}
+            {{ card("Outstanding referral credit", "£" ~ "%.2f"|format(outstanding_referral_credit_pence / 100)) }}
+            {{ card("Outstanding commission", "£" ~ "%.2f"|format(outstanding_commission_pence / 100)) }}
+          </div>
+        </div>
+      </div>
+
+      <aside class="ad-side" id="drilldown">
+        {% if drilldown %}
+        <h2>{{ drilldown.label }} ({{ drilldown.entries | length }}{{ "+" if drilldown.truncated else "" }})</h2>
+        <form class="ua-search ad-side-search" method="get" action="/admin/dashboard">
+          <input type="hidden" name="segment" value="{{ drilldown.key }}">
+          <input type="text" name="q" value="{{ drilldown.q }}" placeholder="Search email or username" autocomplete="off">
+          <button type="submit">Search</button>
+          <a href="/admin/dashboard" class="ua-btn">Clear</a>
+        </form>
+        {% if drilldown.truncated %}
+        <p class="ua-sub">Showing the first {{ drilldown.entries | length }} matches — narrow with a search to see more precisely.</p>
+        {% endif %}
+        {% if drilldown.entries %}
+        <div class="ad-side-table-wrap">
+          <table class="ua-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Account level</th>
+                <th>Sessions left</th>
+                <th>Signed up</th>
+                <th>Referred by</th>
+                <th>Partner</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for e in drilldown.entries %}
+              <tr>
+                <td>{{ e.email }} <span style="color:var(--text-3,#888);">(@{{ e.username }})</span>{% if not e.is_active %}<br><span class="ua-banned">Banned</span>{% endif %}{% if e.is_paused %}<br><span class="ua-flagged">Paused</span>{% endif %}</td>
+                <td>{{ e.account_level }}</td>
+                <td>{{ e.sessions_remaining }}</td>
+                <td>{{ e.created_at }}</td>
+                <td>{{ e.referred_by or "—" }}</td>
+                <td>{{ e.partner_status }}</td>
+                <td>{{ actions.action_buttons(e, "/admin/dashboard?segment=" ~ drilldown.key ~ "&q=" ~ drilldown.q) }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="ua-empty">No matching users.</div>
+        {% endif %}
+        {% else %}
+        <h2>User list</h2>
+        <p class="ua-sub" style="margin-top:0;">Click a card on the left to list its matching users here.</p>
+        {% endif %}
+      </aside>
+    </div>
+  </main>
+  <script>
+    (function() {
+      // Card clicks are plain page navigations (?segment=X) — cheap and reliable, but the
+      // browser resets scroll to the top on load, which is jarring if you'd scrolled down
+      // to a lower card section. Stash/restore scroll position across that navigation so it
+      // feels stable without needing to rewrite this as an AJAX/partial-update flow.
+      var KEY = 'ad-dashboard-scroll';
+      document.querySelectorAll('.ad-card-link').forEach(function (a) {
+        a.addEventListener('click', function () {
+          sessionStorage.setItem(KEY, String(window.scrollY));
+        });
+      });
+      var saved = sessionStorage.getItem(KEY);
+      if (saved !== null) {
+        sessionStorage.removeItem(KEY);
+        window.scrollTo(0, parseInt(saved, 10));
+      }
+    })();
+  </script>
+{% endblock %}

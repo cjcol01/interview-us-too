@@ -282,6 +282,35 @@ def send_subscription_resumed_email(to_email: str) -> None:
         logger.error("[email] failed to send subscription-resumed notice: %s", e)
 
 
+def send_announcement_email(to_email: str, subject: str, body: str) -> None:
+    """Admin-authored announcement — body is plain text, wrapped in the standard shell.
+    Newlines are preserved as line breaks; no other formatting is assumed."""
+    logger.info("[email] announcement %r sent to %s", subject, to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    from html import escape
+    body_html = escape(body).replace("\n", "<br>")
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": subject,
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">{body_html}</p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send announcement to %s: %s", to_email, e)
+
+
 def send_account_deletion_email(user_email: str, reason: str, detail: str) -> None:
     reason_label = _REASON_LABELS.get(reason, reason or "—")
     detail_block = (

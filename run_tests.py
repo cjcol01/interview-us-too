@@ -91,6 +91,22 @@ with TestClient(app) as client:
     import tests.test_admin
     tests.test_admin.register(test, skip, client)
 
+    section("Admin — Home")
+    import tests.test_admin_home
+    tests.test_admin_home.register(test, skip, client)
+
+    section("Admin — Growth Dashboard")
+    import tests.test_dashboard
+    tests.test_dashboard.register(test, skip, client)
+
+    section("Admin — System Health")
+    import tests.test_health
+    tests.test_health.register(test, skip, client)
+
+    section("Admin — Announcements")
+    import tests.test_announcements
+    tests.test_announcements.register(test, skip, client)
+
     section("Hotkeys")
     import tests.test_hotkeys
     tests.test_hotkeys.register(test, skip, client)

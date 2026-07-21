@@ -45,6 +45,9 @@
           </svg>
           Add to Chrome
         </a>
+        {% if sideload_enabled %}
+        <a href="/install-manual" class="ob-sideload-link">Web Store unavailable? Install manually instead →</a>
+        {% endif %}
       </div>
     </div>
 

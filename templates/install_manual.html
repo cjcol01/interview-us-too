@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Manual install — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/install_manual.css">{% endblock %}
+{% block content %}
+<main class="im-main">
+
+  <header class="im-hero">
+    <p class="im-eyebrow">Direct install</p>
+    <h1>Install InterviewAce without the Chrome Web Store</h1>
+    <p class="im-subtitle">If the Web Store listing is ever down for review or unavailable, you can still install the exact same extension directly. It takes about a minute and only needs to be done once.</p>
+  </header>
+
+  <div class="im-download-card">
+    <div class="im-download-body">
+      <h2>Download the extension</h2>
+      <p>A zip of the same code that ships on the Web Store.</p>
+    </div>
+    <div class="im-download-actions">
+      <a href="{{ zip_url }}" class="im-download-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+        Download .zip
+      </a>
+      <a href="{{ mirror_zip_url }}" class="im-mirror-link" download>Trouble downloading? Try the mirror</a>
+    </div>
+  </div>
+
+  <div class="im-steps">
+
+    <div class="im-step-card">
+      <div class="im-step-num">1</div>
+      <div class="im-step-body">
+        <h2>Unzip it</h2>
+        <p>Extract the downloaded zip anywhere on your computer — a folder called <code>interviewace-extension</code> will appear. Keep that folder where it is; Chrome reads the extension directly from it, so don't delete it after installing.</p>
+      </div>
+    </div>
+
+    <div class="im-step-card">
+      <div class="im-step-num">2</div>
+      <div class="im-step-body">
+        <h2>Open Chrome's extensions page</h2>
+        <p>Chrome blocks links from opening this page directly, so copy the address below and paste it into your address bar.</p>
+        <div class="im-copy-row">
+          <code id="im-ext-url">chrome://extensions</code>
+          <button class="im-copy-btn" onclick="copyText('im-ext-url', this)">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="im-step-card">
+      <div class="im-step-num">3</div>
+      <div class="im-step-body">
+        <h2>Turn on Developer mode</h2>
+        <p>Toggle <strong>Developer mode</strong> on in the top-right corner of the extensions page. Chrome will show a banner saying developer-mode extensions may be less safe. <em>This is annoying, but Chrome shows it for every extension installed outside the Web Store — it's not a sign anything is wrong with ours.</em></p>
+      </div>
+    </div>
+
+    <div class="im-step-card">
+      <div class="im-step-num">4</div>
+      <div class="im-step-body">
+        <h2>Load unpacked</h2>
+        <p>Click <strong>Load unpacked</strong> (top-left) and select the <code>interviewace-extension</code> folder you unzipped in step 1. The extension installs immediately — no restart needed.</p>
+      </div>
+    </div>
+
+    <div class="im-step-card">
+      <div class="im-step-num">5</div>
+      <div class="im-step-body">
+        <h2>Continue setup</h2>
+        <p>Pin it via the puzzle-piece icon in Chrome's toolbar, then head back to onboarding to connect it to your account.</p>
+        <a href="/onboarding" class="im-continue-btn">Continue to onboarding →</a>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="im-note">
+    <strong>If it stops responding after a Chrome update:</strong> Chrome occasionally disables unpacked extensions when it updates itself. Go back to <code>chrome://extensions</code> and toggle it back on — your setup and hotkeys aren't affected.
+  </div>
+
+  <p class="im-footer-note">These steps are written for Chrome. Edge, Brave, and other Chromium browsers use the same <code>chrome://extensions</code> flow. Questions? <a href="mailto:support@interviewace.co">Email us</a>.</p>
+
+</main>
+<script>
+  function copyText(id, btn) {
+    const text = document.getElementById(id).textContent.trim();
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+    });
+  }
+</script>
+{% endblock %}

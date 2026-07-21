@@ -637,3 +637,67 @@ main {
   transition: color .15s;
 }
 #hint-dismiss:hover { color: var(--text-1); }
+
+/* Hotkey reference (bottom of /app) */
+#hotkey-reference {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+.hk-ref-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+.hk-ref-list { display: flex; flex-direction: column; gap: 10px; }
+.hk-ref-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.hk-ref-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
+  flex: 0 0 110px;
+}
+.hk-ref-desc {
+  font-size: 12.5px;
+  color: var(--text-3);
+  flex: 1 1 180px;
+}
+.hk-ref-key { flex-shrink: 0; margin-left: auto; }
+#hotkey-reference kbd {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.hk-ref-edit {
+  display: inline-block;
+  margin-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color .15s;
+}
+.hk-ref-edit:hover { color: var(--accent); }
+
+@media (max-width: 480px) {
+  .hk-ref-row { gap: 6px; }
+  .hk-ref-label { flex: 1 1 100%; }
+  .hk-ref-desc { flex: 1 1 100%; }
+  .hk-ref-key { margin-left: 0; }
+}

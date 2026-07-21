@@ -11,6 +11,7 @@
     <p class="ua-sub">Capture + audio calls per user. Sorted by total volume</p>
     {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
     {% if entries %}
+    <div class="ua-table-wrap">
     <table class="ua-table">
       <thead>
         <tr>
@@ -33,6 +34,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="ua-empty">No usage recorded in this window yet.</div>
     {% endif %}

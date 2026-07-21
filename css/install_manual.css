@@ -1,0 +1,238 @@
+/* ===== Manual install fallback page ===== */
+
+.im-main {
+  flex: 1;
+  padding: 40px max(20px, 4vw) 80px;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── Hero ── */
+.im-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0 8px;
+}
+
+.im-eyebrow {
+  display: inline-block;
+  width: fit-content;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.im-hero h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(24px, 4.5vw, 32px);
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.im-subtitle {
+  font-size: 14.5px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+
+/* ── Download card ── */
+.im-download-card {
+  background: var(--card);
+  border: 1px solid var(--accent-line);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.im-download-body h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.im-download-body p { font-size: 13px; color: var(--text-2); }
+
+.im-download-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.im-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.im-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,.14); }
+
+.im-mirror-link {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color .15s;
+}
+.im-mirror-link:hover { color: var(--text-2); }
+
+/* ── Steps ── */
+.im-steps { display: flex; flex-direction: column; gap: 12px; }
+
+.im-step-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 18px;
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+}
+.im-step-num {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--btn-text);
+  flex-shrink: 0;
+}
+.im-step-body { flex: 1; min-width: 0; }
+.im-step-body h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.im-step-body p {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.im-step-body code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
+/* ── Copy row (chrome://extensions) ── */
+.im-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.im-copy-row code {
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 12px;
+}
+.im-copy-btn {
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  color: var(--text-3);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+.im-copy-btn:hover { color: var(--text-1); }
+.im-copy-btn.copied { color: var(--accent); }
+
+/* ── Continue button ── */
+.im-continue-btn {
+  display: inline-block;
+  margin-top: 10px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+.im-continue-btn:hover { opacity: .8; }
+
+/* ── Note callout ── */
+.im-note {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+.im-note strong { color: var(--text-1); }
+.im-note code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.im-footer-note {
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.6;
+  text-align: center;
+  margin-top: 8px;
+}
+.im-footer-note code { font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
+.im-footer-note a { color: var(--accent); text-decoration: none; }
+.im-footer-note a:hover { opacity: .8; }
+
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .im-hero h1 { font-size: 24px; }
+  .im-download-card { flex-direction: column; align-items: stretch; }
+  .im-download-actions { align-items: stretch; }
+  .im-download-btn { justify-content: center; }
+  .im-mirror-link { text-align: center; }
+}

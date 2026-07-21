@@ -202,6 +202,38 @@
         <button class="hist-btn" id="hist-newer" onclick="navigateHistory(-1)">newer ›</button>
       </div>
     </div>
+
+    <div id="hotkey-reference">
+      <div class="hk-ref-title">Hotkeys</div>
+      <div class="hk-ref-list">
+        <div class="hk-ref-row">
+          <span class="hk-ref-label">Screen capture</span>
+          <span class="hk-ref-desc">Tap — screenshot what's on screen</span>
+          <span class="hk-ref-key" id="hkref-capture"></span>
+        </div>
+        <div class="hk-ref-row">
+          <span class="hk-ref-label">Voice capture</span>
+          <span class="hk-ref-desc">Hold — send the interviewer's question</span>
+          <span class="hk-ref-key" id="hkref-audio"></span>
+        </div>
+        <div class="hk-ref-row">
+          <span class="hk-ref-label">Instant replay</span>
+          <span class="hk-ref-desc">Tap — resend the last 15s of audio</span>
+          <span class="hk-ref-key" id="hkref-replay"></span>
+        </div>
+        <div class="hk-ref-row">
+          <span class="hk-ref-label">Typing mode</span>
+          <span class="hk-ref-desc">Tap to type, Enter or tap again to send</span>
+          <span class="hk-ref-key" id="hkref-typing"></span>
+        </div>
+        <div class="hk-ref-row">
+          <span class="hk-ref-label">Toggle on/off</span>
+          <span class="hk-ref-desc">Tap — arm or disarm every hotkey</span>
+          <span class="hk-ref-key" id="hkref-toggle"></span>
+        </div>
+      </div>
+      <a href="/settings#shortcuts" class="hk-ref-edit">Edit hotkeys →</a>
+    </div>
   </main>
 
   <script>
@@ -631,8 +663,9 @@
         answer: "A **process** has its own memory space and runs independently. A **thread** is a lighter-weight unit within a process that shares memory with other threads in it — cheaper to create and faster to communicate, but a crash in one can take down the whole process."
       },
       {
+        hotkeyKey: 'typing',
         line: "Last one — how would you design a rate limiter for a public API?",
-        popup: 'Not sure where to start? Type your question to the AI, privately — the interviewer never sees it.',
+        popup: 'Not sure where to start? Press the hotkey to type your question to the AI, privately — the interviewer never sees it.',
         autoType: "How should I approach designing a rate limiter for a public API?",
         answer: "Key angles: token bucket vs. sliding window, per-user vs. global limits, and whether it needs to work across multiple servers (shared store like Redis) or just one."
       },
@@ -641,15 +674,16 @@
     let _miIndex = -1;
     let _miAwaitingBeat = null;
     let _miIsFirstRun = false;
+    let _miTypingArmed = false;
+    let _miTypingReady = false;
 
     function openMockInterview(isFirstRun) {
       miClearTimers();
-      _miAwaitingBeat = null;
+      miResetCallState();
       _miIsFirstRun = !!isFirstRun;
       document.getElementById('mi-key-toggle').innerHTML = renderHotkey(_serverHotkeys.toggle);
       const closeBtn = document.getElementById('mi-done-close-btn');
       if (closeBtn) closeBtn.textContent = _miIsFirstRun ? 'Start my trial →' : 'Close';
-      miHideScreenshot();
       miShowScreen('mi-greenroom');
       document.getElementById('mock-interview-overlay').classList.add('visible');
     }
@@ -669,15 +703,13 @@
       document.getElementById('mi-call-left').classList.remove('sharing');
     }
 
-    function miJoinCall() {
-      miShowScreen('mi-call');
-      _miIndex = -1;
-      miSpeak(MI_INTRO_LINE, () => miAfter(1000, miNextBeat));
-    }
-
-    function miRestart() {
-      miClearTimers();
+    // Shared by miJoinCall and miRestart so re-entering the call (e.g. via the
+    // "How it works" button after a previous run) never leaves stale state —
+    // an old answer card, a "sent" typing field, etc. — visible behind the intro.
+    function miResetCallState() {
       _miAwaitingBeat = null;
+      _miTypingArmed = false;
+      _miTypingReady = false;
       document.getElementById('mi-need-help').classList.remove('active');
       document.getElementById('mi-answer-card').classList.remove('active');
       document.getElementById('mi-typing-row').classList.remove('active');
@@ -687,6 +719,19 @@
       typingField.classList.remove('sent');
       typingField.value = '';
       miHideScreenshot();
+    }
+
+    function miJoinCall() {
+      miClearTimers();
+      miResetCallState();
+      miShowScreen('mi-call');
+      _miIndex = -1;
+      miSpeak(MI_INTRO_LINE, () => miAfter(1000, miNextBeat));
+    }
+
+    function miRestart() {
+      miClearTimers();
+      miResetCallState();
       miShowScreen('mi-call');
       _miIndex = -1;
       miSpeak(MI_INTRO_LINE, () => miAfter(1000, miNextBeat));
@@ -722,39 +767,49 @@
       const row = document.getElementById('mi-typing-row');
       const field = document.getElementById('mi-typing-field');
 
-      if (beat.autoType) {
-        // Scripted beat: types the example question itself, then shows an Enter
-        // cue and a "sent" flash so the send action is visible. Never waits on a
-        // real keypress, so it can't collide with the extension's own typing hotkey.
-        keyEl.style.display = 'none';
-        btnEl.style.display = 'none';
-        document.getElementById('mi-need-help').classList.add('active');
-        row.classList.add('active');
-        field.value = '';
-        field.readOnly = true;
-        field.classList.remove('sent');
-        field.focus();
-        miAfter(900, () => {
-          miTypeIntoField(field, beat.autoType, () => {
-            keyEl.style.display = '';
-            keyEl.innerHTML = '<kbd>Enter</kbd>';
-            miAfter(800, () => {
-              field.classList.add('sent');
-              miAfter(400, () => miRevealAnswer(beat, beat.autoType));
-            });
-          });
-        });
-        return;
-      }
-
       keyEl.style.display = '';
       btnEl.style.display = '';
+      btnEl.textContent = 'Send to AI';
       keyEl.innerHTML = renderHotkey(_serverHotkeys[beat.hotkeyKey]);
       document.getElementById('mi-need-help').classList.add('active');
       row.classList.remove('active');
+      field.value = '';
       field.readOnly = false;
       field.classList.remove('sent');
+      _miTypingArmed = false;
+      _miTypingReady = false;
       _miAwaitingBeat = beat;
+    }
+
+    // Typing beat, stage 1: pressing the hotkey (or the button) arms typing mode
+    // and autopopulates the field with the demo question, ending with a prompt to
+    // press Enter or the hotkey again to send — same two-step flow as the real
+    // typing hotkey (press to start capturing, press again / Enter to send).
+    function miStartTyping(beat) {
+      const keyEl = document.getElementById('mi-nh-key');
+      const btnEl = document.getElementById('mi-nh-btn');
+      const textEl = document.getElementById('mi-nh-text');
+      const row = document.getElementById('mi-typing-row');
+      const field = document.getElementById('mi-typing-field');
+
+      keyEl.style.display = 'none';
+      btnEl.style.display = 'none';
+      row.classList.add('active');
+      field.value = '';
+      field.readOnly = true;
+      field.classList.remove('sent');
+      field.focus();
+
+      miAfter(300, () => {
+        miTypeIntoField(field, beat.autoType, () => {
+          textEl.textContent = 'Press Enter or the hotkey again to send it.';
+          keyEl.style.display = '';
+          keyEl.innerHTML = renderHotkey(_serverHotkeys.typing);
+          btnEl.style.display = '';
+          btnEl.textContent = 'Send';
+          _miTypingReady = true;
+        });
+      });
     }
 
     // Purely in-page: never arms the real extension or calls a capture endpoint.
@@ -767,12 +822,40 @@
       }
     });
 
-    // Triggered by a real hotkey press or the "Send to AI" button — both need an
-    // awaited beat. The auto-typed beat has no awaited beat (see miShowNeedHelp)
-    // and calls miRevealAnswer directly instead.
+    // The typing field's own Enter key also sends, once typing mode is armed and
+    // the demo question has finished autopopulating.
+    document.getElementById('mi-typing-field').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && _miAwaitingBeat && _miTypingArmed && _miTypingReady) {
+        e.preventDefault();
+        miTrigger();
+      }
+    });
+
+    // Triggered by a real hotkey press or the "Send to AI"/"Send" button. For the
+    // typing beat the first trigger arms typing mode instead of sending — the
+    // second trigger (after autotype finishes) sends, same as miTrigger for
+    // every other beat.
     function miTrigger(typedText) {
       if (!_miAwaitingBeat) return;
       const beat = _miAwaitingBeat;
+
+      if (beat.hotkeyKey === 'typing') {
+        if (!_miTypingArmed) {
+          _miTypingArmed = true;
+          miStartTyping(beat);
+          return;
+        }
+        if (!_miTypingReady) return;
+        _miAwaitingBeat = null;
+        _miTypingArmed = false;
+        _miTypingReady = false;
+        const field = document.getElementById('mi-typing-field');
+        typedText = typedText || field.value;
+        field.classList.add('sent');
+        miAfter(400, () => miRevealAnswer(beat, typedText));
+        return;
+      }
+
       _miAwaitingBeat = null;
       miRevealAnswer(beat, typedText);
     }
@@ -860,6 +943,11 @@
       set('disabled-toast-capture', hk.capture);
       const hintKbd = document.getElementById('hint-kbd');
       if (hintKbd) hintKbd.textContent = (/Mac/.test(navigator.platform) ? hk.audio.replace('Ctrl', 'Cmd') : hk.audio);
+      set('hkref-capture', hk.capture);
+      set('hkref-audio', hk.audio);
+      set('hkref-replay', hk.replay);
+      set('hkref-typing', hk.typing);
+      set('hkref-toggle', hk.toggle);
     }
 
     applyHotkeys(_serverHotkeys);

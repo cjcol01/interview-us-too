@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import tempfile
 import time
 from contextlib import asynccontextmanager
@@ -16,9 +17,10 @@ from urllib.parse import urlencode
 import anthropic
 import redis.asyncio as aioredis
 import redis.exceptions as redis_exceptions
+import requests
 import stripe
 import uvicorn
-from fastapi import Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi import BackgroundTasks, Cookie, Depends, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
@@ -26,17 +28,17 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from openai import OpenAI
 from pydantic import BaseModel, Field
-from sqlalchemy import func, or_
+from sqlalchemy import and_, false, func, or_, text, true
 from sqlalchemy.orm import Session, aliased
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, SERVER_HOST, SERVER_PORT, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SUB_PRICE_PENCE
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_cancel_feedback_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
-from database import SessionLocal, get_db, init_db
-from models import AccountLevel, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
+from database import DATA_DIR, SessionLocal, get_db, init_db
+from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
 
 # test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
@@ -56,6 +58,35 @@ def _optional_user_from_request(request: Request) -> Optional[User]:
     return user
 
 
+def _active_announcement_for(user: User) -> Optional[Announcement]:
+    """Site-wide announcement banner (see admin_announcements route below). Jinja2 context
+    processors run synchronously, so this opens its own short-lived session rather than
+    reusing a route's async-flavoured db dependency — same pattern _optional_user_from_request
+    already uses one line up. Announcements tables stay small (handful of rows), so the
+    unindexed scan here is cheap; no caching layer for what's normally a 0-or-1-row lookup."""
+    db = SessionLocal()
+    try:
+        candidates = (
+            db.query(Announcement)
+            .filter(Announcement.in_app_active == True)  # noqa: E712
+            .order_by(Announcement.created_at.desc())
+            .limit(10)
+            .all()
+        )
+        for ann in candidates:
+            if not _user_in_segment(db, user, ann.segment, ann.target_email):
+                continue
+            dismissed = db.query(AnnouncementDismissal).filter(
+                AnnouncementDismissal.announcement_id == ann.id,
+                AnnouncementDismissal.user_id == user.id,
+            ).first()
+            if not dismissed:
+                return ann
+        return None
+    finally:
+        db.close()
+
+
 def _template_globals(request: Request) -> dict:
     """Jinja2 context processor: makes `user`/`account_level`/`sessions_remaining`
     available on every template render so routes can't forget the navbar's auth
@@ -66,6 +97,7 @@ def _template_globals(request: Request) -> dict:
         "account_level": user.account_level.value if user else "free",
         "sessions_remaining": user.sessions_remaining if user else 0,
         "unseen_account_flag": bool(user and user.account_flag and not user.account_flag_seen),
+        "active_announcement": _active_announcement_for(user) if user else None,
     }
 
 
@@ -80,6 +112,7 @@ SCREENSHOTS_DIR = Path("screenshots")
 async def lifespan(app: FastAPI):
     init_db()
     SCREENSHOTS_DIR.mkdir(exist_ok=True)
+    app.state.started_at = datetime.utcnow()
     if os.getenv("TESTING") == "1":
         import fakeredis.aioredis
         app.state.redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
@@ -690,6 +723,7 @@ async def onboarding_page(
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
         "hotkey_typing":  hk["typing"],
+        "sideload_enabled": SIDELOAD_ENABLED,
     })
 
 
@@ -912,6 +946,21 @@ async def faq_page(
     return templates.TemplateResponse(request=request, name="faq.html", context={"show_navbar": True})
 
 
+@app.get("/install-manual")
+async def install_manual_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    if not SIDELOAD_ENABLED:
+        raise HTTPException(status_code=404)
+    same_origin_zip_url = f"{BASE_URL}/static/extension/interviewace-extension.zip"
+    return templates.TemplateResponse(request=request, name="install_manual.html", context={
+        "show_navbar": True,
+        "zip_url": SIDELOAD_ZIP_URL,
+        "mirror_zip_url": same_origin_zip_url,
+    })
+
+
 @app.post("/partner/waitlist")
 async def partner_waitlist(
     user: User = Depends(get_current_user),
@@ -1036,6 +1085,100 @@ async def partner_admin(
     return templates.TemplateResponse(request=request, name="partner_admin.html", context={"partners": rows, "show_navbar": True})
 
 
+# ---------------------------------------------------------------------------
+# Admin home — a hub linking to the other admin pages, with a "worth a look" strip at
+# the top that only lists what's actually notable right now (nothing on a quiet day).
+# Only cheap, local checks run here (no deep/external calls) since this is the page
+# every admin visit lands on first.
+# ---------------------------------------------------------------------------
+
+@app.get("/admin")
+async def admin_home(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    r = request.app.state.redis
+    redis_check = await _check_redis(r)
+    db_check = _check_database(db)
+    disk_check = _check_disk()
+    webhook_check = await _last_webhook_status(r)
+    missing_config = [c["name"] for c in _config_status() if not c["configured"]]
+
+    now = datetime.utcnow()
+    total_users = db.query(User).count()
+    new_7d = db.query(User).filter(User.created_at >= now - timedelta(days=7)).count()
+    banned_count = db.query(User).filter(User.is_active == False).count()  # noqa: E712
+    pending_cancellations = db.query(User).filter(User.sub_cancel_at.isnot(None)).count()
+    active_subs = db.query(User).filter(
+        User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None)
+    ).count()
+    flagged_referrers = _flagged_referrer_count(db)
+    active_announcements = db.query(Announcement).filter(Announcement.in_app_active == True).count()  # noqa: E712
+    usage_today = db.query(
+        func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
+    ).filter(UsageDaily.date == now.date()).first()
+
+    alerts = []
+    if not redis_check["ok"]:
+        alerts.append({"level": "danger", "text": f"Redis unreachable — {redis_check['detail']}", "href": "/admin/health"})
+    if not db_check["ok"]:
+        alerts.append({"level": "danger", "text": f"Database check failed — {db_check['detail']}", "href": "/admin/health"})
+    if disk_check["ok"] is False:
+        alerts.append({"level": "danger", "text": f"Low disk space — {disk_check['detail']}", "href": "/admin/health"})
+    if missing_config:
+        alerts.append({"level": "caution", "text": f"{len(missing_config)} config value(s) missing: {', '.join(missing_config)}", "href": "/admin/health"})
+    if webhook_check["ok"] is False:
+        alerts.append({"level": "caution", "text": f"No Stripe webhook received in a while — last one {webhook_check['detail']}", "href": "/admin/health"})
+    if flagged_referrers:
+        alerts.append({"level": "caution", "text": f"{flagged_referrers} referrer(s) flagged for review (high signups, zero conversions)", "href": "/admin/referrals"})
+    if banned_count:
+        alerts.append({"level": "notice", "text": f"{banned_count} user(s) currently banned", "href": "/admin/dashboard?segment=banned"})
+    if pending_cancellations:
+        alerts.append({"level": "notice", "text": f"{pending_cancellations} subscription(s) set to cancel at period end", "href": "/admin/dashboard?segment=pending_cancellations"})
+    if active_announcements:
+        alerts.append({"level": "notice", "text": f"{active_announcements} announcement(s) currently live in-app", "href": "/admin/announcements"})
+    # New signups aren't a problem to flag — shown as a persistent stat line instead (below),
+    # so a busy signup week doesn't crowd out the "anything actually wrong?" alerts strip.
+
+    nav_items = [
+        {"title": "Growth dashboard", "href": "/admin/dashboard",
+         "desc": "Signups, conversion, active subs, MRR proxy, activity trends — click any card to drill into the matching users.",
+         "stat": f"{total_users} users"},
+        {"title": "System health", "href": "/admin/health",
+         "desc": "Redis, database, disk, config, last webhook, and on-demand live checks against Claude/OpenAI/Stripe.",
+         "stat": "issue found" if (not redis_check["ok"] or not db_check["ok"] or disk_check["ok"] is False) else "all clear"},
+        {"title": "Announcements", "href": "/admin/announcements",
+         "desc": "Email and/or in-app notify one or more audience segments, or a single person.",
+         "stat": f"{active_announcements} live" if active_announcements else "none live"},
+        {"title": "User lookup", "href": "/admin/users",
+         "desc": "Search by email or username; warn, pause/resume billing, or ban/unban an account.",
+         "stat": f"{total_users} total"},
+        {"title": "API usage", "href": "/admin/usage",
+         "desc": "Per-user capture + audio volume over a rolling window — spot abuse or runaway usage.",
+         "stat": f"{usage_today[0] + usage_today[1]} today"},
+        {"title": "Referrals", "href": "/admin/referrals",
+         "desc": "Recent referral activity, plus referrers flagged for high signups with zero conversions.",
+         "stat": f"{flagged_referrers} flagged" if flagged_referrers else "none flagged"},
+        {"title": "Partners", "href": "/partner/admin",
+         "desc": "Affiliate tier status and commission balances (pending / available / lifetime) per partner.",
+         "stat": None},
+        {"title": "Author page", "href": "/verify-author",
+         "desc": "Internal author-only page, separately Basic-Auth gated.",
+         "stat": None},
+    ]
+
+    return templates.TemplateResponse(request=request, name="admin_home.html", context={
+        "alerts": alerts,
+        "nav_items": nav_items,
+        "total_users": total_users,
+        "active_subs": active_subs,
+        "new_7d": new_7d,
+        "app_version": APP_VERSION,
+        "show_navbar": True,
+    })
+
+
 @app.get("/admin/usage")
 async def admin_usage(
     request: Request,
@@ -1074,23 +1217,13 @@ async def admin_usage(
     })
 
 
-@app.get("/admin/users")
-async def admin_users(
-    request: Request,
-    db: Session = Depends(get_db),
-    _: None = Depends(_require_author),
-    q: str = "",
-):
-    query = db.query(User)
-    if q:
-        like = f"%{q}%"
-        query = query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
-    users = query.order_by(User.created_at.desc()).limit(50).all()
-
+def _user_table_entries(db: Session, users: list) -> list:
+    """Standard row shape for the {email, level, sessions, signup date, referrer, partner,
+    actions} table — shared by /admin/users and the dashboard drill-down below so both
+    render identically and both get the same _admin_actions.html buttons."""
     referrer_ids = {u.referred_by_id for u in users if u.referred_by_id}
     referrers = {u.id: u.email for u in db.query(User).filter(User.id.in_(referrer_ids)).all()} if referrer_ids else {}
-
-    entries = [{
+    return [{
         "id": u.id,
         "email": u.email,
         "username": u.username,
@@ -1104,8 +1237,22 @@ async def admin_users(
         "partner_status": u.partner_status,
     } for u in users]
 
+
+@app.get("/admin/users")
+async def admin_users(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    q: str = "",
+):
+    query = db.query(User)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
+    users = query.order_by(User.created_at.desc()).limit(50).all()
+
     return templates.TemplateResponse(request=request, name="admin_users.html", context={
-        "entries": entries,
+        "entries": _user_table_entries(db, users),
         "q": q,
         "show_navbar": True,
         "admin_msg": request.query_params.get("admin_msg"),
@@ -1115,6 +1262,19 @@ async def admin_users(
 # Referrers with several signups but zero paid conversions — worth a manual look for
 # Sybil/reciprocal-loop farming. Threshold is a starting point, not a hard rule.
 _REFERRAL_FLAG_MIN_SIGNUPS = 5
+
+
+def _flagged_referrer_count(db: Session) -> int:
+    """Same rule as the /admin/referrals flagged list, but just the count — cheap enough to
+    surface on the admin home page without building the full list of users."""
+    signup_counts = dict(db.query(Referral.referrer_id, func.count(Referral.id)).group_by(Referral.referrer_id).all())
+    paid_counts = dict(
+        db.query(Referral.referrer_id, func.count(Referral.id))
+        .filter(Referral.status == ReferralStatus.subscribed)
+        .group_by(Referral.referrer_id)
+        .all()
+    )
+    return sum(1 for rid, signups in signup_counts.items() if signups >= _REFERRAL_FLAG_MIN_SIGNUPS and paid_counts.get(rid, 0) == 0)
 
 
 @app.get("/admin/referrals")
@@ -1167,6 +1327,358 @@ async def admin_referrals(
         "show_navbar": True,
         "admin_msg": request.query_params.get("admin_msg"),
     })
+
+
+# ---------------------------------------------------------------------------
+# Growth dashboard — DB-derived aggregates. Actual cash lives in Stripe; the
+# "MRR proxy" here is active-subs x list price, not a reconciled billing figure.
+# ---------------------------------------------------------------------------
+
+# Clicking a stat card drills into the matching users below, via ?segment=<key>. Only cards
+# that map onto a clean, specific set of users are included here — pure aggregates like MRR
+# pence or captures/audio counts don't correspond to a distinct user list, so they're left
+# as plain (non-clickable) cards in the template.
+_DASHBOARD_SEGMENTS = {
+    "total_users": "All users",
+    "new_7d": "New in the last 7 days",
+    "new_30d": "New in the last 30 days",
+    "verified": "Email verified",
+    "banned": "Banned",
+    "level_free": "Account level: free",
+    "level_trial": "Account level: trial",
+    "level_paid": "Account level: paid (session packs)",
+    "level_unlimited": "Account level: unlimited (subscribers)",
+    "ever_paid": "Ever paid",
+    "converted": "Converted (currently paid or unlimited)",
+    "active_subs": "Active subscribers",
+    "pending_cancellations": "Pending cancellations",
+}
+
+
+def _dashboard_segment_filter(key: str):
+    now = datetime.utcnow()
+    if key == "total_users":
+        return true()
+    if key == "new_7d":
+        return User.created_at >= now - timedelta(days=7)
+    if key == "new_30d":
+        return User.created_at >= now - timedelta(days=30)
+    if key == "verified":
+        return User.email_verified == True  # noqa: E712
+    if key == "banned":
+        return User.is_active == False  # noqa: E712
+    if key == "level_free":
+        return User.account_level == AccountLevel.free
+    if key == "level_trial":
+        return User.account_level == AccountLevel.trial
+    if key == "level_paid":
+        return User.account_level == AccountLevel.paid
+    if key == "level_unlimited":
+        return User.account_level == AccountLevel.unlimited
+    if key == "ever_paid":
+        return or_(User.intro_redeemed == True, User.sub_invoice_paid == True)  # noqa: E712
+    if key == "converted":
+        return User.account_level.in_([AccountLevel.paid, AccountLevel.unlimited])
+    if key == "active_subs":
+        return and_(User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None))
+    if key == "pending_cancellations":
+        return User.sub_cancel_at.isnot(None)
+    return false()
+
+
+_DASHBOARD_DRILLDOWN_LIMIT = 200
+
+
+@app.get("/admin/dashboard")
+async def admin_dashboard(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    segment: str = "",
+    q: str = "",
+):
+    now = datetime.utcnow()
+    since_7d = now - timedelta(days=7)
+    since_30d = now - timedelta(days=30)
+
+    total_users = db.query(User).count()
+    new_7d = db.query(User).filter(User.created_at >= since_7d).count()
+    new_30d = db.query(User).filter(User.created_at >= since_30d).count()
+    verified_count = db.query(User).filter(User.email_verified == True).count()  # noqa: E712
+    banned_count = db.query(User).filter(User.is_active == False).count()  # noqa: E712
+
+    level_counts = dict(db.query(User.account_level, func.count(User.id)).group_by(User.account_level).all())
+    account_mix = {level.value: level_counts.get(level, 0) for level in AccountLevel}
+
+    ever_paid = db.query(User).filter(
+        or_(User.intro_redeemed == True, User.sub_invoice_paid == True)  # noqa: E712
+    ).count()
+
+    # "Exited trial" = not currently mid-trial — the closest proxy available for a conversion
+    # rate, since account_level mutates in place rather than keeping trial-cohort history.
+    exited_trial = db.query(User).filter(User.account_level != AccountLevel.trial).count()
+    converted = account_mix.get("paid", 0) + account_mix.get("unlimited", 0)
+
+    active_subs = db.query(User).filter(
+        User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None)
+    ).count()
+    pending_cancellations = db.query(User).filter(User.sub_cancel_at.isnot(None)).count()
+
+    sessions_7d = db.query(InterviewSession).filter(InterviewSession.started_at >= since_7d).count()
+    sessions_30d = db.query(InterviewSession).filter(InterviewSession.started_at >= since_30d).count()
+    usage_7d = db.query(
+        func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
+    ).filter(UsageDaily.date >= since_7d.date()).first()
+    usage_30d = db.query(
+        func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
+    ).filter(UsageDaily.date >= since_30d.date()).first()
+
+    total_referrals = db.query(Referral).count()
+    subscribed_referrals = db.query(Referral).filter(Referral.status == ReferralStatus.subscribed).count()
+    outstanding_referral_credit = db.query(func.coalesce(func.sum(User.referral_credit_pence), 0)).scalar()
+    outstanding_commission = db.query(func.coalesce(func.sum(PartnerCommission.amount_pence), 0)).filter(
+        PartnerCommission.status.notin_([CommissionStatus.paid, CommissionStatus.reversed])
+    ).scalar()
+
+    # SQLite's date() returns 'YYYY-MM-DD' text, which lines up with date.isoformat() below.
+    signup_trend = dict(
+        db.query(func.date(User.created_at), func.count(User.id))
+        .filter(User.created_at >= since_30d).group_by(func.date(User.created_at)).all()
+    )
+    session_trend = dict(
+        db.query(func.date(InterviewSession.started_at), func.count(InterviewSession.id))
+        .filter(InterviewSession.started_at >= since_30d).group_by(func.date(InterviewSession.started_at)).all()
+    )
+    days = [since_30d.date() + timedelta(days=i) for i in range(31)]
+    signup_series = [{"label": d.strftime("%d %b"), "count": signup_trend.get(d.isoformat(), 0)} for d in days]
+    session_series = [{"label": d.strftime("%d %b"), "count": session_trend.get(d.isoformat(), 0)} for d in days]
+
+    drilldown = None
+    if segment in _DASHBOARD_SEGMENTS:
+        drill_query = db.query(User).filter(_dashboard_segment_filter(segment))
+        if q:
+            like = f"%{q}%"
+            drill_query = drill_query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
+        drill_users = drill_query.order_by(User.created_at.desc()).limit(_DASHBOARD_DRILLDOWN_LIMIT + 1).all()
+        drilldown = {
+            "key": segment,
+            "label": _DASHBOARD_SEGMENTS[segment],
+            "q": q,
+            "entries": _user_table_entries(db, drill_users[:_DASHBOARD_DRILLDOWN_LIMIT]),
+            "truncated": len(drill_users) > _DASHBOARD_DRILLDOWN_LIMIT,
+        }
+
+    return templates.TemplateResponse(request=request, name="admin_dashboard.html", context={
+        "total_users": total_users,
+        "new_7d": new_7d,
+        "new_30d": new_30d,
+        "verified_rate": round(verified_count / total_users * 100, 1) if total_users else 0,
+        "banned_count": banned_count,
+        "account_mix": account_mix,
+        "ever_paid_rate": round(ever_paid / total_users * 100, 1) if total_users else 0,
+        "trial_conversion_rate": round(converted / exited_trial * 100, 1) if exited_trial else 0,
+        "active_subs": active_subs,
+        "pending_cancellations": pending_cancellations,
+        "mrr_pence": active_subs * STRIPE_SUB_PRICE_PENCE,
+        "sessions_7d": sessions_7d,
+        "sessions_30d": sessions_30d,
+        "captures_7d": usage_7d[0], "audio_7d": usage_7d[1],
+        "captures_30d": usage_30d[0], "audio_30d": usage_30d[1],
+        "total_referrals": total_referrals,
+        "subscribed_referrals": subscribed_referrals,
+        "outstanding_referral_credit_pence": outstanding_referral_credit,
+        "outstanding_commission_pence": outstanding_commission,
+        "signup_series": signup_series,
+        "session_series": session_series,
+        "dashboard_segments": _DASHBOARD_SEGMENTS,
+        "drilldown": drilldown,
+        "show_navbar": True,
+    })
+
+
+# ---------------------------------------------------------------------------
+# System health — cheap local checks always shown; deep checks (real AI/Stripe/route
+# calls) are opt-in via ?deep=1 since they cost latency, tokens, and API quota.
+# A separate, unauthenticated /healthz exists below the SSE section for external monitors.
+# ---------------------------------------------------------------------------
+
+async def _check_redis(r) -> dict:
+    start = time.monotonic()
+    try:
+        await r.ping()
+        return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": None}
+
+
+def _check_database(db: Session) -> dict:
+    start = time.monotonic()
+    try:
+        db.execute(text("SELECT 1"))
+        latency = round((time.monotonic() - start) * 1000, 1)
+        user_count = db.query(User).count()
+        db_filename = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"
+        db_path = os.path.join(DATA_DIR, db_filename)
+        size_mb = round(os.path.getsize(db_path) / 1024 / 1024, 2) if os.path.exists(db_path) else 0
+        return {"ok": True, "detail": f"{user_count} users, {size_mb} MB", "latency_ms": latency}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": None}
+
+
+def _check_disk() -> dict:
+    try:
+        usage = shutil.disk_usage(DATA_DIR)
+        free_gb = round(usage.free / 1024 ** 3, 1)
+        total_gb = round(usage.total / 1024 ** 3, 1)
+        pct_free = round(usage.free / usage.total * 100, 1) if usage.total else 0
+        return {"ok": pct_free > 10, "detail": f"{free_gb} GB free of {total_gb} GB ({pct_free}%)", "latency_ms": None}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": None}
+
+
+async def _last_webhook_status(r) -> dict:
+    raw = await r.get("health:last_webhook")
+    if not raw:
+        return {"ok": None, "detail": "No webhook received yet this run", "latency_ms": None}
+    age_min = (datetime.utcnow() - datetime.fromisoformat(raw)).total_seconds() / 60
+    stale = age_min > 60 * 72  # 72h with zero Stripe events would be unusual for a live paid product
+    return {"ok": not stale, "detail": f"{round(age_min)} min ago", "latency_ms": None}
+
+
+_CONFIG_CHECKS = [
+    ("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY),
+    ("OPENAI_API_KEY", OPENAI_API_KEY),
+    ("STRIPE_SECRET_KEY", STRIPE_SECRET_KEY),
+    ("STRIPE_WEBHOOK_SECRET", STRIPE_WEBHOOK_SECRET),
+    ("STRIPE_SUB_PRICE_ID", STRIPE_SUB_PRICE_ID),
+    ("STRIPE_SESSIONS_PRICE_ID", STRIPE_SESSIONS_PRICE_ID),
+    ("STRIPE_SESSIONS_PACK_PRICE_ID", STRIPE_SESSIONS_PACK_PRICE_ID),
+    ("RESEND_API_KEY", RESEND_API_KEY),
+    ("AUTHOR_PASSWORD", AUTHOR_PASSWORD),
+]
+
+
+def _config_status() -> list:
+    return [{"name": name, "configured": bool(val)} for name, val in _CONFIG_CHECKS]
+
+
+def _format_duration(seconds: int) -> str:
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, _ = divmod(rem, 60)
+    parts = [f"{days}d"] if days else []
+    if days or hours:
+        parts.append(f"{hours}h")
+    parts.append(f"{minutes}m")
+    return " ".join(parts)
+
+
+def _check_anthropic() -> dict:
+    start = time.monotonic()
+    try:
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001", max_tokens=8,
+            messages=[{"role": "user", "content": "Reply with only: ok"}],
+        )
+        ok = resp.content[0].text.strip().lower().startswith("ok")
+        return {"ok": ok, "detail": "responded" if ok else "unexpected response", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+
+
+def _check_openai() -> dict:
+    start = time.monotonic()
+    try:
+        OpenAI(api_key=OPENAI_API_KEY).models.list()
+        return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+
+
+def _check_stripe() -> dict:
+    start = time.monotonic()
+    try:
+        stripe.Balance.retrieve()
+        return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+
+
+_HEALTH_CHECK_ROUTES = ["/", "/login", "/pricing", "/faq", "/healthz"]
+
+
+def _check_routes() -> list:
+    results = []
+    for path in _HEALTH_CHECK_ROUTES:
+        start = time.monotonic()
+        try:
+            resp = requests.get(f"{BASE_URL}{path}", timeout=5)
+            results.append({
+                "name": path, "ok": resp.status_code < 400,
+                "detail": f"HTTP {resp.status_code}", "latency_ms": round((time.monotonic() - start) * 1000, 1),
+            })
+        except Exception as e:
+            results.append({"name": path, "ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)})
+    return results
+
+
+@app.get("/admin/health")
+async def admin_health(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    r = request.app.state.redis
+    checks = {
+        "redis": await _check_redis(r),
+        "database": _check_database(db),
+        "disk": _check_disk(),
+        "last_webhook": await _last_webhook_status(r),
+    }
+    uptime_seconds = int((datetime.utcnow() - request.app.state.started_at).total_seconds())
+    return templates.TemplateResponse(request=request, name="admin_health.html", context={
+        "checks": checks,
+        "config_status": _config_status(),
+        "app_version": APP_VERSION,
+        "uptime_display": _format_duration(uptime_seconds),
+        "show_navbar": True,
+    })
+
+
+@app.get("/admin/health/deep/{name}")
+async def admin_health_deep_check(
+    name: str,
+    _: None = Depends(_require_author),
+):
+    """One deep check per request — the page fires these in parallel and fills in each row
+    as its own fetch resolves, rather than waiting for the slowest check to render anything.
+    Dispatches by name (rather than a name->function dict built at import time) so tests can
+    still `patch("server._check_anthropic", ...)` and have it take effect here."""
+    if name == "routes":
+        return {"routes": await asyncio.to_thread(_check_routes)}
+    if name == "anthropic":
+        return await asyncio.to_thread(_check_anthropic)
+    if name == "openai":
+        return await asyncio.to_thread(_check_openai)
+    if name == "stripe":
+        return await asyncio.to_thread(_check_stripe)
+    raise HTTPException(status_code=404, detail="Unknown check")
+
+
+@app.get("/healthz")
+async def healthz(request: Request, db: Session = Depends(get_db)):
+    """Public, unauthenticated liveness check — no secrets, no user data. Point an external
+    monitor (UptimeRobot, healthchecks.io, ...) at this so you get paged even when the app
+    is down entirely, which /admin/health can't do since it needs the app up to view it."""
+    r = request.app.state.redis
+    redis_ok = (await _check_redis(r))["ok"]
+    db_ok = _check_database(db)["ok"]
+    ok = bool(redis_ok and db_ok)
+    return JSONResponse(
+        status_code=200 if ok else 503,
+        content={"status": "ok" if ok else "degraded", "redis": redis_ok, "database": db_ok},
+    )
 
 
 def _admin_redirect(return_to: str, msg: str) -> RedirectResponse:
@@ -1279,6 +1791,207 @@ async def admin_warn_user(
     track(target.id, "admin_usage_warning_sent")
     logger.info("[admin] usage warning sent to user=%s", target.email)
     return _admin_redirect(return_to, f"Warning emailed to {target.email}")
+
+
+# ---------------------------------------------------------------------------
+# Announcements — email and/or in-app, targeted at a segment or one person.
+# In-app delivery is DB-backed (like account_flag above), not SSE: /stream is
+# per-user, paid-only, and only live on /app, so it can't reliably broadcast.
+# ---------------------------------------------------------------------------
+
+_SEGMENTS = [
+    ("everyone", "Everyone"),
+    ("trial", "Trial (active)"),
+    ("sessions", "Session-pack buyers"),
+    ("subscribers", "Subscribers"),
+    ("subscribers_cancelling", "Subscribers — cancelling"),
+    ("lapsed_trial", "Lapsed — used trial, never paid"),
+    ("lapsed_paid", "Lapsed — previously paid"),
+    ("free_inactive", "Free — never started a trial"),
+    ("never_paid", "Never paid (trial + free)"),
+    ("individual", "Individual (single email)"),
+]
+_SEGMENT_KEYS = {key for key, _label in _SEGMENTS}
+
+
+def _segment_filter(db: Session, segment: str, target_email: Optional[str] = None):
+    """Single definition of who's "in" a segment, as a filter condition rather than a full
+    query — lets _segment_query OR several of these together for multi-segment targeting."""
+    has_session = db.query(InterviewSession.id).filter(InterviewSession.user_id == User.id).exists()
+
+    if segment == "everyone":
+        return User.is_active == True  # noqa: E712
+    if segment == "trial":
+        return User.account_level == AccountLevel.trial
+    if segment == "sessions":
+        return User.account_level == AccountLevel.paid
+    if segment == "subscribers":
+        return User.account_level == AccountLevel.unlimited
+    if segment == "subscribers_cancelling":
+        return and_(User.account_level == AccountLevel.unlimited, User.sub_cancel_at.isnot(None))
+    if segment == "lapsed_trial":
+        return and_(
+            User.account_level == AccountLevel.free,
+            User.intro_redeemed == False, User.sub_invoice_paid == False,  # noqa: E712
+            has_session,
+        )
+    if segment == "lapsed_paid":
+        return and_(
+            User.account_level == AccountLevel.free,
+            or_(User.intro_redeemed == True, User.sub_invoice_paid == True),  # noqa: E712
+        )
+    if segment == "free_inactive":
+        return and_(
+            User.account_level == AccountLevel.free,
+            User.intro_redeemed == False, User.sub_invoice_paid == False,  # noqa: E712
+            ~has_session,
+        )
+    if segment == "never_paid":
+        return and_(
+            User.account_level.in_([AccountLevel.trial, AccountLevel.free]),
+            User.intro_redeemed == False, User.sub_invoice_paid == False,  # noqa: E712
+        )
+    if segment == "individual":
+        return (User.email == target_email) if target_email else false()
+    return false()
+
+
+def _segment_query(db: Session, segment: str, target_email: Optional[str] = None):
+    """`segment` is a single key, or several comma-joined keys for multi-audience targeting
+    (e.g. "trial,sessions") — matched users are the union (OR), so someone in more than one
+    selected segment is still only counted/emailed once."""
+    keys = [k for k in segment.split(",") if k]
+    conditions = [_segment_filter(db, k, target_email) for k in keys] or [false()]
+    return db.query(User).filter(User.is_active == True).filter(or_(*conditions))  # noqa: E712
+
+
+def _user_in_segment(db: Session, user: User, segment: str, target_email: Optional[str] = None) -> bool:
+    return _segment_query(db, segment, target_email).filter(User.id == user.id).first() is not None
+
+
+def _email_recipients(db: Session, segment: str, target_email: Optional[str] = None) -> list:
+    # Verified-only — avoids bouncing mail at addresses nobody's confirmed ownership of.
+    return _segment_query(db, segment, target_email).filter(User.email_verified == True).all()  # noqa: E712
+
+
+def _send_announcement_emails(announcement_id: int, subject: str, body: str, segment: str, target_email: Optional[str]) -> None:
+    """Runs in a threadpool via BackgroundTasks (see create_announcement) — opens its own
+    session since the request's db dependency closes as soon as the response is sent."""
+    db = SessionLocal()
+    try:
+        recipients = _email_recipients(db, segment, target_email)
+        for u in recipients:
+            send_announcement_email(u.email, subject, body)
+            time.sleep(0.1)  # light throttle — respect Resend's per-second send cap
+        ann = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+        if ann:
+            ann.email_recipient_count = len(recipients)
+            db.commit()
+        logger.info("[announcement] id=%s emailed %d recipients (segment=%s)", announcement_id, len(recipients), segment)
+    finally:
+        db.close()
+
+
+@app.get("/admin/announcements")
+async def admin_announcements(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    counts = {key: _segment_query(db, key).count() for key, _label in _SEGMENTS if key != "individual"}
+    history = db.query(Announcement).order_by(Announcement.created_at.desc()).limit(30).all()
+    return templates.TemplateResponse(request=request, name="admin_announcements.html", context={
+        "segments": _SEGMENTS,
+        "counts": counts,
+        "history": history,
+        "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
+    })
+
+
+@app.get("/admin/announcements/count")
+async def announcement_segment_count(
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    segment: list[str] = Query(default=[]),
+    target_email: str = Query(default=""),
+):
+    """Live recipient count for the compose form — exact, not summed, since _segment_query
+    ORs the selected segments together and a single query naturally dedupes anyone who
+    matches more than one."""
+    keys = [s for s in segment if s in _SEGMENT_KEYS]
+    if not keys:
+        return {"count": 0}
+    count = _segment_query(db, ",".join(keys), target_email.strip() or None).count()
+    return {"count": count}
+
+
+@app.post("/admin/announcements")
+async def create_announcement(
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    subject: str = Form(...),
+    body: str = Form(...),
+    channel: str = Form(...),
+    segment: list[str] = Form(...),
+    target_email: str = Form(default=""),
+):
+    keys = sorted(set(segment))
+    if not keys or any(k not in _SEGMENT_KEYS for k in keys) or channel not in ("email", "in_app", "both"):
+        raise HTTPException(status_code=400, detail="Invalid segment or channel")
+    target_email = target_email.strip() or None
+    if "individual" in keys and not target_email:
+        return _admin_redirect("/admin/announcements", "Individual segment needs a target email")
+
+    segment_str = ",".join(keys)
+    ann = Announcement(
+        subject=subject.strip(),
+        body=body.strip(),
+        channel=channel,
+        segment=segment_str,
+        target_email=target_email,
+        in_app_active=channel in ("in_app", "both"),
+    )
+    db.add(ann)
+    db.commit()
+    db.refresh(ann)
+
+    if channel in ("email", "both"):
+        background_tasks.add_task(_send_announcement_emails, ann.id, ann.subject, ann.body, segment_str, target_email)
+
+    logger.warning("[admin] announcement created id=%s segment=%s channel=%s", ann.id, segment_str, channel)
+    return _admin_redirect("/admin/announcements", f"Announcement #{ann.id} created ({channel} → {segment_str})")
+
+
+@app.post("/admin/announcements/{announcement_id}/deactivate")
+async def deactivate_announcement(
+    announcement_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    ann = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not ann:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    ann.in_app_active = False
+    db.commit()
+    return _admin_redirect("/admin/announcements", f"Announcement #{ann.id} deactivated")
+
+
+@app.post("/announcements/{announcement_id}/dismiss")
+async def dismiss_announcement(
+    announcement_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    already = db.query(AnnouncementDismissal).filter(
+        AnnouncementDismissal.announcement_id == announcement_id,
+        AnnouncementDismissal.user_id == user.id,
+    ).first()
+    if not already:
+        db.add(AnnouncementDismissal(announcement_id=announcement_id, user_id=user.id))
+        db.commit()
+    return Response(status_code=204)
 
 
 @app.get("/settings")
@@ -1944,6 +2657,11 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         logger.exception("[webhook] unhandled error processing event")
         raise HTTPException(status_code=400, detail=str(e))
+    # Health page staleness check (see /admin/health) — best-effort, never blocks the webhook ack.
+    try:
+        await request.app.state.redis.set("health:last_webhook", datetime.utcnow().isoformat())
+    except Exception:
+        pass
     return Response(status_code=200)
 
 

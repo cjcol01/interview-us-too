@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Admin — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% block content %}
+  <main class="admin-main">
+    <h1>Admin</h1>
+    <p class="ua-sub">v{{ app_version }} &middot; {{ total_users }} users &middot; {{ active_subs }} active subscribers &middot; {{ new_7d }} new in the last 7 days.</p>
+
+    {% if alerts %}
+    <div class="ah-alerts">
+      {% for a in alerts %}
+      <a class="ah-alert ah-alert-{{ a.level }}" href="{{ a.href }}">
+        <span class="ah-alert-dot"></span>
+        <span>{{ a.text }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="ah-alerts">
+      <div class="ah-alert ah-alert-ok">
+        <span class="ah-alert-dot"></span>
+        <span>All clear — no issues, flags, or live announcements right now.</span>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="ah-nav-grid">
+      {% for item in nav_items %}
+      <a class="ah-nav-card" href="{{ item.href }}">
+        <div class="ah-nav-card-head">
+          <span class="ah-nav-card-title">{{ item.title }}</span>
+          {% if item.stat %}<span class="ah-nav-card-stat">{{ item.stat }}</span>{% endif %}
+        </div>
+        <p class="ah-nav-card-desc">{{ item.desc }}</p>
+      </a>
+      {% endfor %}
+    </div>
+  </main>
+{% endblock %}
