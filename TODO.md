@@ -7,6 +7,7 @@
 - [ ] error 500 page (created - need reverse proxy)
 - [ ] overlay window?
 - [ ] typing mode to edit question - not start new question
+- [ ] check app works in trial - get a subscription required message on extension
 
 
 
