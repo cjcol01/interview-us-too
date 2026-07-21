@@ -1,19 +1,21 @@
 # Interview Prep tool
 
-A real-time coding interview prep tool. A Chrome extension captures your screen and sends it to a self-hosted server, which uses Claude to analyse the question and return a solution at your chosen complexity level — from a simple naive approach up to optimal with trade-off explanations.
+A practice companion for coding interview prep. Work through problems on any coding platform, capture the ones you get stuck on (or want to double-check your approach against), and a self-hosted server sends them to Claude, which explains a solution at your chosen complexity level — from a simple naive approach up to optimal with trade-off explanations — so you can compare it to your own attempt and learn from the gap.
 
 ## How it works
 
-1. You're on a coding platform
-2. Press `Ctrl+Shift+7` (or click the extension popup) to capture the screen
-3. The extension sends the screenshot to the server
-4. Claude analyses the question and streams the result back to your web dashboard
-5. You can adjust the complexity level (1-3) to get hints at different depths
+1. Sit down with a coding platform (LeetCode, HackerRank, a take-home, your own mock-interview set) and attempt the problem yourself first
+2. Stuck, or want to sanity-check your solution? Press `Ctrl+Shift+7` (or click the extension popup) to capture the screen
+3. The extension sends the screenshot to your server
+4. Claude analyses the question and streams a walkthrough back to your web dashboard — read it, compare it to what you wrote, and note what you'd change
+5. Adjust the complexity level (1-3) to see the same problem explained at different depths, which is a good way to check you actually understand *why* a solution is optimal, not just what it is
 
 **Complexity levels:**
-- 1 — naive approach, simple and readable
+- 1 — naive approach, simple and readable — good for building basic understanding first
 - 2 — clean solution a junior dev would write
-- 3 — optimal, production-quality, with trade-offs and edge cases covered
+- 3 — optimal, production-quality, with trade-offs and edge cases covered — the level to aim for before a real interview
+
+Audio capture works the same way for practicing verbal answers: record yourself talking through a question out loud (the way you'd have to in a real interview), and get a breakdown back to compare against how you explained it.
 
 ## Stack
 
@@ -62,24 +64,3 @@ Open the popup, paste your API token from the settings page, and you're ready.
 | `Ctrl+Shift+9` | Toggle the assistant on/off |
 
 All three shortcuts are user-rebindable from the Settings page.
-
-## Project structure
-
-```
-server.py          # FastAPI app, capture API, SSE stream
-auth.py            # JWT auth, password hashing
-billing.py         # Stripe checkout, portal, webhooks
-mailer.py          # Email verification via Resend
-models.py          # SQLAlchemy models (User, InterviewSession)
-database.py        # DB init and session factory
-config.py          # Env var loading
-extension/         # Chrome extension (MV3)
-templates/         # Jinja2 HTML templates
-```
-
-## Deployment notes
-
-- Switch SQLite to Postgres for production
-- Set `BASE_URL` to your public domain
-- Configure the Stripe webhook endpoint to `/billing/webhook`
-- The extension is currently sideloaded — publishing to the Chrome Web Store requires a $5 developer account and a review
