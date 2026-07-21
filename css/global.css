@@ -37,26 +37,26 @@
 
 /* ===== LIGHT MODE TOKENS ===== */
 :root[data-theme="light"] {
-  --bg:          #FBFBF9;
-  --bg-panel:    #F3F2EE;
+  --bg:          #FCFAF5;
+  --bg-panel:    #F1EDE3;
   --card:        #FFFFFF;
-  --card-inset:  #F3F2EE;
-  --line:        rgba(20,20,18,.10);
-  --line-strong: rgba(20,20,18,.22);
-  --text:        #161614;
-  --text-1:      #1A1A18;
-  --text-2:      #5C5C58;
-  --text-3:      #8A8A84;
+  --card-inset:  #F1EDE3;
+  --line:        rgba(28,24,14,.10);
+  --line-strong: rgba(28,24,14,.22);
+  --text:        #1C1712;
+  --text-1:      #211C15;
+  --text-2:      #5C574E;
+  --text-3:      #8A857A;
   --accent:      #3F6212;
   --accent-line: rgba(63,98,18,.30);
   --accent-soft: rgba(63,98,18,.07);
   --btn-bg:      #1A1A18;
   --btn-text:    #FBFBF9;
-  --nav-bg:      rgba(251,251,249,.78);
+  --nav-bg:      rgba(252,250,245,.80);
   /* code-bg intentionally stays dark — device mockups/code surfaces stay dark */
   --surface: #FFFFFF;
-  --border:  rgba(20,20,18,.10);
-  --muted:   #8A8A84;
+  --border:  rgba(28,24,14,.10);
+  --muted:   #8A857A;
   --accent2: #3F6212;
 }
 

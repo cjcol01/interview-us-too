@@ -3,6 +3,9 @@
 ## Now
 
 - [ ] error 500 page (created - need reverse proxy)
+- [ ] hot restart breaks on server.py changes
+- [ ] light mode theme changes
+- [ ] social proof improvements
  
 ## Soon 
 - [ ] typing mode to edit question - not start new question
@@ -13,6 +16,7 @@
 - [ ] change AI content 
 - [ ] change stop blanking, start acing tagline
 - [ ] accidental session start warning for session users 
+
 
 
 ## Later

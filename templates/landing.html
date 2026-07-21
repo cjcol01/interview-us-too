@@ -416,18 +416,34 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <div class="ia-proof-track-wrap">
     <div class="ia-proof-track">
       {% set reviews = [
-        ("Priya S.",  "Backend Engineer",       "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round."),
-        ("Marcus O.", "Frontend Developer",     "I freeze up under pressure every single time. Having a calm nudge in my pocket was the difference this time around."),
-        ("Elena R.",  "Data Scientist",         "Instant replay caught a question I fumbled and handed me a clean way back into it 15 seconds later."),
-        ("Tom K.",    "DevOps Engineer",        "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running."),
-        ("Aisha B.",  "New Grad, CS",           "First real interview loop of my life and I didn't blank once. Worth it for the confidence alone."),
-        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and it kept me structured instead of rambling for ten minutes."),
-        ("Hannah W.", "Career Switcher",        "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen."),
-        ("Chris N.",  "Full-Stack Engineer",    "Quietly the best interview prep tool I've tried. Feels like having a second brain in the room."),
+        ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round.", 5),
+        ("Marcus O.", "Frontend Developer",       "I freeze up under pressure every single time. Having a calm nudge in my pocket was the difference this time around.", 5),
+        ("Elena R.",  "Data Scientist",           "Instant replay caught a question I fumbled and handed me a clean way back into it 15 seconds later.", 5),
+        ("Tom K.",    "DevOps Engineer",          "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running.", 5),
+        ("Aisha B.",  "New Grad, CS",             "First real interview loop of my life and I didn't blank once. Worth it for the confidence alone.", 5),
+        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and it kept me structured instead of rambling for ten minutes.", 5),
+        ("Hannah W.", "Career Switcher",          "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen.", 5),
+        ("Chris N.",  "Full-Stack Engineer",      "Quietly the best interview prep tool I've tried. Feels like having a second brain in the room.", 5),
+        ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round. Nobody on the call blinked.", 5),
+        ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window a touch longer than 15s for interviewers who ramble. Still landed the offer.", 4),
+        ("Owen F.",   "Site Reliability Engineer", "Got an incident-response scenario question and it gave me exactly the structure I needed without sounding scripted.", 5),
+        ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is underrated — dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
+        ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to glance at my phone instead of just winging it. Once the habit stuck, it was a real safety net.", 4),
+        ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it transcribed the question fast enough that I never felt the pause.", 5),
+        ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That alone got me through two rounds I'd normally have tanked.", 5),
+        ("Callum D.", "Platform Engineer",        "Cancelled after landing the job and it took two clicks. No hard feelings — I'd use it again next search.", 5),
+        ("Leo A.",    "Software Engineer",        "Worried the interviewer would clock me glancing down at my phone. Propped it just below the laptop screen instead — from their side it just looks like I'm reading off my monitor.", 5),
+        ("Priyanka V.", "Cloud Engineer",         "Was convinced someone would notice me looking away. Turns out if the phone sits right under the webcam, checking it looks exactly like reading your own screen.", 5),
+        ("Theo B.",   "iOS Developer",            "Screen capture nailed the exact prompt and detected Swift instantly. No fiddling, just the answer.", 5),
+        ("Freya F.",  "Data Engineer",            "Used it on three rounds this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
+        ("Jonas T.",  "Security Engineer",        "Zero browser footprint was the dealbreaker for me. Checked it myself — nothing shows up. Genuinely undetectable.", 5),
+        ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was brutal. This bridged the gap while I caught up.", 5),
+        ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is genius. Hands stay on the keyboard the whole time.", 5),
+        ("Kenji M.",  "Staff Engineer",           "Even at my level the nerves hit. Discreet, fast, and it reads perfectly at a glance on a second monitor.", 5),
       ] %}
-      {% for name, role, quote in reviews + reviews %}
+      {% for name, role, quote, rating in reviews + reviews %}
       <div class="ia-proof-card"{% if loop.index0 >= reviews|length %} aria-hidden="true"{% endif %}>
-        <div class="ia-proof-stars" aria-hidden="true">★★★★★</div>
+        <div class="ia-proof-stars" aria-hidden="true">{{ '★' * rating }}{% if rating < 5 %}<span class="ia-proof-star-empty">{{ '★' * (5 - rating) }}</span>{% endif %}</div>
         <p class="ia-proof-quote">&ldquo;{{ quote }}&rdquo;</p>
         <div class="ia-proof-person">
           <div class="ia-proof-avatar">{{ name.split(' ')|map('first')|join('') }}</div>
@@ -439,6 +455,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       </div>
       {% endfor %}
     </div>
+  </div>
+  <div class="ia-proof-hint" id="proofHint">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 6l6 6-6 6M11 6l-6 6 6 6"/></svg>
+    <span>Drag to browse</span>
   </div>
 </div>
 
@@ -809,6 +829,115 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     document.querySelectorAll('[data-reveal]').forEach(function(el) { revObs.observe(el); });
   } else {
     document.querySelectorAll('[data-reveal]').forEach(function(el) { el.classList.add('ia-visible'); });
+  }
+
+  /* ── Social Proof: auto-drift + drag-to-scrub marquee ── */
+  var proofWrap = document.querySelector('.ia-proof-track-wrap');
+  var proofTrack = document.querySelector('.ia-proof-track');
+  var proofHint = document.getElementById('proofHint');
+  if (proofWrap && proofTrack) {
+    var DRIFT_SPEED = 1.4;    // px/frame baseline auto-drift
+    var MAX_FLING_VEL = 40;   // px/frame cap so a fast flick doesn't fly off
+    var FLING_DECAY = 0.94;   // per-frame velocity decay while settling
+
+    // Measure the true repeat period directly (distance from the first real card
+    // to its first duplicate) rather than trusting scrollWidth/2 — scrollWidth can
+    // silently drop the last card's trailing margin in some browsers, which made
+    // the wrap point a few px short of the real duplicate boundary and compounded
+    // into visible blank space after enough loops.
+    function measureHalfWidth() {
+      var cards = proofTrack.querySelectorAll('.ia-proof-card');
+      var n = cards.length / 2;
+      return cards[n].offsetLeft - cards[0].offsetLeft;
+    }
+    var halfWidth = measureHalfWidth();
+    window.addEventListener('resize', function() { halfWidth = measureHalfWidth(); });
+
+    var pos = 0, vel = 0;
+    var dragging = false, settling = false;
+    var startX = 0, startPos = 0, lastX = 0, lastT = 0;
+    var lockedAxis = null; // 'x' | 'y' | null — for touch, decided on first move
+
+    function wrap() {
+      while (pos <= -halfWidth) pos += halfWidth;
+      while (pos > 0) pos -= halfWidth;
+    }
+    function render() { proofTrack.style.transform = 'translate3d(' + pos.toFixed(2) + 'px,0,0)'; }
+    function dismissHint() {
+      if (proofHint) proofHint.classList.add('ia-proof-hint--hidden');
+    }
+
+    function tick() {
+      if (dragging) {
+        // position is updated directly in the move handler
+      } else if (settling) {
+        pos += vel;
+        vel *= FLING_DECAY;
+        if (Math.abs(vel) < 0.02) settling = false;
+        wrap();
+        render();
+      } else if (!noMotion) {
+        pos -= DRIFT_SPEED;
+        wrap();
+        render();
+      }
+      requestAnimationFrame(tick);
+    }
+
+    function begin(x) {
+      dragging = true; settling = false; lockedAxis = null;
+      proofWrap.classList.add('ia-proof-dragging');
+      startX = x; startPos = pos; lastX = x; lastT = performance.now();
+      vel = 0;
+    }
+    function move(x) {
+      if (!dragging) return;
+      var dx = x - startX;
+      if (Math.abs(dx) > 4) dismissHint();
+      pos = startPos + dx;
+      wrap();
+      render();
+      var now = performance.now();
+      var dt = now - lastT;
+      if (dt > 0) {
+        var v = (x - lastX) / dt * 16.67; // px per ~frame
+        vel = Math.max(-MAX_FLING_VEL, Math.min(MAX_FLING_VEL, v));
+      }
+      lastX = x; lastT = now;
+    }
+    function end() {
+      if (!dragging) return;
+      dragging = false;
+      proofWrap.classList.remove('ia-proof-dragging');
+      settling = Math.abs(vel) > 0.02;
+    }
+
+    proofWrap.addEventListener('mousedown', function(e) { begin(e.clientX); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e) { if (dragging) move(e.clientX); });
+    window.addEventListener('mouseup', end);
+
+    var startY = 0;
+    proofWrap.addEventListener('touchstart', function(e) {
+      startY = e.touches[0].clientY;
+      begin(e.touches[0].clientX);
+    }, { passive: true });
+    proofWrap.addEventListener('touchmove', function(e) {
+      if (!dragging) return;
+      var t = e.touches[0];
+      if (lockedAxis === null) {
+        var dx = Math.abs(t.clientX - startX), dy = Math.abs(t.clientY - startY);
+        if (dx < 4 && dy < 4) return; // not enough movement yet to decide
+        lockedAxis = dx > dy ? 'x' : 'y';
+      }
+      if (lockedAxis === 'x') {
+        e.preventDefault();
+        move(t.clientX);
+      }
+    }, { passive: false });
+    proofWrap.addEventListener('touchend', end);
+    proofWrap.addEventListener('touchcancel', end);
+
+    requestAnimationFrame(tick);
   }
 
   /* ── Theme Switcher ── */
