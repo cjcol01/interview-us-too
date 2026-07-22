@@ -56,6 +56,7 @@ def register(test, skip, client):
             for name, patch_target in [
                 ("anthropic", "server._check_anthropic"),
                 ("openai", "server._check_openai"),
+                ("deepgram", "server._check_deepgram"),
                 ("stripe", "server._check_stripe"),
             ]:
                 with patch(patch_target, return_value=fake_ok):

@@ -282,6 +282,69 @@ def send_subscription_resumed_email(to_email: str) -> None:
         logger.error("[email] failed to send subscription-resumed notice: %s", e)
 
 
+def send_expiry_reminder_email(to_email: str, cancel_date: str) -> None:
+    logger.info("[email] expiry reminder sent to %s (ends %s)", to_email, cancel_date)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce access ends soon",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Your access ends on {cancel_date}</h2>
+              <p style="margin:0 0 16px;color:#4a4a5e;line-height:1.6;">
+                Your InterviewAce subscription is set to cancel on {cancel_date}. You'll keep full
+                access until then, and can undo this any time before that date from your account
+                settings.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                <a href="{BASE_URL}/settings" style="color:#1a1a2e;">Manage your subscription</a>
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send expiry reminder: %s", e)
+
+
+def send_low_sessions_email(to_email: str, sessions_remaining: int) -> None:
+    logger.info("[email] low-sessions notice sent to %s (%d left)", to_email, sessions_remaining)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    plural = "session" if sessions_remaining == 1 else "sessions"
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": f"{sessions_remaining} {plural} left on your InterviewAce account",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">You have {sessions_remaining} {plural} left</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Once they're used up you'll need to top up before starting another interview session.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                <a href="{BASE_URL}/pricing" style="color:#1a1a2e;">Top up sessions</a>
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send low-sessions notice: %s", e)
+
+
 def send_announcement_email(to_email: str, subject: str, body: str) -> None:
     """Admin-authored announcement — body is plain text, wrapped in the standard shell.
     Newlines are preserved as line breaks; no other formatting is assumed."""

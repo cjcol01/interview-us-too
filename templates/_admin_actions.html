@@ -4,6 +4,18 @@
     <input type="hidden" name="return_to" value="{{ return_to }}">
     <button type="submit" class="ua-btn ua-btn-notice">Send warning</button>
   </form>
+  {% if e.is_cancelling is defined and e.is_cancelling %}
+  <form method="post" action="/admin/users/{{ e.id }}/send-expiry-reminder">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <button type="submit" class="ua-btn ua-btn-notice">Send expiry reminder</button>
+  </form>
+  {% endif %}
+  {% if e.account_level == "paid" and e.sessions_remaining is defined and e.sessions_remaining is not none and e.sessions_remaining <= 1 %}
+  <form method="post" action="/admin/users/{{ e.id }}/send-low-sessions">
+    <input type="hidden" name="return_to" value="{{ return_to }}">
+    <button type="submit" class="ua-btn ua-btn-notice">{{ e.sessions_remaining }} session{{ "" if e.sessions_remaining == 1 else "s" }} left</button>
+  </form>
+  {% endif %}
   {% if e.is_paused %}
   <form method="post" action="/admin/users/{{ e.id }}/resume-subscription" onsubmit="return confirm('Resume billing for {{ e.email }}?');">
     <input type="hidden" name="return_to" value="{{ return_to }}">

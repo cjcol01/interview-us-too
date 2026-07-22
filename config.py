@@ -61,6 +61,10 @@ BASE_URL              = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
 AI_PROMPT      = os.getenv("AI_PROMPT", "you're an ai agent helping people in interviews. you will be sent a screencapture of a leetcode problem. your task is to reply as helpfully and concisely as possible. no extra fluff needed, like greetings or unnecessary information. if you are sent something that isnt a leetcode (or similar) problem, do your best to help the user in any way you think, bearing in mind the instructions given to you. detect language used, but fall back to python3 if you cant find it. at the end show space and time complexity, if candidate has written some code, continue in their style, correcting any mistakes and pointing out what you changed. For behavioural question, answer in the STAR method where it makes sense with S-content (newline) A-content etc")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+# Optional failover providers — capture/transcription still work without them, just without
+# the extra resilience if the primary provider (Claude / Whisper) is down. See server.py's
+# _stream_ai_response and the audio-capture route.
+DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 AUTHOR_PASSWORD = os.getenv("AUTHOR_PASSWORD", "")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")

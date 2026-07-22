@@ -218,4 +218,49 @@ def register(test, skip, client):
     test("POST resume-subscription: no sub → message",                  test_resume_subscription_no_sub_shows_message)
     test("POST resume-subscription: Stripe error handled",               test_resume_subscription_stripe_error_handled)
     test("POST resume-subscription: success resyncs account",           test_resume_subscription_success)
+    def test_expiry_reminder_no_cancellation_shows_message():
+        db = SessionLocal()
+        try:
+            admin, token = _make_admin_cookie(db)
+            target = make_user(db, AccountLevel.unlimited)
+            r = client.post(f"/admin/users/{target.id}/send-expiry-reminder",
+                            cookies={"session": token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert "no+scheduled+cancellation" in r.headers["location"] or "no scheduled cancellation" in r.headers["location"]
+        finally:
+            cleanup(db, admin, target)
+            db.close()
+
+    def test_expiry_reminder_success():
+        from datetime import datetime, timedelta
+        db = SessionLocal()
+        try:
+            admin, token = _make_admin_cookie(db)
+            target = make_user(db, AccountLevel.unlimited)
+            target.sub_cancel_at = datetime.utcnow() + timedelta(days=5)
+            db.commit()
+            r = client.post(f"/admin/users/{target.id}/send-expiry-reminder",
+                            cookies={"session": token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert "reminder+emailed" in r.headers["location"] or "reminder emailed" in r.headers["location"]
+        finally:
+            cleanup(db, admin, target)
+            db.close()
+
+    def test_low_sessions_success():
+        db = SessionLocal()
+        try:
+            admin, token = _make_admin_cookie(db)
+            target = make_user(db, AccountLevel.paid)
+            r = client.post(f"/admin/users/{target.id}/send-low-sessions",
+                            cookies={"session": token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert "notice+emailed" in r.headers["location"] or "notice emailed" in r.headers["location"]
+        finally:
+            cleanup(db, admin, target)
+            db.close()
+
     test("POST /admin/users/{id}/warn: success emails+redirects",       test_warn_user_success)
+    test("POST send-expiry-reminder: no cancellation → message",        test_expiry_reminder_no_cancellation_shows_message)
+    test("POST send-expiry-reminder: success emails+redirects",         test_expiry_reminder_success)
+    test("POST send-low-sessions: success emails+redirects",            test_low_sessions_success)

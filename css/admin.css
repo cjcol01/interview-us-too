@@ -97,7 +97,36 @@ main.admin-main-wide { max-width: 1800px; }
 .hz-section h2 { font-size: 15px; margin: 0 0 12px; color: var(--text-2, #aaa); font-weight: 600; }
 .hz-row {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; padding: 10px 12px;
-  border-bottom: 1px solid var(--line, #333); font-size: 13px;
+  border-bottom: 1px solid var(--line, #333); font-size: 13px; border-radius: 6px;
+}
+/* A deep-check result "landing" gets one shot at this animation (a fresh skeleton row is
+   built per run — see hzRunDeepChecks) — a quick colour flash + scale pop so a result
+   arriving mid-scan feels like it landed, rather than just silently changing text. */
+@keyframes hzLandOk {
+  0%   { background: rgba(74,222,128,.30); transform: scale(.97); }
+  35%  { transform: scale(1.015); }
+  100% { background: rgba(74,222,128,0); transform: scale(1); }
+}
+@keyframes hzLandFail {
+  0%   { background: rgba(248,113,113,.30); transform: scale(.97); }
+  35%  { transform: scale(1.015); }
+  100% { background: rgba(248,113,113,0); transform: scale(1); }
+}
+@keyframes hzLandNeutral {
+  0%   { background: rgba(255,255,255,.14); transform: scale(.98); }
+  100% { background: rgba(255,255,255,0); transform: scale(1); }
+}
+.hz-row.hz-land-ok      { animation: hzLandOk .9s cubic-bezier(.22,1,.36,1); }
+.hz-row.hz-land-fail    { animation: hzLandFail .9s cubic-bezier(.22,1,.36,1); }
+.hz-row.hz-land-neutral { animation: hzLandNeutral .6s ease-out; }
+@keyframes hzDotPop {
+  0%   { transform: scale(.2); opacity: .5; }
+  65%  { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.hz-dot-ok, .hz-dot-fail { animation: hzDotPop .45s cubic-bezier(.34,1.56,.64,1); }
+@media (prefers-reduced-motion: reduce) {
+  .hz-row.hz-land-ok, .hz-row.hz-land-fail, .hz-row.hz-land-neutral, .hz-dot-ok, .hz-dot-fail { animation: none; }
 }
 .hz-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; align-self: center; }
 .hz-dot-ok { background: #4ade80; }

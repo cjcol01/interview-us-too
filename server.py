@@ -26,7 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, false, func, or_, text, true
 from sqlalchemy.orm import Session, aliased
@@ -35,8 +35,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
 
@@ -136,6 +136,18 @@ async def lifespan(app: FastAPI):
                 logger.warning("Redis not reachable yet (attempt %d/5) — retrying in 2s", attempt + 1)
                 await asyncio.sleep(2)
     logger.info("[ready] http://localhost:%d", SERVER_PORT)
+    if os.getenv("TESTING") != "1":
+        # The openai SDK pays a one-time ~5s warm-up tax on its first real API call per
+        # process (httpx/transport init — confirmed via timing, not network latency; a
+        # second call in the same process drops to ~400ms). Left alone, that cost shows up
+        # as a misleadingly slow first "Run deep checks" click — pay it here instead, in the
+        # background, so it's already absorbed by the time anyone looks at /admin/health.
+        async def _warm_openai():
+            try:
+                await asyncio.to_thread(_check_openai)
+            except Exception:
+                pass
+        app.state.openai_warmup_task = asyncio.create_task(_warm_openai())
     try:
         yield
     finally:
@@ -190,6 +202,69 @@ async def _http_exception_handler(request: Request, exc: StarletteHTTPException)
 
 async_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_async_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+
+_OPENAI_VISION_MODEL = "gpt-5.4"
+
+
+async def _stream_ai_response(r, user_id: int, prompt: str, img_b64: Optional[str] = None, capture_id: Optional[int] = None) -> str:
+    """Streams Claude's reply chunk-by-chunk via SSE broadcast (the normal path). If Claude
+    errors — outage, rate limit, timeout — transparently fails over to OpenAI's vision model,
+    streamed the same way, so a failover reply still trickles in token-by-token instead of
+    popping in all at once."""
+    content = ([{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}}] if img_b64 else []) + [{"type": "text", "text": prompt}]
+    try:
+        full_text = ""
+        async with async_client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": content}],
+        ) as stream:
+            async for text in stream.text_stream:
+                full_text += text
+                payload = {"text": text, **({"capture_id": capture_id} if capture_id is not None else {})}
+                await broadcast(r, user_id, "chunk", payload)
+        return full_text
+    except Exception as e:
+        logger.error("[ai] Claude failed, failing over to OpenAI: %s", e)
+        openai_content = ([{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}] if img_b64 else []) + [{"type": "text", "text": prompt}]
+        full_text = ""
+        stream = await openai_async_client.chat.completions.create(
+            model=_OPENAI_VISION_MODEL,
+            max_completion_tokens=1024,
+            messages=[{"role": "user", "content": openai_content}],
+            stream=True,
+        )
+        async for chunk in stream:
+            delta = chunk.choices[0].delta.content if chunk.choices else None
+            if not delta:
+                continue
+            full_text += delta
+            payload = {"text": delta, **({"capture_id": capture_id} if capture_id is not None else {})}
+            await broadcast(r, user_id, "chunk", payload)
+        return full_text
+
+
+_AUDIO_MIME_TYPES = {
+    ".webm": "audio/webm", ".wav": "audio/wav", ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4", ".ogg": "audio/ogg", ".mp4": "audio/mp4",
+}
+
+
+def _deepgram_transcribe(audio_bytes: bytes, suffix: str) -> str:
+    resp = requests.post(
+        "https://api.deepgram.com/v1/listen",
+        headers={
+            "Authorization": f"Token {DEEPGRAM_API_KEY}",
+            "Content-Type": _AUDIO_MIME_TYPES.get(suffix, "audio/webm"),
+        },
+        params={"model": "nova-2"},
+        data=audio_bytes,
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
+
 
 SESSION_DURATION = timedelta(hours=2, minutes=30)
 TRIAL_DURATION   = timedelta(minutes=10)
@@ -1231,6 +1306,7 @@ def _user_table_entries(db: Session, users: list) -> list:
         "is_active": u.is_active,
         "has_sub": bool(u.stripe_sub_id),
         "is_paused": u.account_flag == "paused",
+        "is_cancelling": u.sub_cancel_at is not None,
         "sessions_remaining": u.sessions_remaining,
         "created_at": u.created_at.strftime("%d %b %Y"),
         "referred_by": referrers.get(u.referred_by_id),
@@ -1555,6 +1631,7 @@ _CONFIG_CHECKS = [
     ("STRIPE_SESSIONS_PACK_PRICE_ID", STRIPE_SESSIONS_PACK_PRICE_ID),
     ("RESEND_API_KEY", RESEND_API_KEY),
     ("AUTHOR_PASSWORD", AUTHOR_PASSWORD),
+    ("DEEPGRAM_API_KEY", DEEPGRAM_API_KEY),
 ]
 
 
@@ -1590,7 +1667,26 @@ def _check_anthropic() -> dict:
 def _check_openai() -> dict:
     start = time.monotonic()
     try:
-        OpenAI(api_key=OPENAI_API_KEY).models.list()
+        # Retrieve the one model this app actually calls (transcription), not
+        # models.list() — that endpoint returns OpenAI's entire ~125-model catalog and
+        # measured 5x+ slower here for no extra signal about whether audio capture works.
+        OpenAI(api_key=OPENAI_API_KEY).models.retrieve("gpt-4o-transcribe")
+        return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+
+
+def _check_deepgram() -> dict:
+    start = time.monotonic()
+    if not DEEPGRAM_API_KEY:
+        return {"ok": False, "detail": "not configured — Whisper failures won't have a fallback", "latency_ms": 0}
+    try:
+        resp = requests.get(
+            "https://api.deepgram.com/v1/projects",
+            headers={"Authorization": f"Token {DEEPGRAM_API_KEY}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
         return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
     except Exception as e:
         return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
@@ -1661,6 +1757,8 @@ async def admin_health_deep_check(
         return await asyncio.to_thread(_check_anthropic)
     if name == "openai":
         return await asyncio.to_thread(_check_openai)
+    if name == "deepgram":
+        return await asyncio.to_thread(_check_deepgram)
     if name == "stripe":
         return await asyncio.to_thread(_check_stripe)
     raise HTTPException(status_code=404, detail="Unknown check")
@@ -1791,6 +1889,41 @@ async def admin_warn_user(
     track(target.id, "admin_usage_warning_sent")
     logger.info("[admin] usage warning sent to user=%s", target.email)
     return _admin_redirect(return_to, f"Warning emailed to {target.email}")
+
+
+@app.post("/admin/users/{user_id}/send-expiry-reminder")
+async def admin_send_expiry_reminder(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not target.sub_cancel_at:
+        return _admin_redirect(return_to, f"{target.email} has no scheduled cancellation")
+    cancel_date = target.sub_cancel_at.strftime("%d %b %Y")
+    send_expiry_reminder_email(target.email, cancel_date)
+    track(target.id, "admin_expiry_reminder_sent")
+    logger.info("[admin] expiry reminder sent to user=%s", target.email)
+    return _admin_redirect(return_to, f"Expiry reminder emailed to {target.email}")
+
+
+@app.post("/admin/users/{user_id}/send-low-sessions")
+async def admin_send_low_sessions(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    return_to: str = Form(default="/admin/usage"),
+):
+    target = db.query(User).filter(User.id == user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    send_low_sessions_email(target.email, target.sessions_remaining)
+    track(target.id, "admin_low_sessions_sent")
+    logger.info("[admin] low-sessions notice sent to user=%s (%d left)", target.email, target.sessions_remaining)
+    return _admin_redirect(return_to, f"Low-sessions notice emailed to {target.email}")
 
 
 # ---------------------------------------------------------------------------
@@ -2195,21 +2328,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     complexity = await get_complexity(r, user.id)
     prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
 
-    full_text = ""
-    async with async_client.messages.stream(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}},
-                {"type": "text", "text": prompt},
-            ],
-        }],
-    ) as stream:
-        async for text in stream.text_stream:
-            full_text += text
-            await broadcast(r, user.id, "chunk", {"text": text, "capture_id": capture_id})
+    full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id)
 
     ts = time.strftime("%H:%M:%S")
     await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
@@ -2251,15 +2370,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
     complexity = await get_complexity(r, user.id)
     prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
 
-    full_text = ""
-    async with async_client.messages.stream(
-        model="claude-sonnet-4-6",
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        async for text in stream.text_stream:
-            full_text += text
-            await broadcast(r, user.id, "chunk", {"text": text})
+    full_text = await _stream_ai_response(r, user.id, prompt)
 
     await broadcast(r, user.id, "typing-analysis", {
         "input": body.text,
@@ -2293,27 +2404,25 @@ async def api_audio_capture(
         tmp_path = tmp.name
 
     try:
-        with open(tmp_path, "rb") as f:
-            transcript = await asyncio.to_thread(
-                openai_client.audio.transcriptions.create,
-                model="whisper-1",
-                file=f,
-            )
-        transcription_text = transcript.text
+        try:
+            with open(tmp_path, "rb") as f:
+                transcript = await asyncio.to_thread(
+                    openai_client.audio.transcriptions.create,
+                    model="gpt-4o-transcribe",
+                    file=f,
+                )
+            transcription_text = transcript.text
+        except Exception as transcribe_exc:
+            if not DEEPGRAM_API_KEY:
+                raise
+            logger.error("[audio] OpenAI transcription failed, failing over to Deepgram: %s", transcribe_exc)
+            transcription_text = await asyncio.to_thread(_deepgram_transcribe, audio_bytes, suffix)
         await broadcast(r, user.id, "audio-transcribed", {"transcription": transcription_text})
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
         prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
-        full_text = ""
-        async with async_client.messages.stream(
-            model="claude-sonnet-4-6",
-            max_tokens=1024,
-            messages=[{"role": "user", "content": prompt}],
-        ) as stream:
-            async for text in stream.text_stream:
-                full_text += text
-                await broadcast(r, user.id, "chunk", {"text": text})
+        full_text = await _stream_ai_response(r, user.id, prompt)
 
         await broadcast(r, user.id, "audio-analysis", {
             "transcription": transcription_text,
@@ -2698,6 +2807,13 @@ if __name__ == "__main__":
         # watchfiles (uvicorn's --reload backend) needs polling mode here or it silently
         # never restarts on file changes.
         os.environ.setdefault("WATCHFILES_FORCE_POLLING", "true")
-        uvicorn.run("server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True)
+        # Runtime writes under the repo (captured screenshots, the SQLite journal, __pycache__)
+        # otherwise register as "source changed" to the reloader and trigger a restart on every
+        # capture — killing in-flight SSE streams mid-interview. Exclude everything that isn't
+        # actually source.
+        uvicorn.run(
+            "server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True,
+            reload_excludes=["screenshots/*", "*.db", "*.db-*", "__pycache__/*", "*.pyc"],
+        )
     else:
         uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)

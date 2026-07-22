@@ -59,12 +59,16 @@
       rowEl.querySelector('.hz-name').textContent = name;
       rowEl.querySelector('.hz-detail').textContent = detail;
       rowEl.querySelector('.hz-latency').textContent = (latencyMs !== null && latencyMs !== undefined) ? latencyMs + ' ms' : '';
+      // A fresh skeleton row lands here exactly once per run, so a plain classList.add is
+      // enough to trigger the animation — no restart/reflow trick needed.
+      rowEl.classList.add(ok === true ? 'hz-land-ok' : ok === false ? 'hz-land-fail' : 'hz-land-neutral');
     }
     function hzRunDeepChecks() {
       document.getElementById('hz-deep-btn').textContent = 'Re-run deep checks';
       const container = document.getElementById('hz-deep-results');
       const checks = [['hz-row-anthropic', 'Anthropic (Claude)', 'anthropic'],
                       ['hz-row-openai', 'OpenAI', 'openai'],
+                      ['hz-row-deepgram', 'Deepgram (transcription fallback)', 'deepgram'],
                       ['hz-row-stripe', 'Stripe', 'stripe']];
       container.innerHTML = checks.map(c => hzRowSkeleton(c[0])).join('') +
         '<p class="ua-sub" style="margin:16px 0 4px;">Page routes</p>' +

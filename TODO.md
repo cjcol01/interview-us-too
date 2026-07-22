@@ -2,12 +2,9 @@
 
 ## Now
 
-- [ ] error 500 page (created - need reverse proxy)
-- [ ] hot restart breaks on server.py changes
-- [ ] light mode theme changes
-- [ ] social proof improvements
-- [ ] some kind of alert system for health checks
- 
+
+
+
 ## Soon 
 - [ ] typing mode to edit question - not start new question
 - [ ] google login
@@ -17,6 +14,12 @@
 - [ ] change AI content 
 - [ ] change stop blanking, start acing tagline
 - [ ] accidental session start warning for session users 
+- [ ] some kind of alert system for health checks directly to mobile
+- [ ] undetectability FAQ's honest assessment
+- [ ] auto top up sessions
+- [ ] improve admin page with backup time data, SQL file size, billing state, error rate, resend failures, rate limit headroom, Sideload/CDN fallback reachability
+- [ ] test job in github actions
+- [ ] clean context - only keep x messages or purge old ones if not discussed
 
 
 
@@ -35,6 +38,9 @@
 - [ ] terms and conditions
 - [ ] refund policy
 - [ ] cookie policy
+- [ ] convert to desktop app and get code signed (PITA)
+- [ ] error 500 page (created - need reverse proxy)
+
 
 ## Done
 
@@ -59,3 +65,9 @@
 - [x] set up server hot reloading?
 - [x] stress test site - locust/k6
 - [x] create backup plans and security and reliability plans
+- [x] light mode theme changes
+- [x] social proof improvements
+- [x] hot restart breaks (sometimes) on server.py changes — dev reloader was watching screenshots/*.db too; excluded from uvicorn's reload_excludes
+- [x] hard to read social proof profile pic texts on white mode — light-mode override for .ia-proof-avatar (darker gradient + dark text)
+- [x] add more user action buttons (send expiry reminder, 1 session left, etc) — new admin per-user buttons + emails for cancelling subs and low session-pack balances
+- [x] set up open ai backup if claude is down, and whispr backup — Claude failures on capture/text-capture/audio-capture fail over to OpenAI vision (gpt-4o); Whisper failures fail over to Deepgram if DEEPGRAM_API_KEY is set. Added a Deepgram row to /admin/health deep checks too.

@@ -127,6 +127,10 @@ with TestClient(app) as client:
     import tests.test_audio
     tests.test_audio.register(test, skip, client)
 
+    section("AI Fallback")
+    import tests.test_ai_fallback
+    tests.test_ai_fallback.register(test, skip, client)
+
     section("Typing Mode")
     import tests.test_typing
     tests.test_typing.register(test, skip, client)

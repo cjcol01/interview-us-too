@@ -52,8 +52,9 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | Var | Required | Notes |
 |-----|----------|-------|
 | `SECRET_KEY` | Yes | Server won't start without it |
-| `ANTHROPIC_API_KEY` | Yes | Vision API for captures |
-| `OPENAI_API_KEY` | Yes | Whisper transcription for audio capture |
+| `ANTHROPIC_API_KEY` | Yes | Vision API for captures. On failure, requests fail over to OpenAI vision (`gpt-4o`) — see `_stream_ai_response` in `server.py` |
+| `OPENAI_API_KEY` | Yes | `gpt-4o-transcribe` for audio capture, and the Claude vision fallback (`gpt-5.4`) above |
+| `DEEPGRAM_API_KEY` | No | Fallback transcription if OpenAI transcription fails. Without it, an OpenAI outage just fails the audio capture as before |
 | `STRIPE_SECRET_KEY` | Yes | |
 | `STRIPE_WEBHOOK_SECRET` | Yes | |
 | `STRIPE_SUB_PRICE_ID` / `STRIPE_PRICE_ID` | Yes | |
