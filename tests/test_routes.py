@@ -342,6 +342,44 @@ def register(test, skip, client):
             db.close()
             delete_by_name(uname)
 
+    # -- /welcome ---------------------------------------------------------------
+
+    def test_welcome_renders_for_trial_user():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/welcome", cookies={"session": token})
+            assert r.status_code == 200
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_welcome_redirects_non_trial_to_app():
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/welcome", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/app" in r.headers.get("location", "")
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_welcome_redirects_unverified_to_verify_pending():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/welcome", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "verify-pending" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
     # -- /verify-pending ------------------------------------------------------
 
     def test_verify_pending_renders_for_unverified():
@@ -450,6 +488,9 @@ def register(test, skip, client):
     test("/onboarding renders for trial user",                test_onboarding_renders_for_trial_user)
     test("/onboarding generates api_token if missing",        test_onboarding_generates_api_token_if_missing)
     test("/onboarding redirects non-trial to /app",           test_onboarding_redirects_non_trial_to_app)
+    test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
+    test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
+    test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)
     test("/verify-pending renders for unverified user",       test_verify_pending_renders_for_unverified)
     test("/verify-pending redirects verified user to /app",   test_verify_pending_redirects_verified_user)
     test("Resend verification ok for unverified user",        test_resend_verification_ok_for_unverified)

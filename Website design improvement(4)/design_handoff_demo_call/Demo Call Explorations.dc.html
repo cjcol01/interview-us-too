@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    a{color:#C6F24E;text-decoration:none}
+    a:hover{color:#d7f77a}
+    ::selection{background:rgba(198,242,78,0.30);color:#1A1A18}
+  </style>
+</helmet>
+<div style="min-height:100vh;background:#0A0A0C;color:#ECECEE;font-family:'Hanken Grotesk',system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;padding:48px 56px 120px">
+
+  <section style="display:flex;flex-direction:column;gap:34px">
+    <div style="display:flex;flex-direction:column;gap:10px;max-width:900px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.16em;text-transform:uppercase;color:#67676F"><span style="color:#C6F24E">01</span> · Turn 1 — Demo call, full screen</div>
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:36px;letter-spacing:-0.03em;color:#F4F4F6;line-height:1.05">Three full-screen ways to run the demo call</h1>
+      <p style="font-size:15px;color:#9C9CA6;text-wrap:pretty">Same four-beat script, made to feel like a real video call. Each is fully interactive — <strong style="color:#ECECEE;font-weight:600">hover a frame to arm it, then press the hotkeys</strong> shown on screen (⌃⇧1–4), or click. Pick a direction: <a href="#1a">1a</a> Gallery call · <a href="#1b">1b</a> Split cockpit · <a href="#1c">1c</a> Cinematic second-screen.</p>
+    </div>
+
+    <div style="display:flex;flex-wrap:wrap;gap:72px;align-items:flex-start">
+
+      <div id="1a" style="display:flex;flex-direction:column;gap:16px;width:1440px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.1em;color:#0A0A0C;background:#C6F24E;border-radius:5px;padding:3px 9px">1A</span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;color:#F4F4F6">Gallery call</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#67676F">Meet-style stage · the AI rides along as a floating copilot only you see</span>
+        </div>
+        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.5)">
+          <dc-import name="Demo Call" layout="gallery" hint-size="1440px,900px"></dc-import>
+        </div>
+      </div>
+
+      <div id="1b" style="display:flex;flex-direction:column;gap:16px;width:1440px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.1em;color:#0A0A0C;background:#C6F24E;border-radius:5px;padding:3px 9px">1B</span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;color:#F4F4F6">Split cockpit</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#67676F">Call on the left; answers land on your phone. Interviewer's words in his tile, your speech in yours</span>
+        </div>
+        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.5)">
+          <dc-import name="Demo Call" layout="cockpit" hint-size="1440px,900px"></dc-import>
+        </div>
+      </div>
+
+      <div id="1c" style="display:flex;flex-direction:column;gap:16px;width:1440px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;letter-spacing:0.1em;color:#0A0A0C;background:#C6F24E;border-radius:5px;padding:3px 9px">1C</span>
+          <span style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;color:#F4F4F6">Cinematic second-screen</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:#67676F">Full-bleed interviewer, answers land on your phone — the most dramatic on a big screen</span>
+        </div>
+        <div style="border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);box-shadow:0 30px 80px rgba(0,0,0,0.5)">
+          <dc-import name="Demo Call" layout="cinematic" hint-size="1440px,900px"></dc-import>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</div>
+</x-dc>
+</body>
+</html>

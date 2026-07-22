@@ -792,7 +792,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
     db.commit()
     track(user.id, "email_verified", account_level=user.account_level.value)
     if user.account_level == AccountLevel.trial:
-        return RedirectResponse("/onboarding")
+        return RedirectResponse("/welcome")
     return RedirectResponse("/app")
 
 
@@ -887,6 +887,18 @@ async def index(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="index.html", context={
         **_user_hotkeys(user),
         "show_navbar": True,
+    })
+
+
+@app.get("/welcome")
+async def welcome_page(request: Request, user: User = Depends(require_user)):
+    if not user.email_verified:
+        return RedirectResponse("/verify-pending")
+    if user.account_level != AccountLevel.trial:
+        return RedirectResponse("/app")
+    track(user.id, "welcome_viewed")
+    return templates.TemplateResponse(request=request, name="welcome.html", context={
+        **_user_hotkeys(user),
     })
 
 

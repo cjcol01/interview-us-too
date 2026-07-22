@@ -1,0 +1,191 @@
+<!-- Mock interview: full-screen "Split cockpit" practice call. Shared by /welcome (first-run) and /app ("How it works" replay). -->
+<div id="mock-interview-overlay">
+  <div class="mi-stage">
+    <button class="mi-close-x" onclick="miClose()" aria-label="Close">&times;</button>
+
+    <!-- Lobby (green room) -->
+    <div class="mi-screen mi-lobby" id="mi-greenroom">
+      <div class="mi-lobby-inner">
+        <div class="mi-lobby-cam">
+          <div class="mi-lobby-cam-off">
+            <span class="mi-lobby-cam-off-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+            <span class="mi-lobby-cam-off-text">Camera off — this walkthrough doesn't use your camera or mic</span>
+          </div>
+          <div class="mi-lobby-cam-chip">You &middot; camera off</div>
+          <div class="mi-lobby-cam-ctrls">
+            <span class="mi-ctrl-dot" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
+            <span class="mi-ctrl-dot mi-ctrl-dot-off" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 16v1a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2m5.66 0H14a2 2 0 0 1 2 2v3.34l1 1L23 7v10"/><line x1="1" y1="1" x2="23" y2="23"/></svg></span>
+          </div>
+        </div>
+        <div class="mi-lobby-panel">
+          <div class="mi-kicker"><span class="mi-kicker-num">01</span> &middot; Practice interview</div>
+          <h2>Ready to join?</h2>
+          <p class="mi-gr-sub">A short simulated call — see exactly how InterviewAce works in a real interview. Nothing here is recorded, and it won't touch your trial time.</p>
+          <div class="mi-gr-checklist">
+            <div class="mi-gr-item"><span class="mi-gr-item-icon">🎬</span><span>This is a walkthrough, not a live call — no camera, microphone, or real interviewer involved.</span></div>
+            <div class="mi-gr-item"><span class="mi-gr-item-icon">📎</span><span>You can save your own context in Settings — company, role, or interview style — so real answers are tailored to you.</span></div>
+          </div>
+          <button class="mi-btn-primary" onclick="miJoinCall()">Join call →</button>
+          <button class="mi-btn-ghost" onclick="miClose()">Skip for now</button>
+          <div class="mi-presence">
+            <span class="mi-presence-avatar">A<span class="mi-presence-dot"></span></span>
+            Alex is already in the call
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live call -->
+    <div class="mi-screen mi-call" id="mi-call">
+      <div class="mi-call-left" id="mi-call-left">
+        <div class="mi-call-topbar">
+          <div class="mi-brand">
+            <span class="mi-brand-dot"></span>InterviewAce
+            <span class="mi-topbar-divider"></span>
+            <span class="mi-topbar-sub">Practice Interview &middot; Technical Screen</span>
+          </div>
+          <div class="mi-timer" id="mi-timer">00:00</div>
+        </div>
+
+        <div class="mi-call-content">
+          <div class="mi-tile mi-tile-interviewer" id="mi-interviewer-tile">
+            <div class="mi-tile-idle">
+              <div class="mi-tile-avatar-ring">
+                <span class="mi-avatar-ring"></span>
+                <div class="mi-tile-avatar mi-tile-avatar-interviewer">A</div>
+              </div>
+            </div>
+            <div class="mi-screenshot" id="mi-screenshot">
+              <div class="mi-screenshot-head">
+                <span class="mi-screenshot-dot"></span><span class="mi-screenshot-dot2"></span><span class="mi-screenshot-dot3"></span>
+                <span class="mi-screenshot-url">leetcode.com/problems/two-sum</span>
+              </div>
+              <img src="/static/demo_image.png" alt="Shared screen — LeetCode Two Sum problem" class="mi-screenshot-img">
+            </div>
+            <div class="mi-tile-chip mi-tile-chip-interviewer" id="mi-interviewer-chip">
+              <span class="mi-tile-chip-idle-label">Alex</span>
+              <span class="mi-tile-chip-sharing-label">You &middot; sharing screen</span>
+              <span class="mi-tile-chip-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            </div>
+            <div class="mi-caption-wrap">
+              <div class="mi-caption"><span id="mi-caption-text"></span><span class="mi-cursor" id="mi-cursor" style="display:none;"></span></div>
+            </div>
+          </div>
+
+          <div class="mi-you-row">
+            <div class="mi-tile mi-tile-you" id="mi-you-tile">
+              <div class="mi-tile-avatar-ring">
+                <span class="mi-avatar-ring"></span>
+                <div class="mi-tile-avatar mi-tile-avatar-you">Y</div>
+              </div>
+              <div class="mi-tile-chip mi-tile-chip-you">You</div>
+            </div>
+            <div class="mi-you-status" id="mi-you-status">
+              <div class="mi-you-hint" id="mi-you-hint">Your mic is live — speak when you're ready.</div>
+              <div class="mi-you-live" id="mi-you-live">
+                <div class="mi-you-live-label">
+                  <span class="mi-you-live-dot"></span>You're speaking
+                  <span class="mi-you-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                </div>
+                <p class="mi-you-live-text" id="mi-you-live-text"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mi-controlbar">
+          <span class="mi-ctrl-circle" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg></span>
+          <span class="mi-ctrl-circle" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span>
+          <span class="mi-ctrl-circle" id="mi-share-btn" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></span>
+          <button class="mi-leave-btn" onclick="miClose()">Leave</button>
+        </div>
+      </div>
+
+      <div class="mi-hotkey-nudge" id="mi-hotkey-nudge">
+        <div class="mi-hotkey-nudge-eyebrow"><span class="mi-hotkey-nudge-dot"></span><span id="mi-hotkey-nudge-eyebrow-text"></span></div>
+        <p class="mi-hotkey-nudge-body" id="mi-hotkey-nudge-body"></p>
+        <div class="mi-hotkey-nudge-keys" id="mi-hotkey-nudge-keys"></div>
+        <span class="mi-hotkey-nudge-arrow" aria-hidden="true"></span>
+      </div>
+
+      <div class="mi-call-right">
+        <div class="mi-phone">
+          <div class="mi-phone-bezel">
+            <div class="mi-phone-header">
+              <div class="mi-phone-header-top">
+                <span class="mi-phone-brand"><span class="mi-brand-dot"></span>InterviewAce</span>
+                <span class="mi-phone-private">🔒 Private</span>
+              </div>
+              <div class="mi-phone-progress" id="mi-phone-progress">Private &middot; Question 1 of 4</div>
+            </div>
+            <div class="mi-phone-body" id="mi-phone-body">
+
+              <div class="mi-phone-panel mi-phone-idle active" id="mi-phone-idle">
+                <div class="mi-phone-idle-label"><span class="mi-idle-dot"></span>Listening for your cue</div>
+                <p class="mi-phone-idle-sub">When you get stuck, press the hotkey — the answer only shows up here.</p>
+              </div>
+
+              <div class="mi-phone-panel mi-need-help" id="mi-need-help">
+                <div class="mi-nh-title">&#9679; Need help?</div>
+                <p class="mi-nh-text" id="mi-nh-text"></p>
+                <div class="mi-nh-hotkey-row" id="mi-nh-hotkey-row">
+                  <div class="mi-nh-key" id="mi-nh-key"></div>
+                  <span class="mi-nh-hotkey-label" id="mi-nh-hotkey-label"></span>
+                </div>
+                <p class="mi-nh-keyboard-note">Pressed on your computer keyboard — not tapped on this screen.</p>
+                <button class="mi-nh-btn" id="mi-nh-btn" onclick="miTrigger()">Send to AI</button>
+
+                <div class="mi-typing-row" id="mi-typing-row">
+                  <div class="mi-typing-label">Typing privately &middot; hidden from interviewer</div>
+                  <div class="mi-typing-input-row">
+                    <span class="mi-typing-caret">&rsaquo;</span>
+                    <div id="mi-typing-field" class="mi-typing-field" role="textbox" aria-readonly="true"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mi-phone-panel mi-answer-card" id="mi-answer-card">
+                <div class="mi-answer-header">
+                  <span class="mi-answer-label">Answer &middot; via <span id="mi-answer-via"></span></span>
+                  <span class="mi-answer-status" id="mi-answer-status">private</span>
+                </div>
+                <div class="mi-answer-transcription" id="mi-answer-transcription">
+                  <div class="mi-answer-transcription-label" id="mi-answer-transcription-label">You said</div>
+                  <div id="mi-answer-transcription-text"></div>
+                </div>
+                <div class="mi-answer-body" id="mi-answer-body"></div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Done -->
+    <div class="mi-screen mi-done-wrap" id="mi-done">
+      <div class="mi-done">
+        <div class="mi-done-header">
+          <span class="mi-done-check" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <div>
+            <h3 class="mi-done-title">That's the whole loop.</h3>
+            <p class="mi-done-sub">Four ways to get an answer — private, instant, and invisible to the interviewer.</p>
+          </div>
+        </div>
+        <div class="mi-recap" id="mi-recap"></div>
+        <div class="mi-done-platforms">
+          <p class="mi-done-platforms-label">When you're ready to practice for real, open a problem on one of these and try the hotkeys yourself:</p>
+          <div class="mi-platform-links">
+            <a href="https://leetcode.com/problemset/" target="_blank" class="mi-platform-link">LeetCode</a>
+            <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="mi-platform-link">HackerRank</a>
+            <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="mi-platform-link">Codility</a>
+          </div>
+        </div>
+        <div class="mi-done-actions">
+          <button class="mi-btn-primary" id="mi-done-close-btn" onclick="miClose()">Start my trial →</button>
+          <button class="mi-btn-ghost" onclick="miRestart()">↻ Replay</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

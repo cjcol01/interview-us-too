@@ -34,16 +34,16 @@
       </div>
 
       <!-- login form -->
-      <form id="login-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'login')">
+      <form id="login-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'login')" novalidate>
         <div class="field-group">
           <label class="field-label" for="login-username">Username</label>
           <input class="field-input" id="login-username" type="text" name="username"
-            autocomplete="username" placeholder="Username" required>
+            autocomplete="username" placeholder="Username">
         </div>
         <div class="field-group">
           <label class="field-label" for="login-password">Password</label>
           <input class="field-input" id="login-password" type="password" name="password"
-            autocomplete="current-password" placeholder="••••••••••" required>
+            autocomplete="current-password" placeholder="••••••••••">
         </div>
         <div id="login-error" class="auth-error"></div>
         <button type="submit" class="auth-submit">Sign in</button>
@@ -127,6 +127,12 @@
       document.getElementById('register-error').textContent = '';
     }
 
+    function validateLoginForm(data) {
+      if (!data.username) return 'Username is required.';
+      if (!data.password) return 'Password is required.';
+      return null;
+    }
+
     function validateRegisterForm(data) {
       if (!data.full_name) return 'Full name is required.';
       if (!data.username) return 'Username is required.';
@@ -151,13 +157,11 @@
       btn.disabled = true;
       errEl.textContent = '';
 
-      if (action === 'register') {
-        const err = validateRegisterForm(data);
-        if (err) {
-          errEl.textContent = err;
-          btn.disabled = false;
-          return;
-        }
+      const err = action === 'register' ? validateRegisterForm(data) : validateLoginForm(data);
+      if (err) {
+        errEl.textContent = err;
+        btn.disabled = false;
+        return;
       }
 
       try {

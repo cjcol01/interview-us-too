@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Welcome — InterviewAce{% endblock %}
+{% block head %}
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
+  <link rel="stylesheet" href="/css/onboarding.css">
+  <link rel="stylesheet" href="/css/mock_interview.css">
+{% endblock %}
+{% block content %}
+  <header class="ob-header">
+    <a class="ob-logo" href="/">
+      <span class="ob-logo-dot"></span>InterviewAce
+    </a>
+  </header>
+
+  <main class="ob-main">
+    <div class="ob-intro">
+      <h1>You're in. Here's what it looks like.</h1>
+      <p>A 60-second simulated interview call so you can see InterviewAce in action before you set anything up.</p>
+    </div>
+    <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding">Skip the demo — go straight to setup →</a></p>
+  </main>
+
+  {% include "_mock_interview.html" %}
+  <script src="/static/js/mock_interview.js"></script>
+  <script>
+    window.MI_HOTKEYS = {
+      capture: '{{ capture }}',
+      audio:   '{{ audio }}',
+      toggle:  '{{ toggle }}',
+      replay:  '{{ replay }}',
+      typing:  '{{ typing }}',
+    };
+    window.MI_FIRST_RUN_CTA_LABEL = 'Start setup →';
+    window.MI_ON_FIRST_RUN_FINISH = function () {
+      window.location.href = '/onboarding';
+    };
+    openMockInterview(true);
+  </script>
+{% endblock %}
