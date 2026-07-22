@@ -2,8 +2,9 @@
 
 ## Now
 
-
-
+- [ ] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
+- [ ] pull onboarding4 
+- [ ] after welcome, tell people they can change hotkeys at any time
 
 ## Soon 
 - [ ] google login

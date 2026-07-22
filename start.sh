@@ -20,9 +20,19 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-echo "=== Starting Redis (sudo password may be required) ==="
+echo "=== Starting Redis ==="
 if [ "$(redis-cli ping 2>/dev/null)" != "PONG" ]; then
-  sudo service redis-server start
+  if [ "$(uname)" = "Darwin" ]; then
+    # macOS: prefer Homebrew services, fall back to a daemonized redis-server.
+    if command -v brew >/dev/null 2>&1; then
+      brew services start redis
+    else
+      redis-server --daemonize yes
+    fi
+  else
+    # Linux / WSL: sudo password may be required.
+    sudo service redis-server start
+  fi
   for _ in 1 2 3 4 5; do
     [ "$(redis-cli ping 2>/dev/null)" = "PONG" ] && break
     sleep 1

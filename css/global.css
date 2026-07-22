@@ -367,6 +367,10 @@ input[type=range]::-moz-range-thumb {
   .navbar-links.open { display: flex; }
   .navbar-hamburger { display: flex; align-items: center; }
   .navbar-link { padding: 10px 8px; }
+  /* Make the admin dropdown toggle fill the row like the other links, so tapping
+     anywhere inline opens it (not just the button text). */
+  .navbar-dropdown { width: 100%; }
+  .navbar-dropdown-toggle { width: 100%; justify-content: space-between; }
   .navbar-dropdown-menu {
     display: none;
     position: static;

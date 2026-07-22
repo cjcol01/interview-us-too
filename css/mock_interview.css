@@ -505,6 +505,32 @@
   .mi-call-right { width: 428px; padding: 24px; border-left: 1px solid rgba(255,255,255,0.08); }
 }
 
+/* ── Small screens: the phone would otherwise swallow the whole stage. Instead
+   it peeks from the bottom (its header stays visible so you know it's there) and
+   rises to "take focus" only when the answer surface matters — i.e. when a
+   hotkey nudge / answer is shown. Driven by miShowPhonePanel() toggling
+   .mi-phone-focus. Desktop (>=900px) split layout is unaffected. */
+@media (max-width: 899px) {
+  .mi-call-right {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 20;
+    padding: 0 12px;
+    background: transparent;
+    pointer-events: none;                 /* peeking: let taps reach the call */
+    transform: translateY(calc(100% - 74px));   /* only the phone header peeks */
+    transition: transform .45s cubic-bezier(.22, 1, .36, 1);
+  }
+  .mi-call-right.mi-phone-focus {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .mi-phone-bezel {
+    max-height: calc(100dvh - 88px);      /* keep the call topbar visible when raised */
+    box-shadow: 0 -18px 60px rgba(0,0,0,0.7);
+  }
+}
+
 .mi-phone { position: relative; width: 100%; max-width: 326px; }
 .mi-phone-bezel {
   position: relative;

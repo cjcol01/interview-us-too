@@ -136,7 +136,7 @@ const MI_BEATS = [
     ],
     line: "Now how would you solve it recursively instead?",
     popup: 'Hold the hotkey to talk, then release to send.',
-    transcription: 'uh, how would I do this one recursively?',
+    transcription: 'Hmm, let me think, how would I do this recursively',
     answer: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):\n    seen = seen if seen is not None else {}\n    if i == len(nums):\n        return None\n    if target - nums[i] in seen:\n        return [seen[target - nums[i]], i]\n    seen[nums[i]] = i\n    return two_sum(nums, target, i + 1, seen)\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
     youReply: "I'd peel off one element at a time, checking the same hash map at each call until I hit a match or run out of numbers — same idea as the loop, just recursive.",
     recap: 'Speak the question out loud',
@@ -174,8 +174,8 @@ const MI_BEATS = [
 // first-time viewer knows which hotkey to press and where the answer will land.
 const MI_NUDGES = {
   capture: { eyebrow: 'Stuck?', body: 'Send your screen — the answer shows up here.' },
-  audio:   { eyebrow: 'One linked conversation', body: "Want to tweak an answer? Just ask a clarifying question — it remembers everything so far, not four separate chats." },
-  replay:  { eyebrow: 'Missed the question?', body: "Replay the last 30 seconds — it also folds in whatever context you've saved (company, role, style) automatically." },
+  audio:   { eyebrow: 'One linked conversation', body: "Want to tweak an answer? Just ask or type a clarifying question — it remembers everything so far" },
+  replay:  { eyebrow: 'Missed the question?', body: "Replay the last 30 seconds of audio. You can also upload context about yourself or the company ahead of time for the AI to draw from." },
   typing:  { eyebrow: 'Not sure where to start?', body: 'Type it privately — the answer shows up here.' },
 };
 
@@ -244,6 +244,17 @@ function miShowPhonePanel(id) {
   if (id) document.getElementById(id).classList.add('active');
 }
 
+// Small screens: raise the phone to "take focus" (rises to cover) or drop it to a peek.
+// No-op on desktop — the transform rules only exist under @media (max-width: 899px).
+// Focus is driven explicitly (not from the panel id) so we can control exactly when the
+// phone pops up (a beat after "Need help?" appears) and drops (after the user has had a
+// moment to read the finished answer, and before the spoken reply fires).
+function miPhoneFocus(on) {
+  const right = document.querySelector('#mock-interview-overlay .mi-call-right');
+  if (right) right.classList.toggle('mi-phone-focus', !!on);
+}
+
+
 function miStartCallTimer() {
   clearInterval(_miCallInterval);
   _miCallSecs = 0;
@@ -269,6 +280,7 @@ function miResetCallState() {
   _miAwaitingBeat = null;
   miDismissHotkeyNudge();
   miShowPhonePanel('mi-phone-idle');
+  miPhoneFocus(false);
   document.getElementById('mi-interviewer-tile').classList.remove('speaking');
   document.getElementById('mi-you-tile').classList.remove('speaking');
   document.getElementById('mi-you-status').classList.remove('live');
@@ -305,6 +317,7 @@ function miNextBeat() {
 
   document.getElementById('mi-phone-progress').textContent = `Private · Question ${_miIndex + 1} of ${MI_BEATS.length}`;
   miShowPhonePanel('mi-phone-idle');
+  miPhoneFocus(false);
   document.getElementById('mi-you-status').classList.remove('live');
   if (!beat.screenshot) miHideScreenshot();
 
@@ -341,6 +354,8 @@ function miShowNeedHelp(beat) {
   _miAwaitingBeat = beat;
   miShowPhonePanel('mi-need-help');
   miShowHotkeyNudge(beat);
+  // Let the phone sit at a peek for a beat first, then pop up to take focus.
+  miAfter(1000, () => miPhoneFocus(true));
 }
 
 // Typing beat: pressing the hotkey (or the button) opens the typing box and autotypes the
@@ -442,13 +457,18 @@ function miRevealAnswer(beat, typedText) {
   miRenderSendingPhases(beat, () => {
     body.innerHTML = '';
     miStreamMarkdown(body, beat.answer, () => {
-      // The AI's answer is private — now you relay it back to the interviewer out loud.
-      miAfter(1400, () => {
-        miSpeak(beat.youReply, 'you', () => {
-          miAfter(900, () => {
-            const hasNext = _miIndex + 1 < MI_BEATS.length;
-            const line = hasNext ? 'Great — next question…' : "That's everything — nice work.";
-            miSpeak(line, 'interviewer', () => miAfter(hasNext ? 900 : 2400, miNextBeat));
+      // Give the user a moment to read the finished answer, then drop the phone out of
+      // focus. Only once it's dropped do you relay the answer back to the interviewer,
+      // so attention has clearly left the phone before the spoken reply fires.
+      miAfter(2500, () => {
+        miPhoneFocus(false);
+        miAfter(600, () => {                 // let the drop animation settle first
+          miSpeak(beat.youReply, 'you', () => {
+            miAfter(900, () => {
+              const hasNext = _miIndex + 1 < MI_BEATS.length;
+              const line = hasNext ? 'Great — next question…' : "That's everything — nice work.";
+              miSpeak(line, 'interviewer', () => miAfter(hasNext ? 900 : 2400, miNextBeat));
+            });
           });
         });
       });
