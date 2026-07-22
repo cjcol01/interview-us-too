@@ -124,13 +124,13 @@ def register(test, skip, client=None):
 
             res = client.post("/auth/reset-password", json={
                 "token": token,
-                "new_password": "newpass456",
+                "new_password": "NewPass456!",
             })
             assert res.status_code == 200, res.text
 
             db.expire(u)
             db.refresh(u)
-            assert verify_password("newpass456", u.password_hash)
+            assert verify_password("NewPass456!", u.password_hash)
             assert u.reset_token is None
             assert u.reset_token_expiry is None
         finally:
@@ -235,11 +235,11 @@ def register(test, skip, client=None):
             db.add(u)
             db.commit()
 
-            res = client.post("/auth/reset-password", json={"token": token, "new_password": "newpass456"})
+            res = client.post("/auth/reset-password", json={"token": token, "new_password": "NewPass456!"})
             assert res.status_code == 200
 
             # Second use with the same token should fail
-            res2 = client.post("/auth/reset-password", json={"token": token, "new_password": "anotherpass789"})
+            res2 = client.post("/auth/reset-password", json={"token": token, "new_password": "AnotherPass789!"})
             assert res2.status_code == 400
         finally:
             u2 = db.query(User).filter(User.username == "_reset_1use_test").first()

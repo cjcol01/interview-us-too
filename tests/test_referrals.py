@@ -49,7 +49,7 @@ def register(test, skip, client):
         uname = f"_ref_reg_{tag}"
         r = client.post("/auth/register", json={
             "full_name": "Ref Test", "username": uname,
-            "email": f"{uname}@test.internal", "password": "testpassword123",
+            "email": f"{uname}@test.internal", "password": "TestPassword123!",
         })
         try:
             assert r.status_code == 200
@@ -74,7 +74,7 @@ def register(test, skip, client):
                 "/auth/register",
                 json={
                     "full_name": "Referee", "username": referee_uname,
-                    "email": f"{referee_uname}@test.internal", "password": "testpassword123",
+                    "email": f"{referee_uname}@test.internal", "password": "TestPassword123!",
                 },
                 cookies={"ref": referrer.referral_code},
             )
@@ -103,7 +103,7 @@ def register(test, skip, client):
                 "/auth/register",
                 json={
                     "full_name": "No Ref", "username": uname,
-                    "email": f"{uname}@test.internal", "password": "testpassword123",
+                    "email": f"{uname}@test.internal", "password": "TestPassword123!",
                 },
                 cookies={"ref": "invalidcode999"},
             )
@@ -135,7 +135,7 @@ def register(test, skip, client):
                 "/auth/register",
                 json={
                     "full_name": "Self", "username": new_uname,
-                    "email": f"{new_uname}@test.internal", "password": "testpassword123",
+                    "email": f"{new_uname}@test.internal", "password": "TestPassword123!",
                 },
                 cookies={"ref": own_code},
             )

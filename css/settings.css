@@ -30,6 +30,26 @@
   color: var(--accent);
 }
 
+/* ── Session-start notice (paid/session-based users, Shortcuts section) ── */
+.session-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: rgba(245,166,35,.08);
+  border: 1px solid rgba(245,166,35,.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+.session-notice svg { flex: none; margin-top: 3px; }
+.session-notice p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  margin: 0;
+}
+.session-notice strong { color: var(--text-1); }
+
 /* ── Page layout ── */
 .settings-wrap {
   flex: 1;

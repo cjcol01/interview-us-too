@@ -41,7 +41,7 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 - `templates/` — Jinja2 templates. `base.html` is the layout parent.
 - `tests/` — custom test harness (`harness.py`), not pytest. Each `test_*.py` exports a `register(test, skip, client)` function called from `run_tests.py`.
 
-**Redis usage:** capture state (`user:{id}:capture`), complexity setting (`user:{id}:complexity`), and pub/sub channel (`user:{id}:events`) for SSE streaming. Fakeredis is used in tests via `TESTING=1`.
+**Redis usage:** capture state (`user:{id}:capture`), complexity setting (`user:{id}:complexity`), pub/sub channel (`user:{id}:events`) for SSE streaming, and rolling conversation history (`user:{id}:history`) — a bounded list of the last `HISTORY_MAX_EXCHANGES` (default 5) exchanges, text-only (screenshots are never re-sent, only the current capture's own image), shared across all three capture endpoints and prepended to the Claude/OpenAI `messages` array in `_stream_ai_response`. Skipped if the gap since the last capture exceeds `HISTORY_TOPIC_GAP_SECONDS` (default 5min); cleared when a genuinely new `InterviewSession` starts, with a TTL matching session length as a backstop. Fakeredis is used in tests via `TESTING=1`.
 
 **Session model:** `InterviewSession` tracks 2.5-hour paid sessions and 10-minute trials. Paid users get sessions deducted from `sessions_remaining` when starting a new one.
 

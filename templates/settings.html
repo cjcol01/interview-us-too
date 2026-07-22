@@ -264,6 +264,17 @@
           <div class="section-hd">
             <h2 class="section-title">Shortcuts</h2>
           </div>
+
+          {% if account_level == 'paid' %}
+          <div class="session-notice">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2.2">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <p><strong>Heads up:</strong> because InterviewAce stays discreet, there's no "start a session?" popup. If the extension is on and you press the screen capture hotkey, it starts a session immediately — spending one of your {{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}. Toggle the extension off between interviews to avoid using one by accident.</p>
+          </div>
+          {% endif %}
+
           <div class="settings-card">
             <div class="hk-row">
               <div class="hk-info">

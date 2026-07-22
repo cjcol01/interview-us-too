@@ -103,6 +103,10 @@ with TestClient(app) as client:
     import tests.test_health
     tests.test_health.register(test, skip, client)
 
+    section("Admin Health — Metrics")
+    import tests.test_metrics
+    tests.test_metrics.register(test, skip, client)
+
     section("Admin — Announcements")
     import tests.test_announcements
     tests.test_announcements.register(test, skip, client)
@@ -130,6 +134,10 @@ with TestClient(app) as client:
     section("AI Fallback")
     import tests.test_ai_fallback
     tests.test_ai_fallback.register(test, skip, client)
+
+    section("Session History")
+    import tests.test_session_history
+    tests.test_session_history.register(test, skip, client)
 
     section("Typing Mode")
     import tests.test_typing

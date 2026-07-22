@@ -33,11 +33,12 @@ from sqlalchemy.orm import Session, aliased
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
-from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, verify_password
+from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
+from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
 
 # test comment for cicd
@@ -175,15 +176,34 @@ async def _request_logger(request: Request, call_next):
     token = request.cookies.get("session")
     if token:
         user_id = decode_user_id(token)
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception:
+        # Starlette hoists the handler registered for the base Exception type (ours, above)
+        # to the outermost ServerErrorMiddleware — which sits above this middleware and always
+        # re-raises after building the 500 response, so an unhandled exception never comes back
+        # to us as a response object here; it comes back as a raised exception. Count it as a
+        # 5xx here, then re-raise so ServerErrorMiddleware still builds the actual response.
+        await _incr_hourly_metric(request.app.state.redis, HTTP_5XX_PREFIX)
+        raise
     ms = int((time.time() - start) * 1000)
     logger.info("%s %s → %d (%dms) user=%s", request.method, request.url.path, response.status_code, ms, user_id)
+    if response.status_code >= 500:
+        # A route that returns (rather than raises) a 5xx response takes this path instead.
+        await _incr_hourly_metric(request.app.state.redis, HTTP_5XX_PREFIX)
     return response
 
 
 @app.exception_handler(Exception)
 async def _unhandled_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+    # user= identifies who triggered it. The query string disambiguates routes that serve
+    # several distinct UI actions off the same path (e.g. /billing/checkout?plan=... covers
+    # both "Top up sessions" and "Upgrade to Unlimited") without needing to log request bodies,
+    # which for other routes could mean passwords or multi-MB base64 screenshot/audio payloads.
+    token = request.cookies.get("session")
+    user_id = decode_user_id(token) if token else None
+    path = f"{request.url.path}?{request.url.query}" if request.url.query else request.url.path
+    logger.exception("Unhandled exception on %s %s (user=%s)", request.method, path, user_id)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
@@ -207,18 +227,24 @@ openai_async_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 _OPENAI_VISION_MODEL = "gpt-5.4"
 
 
-async def _stream_ai_response(r, user_id: int, prompt: str, img_b64: Optional[str] = None, capture_id: Optional[int] = None) -> str:
+async def _stream_ai_response(r, user_id: int, prompt: str, img_b64: Optional[str] = None, capture_id: Optional[int] = None, history: Optional[list] = None) -> str:
     """Streams Claude's reply chunk-by-chunk via SSE broadcast (the normal path). If Claude
     errors — outage, rate limit, timeout — transparently fails over to OpenAI's vision model,
     streamed the same way, so a failover reply still trickles in token-by-token instead of
-    popping in all at once."""
+    popping in all at once.
+
+    `history` is an optional list of {"role", "content"} turns from the bounded rolling
+    window (see _load_history_messages) — prepended ahead of the current turn for both
+    providers. Only the current (final) turn ever carries an image or the full prompt
+    text; historical turns are lightweight text only, so a past screenshot can never be
+    resent."""
     content = ([{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": img_b64}}] if img_b64 else []) + [{"type": "text", "text": prompt}]
     try:
         full_text = ""
         async with async_client.messages.stream(
             model="claude-sonnet-4-6",
             max_tokens=1024,
-            messages=[{"role": "user", "content": content}],
+            messages=(history or []) + [{"role": "user", "content": content}],
         ) as stream:
             async for text in stream.text_stream:
                 full_text += text
@@ -232,7 +258,7 @@ async def _stream_ai_response(r, user_id: int, prompt: str, img_b64: Optional[st
         stream = await openai_async_client.chat.completions.create(
             model=_OPENAI_VISION_MODEL,
             max_completion_tokens=1024,
-            messages=[{"role": "user", "content": openai_content}],
+            messages=(history or []) + [{"role": "user", "content": openai_content}],
             stream=True,
         )
         async for chunk in stream:
@@ -333,7 +359,11 @@ def _context_suffix(user, db: Session) -> str:
     ).first()
     if not ctx or not ctx.text:
         return ""
-    return f"\n\nAdditional context provided by the candidate about this interview:\n{ctx.text}"
+    return (
+        "\n\nBackground context about this candidate/interview, for reference only. "
+        "Only bring this up or factor it into your answer if it's directly relevant to "
+        f"the specific question asked — otherwise ignore it and answer normally:\n{ctx.text}"
+    )
 
 
 def _user_hotkeys(user) -> dict:
@@ -356,6 +386,22 @@ def _capture_key(uid: int) -> str:    return f"user:{uid}:capture"
 def _complexity_key(uid: int) -> str: return f"user:{uid}:complexity"
 def _events_channel(uid: int) -> str: return f"user:{uid}:events"
 
+# Bounded rolling-window conversation history, shared across all three capture
+# endpoints (screenshot/text/audio). Named "history", not "context", to avoid
+# confusion with the separate, DB-backed InterviewContext ("interview context"
+# tab) feature. Both knobs below are safe to tune by editing the constant alone:
+# HISTORY_TOPIC_GAP_SECONDS is a plain comparison; HISTORY_MAX_EXCHANGES <= 0
+# is explicitly guarded in _append_history (see comment there) so "0" cleanly
+# reverts to today's fully-stateless behavior instead of hitting Redis's
+# LTRIM "-0 is just 0" footgun.
+HISTORY_MAX_EXCHANGES      = 5
+HISTORY_REPLY_MAX_CHARS    = 1600   # ~400 tokens
+HISTORY_QUESTION_MAX_CHARS = 1600
+HISTORY_TOPIC_GAP_SECONDS  = 300    # ~5 min — past this, treat it as a new topic
+SCREENSHOT_PLACEHOLDER     = "[Screenshot capture]"
+
+def _history_key(uid: int) -> str: return f"user:{uid}:history"
+
 
 async def get_capture_state(r, user_id: int) -> dict:
     data = await r.hgetall(_capture_key(user_id))
@@ -369,7 +415,71 @@ async def get_complexity(r, user_id: int) -> int:
     return int(val) if val is not None else 2
 
 
-def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESSION_DURATION) -> InterviewSession:
+def _truncate(s: str, n: int) -> str:
+    return s if len(s) <= n else s[:n]
+
+
+def _history_ttl(account_level) -> int:
+    return int(TRIAL_DURATION.total_seconds()) if account_level == AccountLevel.trial else int(SESSION_DURATION.total_seconds())
+
+
+async def _load_history_messages(r, user_id: int) -> list:
+    """Reconstructs the rolling-window history as alternating user/assistant
+    turns (oldest first). Returns [] if there's no history, if the most recent
+    exchange is older than HISTORY_TOPIC_GAP_SECONDS (treated as a new topic —
+    the caller still appends the new exchange afterward), or on any Redis error
+    (never fail a capture over the history feature)."""
+    try:
+        raw = await r.lrange(_history_key(user_id), 0, -1)
+        if not raw:
+            return []
+        entries = [json.loads(item) for item in raw]
+        if time.time() - entries[-1]["ts"] > HISTORY_TOPIC_GAP_SECONDS:
+            return []
+        messages = []
+        for entry in entries:
+            messages.append({"role": "user", "content": entry["q"]})
+            messages.append({"role": "assistant", "content": entry["a"]})
+        return messages
+    except Exception as e:
+        logger.error("[history] failed to load history for user %s: %s", user_id, e)
+        return []
+
+
+async def _append_history(r, user_id: int, src: str, question: str, reply: str, account_level) -> None:
+    """Appends one completed exchange to the rolling window, trimmed to
+    HISTORY_MAX_EXCHANGES. No-op if HISTORY_MAX_EXCHANGES <= 0 (see the
+    constant's doc comment) or on any Redis error."""
+    if HISTORY_MAX_EXCHANGES <= 0:
+        return
+    try:
+        key = _history_key(user_id)
+        entry = json.dumps({
+            "src": src,
+            "q": _truncate(question, HISTORY_QUESTION_MAX_CHARS),
+            "a": _truncate(reply, HISTORY_REPLY_MAX_CHARS),
+            "ts": time.time(),
+        })
+        await r.rpush(key, entry)
+        await r.ltrim(key, -HISTORY_MAX_EXCHANGES, -1)
+        await r.expire(key, _history_ttl(account_level))
+    except Exception as e:
+        logger.error("[history] failed to append history for user %s: %s", user_id, e)
+
+
+async def _clear_history(r, user_id: int) -> None:
+    try:
+        await r.delete(_history_key(user_id))
+    except Exception as e:
+        logger.error("[history] failed to clear history for user %s: %s", user_id, e)
+
+
+def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESSION_DURATION) -> tuple:
+    """Returns (session, created) — `created` is True only when a brand-new
+    InterviewSession row was inserted (no active session existed), False when
+    an existing active session was reused. Callers use this to know when it's
+    safe to clear session-scoped Redis state (like rolling history) without
+    wiping context from a session still in progress."""
     now = datetime.utcnow()
     session = db.query(InterviewSession).filter(
         InterviewSession.user_id == user_id,
@@ -385,7 +495,8 @@ def _get_or_create_session(db: Session, user_id: int, duration: timedelta = SESS
         db.add(session)
         db.commit()
         db.refresh(session)
-    return session
+        return session, True
+    return session, False
 
 
 def require_subscription(user: User = Depends(get_current_user)) -> User:
@@ -614,8 +725,9 @@ async def auth_register(
         raise HTTPException(status_code=400, detail="Username already taken.")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered.")
-    if len(body.password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    password_error = validate_password(body.password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
 
     user = User(
         username=body.username,
@@ -734,8 +846,9 @@ async def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(
     user = db.query(User).filter(User.reset_token == body.token).first()
     if not user or not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invalid or expired reset link.")
-    if len(body.new_password) < 8:
-        raise HTTPException(status_code=400, detail="Password must be at least 8 characters.")
+    password_error = validate_password(body.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
     user.password_hash = hash_password(body.new_password)
     user.reset_token = None
     user.reset_token_expiry = None
@@ -1621,6 +1734,127 @@ async def _last_webhook_status(r) -> dict:
     return {"ok": not stale, "detail": f"{round(age_min)} min ago", "latency_ms": None}
 
 
+# ---------------------------------------------------------------------------
+# Metrics section of /admin/health — cheap local reads, no outbound calls.
+# Resend-failure/5xx counters are hourly buckets written by metrics.py (mailer.py) and the
+# _request_logger middleware above; summed here over a rolling 24h window.
+# ---------------------------------------------------------------------------
+
+async def _incr_hourly_metric(r, prefix: str) -> None:
+    """Best-effort — a metrics failure must never break the request/email it's counting."""
+    try:
+        key = hourly_bucket_key(prefix)
+        await r.incr(key)
+        await r.expire(key, METRIC_TTL_SECONDS)
+    except Exception:
+        pass
+
+
+async def _sum_hourly_metric(r, prefix: str, hours: int = 24) -> int:
+    now = datetime.utcnow()
+    keys = [hourly_bucket_key(prefix, now - timedelta(hours=i)) for i in range(hours)]
+    try:
+        values = await r.mget(keys)
+    except Exception:
+        return 0
+    return sum(int(v) for v in values if v)
+
+
+_LOG_FILENAME = "test_app.log" if os.getenv("TESTING") == "1" else "app.log"
+_LOG_ENTRY_HEADER_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[(\w+)\]")
+
+
+def _recent_error_log_entries(max_entries: int = 20) -> list:
+    """Tails app.log (written by the RotatingFileHandler set up in analytics.py) for the
+    admin health page's 'Recent errors' section. Groups continuation lines (tracebacks)
+    with the header line that started them — filtering line-by-line would strip a
+    traceback's body away from the ERROR line that explains what failed."""
+    log_path = os.path.join(DATA_DIR, _LOG_FILENAME)
+    if not os.path.exists(log_path):
+        return []
+    try:
+        with open(log_path, "r", errors="replace") as f:
+            lines = f.readlines()
+    except Exception:
+        return []
+
+    entries, current, current_level = [], [], None
+    for line in lines:
+        m = _LOG_ENTRY_HEADER_RE.match(line)
+        if m:
+            if current and current_level in ("ERROR", "CRITICAL"):
+                entries.append("".join(current).rstrip())
+            current, current_level = [line], m.group(1)
+        else:
+            current.append(line)
+    if current and current_level in ("ERROR", "CRITICAL"):
+        entries.append("".join(current).rstrip())
+    return entries[-max_entries:]
+
+
+def _db_disk_usage() -> dict:
+    """DB file size already appears folded into the Database core check (row count + size);
+    this is the same number surfaced on its own, plus the WAL/SHM sidecars for true on-disk
+    footprint — those aren't reflected by the main file's size alone under WAL mode."""
+    db_filename = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"
+    total_bytes = 0
+    for suffix in ("", "-wal", "-shm"):
+        path = os.path.join(DATA_DIR, db_filename + suffix)
+        if os.path.exists(path):
+            total_bytes += os.path.getsize(path)
+    size_mb = round(total_bytes / 1024 / 1024, 2)
+    return {"ok": True, "detail": f"{size_mb} MB on disk (main + WAL/SHM)", "latency_ms": None}
+
+
+def _billing_summary(db: Session) -> dict:
+    active_subs = db.query(User).filter(
+        User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None)
+    ).count()
+    pending_cancellations = db.query(User).filter(User.sub_cancel_at.isnot(None)).count()
+    paid_session_users = db.query(User).filter(User.account_level == AccountLevel.paid).count()
+    low_sessions = db.query(User).filter(
+        User.account_level == AccountLevel.paid, User.sessions_remaining <= 1
+    ).count()
+    detail = (
+        f"{active_subs} active sub(s), {paid_session_users} session user(s) "
+        f"({low_sessions} on ≤1 session), {pending_cancellations} cancelling"
+    )
+    return {"ok": True, "detail": detail, "latency_ms": None}
+
+
+_RATE_LIMIT_ENDPOINTS = {
+    # endpoint name (matches the `endpoint` arg passed to _rate_limit) -> its per-minute `limit`.
+    "login_ip": 20, "login_user": 6, "register": 10,
+    "resend_verification": 3, "forgot_password_email": 3, "forgot_password_ip": 10,
+    "capture": 6, "audio": 10,
+}
+
+
+async def _rate_limit_headroom(r) -> list:
+    """Per-minute rate-limit activity across the endpoints _rate_limit gates. Scans the
+    `rl:*:{endpoint}:count` keys (the per-minute counters) rather than every individual
+    user/IP, and reports the busiest single counter seen against its configured limit —
+    enough to see at a glance whether anyone is close to the ceiling, without walking
+    every key's owner."""
+    results = []
+    for endpoint, limit in _RATE_LIMIT_ENDPOINTS.items():
+        try:
+            keys = [k async for k in r.scan_iter(match=f"rl:*:{endpoint}:count", count=200)]
+            values = await r.mget(keys) if keys else []
+        except Exception as e:
+            results.append({"name": endpoint, "ok": None, "detail": f"scan failed: {e}", "latency_ms": None})
+            continue
+        counts = [int(v) for v in values if v]
+        peak = max(counts) if counts else 0
+        results.append({
+            "name": endpoint,
+            "ok": peak < limit,
+            "detail": f"{len(counts)} active, peak {peak}/{limit} per min",
+            "latency_ms": None,
+        })
+    return results
+
+
 _CONFIG_CHECKS = [
     ("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY),
     ("OPENAI_API_KEY", OPENAI_API_KEY),
@@ -1701,6 +1935,25 @@ def _check_stripe() -> dict:
         return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
 
 
+def _check_sideload() -> dict:
+    """Checks both the jsDelivr CDN fronting the extension zip and the same-origin mirror
+    /install-manual falls back to — see SIDELOAD_ZIP_URL's comment in config.py."""
+    start = time.monotonic()
+    if not SIDELOAD_ENABLED:
+        return {"ok": None, "detail": "sideload page disabled (SIDELOAD_ENABLED=0)", "latency_ms": None}
+    try:
+        cdn = requests.head(SIDELOAD_ZIP_URL, timeout=8, allow_redirects=True)
+        mirror = requests.head(f"{BASE_URL}/static/extension/interviewace-extension.zip", timeout=8, allow_redirects=True)
+        ok = cdn.status_code < 400 and mirror.status_code < 400
+        return {
+            "ok": ok,
+            "detail": f"CDN HTTP {cdn.status_code}, mirror HTTP {mirror.status_code}",
+            "latency_ms": round((time.monotonic() - start) * 1000, 1),
+        }
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
+
+
 _HEALTH_CHECK_ROUTES = ["/", "/login", "/pricing", "/faq", "/healthz"]
 
 
@@ -1732,14 +1985,39 @@ async def admin_health(
         "disk": _check_disk(),
         "last_webhook": await _last_webhook_status(r),
     }
+    resend_failures_24h = await _sum_hourly_metric(r, EMAIL_FAIL_PREFIX)
+    http_5xx_24h = await _sum_hourly_metric(r, HTTP_5XX_PREFIX)
+    metrics = {
+        "db_disk": _db_disk_usage(),
+        "billing": _billing_summary(db),
+        "resend_failures": {"ok": resend_failures_24h == 0, "detail": f"{resend_failures_24h} in last 24h", "latency_ms": None},
+        "http_5xx": {"ok": http_5xx_24h == 0, "detail": f"{http_5xx_24h} in last 24h", "latency_ms": None},
+        "rate_limits": await _rate_limit_headroom(r),
+    }
     uptime_seconds = int((datetime.utcnow() - request.app.state.started_at).total_seconds())
     return templates.TemplateResponse(request=request, name="admin_health.html", context={
         "checks": checks,
+        "metrics": metrics,
         "config_status": _config_status(),
         "app_version": APP_VERSION,
         "uptime_display": _format_duration(uptime_seconds),
         "show_navbar": True,
     })
+
+
+@app.get("/admin/health/logs")
+async def admin_health_logs(
+    max_entries: int = 20,
+    _: None = Depends(_require_author),
+):
+    """On-demand — the page fetches this only when the 'Show recent errors' button under
+    the Error rate row is clicked, rather than reading/parsing the log file on every plain
+    page load (mirrors why the deep checks below are opt-in, not cost-driven here but the
+    same 'skip it until someone actually wants it' logic)."""
+    return {
+        "entries": list(reversed(_recent_error_log_entries(max_entries))),
+        "log_file_path": os.path.join(DATA_DIR, _LOG_FILENAME),
+    }
 
 
 @app.get("/admin/health/deep/{name}")
@@ -1761,6 +2039,8 @@ async def admin_health_deep_check(
         return await asyncio.to_thread(_check_deepgram)
     if name == "stripe":
         return await asyncio.to_thread(_check_stripe)
+    if name == "sideload":
+        return await asyncio.to_thread(_check_sideload)
     raise HTTPException(status_code=404, detail="Unknown check")
 
 
@@ -2247,7 +2527,7 @@ async def mobile_login(token: str, request: Request, db: Session = Depends(get_d
 
 
 @app.post("/api/trial/start")
-async def trial_start(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def trial_start(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.account_level != AccountLevel.trial:
         raise HTTPException(status_code=400, detail="Not a trial account")
     existing = db.query(InterviewSession).filter(
@@ -2256,8 +2536,11 @@ async def trial_start(user: User = Depends(get_current_user), db: Session = Depe
     if existing:
         raise HTTPException(status_code=400, detail="Trial already used")
     user.setup_complete = True
-    session = _get_or_create_session(db, user.id, TRIAL_DURATION)
+    session, _ = _get_or_create_session(db, user.id, TRIAL_DURATION)
     db.commit()
+    # The `existing` check above guarantees this session was just newly created —
+    # clear unconditionally so a trial never inherits history from a prior session.
+    await _clear_history(request.app.state.redis, user.id)
     track(user.id, "trial_started")
     return {
         "started_at": session.started_at.isoformat(),
@@ -2311,7 +2594,9 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
                 raise HTTPException(status_code=403, detail="sessions_exhausted")
             user.sessions_remaining -= 1
             db.commit()
-        _get_or_create_session(db, user.id)
+        _, created = _get_or_create_session(db, user.id)
+        if created:
+            await _clear_history(r, user.id)
 
     img_b64 = body.image
     if "," in img_b64:
@@ -2326,9 +2611,11 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
+    prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style]
 
-    full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id)
+    history = await _load_history_messages(r, user.id)
+    full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id, history=history)
+    await _append_history(r, user.id, "screenshot", SCREENSHOT_PLACEHOLDER, full_text, user.account_level)
 
     ts = time.strftime("%H:%M:%S")
     await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
@@ -2362,15 +2649,19 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
                 raise HTTPException(status_code=403, detail="sessions_exhausted")
             user.sessions_remaining -= 1
             db.commit()
-        _get_or_create_session(db, user.id)
+        _, created = _get_or_create_session(db, user.id)
+        if created:
+            await _clear_history(r, user.id)
 
     await broadcast(r, user.id, "typing-working", {"text": body.text})
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
+    prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style]
 
-    full_text = await _stream_ai_response(r, user.id, prompt)
+    history = await _load_history_messages(r, user.id)
+    full_text = await _stream_ai_response(r, user.id, prompt, history=history)
+    await _append_history(r, user.id, "text", body.text, full_text, user.account_level)
 
     await broadcast(r, user.id, "typing-analysis", {
         "input": body.text,
@@ -2421,8 +2712,10 @@ async def api_audio_capture(
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
-        prompt = AI_PROMPT + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style] + _context_suffix(user, db)
-        full_text = await _stream_ai_response(r, user.id, prompt)
+        prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
+        history = await _load_history_messages(r, user.id)
+        full_text = await _stream_ai_response(r, user.id, prompt, history=history)
+        await _append_history(r, user.id, "audio", transcription_text, full_text, user.account_level)
 
         await broadcast(r, user.id, "audio-analysis", {
             "transcription": transcription_text,
@@ -2607,8 +2900,9 @@ async def change_password(
 ):
     if not verify_password(body.current_password, user.password_hash):
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
-    if len(body.new_password) < 8:
-        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
+    password_error = validate_password(body.new_password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
     user.password_hash = hash_password(body.new_password)
     db.commit()
     return {"status": "ok"}
@@ -2653,7 +2947,7 @@ async def account_delete_confirm(
     db.commit()
 
     r = request.app.state.redis
-    await r.delete(_capture_key(user_id), _complexity_key(user_id))
+    await r.delete(_capture_key(user_id), _complexity_key(user_id), _history_key(user_id))
 
     response = RedirectResponse("/login?deleted=1", status_code=303)
     response.delete_cookie("session")

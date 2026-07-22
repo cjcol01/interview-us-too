@@ -2,6 +2,7 @@
 Whisper -> Deepgram (in /api/audio-capture). Both primaries are mocked to fail so these
 run without live keys; the fallback call itself is also mocked (no real Deepgram/OpenAI
 vision spend in CI)."""
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 _MINIMAL_PNG_B64 = (
@@ -109,5 +110,53 @@ def register(test, skip, client):
         def text_stream(self):
             return self._gen()
 
+    def test_openai_fallback_carries_history_prefix():
+        """When Claude fails over to OpenAI mid-session, the accumulated rolling-window
+        history must still be prepended to the OpenAI messages array — the failover
+        doesn't get to silently drop context just because the provider changed."""
+        import server
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.paid)
+            u.sessions_remaining = 5
+            db.commit()
+
+            orig_stream = server.async_client.messages.stream
+            orig_openai = server.openai_async_client.chat.completions.create
+            try:
+                # First capture: Claude succeeds, seeding one history exchange.
+                server.async_client.messages.stream = lambda *a, **k: _FakeAsyncStream()
+                r = client.post(
+                    "/api/capture",
+                    json={"image": _MINIMAL_PNG_B64, "complexity": 2, "monitor": "browser"},
+                    headers={"Authorization": f"Bearer {u.api_token}"},
+                )
+                assert r.status_code == 200, r.text
+                asyncio.run(server.app.state.redis.delete(f"rl:{u.id}:capture:last", f"rl:{u.id}:capture:count"))
+
+                # Second capture: Claude fails, falls over to OpenAI — history should
+                # still be attached ahead of the current turn.
+                server.async_client.messages.stream = _raise
+                server.openai_async_client.chat.completions.create = AsyncMock(
+                    return_value=_FakeOpenAIStream(["fallback ", "answer"])
+                )
+                r = client.post(
+                    "/api/capture",
+                    json={"image": _MINIMAL_PNG_B64, "complexity": 2, "monitor": "browser"},
+                    headers={"Authorization": f"Bearer {u.api_token}"},
+                )
+                assert r.status_code == 200, r.text
+                _, kwargs = server.openai_async_client.chat.completions.create.call_args
+                assert len(kwargs["messages"]) == 3  # history user + history assistant + current user
+                assert kwargs["messages"][0]["role"] == "user"
+                assert kwargs["messages"][1]["role"] == "assistant"
+            finally:
+                server.async_client.messages.stream = orig_stream
+                server.openai_async_client.chat.completions.create = orig_openai
+        finally:
+            cleanup(db, u)
+            db.close()
+
     test("Claude failure falls over to OpenAI vision",                 test_claude_failure_falls_over_to_openai)
     test("Whisper failure falls over to Deepgram when configured",     test_whisper_failure_falls_over_to_deepgram_when_configured)
+    test("OpenAI fallback still carries the history prefix",           test_openai_fallback_carries_history_prefix)

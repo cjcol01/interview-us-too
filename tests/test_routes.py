@@ -57,6 +57,34 @@ def register(test, skip, client):
         })
         assert r.status_code == 400
 
+    def test_password_complexity_rules():
+        """Unit-level check of the shared validator (avoids the register rate-limit
+        cooldown, which would otherwise fire on back-to-back /auth/register calls)."""
+        from auth import validate_password
+        assert validate_password("alllowercase1!") is not None   # missing uppercase
+        assert validate_password("ALLUPPERCASE1!") is not None   # missing lowercase
+        assert validate_password("NoNumberHere!") is not None    # missing number
+        assert validate_password("NoSymbolHere1") is not None    # missing symbol
+        assert validate_password("StrongPass123!") is None
+
+    def test_register_rejects_password_missing_symbol():
+        r = client.post("/auth/register", json={
+            "full_name": "Test", "username": f"_reg_pw_{_sec.token_hex(4)}",
+            "email": f"_reg_pw_{_sec.token_hex(4)}@test.internal", "password": "NoSymbolHere1",
+        })
+        assert r.status_code == 400
+
+    def test_register_accepts_strong_password():
+        uname = f"_reg_pw_strong_{_sec.token_hex(4)}"
+        try:
+            r = client.post("/auth/register", json={
+                "full_name": "Test", "username": uname,
+                "email": f"{uname}@test.internal", "password": "StrongPass123!",
+            })
+            assert r.status_code == 200, r.text
+        finally:
+            delete_by_name(uname)
+
     def test_register_rejects_duplicate_username():
         from auth import hash_password
         tag = _sec.token_hex(4)
@@ -152,6 +180,37 @@ def register(test, skip, client):
         try:
             r = client.get("/settings", cookies={"session": token})
             assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_settings_shows_session_warning_for_paid_users():
+        """Paid (session-based) users get a heads-up that pressing the capture hotkey
+        with the extension on spends a session immediately — no confirmation popup,
+        since the app is deliberately discreet. See TODO.md 'Now' item."""
+        token, uname = make_cookie(AccountLevel.paid)
+        try:
+            r = client.get("/settings", cookies={"session": token})
+            assert r.status_code == 200
+            assert "session-notice" in r.text
+            assert "Heads up" in r.text
+        finally:
+            delete_by_name(uname)
+
+    def test_settings_hides_session_warning_for_unlimited_users():
+        token, uname = make_cookie(AccountLevel.unlimited)
+        try:
+            r = client.get("/settings", cookies={"session": token})
+            assert r.status_code == 200
+            assert "session-notice" not in r.text
+        finally:
+            delete_by_name(uname)
+
+    def test_settings_hides_session_warning_for_trial_users():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/settings", cookies={"session": token})
+            assert r.status_code == 200
+            assert "session-notice" not in r.text
         finally:
             delete_by_name(uname)
 
@@ -364,6 +423,9 @@ def register(test, skip, client):
     test("Login rejects wrong credentials",                    test_login_rejects_wrong_credentials)
     test("Login rejects missing fields (422)",                 test_login_rejects_missing_fields)
     test("Register rejects short password",                    test_register_rejects_short_password)
+    test("Password complexity validator rules",                 test_password_complexity_rules)
+    test("Register rejects password missing symbol",           test_register_rejects_password_missing_symbol)
+    test("Register accepts strong password",                   test_register_accepts_strong_password)
     test("Register rejects duplicate username",                test_register_rejects_duplicate_username)
     test("Register rejects duplicate email",                   test_register_rejects_duplicate_email)
     test("/api/capture requires auth header",                  test_capture_requires_auth_header)
@@ -374,6 +436,9 @@ def register(test, skip, client):
     test("Free user blocked from subscription routes",         test_free_user_blocked_from_gated_routes)
     test("Trial user can access /latest",                      test_trial_user_can_access_latest)
     test("/settings accessible when authenticated",            test_settings_page_accessible_when_authed)
+    test("/settings shows session-start warning for paid users",     test_settings_shows_session_warning_for_paid_users)
+    test("/settings hides session-start warning for unlimited users", test_settings_hides_session_warning_for_unlimited_users)
+    test("/settings hides session-start warning for trial users",     test_settings_hides_session_warning_for_trial_users)
     test("/pricing accessible when authenticated",             test_pricing_page_accessible_when_authed)
     test("Complexity: unknown direction is handled",           test_complexity_endpoint_handles_unknown_direction)
     test("Complexity: up increments setting",                  test_complexity_up_increments)

@@ -26,6 +26,20 @@
     </div>
 
     <div class="hz-section">
+      <h2>Metrics</h2>
+      {{ check_row("DB disk usage", metrics.db_disk) }}
+      {{ check_row("Billing state", metrics.billing) }}
+      {{ check_row("Resend failures", metrics.resend_failures) }}
+      {{ check_row("Error rate (5xx)", metrics.http_5xx) }}
+      <button type="button" class="ua-btn ua-btn-notice" id="hz-errors-btn" onclick="hzToggleRecentErrors()" style="margin:6px 0 4px;">Show recent errors</button>
+      <div id="hz-errors-container" style="display:none;"></div>
+      <p class="ua-sub" style="margin:16px 0 4px;">Rate-limit activity (per minute)</p>
+      {% for c in metrics.rate_limits %}
+        {{ check_row(c.name, c) }}
+      {% endfor %}
+    </div>
+
+    <div class="hz-section">
       <h2>Configuration</h2>
       <div class="hz-config-grid">
         {% for c in config_status %}
@@ -69,7 +83,8 @@
       const checks = [['hz-row-anthropic', 'Anthropic (Claude)', 'anthropic'],
                       ['hz-row-openai', 'OpenAI', 'openai'],
                       ['hz-row-deepgram', 'Deepgram (transcription fallback)', 'deepgram'],
-                      ['hz-row-stripe', 'Stripe', 'stripe']];
+                      ['hz-row-stripe', 'Stripe', 'stripe'],
+                      ['hz-row-sideload', 'Sideload CDN / mirror', 'sideload']];
       container.innerHTML = checks.map(c => hzRowSkeleton(c[0])).join('') +
         '<p class="ua-sub" style="margin:16px 0 4px;">Page routes</p>' +
         '<div id="hz-routes-container"></div>';
@@ -90,6 +105,42 @@
           data.routes.forEach((r, i) => hzFill(document.getElementById('hz-route-' + i), r.ok, r.name, r.detail, r.latency_ms));
         })
         .catch(() => { routesContainer.textContent = 'Failed to load route checks.'; });
+    }
+
+    // ── Recent errors (fetched on demand, not on every page load) ──────
+    let hzErrorsLoaded = false;
+    function hzEscapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function hzToggleRecentErrors() {
+      const container = document.getElementById('hz-errors-container');
+      const btn = document.getElementById('hz-errors-btn');
+      const showing = container.style.display !== 'none';
+      if (showing) {
+        container.style.display = 'none';
+        btn.textContent = 'Show recent errors';
+        return;
+      }
+      container.style.display = 'block';
+      btn.textContent = 'Hide recent errors';
+      if (hzErrorsLoaded) return;
+      hzErrorsLoaded = true;
+      container.innerHTML = '<p class="ua-sub">Loading…</p>';
+      fetch('/admin/health/logs')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.entries.length) {
+            container.innerHTML = '<p class="ua-empty">No errors logged.</p>';
+            return;
+          }
+          container.innerHTML =
+            '<p class="ua-sub" style="margin:8px 0 4px;">Last ' + data.entries.length +
+            ' ERROR/CRITICAL entries (newest first) — <code>' + hzEscapeHtml(data.log_file_path) + '</code>, rotated at 5 MB.</p>' +
+            data.entries.map(e =>
+              '<pre class="hz-log-entry' + (e.includes('[CRITICAL]') ? ' hz-log-critical' : '') + '">' + hzEscapeHtml(e) + '</pre>'
+            ).join('');
+        })
+        .catch(() => { container.innerHTML = '<p class="ua-empty">Failed to load recent errors.</p>'; hzErrorsLoaded = false; });
     }
   </script>
 {% endblock %}

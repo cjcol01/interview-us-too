@@ -31,7 +31,8 @@ def register(test, skip, client=None):
         db = SessionLocal()
         try:
             u = make_user(db)
-            s = _get_or_create_session(db, u.id)
+            s, created = _get_or_create_session(db, u.id)
+            assert created is True
             assert s.id is not None
             assert s.user_id == u.id
             assert s.ended_at is None
@@ -47,9 +48,11 @@ def register(test, skip, client=None):
         db = SessionLocal()
         try:
             u = make_user(db)
-            s1 = _get_or_create_session(db, u.id)
-            s2 = _get_or_create_session(db, u.id)
+            s1, created1 = _get_or_create_session(db, u.id)
+            s2, created2 = _get_or_create_session(db, u.id)
             assert s1.id == s2.id, "should reuse the active session"
+            assert created1 is True
+            assert created2 is False, "reusing an active session should report created=False"
         finally:
             cleanup(db, u)
             db.close()
@@ -60,11 +63,12 @@ def register(test, skip, client=None):
         db = SessionLocal()
         try:
             u = make_user(db)
-            s1 = _get_or_create_session(db, u.id)
+            s1, _ = _get_or_create_session(db, u.id)
             s1.expires_at = datetime.utcnow() - timedelta(seconds=1)
             db.commit()
-            s2 = _get_or_create_session(db, u.id)
+            s2, created2 = _get_or_create_session(db, u.id)
             assert s2.id != s1.id, "should create a new session after expiry"
+            assert created2 is True
         finally:
             cleanup(db, u)
             db.close()
@@ -77,7 +81,7 @@ def register(test, skip, client=None):
         db = SessionLocal()
         try:
             u = make_user(db)
-            s = _get_or_create_session(db, u.id)
+            s, _ = _get_or_create_session(db, u.id)
             assert s.expires_at - s.started_at == SESSION_DURATION
         finally:
             cleanup(db, u)

@@ -133,11 +133,11 @@ def register(test, skip, client):
         try:
             first = client.post("/auth/register", json={
                 "full_name": "RL Test", "username": uname1,
-                "email": f"{uname1}@test.internal", "password": "testpass123",
+                "email": f"{uname1}@test.internal", "password": "TestPass123!",
             })
             second = client.post("/auth/register", json={
                 "full_name": "RL Test", "username": uname2,
-                "email": f"{uname2}@test.internal", "password": "testpass123",
+                "email": f"{uname2}@test.internal", "password": "TestPass123!",
             })
             assert first.status_code == 200
             # IP-keyed cooldown (1s) — second rapid signup from the same connection is blocked

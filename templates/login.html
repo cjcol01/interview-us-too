@@ -52,27 +52,38 @@
       </form>
 
       <!-- register form -->
-      <form id="register-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'register')" style="display:none">
+      <form id="register-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'register')" style="display:none" novalidate>
         <div class="field-group">
           <label class="field-label" for="reg-full-name">Full name</label>
           <input class="field-input" id="reg-full-name" type="text" name="full_name"
-            autocomplete="name" placeholder="John Smith" required>
+            autocomplete="name" placeholder="John Smith">
         </div>
         <div class="field-group">
           <label class="field-label" for="reg-username">Username</label>
           <input class="field-input" id="reg-username" type="text" name="username"
-            autocomplete="username" placeholder="JohnS" required>
+            autocomplete="username" placeholder="JohnS">
         </div>
         <div class="field-group">
           <label class="field-label" for="reg-email">Email</label>
           <input class="field-input" id="reg-email" type="email" name="email"
-            autocomplete="email" placeholder="you@example.com" required>
+            autocomplete="email" placeholder="you@example.com">
         </div>
         <div class="field-group">
           <label class="field-label" for="reg-password">Password</label>
           <input class="field-input" id="reg-password" type="password" name="password"
-            autocomplete="new-password" placeholder="••••••••••" required>
+            autocomplete="new-password" placeholder="••••••••••">
+          <ul class="pw-requirements" id="pw-requirements">
+            <li data-rule="length">At least 8 characters</li>
+            <li data-rule="uppercase">One uppercase letter</li>
+            <li data-rule="lowercase">One lowercase letter</li>
+            <li data-rule="number">One number</li>
+            <li data-rule="symbol">One symbol (e.g. !?@#$%)</li>
+          </ul>
         </div>
+        <label class="auth-checkbox">
+          <input type="checkbox" id="reg-agree" name="agree">
+          <span>I agree to the <a href="#" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
+        </label>
         <div id="register-error" class="auth-error"></div>
         <button type="submit" class="auth-submit">Create account</button>
         <p class="auth-switch">Already have an account? <a href="#" onclick="switchTab('login');return false;">Sign in</a></p>
@@ -87,6 +98,23 @@
     if (new URLSearchParams(location.search).get('register')) switchTab('register');
     if (new URLSearchParams(location.search).get('deleted')) document.getElementById('deleted-notice').style.display = 'block';
 
+    const PW_RULES = {
+      length: p => p.length >= 8,
+      uppercase: p => /[A-Z]/.test(p),
+      lowercase: p => /[a-z]/.test(p),
+      number: p => /\d/.test(p),
+      symbol: p => /[^A-Za-z0-9]/.test(p),
+    };
+
+    document.getElementById('reg-password').addEventListener('input', (e) => {
+      const value = e.target.value;
+      document.getElementById('pw-requirements').classList.toggle('visible', value.length > 0);
+      for (const [rule, check] of Object.entries(PW_RULES)) {
+        document.querySelector(`#pw-requirements li[data-rule="${rule}"]`)
+          .classList.toggle('met', check(value));
+      }
+    });
+
     function switchTab(tab) {
       const isLogin = tab === 'login';
       document.getElementById('tab-login').classList.toggle('active', isLogin);
@@ -99,6 +127,20 @@
       document.getElementById('register-error').textContent = '';
     }
 
+    function validateRegisterForm(data) {
+      if (!data.full_name) return 'Full name is required.';
+      if (!data.username) return 'Username is required.';
+      if (!data.email) return 'Email is required.';
+      if (!data.password) return 'Password is required.';
+      if (!Object.values(PW_RULES).every(check => check(data.password))) {
+        return 'Password does not meet the requirements above.';
+      }
+      if (!document.getElementById('reg-agree').checked) {
+        return 'You must agree to the Privacy Policy and Terms and Conditions.';
+      }
+      return null;
+    }
+
     async function handleSubmit(e, action) {
       e.preventDefault();
       const form = e.target;
@@ -108,6 +150,15 @@
 
       btn.disabled = true;
       errEl.textContent = '';
+
+      if (action === 'register') {
+        const err = validateRegisterForm(data);
+        if (err) {
+          errEl.textContent = err;
+          btn.disabled = false;
+          return;
+        }
+      }
 
       try {
         const res = await fetch('/auth/' + action, {

@@ -126,12 +126,12 @@ def register(test, skip, client):
             token = create_token(u.id)
             r = client.post(
                 "/api/settings/password",
-                json={"current_password": "testpass123", "new_password": "newpassword456"},
+                json={"current_password": "testpass123", "new_password": "NewPassword456!"},
                 cookies={"session": token},
             )
             assert r.status_code == 200
             db.refresh(u)
-            assert verify_password("newpassword456", u.password_hash)
+            assert verify_password("NewPassword456!", u.password_hash)
         finally:
             cleanup(db, u); db.close()
 

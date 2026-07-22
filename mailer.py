@@ -2,6 +2,7 @@ import resend
 
 from analytics import logger
 from config import BASE_URL, FROM_EMAIL, NOTIFY_EMAIL, RESEND_API_KEY
+from metrics import record_email_failure
 
 resend.api_key = RESEND_API_KEY
 
@@ -41,6 +42,7 @@ def send_verification_email(to_email: str, token: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send via Resend: %s", e)
+        record_email_failure()
 
 
 def send_password_reset_email(to_email: str, token: str) -> None:
@@ -76,6 +78,7 @@ def send_password_reset_email(to_email: str, token: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send reset email: %s", e)
+        record_email_failure()
 
 
 _REASON_LABELS = {
@@ -137,6 +140,7 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
         })
     except Exception as e:
         logger.error("[email] failed to send cancel feedback: %s", e)
+        record_email_failure()
 
 
 def send_usage_warning_email(to_email: str) -> None:
@@ -169,6 +173,7 @@ def send_usage_warning_email(to_email: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send usage warning: %s", e)
+        record_email_failure()
 
 
 def send_account_banned_email(to_email: str) -> None:
@@ -197,6 +202,7 @@ def send_account_banned_email(to_email: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send ban notice: %s", e)
+        record_email_failure()
 
 
 def send_account_unbanned_email(to_email: str) -> None:
@@ -225,6 +231,7 @@ def send_account_unbanned_email(to_email: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send unban notice: %s", e)
+        record_email_failure()
 
 
 def send_subscription_paused_email(to_email: str) -> None:
@@ -253,6 +260,7 @@ def send_subscription_paused_email(to_email: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send subscription-paused notice: %s", e)
+        record_email_failure()
 
 
 def send_subscription_resumed_email(to_email: str) -> None:
@@ -280,6 +288,7 @@ def send_subscription_resumed_email(to_email: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send subscription-resumed notice: %s", e)
+        record_email_failure()
 
 
 def send_expiry_reminder_email(to_email: str, cancel_date: str) -> None:
@@ -312,6 +321,7 @@ def send_expiry_reminder_email(to_email: str, cancel_date: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send expiry reminder: %s", e)
+        record_email_failure()
 
 
 def send_low_sessions_email(to_email: str, sessions_remaining: int) -> None:
@@ -343,6 +353,7 @@ def send_low_sessions_email(to_email: str, sessions_remaining: int) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send low-sessions notice: %s", e)
+        record_email_failure()
 
 
 def send_announcement_email(to_email: str, subject: str, body: str) -> None:
@@ -372,6 +383,7 @@ def send_announcement_email(to_email: str, subject: str, body: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send announcement to %s: %s", to_email, e)
+        record_email_failure()
 
 
 def send_account_deletion_email(user_email: str, reason: str, detail: str) -> None:
@@ -415,3 +427,4 @@ def send_account_deletion_email(user_email: str, reason: str, detail: str) -> No
         })
     except Exception as e:
         logger.error("[email] failed to send account deletion notice: %s", e)
+        record_email_failure()

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -24,6 +25,25 @@ def generate_unique_referral_code(db: Session) -> str:
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 _bearer = HTTPBearer()
+
+PASSWORD_MIN_LENGTH = 8
+
+# Mirrors the checklist shown on the signup form (templates/login.html) — keep both in sync.
+PASSWORD_RULES = [
+    ("length", f"At least {PASSWORD_MIN_LENGTH} characters", lambda p: len(p) >= PASSWORD_MIN_LENGTH),
+    ("uppercase", "One uppercase letter", lambda p: bool(re.search(r"[A-Z]", p))),
+    ("lowercase", "One lowercase letter", lambda p: bool(re.search(r"[a-z]", p))),
+    ("number", "One number", lambda p: bool(re.search(r"\d", p))),
+    ("symbol", "One symbol (e.g. !?@#$%)", lambda p: bool(re.search(r"[^A-Za-z0-9]", p))),
+]
+
+
+def validate_password(password: str) -> Optional[str]:
+    """Returns an error message for the first unmet rule, or None if the password is valid."""
+    for _key, label, check in PASSWORD_RULES:
+        if not check(password):
+            return f"Password must include: {label.lower()}."
+    return None
 
 
 def hash_password(password: str) -> str:

@@ -6,20 +6,16 @@
 
 
 ## Soon 
-- [ ] typing mode to edit question - not start new question
 - [ ] google login
 - [ ] shorten landing page
 - [ ] dark mode text can be hard to read
 - [ ] find new name 
 - [ ] change AI content 
 - [ ] change stop blanking, start acing tagline
-- [ ] accidental session start warning for session users 
 - [ ] some kind of alert system for health checks directly to mobile
 - [ ] undetectability FAQ's honest assessment
-- [ ] auto top up sessions
-- [ ] improve admin page with backup time data, SQL file size, billing state, error rate, resend failures, rate limit headroom, Sideload/CDN fallback reachability
 - [ ] test job in github actions
-- [ ] clean context - only keep x messages or purge old ones if not discussed
+- [ ] auto top up sessions - toggle that rebuys 3 sessions when down to 1. Needs off-session card charging: current Stripe checkout never saves a reusable card (no `setup_future_usage`, no stored payment method). Would need checkout to save a card + an off-session PaymentIntent + SCA/decline handling; only works for purchases made after the change ships.
 
 
 
@@ -44,6 +40,8 @@
 
 ## Done
 
+- [x] accidental session start warning for session users — Settings page (Shortcuts section) now shows an amber notice for `paid` account-level users explaining that pressing the capture hotkey with the extension on starts a session immediately (no confirmation popup), spending one of their remaining sessions
+- [x] improve admin page with billing state, error rate, resend failures, rate limit headroom, Sideload/CDN fallback reachability — new "Metrics" section on /admin/health: DB disk usage (main + WAL/SHM), billing summary (active subs / session users / low-session users / pending cancellations), resend email failures + HTTP 5xx error rate (rolling 24h Redis counters), per-endpoint rate-limit activity vs configured limits, and a new Sideload CDN/mirror reachability deep check. Backup time data skipped — no backup mechanism exists yet to report on (see OPS_PLAN.md)
 - [x] trial-end page navbar now uses the standard show_navbar layout (auth-state links) instead of its own custom header
 - [x] verified trial-expiry -> "subscription required" flow end to end (server + extension popup + monitor page all already wired; full test suite green)
 - [x] reworded pricing page stat so "4-6 months" reads as avg. job-search length, not an InterviewAce commitment (added "cancel anytime" framing elsewhere)
@@ -71,3 +69,5 @@
 - [x] hard to read social proof profile pic texts on white mode — light-mode override for .ia-proof-avatar (darker gradient + dark text)
 - [x] add more user action buttons (send expiry reminder, 1 session left, etc) — new admin per-user buttons + emails for cancelling subs and low session-pack balances
 - [x] set up open ai backup if claude is down, and whispr backup — Claude failures on capture/text-capture/audio-capture fail over to OpenAI vision (gpt-4o); Whisper failures fail over to Deepgram if DEEPGRAM_API_KEY is set. Added a Deepgram row to /admin/health deep checks too.
+- [x] clean context - only keep x messages or purge old ones if not discussed
+- [x] typing mode to edit question - not start new question
