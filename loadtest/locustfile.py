@@ -3,8 +3,9 @@
 Simulates two kinds of traffic against a locally running `python server.py`:
 
   AnonymousBrowser   - unauthenticated page browsing (landing, pricing, faq, login).
-  AuthenticatedUser  - logs in as a seeded free-tier test account, then navigates
-                       authenticated pages/APIs and fires a "mock capture" request.
+  AuthenticatedUser  - starts with an already-valid session cookie for a seeded
+                       free-tier test account, then navigates authenticated
+                       pages/APIs and fires a "mock capture" request.
 
 Zero-cost guarantee for the capture endpoint:
     /api/capture runs _gate_basic_access() (server.py) BEFORE any Anthropic call and
@@ -31,12 +32,9 @@ ACCOUNTS_FILE = Path(__file__).resolve().parent / "accounts.json"
 RAMP_ENABLED = os.environ.get("LOADTEST_RAMP") == "1"
 
 # --- ramp shape: hold each user count for STEP_TIME seconds, then step up -----------
-# Evenly spaced (+STEP_SIZE per step) rather than doubling. A doubling schedule (e.g.
-# 200 -> 400) spawns a big burst of new logins in one go; since /auth/login's
-# bcrypt check runs synchronously inline on the single asyncio event loop
-# (server.py), a large login burst can stall the whole server independent of
-# how many *total* users are connected. Small even steps isolate whether the
-# breaking point tracks total concurrency or the size of each spawn burst.
+# Evenly spaced (+STEP_SIZE per step) rather than doubling, so a big burst of new
+# spawns doesn't land in one go and obscure whether the breaking point tracks
+# total concurrency or the size of each spawn burst.
 #
 # Open-ended: no upper cap on user count. Keeps ramping until you stop it (web UI
 # stop button or Ctrl-C) once you see it break — this is a find-the-ceiling run,
@@ -49,15 +47,6 @@ STEP_SPAWN_RATE = 10      # users spawned/stopped per second between steps
 # --- traffic mix: fraction of virtual users that are anonymous vs authenticated ----
 ANON_WEIGHT = 7
 AUTH_WEIGHT = 3
-
-# Fraction of AuthenticatedUser spawns that go through a REAL POST /auth/login
-# (bcrypt + DB write). The rest start with an already-valid session cookie instead,
-# minted offline by seed_users.py — mimicking a returning user with an existing
-# session (7-day JWT), which is most of real traffic. Every prior run had every
-# authenticated virtual user do a fresh login on spawn, overstating login-path load
-# relative to real usage patterns. Lower this to see what breaks once login/bcrypt
-# pressure is realistic instead of dominant.
-LOGIN_FRACTION = 0.15
 
 
 def _load_accounts():
@@ -75,11 +64,10 @@ def _load_accounts():
             f"{non_free}. Only free-tier accounts are safe for mock_capture "
             "(they 403 at the gate before any AI call). Re-seed with seed_users.py."
         )
-    if LOGIN_FRACTION < 1.0 and not all("session_token" in a for a in accounts):
+    if not all("session_token" in a for a in accounts):
         raise SystemExit(
             "accounts.json is missing 'session_token' entries (from an older "
-            "seed_users.py run). Re-run `seed_users.py --count N` to regenerate it, "
-            "or set LOGIN_FRACTION = 1.0 in locustfile.py to always use a real login."
+            "seed_users.py run). Re-run `seed_users.py --count N` to regenerate it."
         )
     return accounts
 
@@ -123,15 +111,9 @@ class AuthenticatedUser(HttpUser):
     def on_start(self):
         account = random.choice(ACCOUNTS)
         self.api_token = account["api_token"]
-        if random.random() < LOGIN_FRACTION:
-            self.client.post(
-                "/auth/login",
-                json={"username": account["username"], "password": account["password"]},
-                name="/auth/login",
-            )
-        else:
-            # Returning user: already has a valid session, no bcrypt/login DB write.
-            self.client.cookies.set("session", account["session_token"])
+        # Already-valid session cookie minted offline by seed_users.py — no
+        # /auth/login call, so no bcrypt check on the request path.
+        self.client.cookies.set("session", account["session_token"])
 
     @task(3)
     def settings_page(self):

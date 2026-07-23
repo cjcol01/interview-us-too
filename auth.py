@@ -22,6 +22,19 @@ def generate_unique_referral_code(db: Session) -> str:
             return code
     raise RuntimeError("Could not generate unique referral code")
 
+
+def generate_unique_username(db: Session, base: str) -> str:
+    """Derives a free `username` from an email local-part (or any base string) — used
+    for accounts created via Google sign-in, which don't collect a username up front."""
+    slug = re.sub(r"[^a-z0-9_]", "", base.lower()) or "user"
+    if not db.query(User).filter(User.username == slug).first():
+        return slug
+    for _ in range(20):
+        candidate = f"{slug}{_secrets.randbelow(1_000_000)}"
+        if not db.query(User).filter(User.username == candidate).first():
+            return candidate
+    raise RuntimeError("Could not generate unique username")
+
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
 _bearer = HTTPBearer()

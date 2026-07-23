@@ -31,7 +31,7 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 **Core modules:**
 
 - `server.py` — all routes, business logic, SSE streaming. Single file; nothing is split into routers.
-- `auth.py` — two auth paths: cookie-based JWT (browser sessions via `get_current_user`/`get_optional_user`) and Bearer token (extension API calls via `get_user_by_token`).
+- `auth.py` — two auth paths: cookie-based JWT (browser sessions via `get_current_user`/`get_optional_user`) and Bearer token (extension API calls via `get_user_by_token`). Cookie sessions can be started either by password login or by Google OAuth (`/auth/google*` in `server.py`, gated on `GOOGLE_OAUTH_ENABLED` in `config.py`) — both paths converge on the same `create_token`/`session` cookie.
 - `models.py` — three SQLAlchemy models: `User`, `InterviewSession`, `Referral`. `AccountLevel` enum: `free → trial → paid → unlimited`.
 - `billing.py` — Stripe checkout, portal, and webhook handling.
 - `config.py` — all env vars. Server **refuses to start** if `SECRET_KEY` is the default or if Stripe keys are missing.
@@ -67,3 +67,4 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | `RESEND_API_KEY` | No | Email verification |
 | `AUTHOR_PASSWORD` | No | Gates an internal admin-only page. Keep unset locally; set a strong random value in production. |
 | `SKIP_EMAIL_VERIFICATION` | No | Dev-only convenience flag — see `.env` for details. Must never be set in production. |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | No | Enables "Continue with Google" (`/auth/google`, `/auth/google/callback` in `server.py`). Unset, the button is hidden and the routes 404. Redirect URI to register in Google Cloud Console: `{BASE_URL}/auth/google/callback`. |

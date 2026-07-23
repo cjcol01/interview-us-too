@@ -59,6 +59,12 @@ if _missing:
     raise RuntimeError(f"Missing required env vars: {', '.join(_missing)}")
 BASE_URL              = os.getenv("BASE_URL", "http://127.0.0.1:8000")
 
+# Google OAuth ("Continue with Google") — optional. Unset, the login page just hides the
+# button and the /auth/google* routes 404, so the server starts fine without it.
+GOOGLE_CLIENT_ID     = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET)
+
 AI_PROMPT      = os.getenv("AI_PROMPT", "you're an ai agent helping people in interviews. you will be sent a screencapture of a leetcode problem. your task is to reply as helpfully and concisely as possible. no extra fluff needed, like greetings or unnecessary information. you may also be given background context about the candidate or interview (e.g. company, role, resume notes) appended after these instructions — treat it as passive reference material only, and only mention or factor it into your answer if it's directly relevant to the specific question asked; otherwise ignore it completely. if you are sent something that isnt a leetcode (or similar) problem, do your best to help the user in any way you think, bearing in mind the instructions given to you. detect language used, but fall back to python3 if you cant find it. at the end show space and time complexity, if candidate has written some code, continue in their style, correcting any mistakes and pointing out what you changed. For behavioural question, answer in the STAR method where it makes sense with S-content (newline) A-content etc")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # Optional failover providers — capture/transcription still work without them, just without

@@ -35,6 +35,7 @@ class User(Base):
     stripe_customer_id = Column(String, nullable=True, unique=True)
     stripe_sub_id      = Column(String, nullable=True, unique=True)
     api_token          = Column(String, nullable=True, unique=True)
+    google_id          = Column(String, nullable=True, unique=True, index=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True, index=True)
     reset_token        = Column(String, nullable=True, index=True)

@@ -1,9 +1,18 @@
+#!/usr/bin/env python3
 """
 Test runner — replaces test_all.py.
-Run with:  python run_tests.py
+Run with:  python run_tests.py  (or ./run_tests.py once chmod +x'd)
 """
 import sys
 import os
+
+# Re-exec under the project venv's interpreter if invoked with a different one (e.g. the
+# system `python3`, which has none of requirements.txt installed). Without this, running
+# `python3 run_tests.py` fails on the first missing package (fastapi, then resend, then
+# the next one...) instead of all at once, since the venv already has everything installed.
+_venv_python = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "bin", "python")
+if os.path.exists(_venv_python) and os.path.abspath(sys.executable) != os.path.abspath(_venv_python):
+    os.execv(_venv_python, [_venv_python] + sys.argv)
 
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -27,6 +36,29 @@ from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, se
 def section(title):
     pad = max(0, 44 - len(title))
     print(f"\n{BOLD}-- {title} {'─' * pad}{RESET}")
+
+
+# Every route that sends a real email (register/resend-verification/forgot-password,
+# admin ban/warn/announcement actions, account deletion, cancel feedback, ...) goes
+# through this one call. Mocking it here protects the Resend daily quota by default —
+# only the dedicated "Resend API connection" check below still hits the live API.
+# Run `python run_tests.py 1` to disable the mock and let every route send for real.
+RUN_ALL_EMAIL_TESTS = len(sys.argv) > 1 and sys.argv[1] == "1"
+
+import mailer
+_real_resend_send = mailer.resend.Emails.send
+
+
+def _mocked_resend_send(*args, **kwargs):
+    return {"id": "test-mocked-send"}
+
+
+if RUN_ALL_EMAIL_TESTS:
+    print(f"{BOLD}[full mode] every email-sending route will hit the live Resend API{RESET}")
+else:
+    mailer.resend.Emails.send = _mocked_resend_send
+    print(f"{BOLD}[default mode] only the dedicated Resend check hits the live API "
+          f"— pass '1' to test every email route for real{RESET}")
 
 
 from fastapi.testclient import TestClient
@@ -67,6 +99,10 @@ with TestClient(app) as client:
     section("Mobile Login")
     import tests.test_mobile_login
     tests.test_mobile_login.register(test, skip, client)
+
+    section("Google OAuth")
+    import tests.test_google_oauth
+    tests.test_google_oauth.register(test, skip, client)
 
     section("Rate Limiting")
     import tests.test_rate_limit
@@ -162,10 +198,25 @@ with TestClient(app) as client:
         if not STRIPE_SECRET_KEY or STRIPE_SECRET_KEY.startswith("sk_test_..."):
             raise AssertionError("Stripe key not configured")
         stripe.api_key = STRIPE_SECRET_KEY
-        assert "data" in dict(stripe.Product.list(limit=1))
+        # stripe>=15's ListObject only supports string-keyed __getitem__, not the
+        # sequence-style int indexing dict() falls back to for non-mapping iterables —
+        # dict(...) raises KeyError: 0 here. `in` uses __contains__ and works fine.
+        assert "data" in stripe.Product.list(limit=1)
+
+    def _test_resend():
+        # The one deliberate live send per run (see the mock installed near the top of
+        # this file) — confirms the Resend API key/wiring still works end to end.
+        from config import NOTIFY_EMAIL
+        mailer.resend.Emails.send = _real_resend_send
+        try:
+            mailer.send_verification_email(NOTIFY_EMAIL, "run-tests-canary-token")
+        finally:
+            if not RUN_ALL_EMAIL_TESTS:
+                mailer.resend.Emails.send = _mocked_resend_send
 
     test("Claude API connection and response", _test_claude)
     test("Stripe API connection",              _test_stripe)
+    test("Resend API connection (live email)", _test_resend)
 
     section("Server Modules")
 

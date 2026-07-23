@@ -27,6 +27,7 @@ from urllib.parse import urlencode
 _BOOT_T0 = time.perf_counter()
 
 import anthropic  # noqa: E402
+import httpx
 import redis.asyncio as aioredis
 import redis.exceptions as redis_exceptions
 import requests
@@ -38,16 +39,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from jose import jwt as jose_jwt
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, false, func, or_, text, true
 from sqlalchemy.orm import Session, aliased
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
-from auth import create_token, decode_user_id, generate_unique_referral_code, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
+from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
@@ -615,15 +618,20 @@ async def _gate_basic_access(r, user: User, db: Session):
     if user.account_level == AccountLevel.free:
         raise HTTPException(status_code=403, detail="Subscription required")
     if user.account_level == AccountLevel.trial:
-        now = datetime.utcnow()
-        active = db.query(InterviewSession).filter(
-            InterviewSession.user_id == user.id,
-            InterviewSession.expires_at > now,
-            InterviewSession.ended_at == None,  # noqa: E711
-        ).first()
+        def _check_trial():
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not active:
+                user.account_level = AccountLevel.free
+                db.commit()
+            return active
+
+        active = await run_in_threadpool(_check_trial)
         if not active:
-            user.account_level = AccountLevel.free
-            db.commit()
             track(user.id, "trial_expired")
             await broadcast(r, user.id, "trial_expired", {})
             raise HTTPException(status_code=403, detail="trial_expired")
@@ -682,12 +690,12 @@ class TextCaptureRequest(BaseModel):
 
 # ---------------------------------------------------------------------------
 @app.get("/favicon.ico", include_in_schema=False)
-async def favicon():
+def favicon():
     return FileResponse("static/favicon.svg", media_type="image/svg+xml")
 
 
 @app.get("/502", include_in_schema=False)
-async def preview_502():
+def preview_502():
     # Dev-only preview of the static page the reverse proxy serves when the app
     # itself is down (see static/502.html) — served at 200 here since the app
     # answering at all means there's no real gateway error to report.
@@ -698,10 +706,10 @@ async def preview_502():
 # ---------------------------------------------------------------------------
 
 @app.get("/login")
-async def login_page(request: Request, user: Optional[User] = Depends(get_optional_user), next: Optional[str] = None):
+def login_page(request: Request, user: Optional[User] = Depends(get_optional_user), next: Optional[str] = None):
     if user:
         return RedirectResponse(next or "/app")
-    return templates.TemplateResponse(request=request, name="login.html", context={})
+    return templates.TemplateResponse(request=request, name="login.html", context={"google_enabled": GOOGLE_OAUTH_ENABLED})
 
 
 @app.post("/auth/login")
@@ -721,14 +729,17 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
                       limit_msg="Too many attempts on this account — try again in a minute",
                       window_limit=15, window_seconds=900,
                       window_msg="Too many attempts on this account — try again later")
-    user = db.query(User).filter(User.username == body.username).first()
-    if not user or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid username or password.")
-    if not user.is_active:
-        raise HTTPException(status_code=403, detail="This account has been suspended. Contact support if you think this is a mistake.")
+    def _authenticate():
+        user = db.query(User).filter(User.username == body.username).first()
+        if not user or not verify_password(body.password, user.password_hash):
+            raise HTTPException(status_code=401, detail="Invalid username or password.")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="This account has been suspended. Contact support if you think this is a mistake.")
+        user.last_login = datetime.utcnow()
+        db.commit()
+        return user
 
-    user.last_login = datetime.utcnow()
-    db.commit()
+    user = await run_in_threadpool(_authenticate)
     track(user.id, "login")
 
     token = create_token(user.id)
@@ -752,41 +763,45 @@ async def auth_register(
                       cooldown_msg="Too many attempts — wait a moment before trying again",
                       limit_msg="Too many signups from this connection — try again in a minute",
                       window_limit=25, window_msg="Too many signups from this connection — try again later")
-    if db.query(User).filter(User.username == body.username).first():
-        raise HTTPException(status_code=400, detail="Username already taken.")
-    if db.query(User).filter(User.email == body.email).first():
-        raise HTTPException(status_code=400, detail="Email already registered.")
-    password_error = validate_password(body.password)
-    if password_error:
-        raise HTTPException(status_code=400, detail=password_error)
+    def _register():
+        if db.query(User).filter(User.username == body.username).first():
+            raise HTTPException(status_code=400, detail="Username already taken.")
+        if db.query(User).filter(User.email == body.email).first():
+            raise HTTPException(status_code=400, detail="Email already registered.")
+        password_error = validate_password(body.password)
+        if password_error:
+            raise HTTPException(status_code=400, detail=password_error)
 
-    user = User(
-        username=body.username,
-        email=body.email,
-        full_name=body.full_name,
-        password_hash=hash_password(body.password),
-        account_level=AccountLevel.trial,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-
-    user.referral_code = generate_unique_referral_code(db)
-
-    if ref:
-        referrer = db.query(User).filter(User.referral_code == ref).first()
-        if referrer and referrer.id != user.id:
-            user.referred_by_id = referrer.id
-            db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
-
-    if SKIP_EMAIL_VERIFICATION:
-        user.email_verified = True
-    else:
-        verify_token = secrets.token_urlsafe(32)
-        user.verify_token = verify_token
+        user = User(
+            username=body.username,
+            email=body.email,
+            full_name=body.full_name,
+            password_hash=hash_password(body.password),
+            account_level=AccountLevel.trial,
+        )
+        db.add(user)
         db.commit()
-        send_verification_email(user.email, verify_token)
-    db.commit()
+        db.refresh(user)
+
+        user.referral_code = generate_unique_referral_code(db)
+
+        if ref:
+            referrer = db.query(User).filter(User.referral_code == ref).first()
+            if referrer and referrer.id != user.id:
+                user.referred_by_id = referrer.id
+                db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
+
+        if SKIP_EMAIL_VERIFICATION:
+            user.email_verified = True
+        else:
+            verify_token = secrets.token_urlsafe(32)
+            user.verify_token = verify_token
+            db.commit()
+            send_verification_email(user.email, verify_token)
+        db.commit()
+        return user
+
+    user = await run_in_threadpool(_register)
     identify(user.id, user.email, user.full_name, user.account_level.value)
     track(user.id, "signup", referred=bool(ref))
 
@@ -794,6 +809,147 @@ async def auth_register(
     response = JSONResponse({"status": "ok", "username": user.username})
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     response.delete_cookie("ref")
+    return response
+
+
+async def _google_exchange_claims(code: str) -> dict:
+    """Exchanges an OAuth authorization code for the caller's Google identity. Split out as
+    its own function (rather than inlined in the callback route) so tests can monkeypatch it
+    instead of hitting Google's real token endpoint."""
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.post(
+            "https://oauth2.googleapis.com/token",
+            data={
+                "code": code,
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "redirect_uri": f"{BASE_URL}/auth/google/callback",
+                "grant_type": "authorization_code",
+            },
+        )
+    resp.raise_for_status()
+    id_token = resp.json()["id_token"]
+    # Signature not verified: this id_token just arrived directly from Google over TLS via a
+    # server-to-server exchange (never passed through the browser), so there's no untrusted
+    # party in a position to have forged it.
+    claims = jose_jwt.get_unverified_claims(id_token)
+    return {
+        "sub": claims["sub"],
+        "email": claims.get("email", ""),
+        "email_verified": claims.get("email_verified") in (True, "true"),
+        "name": claims.get("name") or claims.get("email", "").split("@")[0],
+    }
+
+
+@app.get("/auth/google")
+async def auth_google_start(request: Request, next: Optional[str] = None, ref: Optional[str] = Cookie(default=None)):
+    if not GOOGLE_OAUTH_ENABLED:
+        raise HTTPException(status_code=404)
+    r = request.app.state.redis
+    state = secrets.token_urlsafe(24)
+    # Short-lived server-side stash of the state token — same pattern as the mobile-login
+    # token (see onboarding_mobile_link below) — doubles as CSRF protection for the callback.
+    await r.setex(f"oauth:google:{state}", 600, json.dumps({"next": next, "ref": ref}))
+    params = {
+        "client_id": GOOGLE_CLIENT_ID,
+        "redirect_uri": f"{BASE_URL}/auth/google/callback",
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": state,
+        "prompt": "select_account",
+    }
+    return RedirectResponse(f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}", status_code=302)
+
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(
+    request: Request,
+    db: Session = Depends(get_db),
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    if not GOOGLE_OAUTH_ENABLED:
+        raise HTTPException(status_code=404)
+    if error or not code or not state:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    r = request.app.state.redis
+    stashed = await r.get(f"oauth:google:{state}")
+    if not stashed:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    await r.delete(f"oauth:google:{state}")
+    stashed = json.loads(stashed)
+    next_url, ref = stashed.get("next"), stashed.get("ref")
+
+    try:
+        claims = await _google_exchange_claims(code)
+    except Exception:
+        logger.exception("Google OAuth token exchange failed")
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    if not claims["email"]:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    def _resolve_user():
+        user = db.query(User).filter(User.google_id == claims["sub"]).first()
+        if user:
+            return user, False
+
+        existing = db.query(User).filter(User.email == claims["email"]).first()
+        if existing:
+            existing.google_id = claims["sub"]
+            if not existing.email_verified:
+                # This account's email was never proven — Google's proof of ownership wins.
+                # Verify it and invalidate whatever password is on the account: otherwise
+                # someone could pre-register a victim's email with a password, then simply
+                # keep using that password after the victim later links their real Google
+                # account (account pre-hijacking).
+                existing.email_verified = True
+                existing.password_hash = hash_password(secrets.token_urlsafe(32))
+            db.commit()
+            return existing, False
+
+        username = generate_unique_username(db, claims["email"].split("@")[0])
+        new_user = User(
+            username=username,
+            email=claims["email"],
+            full_name=claims["name"],
+            password_hash=hash_password(secrets.token_urlsafe(32)),  # unused — Google-only account
+            account_level=AccountLevel.trial,
+            email_verified=True,
+            google_id=claims["sub"],
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        new_user.referral_code = generate_unique_referral_code(db)
+        if ref:
+            referrer = db.query(User).filter(User.referral_code == ref).first()
+            if referrer and referrer.id != new_user.id:
+                new_user.referred_by_id = referrer.id
+                db.add(Referral(referrer_id=referrer.id, referee_id=new_user.id))
+        db.commit()
+        return new_user, True
+
+    user, is_new = await run_in_threadpool(_resolve_user)
+    if not user.is_active:
+        return RedirectResponse("/login?error=account_suspended", status_code=303)
+
+    if is_new:
+        identify(user.id, user.email, user.full_name, user.account_level.value)
+        track(user.id, "signup", referred=bool(ref), method="google")
+    else:
+        user.last_login = datetime.utcnow()
+        db.commit()
+        track(user.id, "login", method="google")
+
+    token = create_token(user.id)
+    response = RedirectResponse(next_url or "/app", status_code=303)
+    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    if ref:
+        response.delete_cookie("ref")
     return response
 
 
@@ -807,14 +963,17 @@ async def resend_verification(request: Request, user: User = Depends(get_current
                       limit_msg="Too many requests — try again in a few minutes",
                       window_limit=3, window_seconds=600,
                       window_msg="Too many requests — try again in a few minutes")
-    user.verify_token = secrets.token_urlsafe(32)
-    db.commit()
-    send_verification_email(user.email, user.verify_token)
+    def _resend():
+        user.verify_token = secrets.token_urlsafe(32)
+        db.commit()
+        send_verification_email(user.email, user.verify_token)
+
+    await run_in_threadpool(_resend)
     return {"status": "ok"}
 
 
 @app.get("/verify")
-async def verify_email(token: str, db: Session = Depends(get_db)):
+def verify_email(token: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.verify_token == token).first()
     if not user:
         raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
@@ -828,7 +987,7 @@ async def verify_email(token: str, db: Session = Depends(get_db)):
 
 
 @app.get("/forgot-password")
-async def forgot_password_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def forgot_password_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if user:
         return RedirectResponse("/app")
     return templates.TemplateResponse(request=request, name="forgot_password.html", context={})
@@ -850,18 +1009,21 @@ async def auth_forgot_password(body: ForgotPasswordRequest, request: Request, db
                       limit_msg="Too many requests from this connection — try again in a minute",
                       window_limit=30, window_seconds=300,
                       window_msg="Too many requests from this connection — try again in a few minutes")
-    user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
-    if user:
-        user.reset_token = secrets.token_urlsafe(32)
-        user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
-        db.commit()
-        send_password_reset_email(user.email, user.reset_token)
+    def _maybe_reset():
+        user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
+        if user:
+            user.reset_token = secrets.token_urlsafe(32)
+            user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
+            db.commit()
+            send_password_reset_email(user.email, user.reset_token)
+
+    await run_in_threadpool(_maybe_reset)
     # Always return ok — never reveal whether the email is registered
     return {"status": "ok"}
 
 
 @app.get("/reset-password")
-async def reset_password_page(request: Request, token: str = "", db: Session = Depends(get_db)):
+def reset_password_page(request: Request, token: str = "", db: Session = Depends(get_db)):
     # Pre-validate so we can show a useful error on stale/bad links
     user = db.query(User).filter(User.reset_token == token).first() if token else None
     invalid = not user or not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow()
@@ -873,7 +1035,7 @@ async def reset_password_page(request: Request, token: str = "", db: Session = D
 
 
 @app.post("/auth/reset-password")
-async def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
+def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.reset_token == body.token).first()
     if not user or not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invalid or expired reset link.")
@@ -890,7 +1052,7 @@ async def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(
 
 @app.post("/auth/logout")
 @app.get("/auth/logout")
-async def auth_logout():
+def auth_logout():
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("session")
     return response
@@ -901,14 +1063,14 @@ async def auth_logout():
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-async def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
     template = "landing.html" if LANDING_PROD else "landing_prep.html"
     ctx = {"show_navbar": True, "show_landing_links": True}
     return templates.TemplateResponse(request=request, name=template, context=ctx)
 
 
 @app.get("/app")
-async def index(request: Request, user: User = Depends(require_user)):
+def index(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if user.account_level == AccountLevel.free:
@@ -922,7 +1084,7 @@ async def index(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/welcome")
-async def welcome_page(request: Request, user: User = Depends(require_user)):
+def welcome_page(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if user.account_level != AccountLevel.trial:
@@ -934,7 +1096,7 @@ async def welcome_page(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/onboarding")
-async def onboarding_page(
+def onboarding_page(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -959,7 +1121,7 @@ async def onboarding_page(
 
 
 @app.get("/verify-pending")
-async def verify_pending(request: Request, user: User = Depends(require_user)):
+def verify_pending(request: Request, user: User = Depends(require_user)):
     if user.email_verified:
         return RedirectResponse("/app")
     return templates.TemplateResponse(request=request, name="verify_pending.html", context={
@@ -968,7 +1130,7 @@ async def verify_pending(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/trial-end")
-async def trial_end(request: Request, user: User = Depends(require_user)):
+def trial_end(request: Request, user: User = Depends(require_user)):
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="trial_end.html", context={
         "hotkey_capture": hk["capture"],
@@ -980,7 +1142,7 @@ async def trial_end(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/pricing")
-async def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
     if user and user.account_level == AccountLevel.unlimited:
         return RedirectResponse("/settings", status_code=302)
     if user:
@@ -1041,12 +1203,12 @@ async def _require_author(
     raise unauthed
 
 @app.get("/verify-author")
-async def author_page(request: Request, _: None = Depends(_require_author)):
+def author_page(request: Request, _: None = Depends(_require_author)):
     return templates.TemplateResponse(request=request, name="author.html", context={"show_navbar": True})
 
 
 @app.get("/r/{code}")
-async def referral_redirect(
+def referral_redirect(
     code: str,
     user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
@@ -1061,7 +1223,7 @@ async def referral_redirect(
 
 
 @app.get("/referral")
-async def referral_page(
+def referral_page(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -1107,7 +1269,7 @@ def _parse_referral_code(raw: str) -> str:
 
 
 @app.post("/referral/apply")
-async def apply_referral_code(
+def apply_referral_code(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     code: str = Form(...),
@@ -1146,7 +1308,7 @@ def _partner_counts(user: User, db: Session) -> tuple[int, int]:
 
 
 @app.get("/partner")
-async def partner_page(
+def partner_page(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -1170,7 +1332,7 @@ async def partner_page(
 
 
 @app.get("/faq")
-async def faq_page(
+def faq_page(
     request: Request,
     user: Optional[User] = Depends(get_optional_user),
 ):
@@ -1178,7 +1340,7 @@ async def faq_page(
 
 
 @app.get("/install-manual")
-async def install_manual_page(
+def install_manual_page(
     request: Request,
     user: Optional[User] = Depends(get_optional_user),
 ):
@@ -1193,7 +1355,7 @@ async def install_manual_page(
 
 
 @app.post("/partner/waitlist")
-async def partner_waitlist(
+def partner_waitlist(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1205,7 +1367,7 @@ async def partner_waitlist(
 
 
 @app.post("/partner/join")
-async def partner_join(
+def partner_join(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1221,7 +1383,7 @@ async def partner_join(
 
 
 @app.get("/partner/dashboard")
-async def partner_dashboard(
+def partner_dashboard(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
@@ -1284,7 +1446,7 @@ async def partner_dashboard(
 
 
 @app.get("/partner/admin")
-async def partner_admin(
+def partner_admin(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -1331,24 +1493,30 @@ async def admin_home(
 ):
     r = request.app.state.redis
     redis_check = await _check_redis(r)
-    db_check = _check_database(db)
-    disk_check = _check_disk()
     webhook_check = await _last_webhook_status(r)
+    disk_check = _check_disk()
     missing_config = [c["name"] for c in _config_status() if not c["configured"]]
 
-    now = datetime.utcnow()
-    total_users = db.query(User).count()
-    new_7d = db.query(User).filter(User.created_at >= now - timedelta(days=7)).count()
-    banned_count = db.query(User).filter(User.is_active == False).count()  # noqa: E712
-    pending_cancellations = db.query(User).filter(User.sub_cancel_at.isnot(None)).count()
-    active_subs = db.query(User).filter(
-        User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None)
-    ).count()
-    flagged_referrers = _flagged_referrer_count(db)
-    active_announcements = db.query(Announcement).filter(Announcement.in_app_active == True).count()  # noqa: E712
-    usage_today = db.query(
-        func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
-    ).filter(UsageDaily.date == now.date()).first()
+    def _load_counts():
+        db_check = _check_database(db)
+        now = datetime.utcnow()
+        total_users = db.query(User).count()
+        new_7d = db.query(User).filter(User.created_at >= now - timedelta(days=7)).count()
+        banned_count = db.query(User).filter(User.is_active == False).count()  # noqa: E712
+        pending_cancellations = db.query(User).filter(User.sub_cancel_at.isnot(None)).count()
+        active_subs = db.query(User).filter(
+            User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None)
+        ).count()
+        flagged_referrers = _flagged_referrer_count(db)
+        active_announcements = db.query(Announcement).filter(Announcement.in_app_active == True).count()  # noqa: E712
+        usage_today = db.query(
+            func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
+        ).filter(UsageDaily.date == now.date()).first()
+        return (db_check, total_users, new_7d, banned_count, pending_cancellations,
+                active_subs, flagged_referrers, active_announcements, usage_today)
+
+    (db_check, total_users, new_7d, banned_count, pending_cancellations,
+     active_subs, flagged_referrers, active_announcements, usage_today) = await run_in_threadpool(_load_counts)
 
     alerts = []
     if not redis_check["ok"]:
@@ -1411,7 +1579,7 @@ async def admin_home(
 
 
 @app.get("/admin/usage")
-async def admin_usage(
+def admin_usage(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -1471,7 +1639,7 @@ def _user_table_entries(db: Session, users: list) -> list:
 
 
 @app.get("/admin/users")
-async def admin_users(
+def admin_users(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -1510,7 +1678,7 @@ def _flagged_referrer_count(db: Session) -> int:
 
 
 @app.get("/admin/referrals")
-async def admin_referrals(
+def admin_referrals(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -1622,7 +1790,7 @@ _DASHBOARD_DRILLDOWN_LIMIT = 200
 
 
 @app.get("/admin/dashboard")
-async def admin_dashboard(
+def admin_dashboard(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2049,7 +2217,7 @@ async def admin_health(
 
 
 @app.get("/admin/health/logs")
-async def admin_health_logs(
+def admin_health_logs(
     max_entries: int = 20,
     _: None = Depends(_require_author),
 ):
@@ -2110,7 +2278,7 @@ def _admin_redirect(return_to: str, msg: str) -> RedirectResponse:
 
 
 @app.post("/admin/users/{user_id}/ban")
-async def admin_ban_user(
+def admin_ban_user(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2128,7 +2296,7 @@ async def admin_ban_user(
 
 
 @app.post("/admin/users/{user_id}/unban")
-async def admin_unban_user(
+def admin_unban_user(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2146,7 +2314,7 @@ async def admin_unban_user(
 
 
 @app.post("/admin/users/{user_id}/pause-subscription")
-async def admin_pause_subscription(
+def admin_pause_subscription(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2173,7 +2341,7 @@ async def admin_pause_subscription(
 
 
 @app.post("/admin/users/{user_id}/resume-subscription")
-async def admin_resume_subscription(
+def admin_resume_subscription(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2199,7 +2367,7 @@ async def admin_resume_subscription(
 
 
 @app.post("/admin/users/{user_id}/warn")
-async def admin_warn_user(
+def admin_warn_user(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2215,7 +2383,7 @@ async def admin_warn_user(
 
 
 @app.post("/admin/users/{user_id}/send-expiry-reminder")
-async def admin_send_expiry_reminder(
+def admin_send_expiry_reminder(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2234,7 +2402,7 @@ async def admin_send_expiry_reminder(
 
 
 @app.post("/admin/users/{user_id}/send-low-sessions")
-async def admin_send_low_sessions(
+def admin_send_low_sessions(
     user_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2349,7 +2517,7 @@ def _send_announcement_emails(announcement_id: int, subject: str, body: str, seg
 
 
 @app.get("/admin/announcements")
-async def admin_announcements(
+def admin_announcements(
     request: Request,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2366,7 +2534,7 @@ async def admin_announcements(
 
 
 @app.get("/admin/announcements/count")
-async def announcement_segment_count(
+def announcement_segment_count(
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
     segment: list[str] = Query(default=[]),
@@ -2383,7 +2551,7 @@ async def announcement_segment_count(
 
 
 @app.post("/admin/announcements")
-async def create_announcement(
+def create_announcement(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2421,7 +2589,7 @@ async def create_announcement(
 
 
 @app.post("/admin/announcements/{announcement_id}/deactivate")
-async def deactivate_announcement(
+def deactivate_announcement(
     announcement_id: int,
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
@@ -2435,7 +2603,7 @@ async def deactivate_announcement(
 
 
 @app.post("/announcements/{announcement_id}/dismiss")
-async def dismiss_announcement(
+def dismiss_announcement(
     announcement_id: int,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -2459,19 +2627,26 @@ async def settings_page(
     ref_error: Optional[str] = None,
     offer: Optional[str] = None,
 ):
-    _ensure_api_token(user, db)
     r = request.app.state.redis
-    account_flag_notice = user.account_flag if not user.account_flag_seen else None
-    if not user.account_flag_seen:
-        user.account_flag_seen = True
-        db.commit()
-    cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
-    hk = _user_hotkeys(user)
-    saved_contexts = {c.slot: c for c in db.query(InterviewContext).filter(InterviewContext.user_id == user.id).all()}
-    contexts = [
-        {"slot": i, "name": saved_contexts[i].name if i in saved_contexts else "", "text": saved_contexts[i].text if i in saved_contexts else ""}
-        for i in range(1, MAX_CONTEXTS_PER_USER + 1)
-    ]
+    complexity = await get_complexity(r, user.id)
+
+    def _load_page_data():
+        _ensure_api_token(user, db)
+        account_flag_notice = user.account_flag if not user.account_flag_seen else None
+        if not user.account_flag_seen:
+            user.account_flag_seen = True
+            db.commit()
+        cancel_at = user.sub_cancel_at.strftime("%d %B %Y").lstrip("0") if user.sub_cancel_at else None
+        hk = _user_hotkeys(user)
+        saved_contexts = {c.slot: c for c in db.query(InterviewContext).filter(InterviewContext.user_id == user.id).all()}
+        contexts = [
+            {"slot": i, "name": saved_contexts[i].name if i in saved_contexts else "", "text": saved_contexts[i].text if i in saved_contexts else ""}
+            for i in range(1, MAX_CONTEXTS_PER_USER + 1)
+        ]
+        return account_flag_notice, cancel_at, hk, contexts
+
+    account_flag_notice, cancel_at, hk, contexts = await run_in_threadpool(_load_page_data)
+
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
         "username": user.username,
@@ -2491,7 +2666,7 @@ async def settings_page(
         "hotkey_typing":  hk["typing"],
         "typing_passthrough": user.typing_passthrough,
         "response_style": _user_response_style(user).value,
-        "complexity": await get_complexity(r, user.id),
+        "complexity": complexity,
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
         "contexts": contexts,
@@ -2511,7 +2686,7 @@ async def get_latest(request: Request, user: User = Depends(require_subscription
 
 
 @app.get("/screenshot")
-async def get_screenshot(user: User = Depends(require_subscription)):
+def get_screenshot(user: User = Depends(require_subscription)):
     path = SCREENSHOTS_DIR / f"{user.id}.png"
     if not path.exists():
         raise HTTPException(status_code=404, detail="No screenshot yet")
@@ -2536,7 +2711,7 @@ async def change_complexity(direction: str, request: Request, user: User = Depen
 # ---------------------------------------------------------------------------
 
 @app.post("/api/setup/complete")
-async def setup_complete(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def setup_complete(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.setup_complete = True
     if not user.api_token:
         user.api_token = secrets.token_urlsafe(32)
@@ -2560,7 +2735,7 @@ async def mobile_login(token: str, request: Request, db: Session = Depends(get_d
     if not user_id_str:
         return RedirectResponse("/login?error=link_expired", status_code=303)
     await r.delete(f"mobile_login:{token}")
-    user = db.query(User).filter(User.id == int(user_id_str)).first()
+    user = await run_in_threadpool(lambda: db.query(User).filter(User.id == int(user_id_str)).first())
     if not user:
         return RedirectResponse("/login?error=link_expired", status_code=303)
     jwt_token = create_token(user.id)
@@ -2573,15 +2748,20 @@ async def mobile_login(token: str, request: Request, db: Session = Depends(get_d
 async def trial_start(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.account_level != AccountLevel.trial:
         raise HTTPException(status_code=400, detail="Not a trial account")
-    existing = db.query(InterviewSession).filter(
-        InterviewSession.user_id == user.id
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Trial already used")
-    user.setup_complete = True
-    session, _ = _get_or_create_session(db, user.id, TRIAL_DURATION)
-    db.commit()
-    # The `existing` check above guarantees this session was just newly created —
+
+    def _start():
+        existing = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id
+        ).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Trial already used")
+        user.setup_complete = True
+        session, _ = _get_or_create_session(db, user.id, TRIAL_DURATION)
+        db.commit()
+        return session
+
+    session = await run_in_threadpool(_start)
+    # The check inside _start() guarantees this session was just newly created —
     # clear unconditionally so a trial never inherits history from a prior session.
     await _clear_history(request.app.state.redis, user.id)
     track(user.id, "trial_started")
@@ -2593,7 +2773,7 @@ async def trial_start(request: Request, user: User = Depends(get_current_user), 
 
 
 @app.get("/api/trial/status")
-async def trial_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def trial_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.account_level != AccountLevel.trial:
         return {"is_trial": False}
     session = db.query(InterviewSession).filter(
@@ -2621,25 +2801,29 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
                       cooldown_msg="Capturing too fast — wait 5 seconds between captures",
                       limit_msg="Capture limit reached — you can capture up to 6 times per minute",
                       window_limit=15, window_msg="Capture limit reached — you can capture up to 15 times per 5 minutes")
-    _record_usage(db, user.id, "capture")
-
-    if user.account_level == AccountLevel.paid:
-        now = datetime.utcnow()
-        active = db.query(InterviewSession).filter(
-            InterviewSession.user_id == user.id,
-            InterviewSession.expires_at > now,
-            InterviewSession.ended_at == None,  # noqa: E711
-        ).first()
-        if not active:
-            if user.sessions_remaining <= 0:
-                user.account_level = AccountLevel.free
+    def _account_bookkeeping():
+        _record_usage(db, user.id, "capture")
+        created = False
+        if user.account_level == AccountLevel.paid:
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not active:
+                if user.sessions_remaining <= 0:
+                    user.account_level = AccountLevel.free
+                    db.commit()
+                    raise HTTPException(status_code=403, detail="sessions_exhausted")
+                user.sessions_remaining -= 1
                 db.commit()
-                raise HTTPException(status_code=403, detail="sessions_exhausted")
-            user.sessions_remaining -= 1
-            db.commit()
-        _, created = _get_or_create_session(db, user.id)
-        if created:
-            await _clear_history(r, user.id)
+            _, created = _get_or_create_session(db, user.id)
+        return created
+
+    created = await run_in_threadpool(_account_bookkeeping)
+    if created:
+        await _clear_history(r, user.id)
 
     img_b64 = body.image
     if "," in img_b64:
@@ -2676,25 +2860,29 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
                       cooldown_msg="Sending too fast — wait 5 seconds between submissions",
                       limit_msg="Limit reached — you can submit up to 6 times per minute",
                       window_limit=15, window_msg="Limit reached — you can submit up to 15 times per 5 minutes")
-    _record_usage(db, user.id, "capture")
-
-    if user.account_level == AccountLevel.paid:
-        now = datetime.utcnow()
-        active = db.query(InterviewSession).filter(
-            InterviewSession.user_id == user.id,
-            InterviewSession.expires_at > now,
-            InterviewSession.ended_at == None,  # noqa: E711
-        ).first()
-        if not active:
-            if user.sessions_remaining <= 0:
-                user.account_level = AccountLevel.free
+    def _account_bookkeeping():
+        _record_usage(db, user.id, "capture")
+        created = False
+        if user.account_level == AccountLevel.paid:
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not active:
+                if user.sessions_remaining <= 0:
+                    user.account_level = AccountLevel.free
+                    db.commit()
+                    raise HTTPException(status_code=403, detail="sessions_exhausted")
+                user.sessions_remaining -= 1
                 db.commit()
-                raise HTTPException(status_code=403, detail="sessions_exhausted")
-            user.sessions_remaining -= 1
-            db.commit()
-        _, created = _get_or_create_session(db, user.id)
-        if created:
-            await _clear_history(r, user.id)
+            _, created = _get_or_create_session(db, user.id)
+        return created
+
+    created = await run_in_threadpool(_account_bookkeeping)
+    if created:
+        await _clear_history(r, user.id)
 
     await broadcast(r, user.id, "typing-working", {"text": body.text})
 
@@ -2800,14 +2988,14 @@ async def set_complexity(request: Request, data: ComplexityRequest, user: User =
 
 
 @app.post("/api/settings/style")
-async def set_style_token(data: ResponseStyleRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
+def set_style_token(data: ResponseStyleRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     user.response_style = data.style
     db.commit()
     return {"status": "ok", "style": data.style.value}
 
 
 @app.post("/api/settings/hotkeys")
-async def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.hotkey_capture = data.capture
     user.hotkey_audio   = data.audio
     user.hotkey_toggle  = data.toggle
@@ -2822,14 +3010,14 @@ class PassthroughSetting(BaseModel):
 
 
 @app.post("/api/settings/passthrough")
-async def save_passthrough(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_passthrough(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.typing_passthrough = data.enabled
     db.commit()
     return {"status": "ok"}
 
 
 @app.post("/api/settings/replay")
-async def save_replay(data: ReplaySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_replay(data: ReplaySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.replay_enabled = data.enabled
     user.replay_seconds = data.seconds
     db.commit()
@@ -2837,14 +3025,14 @@ async def save_replay(data: ReplaySettings, user: User = Depends(get_current_use
 
 
 @app.post("/api/settings/response-style")
-async def save_response_style(data: ResponseStyleRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_response_style(data: ResponseStyleRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.response_style = data.style
     db.commit()
     return {"status": "ok", "style": data.style.value}
 
 
 @app.post("/api/settings/context")
-async def save_context(data: ContextSaveRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def save_context(data: ContextSaveRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     name = data.name.strip()
     text = data.text.strip()
     ctx = db.query(InterviewContext).filter(
@@ -2870,7 +3058,7 @@ async def save_context(data: ContextSaveRequest, user: User = Depends(get_curren
 
 
 @app.post("/api/settings/context/activate")
-async def activate_context(data: ContextActivateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def activate_context(data: ContextActivateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if data.slot is not None:
         ctx = db.query(InterviewContext).filter(
             InterviewContext.user_id == user.id,
@@ -2900,7 +3088,7 @@ async def notify_enabled(request: Request, user: User = Depends(get_user_by_toke
 
 
 @app.post("/api/token/regenerate")
-async def regenerate_api_token(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def regenerate_api_token(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.api_token = secrets.token_urlsafe(32)
     db.commit()
     return {"token": user.api_token}
@@ -2918,7 +3106,7 @@ class PasswordChangeRequest(BaseModel):
 
 
 @app.post("/api/settings/account")
-async def update_account(
+def update_account(
     body: AccountUpdateRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -2936,7 +3124,7 @@ async def update_account(
 
 
 @app.post("/api/settings/password")
-async def change_password(
+def change_password(
     body: PasswordChangeRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -2952,7 +3140,7 @@ async def change_password(
 
 
 @app.get("/account/delete")
-async def account_delete_page(request: Request, user: User = Depends(get_current_user)):
+def account_delete_page(request: Request, user: User = Depends(get_current_user)):
     return templates.TemplateResponse(request=request, name="account_delete.html", context={
         "has_active_sub": user.account_level == AccountLevel.unlimited and not user.sub_cancel_at,
     })
@@ -2967,27 +3155,31 @@ async def account_delete_confirm(
     reason: str = Form(default=""),
     detail: str = Form(default=""),
 ):
-    if not verify_password(password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Incorrect password.")
+    def _delete():
+        if not verify_password(password, user.password_hash):
+            raise HTTPException(status_code=400, detail="Incorrect password.")
 
-    if user.stripe_sub_id:
-        try:
-            cancel_subscription_immediately(user)
-        except Exception as e:
-            logger.error("[account-delete] failed to cancel stripe sub for %s: %s", user.email, e)
+        if user.stripe_sub_id:
+            try:
+                cancel_subscription_immediately(user)
+            except Exception as e:
+                logger.error("[account-delete] failed to cancel stripe sub for %s: %s", user.email, e)
 
-    track(user.id, "account_deleted", reason=reason)
-    if reason:
-        send_account_deletion_email(user.email, reason, detail)
+        track(user.id, "account_deleted", reason=reason)
+        if reason:
+            send_account_deletion_email(user.email, reason, detail)
 
-    user_id = user.id
-    db.query(InterviewSession).filter(InterviewSession.user_id == user_id).delete()
-    db.query(InterviewContext).filter(InterviewContext.user_id == user_id).delete()
-    db.query(Referral).filter(Referral.referrer_id == user_id).delete()
-    db.query(Referral).filter(Referral.referee_id == user_id).delete()
-    db.query(User).filter(User.referred_by_id == user_id).update({"referred_by_id": None})
-    db.delete(user)
-    db.commit()
+        user_id = user.id
+        db.query(InterviewSession).filter(InterviewSession.user_id == user_id).delete()
+        db.query(InterviewContext).filter(InterviewContext.user_id == user_id).delete()
+        db.query(Referral).filter(Referral.referrer_id == user_id).delete()
+        db.query(Referral).filter(Referral.referee_id == user_id).delete()
+        db.query(User).filter(User.referred_by_id == user_id).update({"referred_by_id": None})
+        db.delete(user)
+        db.commit()
+        return user_id
+
+    user_id = await run_in_threadpool(_delete)
 
     r = request.app.state.redis
     await r.delete(_capture_key(user_id), _complexity_key(user_id), _history_key(user_id))
@@ -3002,7 +3194,7 @@ async def account_delete_confirm(
 # ---------------------------------------------------------------------------
 
 @app.get("/billing/checkout")
-async def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
+def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
     apply_discount = False
     if plan == "subscription" and user.referred_by_id:
         ref = db.query(Referral).filter(Referral.referee_id == user.id).first()
@@ -3014,7 +3206,7 @@ async def billing_checkout(user: User = Depends(get_current_user), db: Session =
 
 
 @app.get("/billing/cancel")
-async def billing_cancel(request: Request, user: User = Depends(get_current_user)):
+def billing_cancel(request: Request, user: User = Depends(get_current_user)):
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={
         "hotkey_capture": hk["capture"],
@@ -3024,7 +3216,7 @@ async def billing_cancel(request: Request, user: User = Depends(get_current_user
 
 
 @app.post("/billing/offer")
-async def billing_offer(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_offer(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     try:
         apply_retention_coupon(user)
         user.retention_offer_claimed = True
@@ -3035,7 +3227,7 @@ async def billing_offer(user: User = Depends(get_current_user), db: Session = De
 
 
 @app.post("/billing/cancel/confirm")
-async def billing_cancel_confirm(
+def billing_cancel_confirm(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     reason: str = Form(default=""),
@@ -3058,7 +3250,7 @@ async def billing_cancel_confirm(
 
 @app.post("/billing/portal")
 @app.get("/billing/portal")
-async def billing_portal(user: User = Depends(get_current_user)):
+def billing_portal(user: User = Depends(get_current_user)):
     if not user.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No billing account found.")
     url = create_portal_session(user)
@@ -3066,7 +3258,7 @@ async def billing_portal(user: User = Depends(get_current_user)):
 
 
 @app.post("/billing/feedback")
-async def billing_feedback(
+def billing_feedback(
     user: User = Depends(get_current_user),
     reason: str = Form(default=""),
     detail: str = Form(default=""),
@@ -3077,7 +3269,7 @@ async def billing_feedback(
 
 
 @app.get("/billing/success")
-async def billing_success(request: Request, user: User = Depends(get_optional_user), db: Session = Depends(get_db)):
+def billing_success(request: Request, user: User = Depends(get_optional_user), db: Session = Depends(get_db)):
     if not user:
         return RedirectResponse("/login?next=/billing/success", status_code=302)
     db.refresh(user)
@@ -3085,7 +3277,7 @@ async def billing_success(request: Request, user: User = Depends(get_optional_us
 
 
 @app.get("/api/billing/status")
-async def billing_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def billing_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     db.refresh(user)
     return {
         "account_level": user.account_level.value,
