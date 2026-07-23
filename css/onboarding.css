@@ -142,6 +142,32 @@
 .ob-sideload-link:hover { opacity: .75; }
 
 /* ── Extension connect ── */
+.ob-connect-auto {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+.ob-connect-auto-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-3);
+  flex-shrink: 0;
+  animation: ob-connect-pulse 1.4s ease-in-out infinite;
+}
+.ob-connect-auto.ok .ob-connect-auto-dot {
+  background: var(--accent);
+  box-shadow: 0 0 6px rgba(198,242,78,.5);
+  animation: none;
+}
+.ob-connect-auto-msg { font-size: 13.5px; color: var(--text-2); }
+.ob-connect-auto.ok .ob-connect-auto-msg { color: var(--accent); font-weight: 600; }
+@keyframes ob-connect-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .ob-connect-auto-dot { animation: none; }
+}
+
 .ob-connect-wrap { display: flex; flex-direction: column; gap: 8px; }
 .ob-connect-btn {
   background: var(--accent-soft);
@@ -181,6 +207,12 @@
   transition: color .15s;
 }
 .ob-manual-toggle:hover { color: var(--text-2); }
+
+.ob-advanced-toggle {
+  color: var(--accent);
+  text-decoration: none;
+}
+.ob-advanced-toggle:hover { opacity: .8; color: var(--accent); }
 
 .ob-manual-section {
   display: none;
@@ -469,6 +501,17 @@ kbd {
   padding: 24px;
 }
 #warning-overlay.visible { display: flex; }
+#ext-warning-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.82);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#ext-warning-overlay.visible { display: flex; }
 .warning-modal {
   background: var(--card);
   border: 1px solid rgba(224,106,106,.25);
@@ -493,7 +536,7 @@ kbd {
 }
 .warning-modal p strong { color: var(--text-1); }
 .wm-actions { display: flex; flex-direction: column; gap: 8px; }
-#wm-confirm {
+#wm-confirm, .wm-confirm-btn {
   background: var(--btn-bg);
   border: none;
   border-radius: 9px;
@@ -506,8 +549,8 @@ kbd {
   width: 100%;
   transition: transform .15s;
 }
-#wm-confirm:hover { transform: translateY(-1px); }
-#wm-cancel {
+#wm-confirm:hover, .wm-confirm-btn:hover { transform: translateY(-1px); }
+#wm-cancel, .wm-cancel-btn {
   background: none;
   border: 1px solid var(--line-strong);
   border-radius: 9px;
@@ -519,4 +562,4 @@ kbd {
   width: 100%;
   transition: color .15s, border-color .15s;
 }
-#wm-cancel:hover { color: var(--text-1); border-color: var(--line-strong); }
+#wm-cancel:hover, .wm-cancel-btn:hover { color: var(--text-1); border-color: var(--line-strong); }

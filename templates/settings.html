@@ -808,11 +808,27 @@
 
   <script>
     // ── Extension connect ──────────────────────────────────────────
+    // The content script injects at document_idle, which can run *after*
+    // this inline script already executed once (it's part of the initial
+    // HTML parse) — a single dispatch can fire before the extension's
+    // listeners exist and gets lost with no response ever coming back.
+    // Retry a few times over ~1.2s instead of a one-shot dispatch.
+    function _retryConnectDispatch(isSeen) {
+      let attempts = 0;
+      const detail = { token: '{{ api_token }}', serverUrl: window.location.origin };
+      document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      const timer = setInterval(() => {
+        if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
+        document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      }, 200);
+      return timer;
+    }
+
     let extensionDetected = false;
 
     const pingTimeout = setTimeout(() => {
       if (!extensionDetected) showConnect();
-    }, 700);
+    }, 1500);
 
     document.addEventListener('interview-ace:connected', () => {
       extensionDetected = true;
@@ -820,9 +836,7 @@
       showConnected();
     }, { once: true });
 
-    document.dispatchEvent(new CustomEvent('interview-ace:connect', {
-      detail: { token: '{{ api_token }}', serverUrl: window.location.origin }
-    }));
+    _retryConnectDispatch(() => extensionDetected);
 
     function showConnected() {
       document.getElementById('ext-connected').style.display = 'flex';
@@ -839,20 +853,21 @@
       btn.disabled = true;
       btn.textContent = 'Connecting…';
       status.textContent = '';
+      let connected = false;
       const timeout = setTimeout(() => {
+        if (connected) return;
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
         status.textContent = 'Extension not detected — try the manual token below.';
         status.style.color = 'var(--danger)';
         document.getElementById('fallback-details').open = true;
-      }, 2000);
+      }, 1800);
       document.addEventListener('interview-ace:connected', () => {
+        connected = true;
         clearTimeout(timeout);
         showConnected();
       }, { once: true });
-      document.dispatchEvent(new CustomEvent('interview-ace:connect', {
-        detail: { token: '{{ api_token }}', serverUrl: window.location.origin }
-      }));
+      _retryConnectDispatch(() => connected);
     }
 
     function copyText(id, btn) {
@@ -1066,6 +1081,7 @@
     function sidebarScroll(id) {
       const el = document.getElementById(id);
       if (!el) return;
+      _setActiveNav(id);
       const top = el.getBoundingClientRect().top + window.scrollY - 88;
       window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
     }
@@ -1076,8 +1092,13 @@
       });
     }
 
+    function _isAtBottom() {
+      return window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+    }
+
     const _observer = new IntersectionObserver(
       (entries) => {
+        if (_isAtBottom()) { _setActiveNav(_sections[_sections.length - 1]); return; }
         for (const entry of entries) {
           if (entry.isIntersecting) _setActiveNav(entry.target.id);
         }
@@ -1089,6 +1110,10 @@
       const el = document.getElementById(id);
       if (el) _observer.observe(el);
     });
+
+    window.addEventListener('scroll', () => {
+      if (_isAtBottom()) _setActiveNav(_sections[_sections.length - 1]);
+    }, { passive: true });
   </script>
 
 {% endblock %}

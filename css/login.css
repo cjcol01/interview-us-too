@@ -150,6 +150,14 @@
 .pw-requirements li.met { color: var(--accent); }
 .pw-requirements li.met::before { content: "✓"; }
 
+.pw-all-good {
+  display: none;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--accent);
+}
+.pw-all-good.visible { display: block; }
+
 /* Tight group for the terms checkbox, its error slot, and the submit button —
    these read as one action block, so they shouldn't get the form's full field gap. */
 .auth-actions { display: flex; flex-direction: column; gap: 6px; }

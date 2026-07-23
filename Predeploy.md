@@ -22,6 +22,7 @@
 - [ ] Fresh DB — delete `users.db`, restart, confirm `init_db` creates tables cleanly
 - [ ] Decide: Chrome Web Store / firefox vs. sideload; prep store listing if publishing
 - [ ] create CDN backup for extension + video install
+- [ ] dont launch on main domain, launch on subdomain
 
 ## Marketing
 

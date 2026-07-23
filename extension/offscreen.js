@@ -19,12 +19,23 @@ const _replay = {
 
 // ── Message router ────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
-  if      (msg.type === 'start-recording')   startMicRecording(msg.deviceId);
-  else if (msg.type === 'stop-recording')    stopMicRecording();
-  else if (msg.type === 'replay-stream-id')  startReplay(msg.streamId, msg.windowSec, msg.epochMs);
-  else if (msg.type === 'replay-slice')      handleReplaySlice(msg.requestId, msg.windowSec);
-  else if (msg.type === 'replay-disarm')     disarmReplay();
+  if      (msg.type === 'start-recording')      startMicRecording(msg.deviceId);
+  else if (msg.type === 'stop-recording')       stopMicRecording();
+  else if (msg.type === 'replay-stream-id')     startReplay(msg.streamId, msg.windowSec, msg.epochMs);
+  else if (msg.type === 'replay-slice')         handleReplaySlice(msg.requestId, msg.windowSec);
+  else if (msg.type === 'replay-disarm')        disarmReplay();
+  else if (msg.type === 'query-mic-permission') queryMicPermission();
 });
+
+// ── Mic permission check (passive — never prompts) ────────────────────────────
+async function queryMicPermission() {
+  let state = 'prompt';
+  try {
+    const status = await navigator.permissions.query({ name: 'microphone' });
+    state = status.state;
+  } catch {}
+  chrome.runtime.sendMessage({ type: 'mic-permission-result', state });
+}
 
 // ── Mic recording ─────────────────────────────────────────────────────────────
 async function startMicRecording(deviceId) {

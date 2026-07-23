@@ -22,13 +22,6 @@
       <div style="font-size:2rem;margin-bottom:12px;">&#9200;</div>
       <h2>Start your trial</h2>
       <p class="ts-sub">Your 10-minute free trial hasn't started yet. When you're ready with a problem open on your other screen, tap below.</p>
-      <div class="ts-warning">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e07070" stroke-width="2.2">
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>
-        <p><strong>Practice only.</strong> 10 minutes is not enough for a real interview — use this to test the setup.</p>
-      </div>
       <button id="ts-start-btn" onclick="tsConfirmStart()">Start 10-minute trial</button>
       <p class="ts-footer">No card required &nbsp;&middot;&nbsp; <a href="/auth/logout">sign out</a></p>
       <p class="ts-footer" style="margin-top:8px;"><a href="/onboarding">Haven't connected the extension on your computer? Go to setup &rarr;</a></p>
@@ -66,6 +59,17 @@
     <div class="header-right">
       <span id="replay-badge" style="display:none;font-size:0.72rem;display:none;align-items:center;gap:5px;"></span>
       <span id="status">connecting...</span>
+      <a id="support-btn" href="/support" aria-label="Support">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="4"/>
+          <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
+          <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
+          <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
+          <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
+        </svg>
+        Support
+      </a>
       <button id="tutorial-btn" onclick="openMockInterview(false)" aria-label="How it works">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/>
@@ -125,7 +129,23 @@
     </div>
 
     <div id="hotkey-reference">
-      <div class="hk-ref-title">Hotkeys</div>
+      <div class="hk-ref-header">
+        <div class="hk-ref-title">Hotkeys</div>
+        <div class="hk-status-row" id="hk-status-row">
+          <button type="button" class="hk-status-dot" id="hk-status-ext" aria-label="Extension status">
+            <span class="hk-status-led neutral"></span>Ext
+            <span class="hk-status-tip" id="hk-status-tip-ext">Checking extension…</span>
+          </button>
+          <button type="button" class="hk-status-dot" id="hk-status-mic" aria-label="Microphone status">
+            <span class="hk-status-led neutral"></span>Mic
+            <span class="hk-status-tip" id="hk-status-tip-mic">Checking microphone…</span>
+          </button>
+          <button type="button" class="hk-status-dot" id="hk-status-replay" aria-label="Instant replay status">
+            <span class="hk-status-led neutral"></span>Replay
+            <span class="hk-status-tip" id="hk-status-tip-replay">Checking instant replay…</span>
+          </button>
+        </div>
+      </div>
       <div class="hk-ref-list">
         <div class="hk-ref-row">
           <span class="hk-ref-label">Screen capture</span>
@@ -134,7 +154,7 @@
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Voice capture</span>
-          <span class="hk-ref-desc">Hold — send the interviewer's question</span>
+          <span class="hk-ref-desc">Hold — send yours or the interviewer's question</span>
           <span class="hk-ref-key" id="hkref-audio"></span>
         </div>
         <div class="hk-ref-row">
@@ -561,5 +581,100 @@
     }
 
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayStatus(e.detail));
+
+    // ── Status dots (extension / mic / instant replay) ──────────────────────
+    function _setDot(name, state, text) {
+      const dot = document.getElementById('hk-status-' + name);
+      dot.querySelector('.hk-status-led').className = 'hk-status-led ' + state;
+      document.getElementById('hk-status-tip-' + name).textContent = text;
+    }
+
+    document.querySelectorAll('.hk-status-dot').forEach((dot) => {
+      dot.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const wasOpen = dot.classList.contains('open');
+        document.querySelectorAll('.hk-status-dot.open').forEach((d) => d.classList.remove('open'));
+        if (!wasOpen) dot.classList.add('open');
+      });
+    });
+    document.addEventListener('click', () => {
+      document.querySelectorAll('.hk-status-dot.open').forEach((d) => d.classList.remove('open'));
+    });
+
+    // Extension: read-only presence/link ping — never touches the stored token.
+    // The content script injects at document_idle, which can run *after* this
+    // inline script already executed once (it's part of the initial HTML
+    // parse) — a single dispatch can fire before the extension's listeners
+    // exist and gets lost with no response ever coming back. Retry a few
+    // times instead of a one-shot dispatch.
+    let _pongSeen = false;
+    let _micSeen = false;
+    function _retryDispatch(eventName, isSeen) {
+      let attempts = 0;
+      document.dispatchEvent(new CustomEvent(eventName));
+      const timer = setInterval(() => {
+        if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
+        document.dispatchEvent(new CustomEvent(eventName));
+      }, 200);
+    }
+
+    const _supportBtn = document.getElementById('support-btn');
+    function _setSupportBounce(active) {
+      _supportBtn.classList.toggle('needs-attention', active);
+    }
+
+    const _extDotTimeout = setTimeout(() => {
+      if (_pongSeen) return;
+      _setDot('ext', 'bad', 'Extension not detected — install it from the Chrome Web Store, then connect it in Settings → Extension.');
+      _setSupportBounce(true);
+    }, 1500);
+    document.addEventListener('interview-ace:pong', (e) => {
+      _pongSeen = true;
+      clearTimeout(_extDotTimeout);
+      if (e.detail && e.detail.linked) {
+        _setDot('ext', 'ok', 'Extension connected and linked to your account.');
+        _setSupportBounce(false);
+      } else {
+        _setDot('ext', 'bad', 'Extension installed but not connected — connect it in Settings → Extension.');
+        _setSupportBounce(true);
+      }
+    });
+    _retryDispatch('interview-ace:ping', () => _pongSeen);
+
+    // Mic: passive permission check, requested fresh on load.
+    const _micDotTimeout = setTimeout(() => {
+      if (_micSeen) return;
+      _setDot('mic', 'neutral', 'Microphone status unknown — install and connect the extension to check.');
+    }, 1500);
+    document.addEventListener('interview-ace:mic-status', (e) => {
+      _micSeen = true;
+      clearTimeout(_micDotTimeout);
+      const state = e.detail && e.detail.state;
+      if (state === 'granted') {
+        _setDot('mic', 'ok', 'Microphone permission granted.');
+      } else if (state === 'denied') {
+        _setDot('mic', 'bad', "Microphone permission blocked — allow it for InterviewAce in your browser's site settings, then reload this page.");
+      } else if (state === 'error') {
+        _setDot('mic', 'bad', 'Microphone isn’t working — check that a microphone is connected and permission is allowed, then try again.');
+      } else {
+        _setDot('mic', 'neutral', 'Microphone permission not requested yet — you’ll be asked the first time you hold the voice-capture hotkey.');
+      }
+    });
+    _retryDispatch('interview-ace:mic-check', () => _micSeen);
+
+    // Instant replay: reuse the same status stream as the replay badge above.
+    function _applyReplayDot(status) {
+      const state = status && status.state;
+      if (state === 'armed') {
+        const page = status.tabTitle ? ` — locked to "${status.tabTitle}"` : '';
+        _setDot('replay', 'ok', 'Instant replay is armed and ready' + page + '.');
+      } else if (state === 'error' || state === 'stream-ended') {
+        _setDot('replay', 'bad', 'Instant replay lost its connection — click re-lock in the extension popup.');
+      } else {
+        _setDot('replay', 'neutral', "Instant replay isn't locked to a tab. If you want to use it this interview, lock it to a tab in the extension popup first.");
+      }
+    }
+    document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));
+    _applyReplayDot(null);
   </script>
 {% endblock %}

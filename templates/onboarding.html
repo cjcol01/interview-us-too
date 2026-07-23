@@ -18,6 +18,19 @@
     </div>
   </div>
 
+  <!-- Extension-not-detected warning modal -->
+  <div id="ext-warning-overlay">
+    <div class="warning-modal">
+      <div class="wm-icon">🔌</div>
+      <h3>Extension not detected</h3>
+      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio — it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your trial or interview until it is.</p>
+      <div class="wm-actions">
+        <button class="wm-confirm-btn" onclick="closeExtWarning()">Go connect it</button>
+        <button class="wm-cancel-btn" onclick="continueWithoutExtension()">Continue anyway</button>
+      </div>
+    </div>
+  </div>
+
   <header class="ob-header">
     <a class="ob-logo" href="/">
       <span class="ob-logo-dot"></span>InterviewAce
@@ -56,28 +69,36 @@
       <div class="ob-step-num">2</div>
       <div class="ob-step-body">
         <h2>Connect the extension to your account</h2>
-        <p>Open this page in the same browser where you installed the extension, then click below to link it automatically.</p>
-        <p class="ob-manual-hint">Tip: pin it — click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
-        <div class="ob-connect-wrap">
-          <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
-          <p id="connect-status" class="ob-connect-status"></p>
-          <button class="ob-manual-toggle" onclick="toggleManual()">Set up manually instead</button>
-          <div id="manual-section" class="ob-manual-section">
-            <div class="ob-manual-row">
-              <span class="ob-manual-label">API Token</span>
-              <div class="ob-manual-val-row">
-                <code id="api-token" class="ob-manual-code">{{ api_token }}</code>
-                <button class="ob-copy-btn" onclick="copyText('api-token', this)">Copy</button>
+
+        <div id="connect-auto" class="ob-connect-auto">
+          <span class="ob-connect-auto-dot" id="connect-auto-dot"></span>
+          <span class="ob-connect-auto-msg" id="connect-auto-msg">Checking for the extension — this connects automatically, no action needed.</span>
+        </div>
+
+        <div id="connect-manual" class="ob-connect-manual" style="display:none;">
+          <p>Open this page in the same browser where you installed the extension, then click below to link it manually.</p>
+          <p class="ob-manual-hint">Tip: pin it — click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
+          <div class="ob-connect-wrap">
+            <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
+            <p id="connect-status" class="ob-connect-status"></p>
+            <button class="ob-manual-toggle" onclick="toggleManual()">Set up manually instead</button>
+            <div id="manual-section" class="ob-manual-section">
+              <div class="ob-manual-row">
+                <span class="ob-manual-label">API Token</span>
+                <div class="ob-manual-val-row">
+                  <code id="api-token" class="ob-manual-code">{{ api_token }}</code>
+                  <button class="ob-copy-btn" onclick="copyText('api-token', this)">Copy</button>
+                </div>
               </div>
-            </div>
-            <div class="ob-manual-row">
-              <span class="ob-manual-label">Server URL</span>
-              <div class="ob-manual-val-row">
-                <code id="server-url" class="ob-manual-code">{{ base_url }}</code>
-                <button class="ob-copy-btn" onclick="copyText('server-url', this)">Copy</button>
+              <div class="ob-manual-row">
+                <span class="ob-manual-label">Server URL</span>
+                <div class="ob-manual-val-row">
+                  <code id="server-url" class="ob-manual-code">{{ base_url }}</code>
+                  <button class="ob-copy-btn" onclick="copyText('server-url', this)">Copy</button>
+                </div>
               </div>
+              <p class="ob-manual-hint">Open the extension popup, paste your token and server URL, then click Save.</p>
             </div>
-            <p class="ob-manual-hint">Open the extension popup, paste your token and server URL, then click Save.</p>
           </div>
         </div>
       </div>
@@ -100,21 +121,21 @@
         <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
         <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
 
-        <button class="ob-manual-toggle" onclick="toggleAdvanced()">Show advanced features (optional)</button>
+        <button class="ob-manual-toggle ob-advanced-toggle" onclick="toggleAdvanced()">Show advanced features</button>
         <div id="advanced-section" class="ob-manual-section">
           <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
           <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
 
           <div class="ob-feature-callout">
             <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
-            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
+            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
           </div>
 
           <div class="ob-feature-callout">
             <div class="ob-fc-title">⌨️ Typing mode &amp; passthrough</div>
             <p>Press the typing hotkey to enter typing mode — type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
             <div class="ob-passthrough-row">
-              <span class="ob-passthrough-label"><strong>Passthrough mode</strong> — keystrokes also reach the page (useful in online IDEs)</span>
+              <span class="ob-passthrough-label" id="passthrough-label"><strong>Passthrough mode</strong> — <span id="passthrough-desc">keystrokes also reach the page (useful in online IDEs)</span></span>
               <button id="passthrough-btn" class="ob-toggle-pill active" onclick="togglePassthrough()">On</button>
             </div>
           </div>
@@ -163,6 +184,7 @@
 
         <!-- Before moved -->
         <div id="pre-moved">
+          <p class="ob-manual-hint">Prop your phone up in front of your monitor or laptop so you can glance at it during the interview.</p>
           <button id="moved-btn" class="ob-moved-btn" onclick="iMoved()">I'm on my phone →</button>
         </div>
 
@@ -177,6 +199,41 @@
   </main>
 
   <script>
+    // The content script injects at document_idle, which can run *after*
+    // this inline script already executed once (it's part of the initial
+    // HTML parse) — a single dispatch can fire before the extension's
+    // listeners exist and gets lost with no response ever coming back.
+    // Retry a few times over ~1.2s instead of a one-shot dispatch.
+    function _retryConnectDispatch(isSeen) {
+      let attempts = 0;
+      const detail = { token: '{{ api_token }}', serverUrl: '{{ base_url }}' };
+      document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      const timer = setInterval(() => {
+        if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
+        document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      }, 200);
+      return timer;
+    }
+
+    // ── Passive extension detection (for the "move to phone" warning,
+    // and for step 2's auto-connect card) ──────────────────────────────────
+    let _extensionConnected = false;
+    document.addEventListener('interview-ace:connected', () => {
+      _extensionConnected = true;
+      const autoEl = document.getElementById('connect-auto');
+      autoEl.classList.add('ok');
+      document.getElementById('connect-auto-msg').textContent = 'Extension connected automatically — you\'re all set.';
+    }, { once: true });
+    _retryConnectDispatch(() => _extensionConnected);
+
+    // If the passive attempt hasn't succeeded shortly after the retries run
+    // out, stop waiting silently and show the manual connect card instead.
+    setTimeout(() => {
+      if (_extensionConnected) return;
+      document.getElementById('connect-auto').style.display = 'none';
+      document.getElementById('connect-manual').style.display = 'block';
+    }, 1600);
+
     function connectExtension() {
       const btn = document.getElementById('connect-btn');
       const status = document.getElementById('connect-status');
@@ -185,15 +242,18 @@
       status.textContent = '';
       status.className = 'ob-connect-status';
 
+      let connected = false;
       const timeout = setTimeout(() => {
+        if (connected) return;
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
         status.textContent = 'Extension not detected — use manual setup below.';
         status.className = 'ob-connect-status err';
         document.getElementById('manual-section').classList.add('open');
-      }, 2000);
+      }, 1800);
 
       document.addEventListener('interview-ace:connected', () => {
+        connected = true;
         clearTimeout(timeout);
         btn.disabled = false;
         btn.textContent = 'Connected!';
@@ -202,9 +262,7 @@
         status.className = 'ob-connect-status ok';
       }, { once: true });
 
-      document.dispatchEvent(new CustomEvent('interview-ace:connect', {
-        detail: { token: '{{ api_token }}', serverUrl: '{{ base_url }}' }
-      }));
+      _retryConnectDispatch(() => connected);
     }
 
     function toggleManual() {
@@ -227,13 +285,20 @@
 
     // ── Passthrough toggle ──────────────────────────────────────────────────
     let _passthrough = true;
+    function _applyPassthroughDesc() {
+      document.getElementById('passthrough-desc').textContent = _passthrough
+        ? 'keystrokes also reach the page (useful in online IDEs)'
+        : 'keystrokes are hidden — sent only to your phone';
+    }
     function togglePassthrough() {
       _passthrough = !_passthrough;
       const btn = document.getElementById('passthrough-btn');
       btn.textContent = _passthrough ? 'On' : 'Off';
       btn.classList.toggle('active', _passthrough);
+      _applyPassthroughDesc();
       document.dispatchEvent(new CustomEvent('interview-ace:passthrough', { detail: { enabled: _passthrough } }));
     }
+    _applyPassthroughDesc();
 
     // ── QR code / mobile link ───────────────────────────────────────────────
     let _mobileUrl = null;
@@ -299,13 +364,30 @@
     initMobileLink();
 
     // ── Device flow ─────────────────────────────────────────────────────────
-    async function iMoved() {
+    async function _completeMove() {
       const btn = document.getElementById('moved-btn');
       btn.disabled = true;
       btn.textContent = 'Saving...';
       await fetch('/api/setup/complete', { method: 'POST' }).catch(() => {});
       document.getElementById('pre-moved').style.display = 'none';
       document.getElementById('post-moved').style.display = 'flex';
+    }
+
+    function iMoved() {
+      if (!_extensionConnected) {
+        document.getElementById('ext-warning-overlay').classList.add('visible');
+        return;
+      }
+      _completeMove();
+    }
+
+    function closeExtWarning() {
+      document.getElementById('ext-warning-overlay').classList.remove('visible');
+    }
+
+    function continueWithoutExtension() {
+      closeExtWarning();
+      _completeMove();
     }
 
     function startTrial() {
@@ -316,7 +398,8 @@
       document.getElementById('warning-overlay').classList.remove('visible');
     }
 
-    function confirmStart() {
+    async function confirmStart() {
+      await fetch('/api/trial/start', { method: 'POST' }).catch(() => {});
       window.location.href = '/app';
     }
   </script>

@@ -1,3 +1,5 @@
+console.log('[InterviewAce] content.js loaded — build-check-2026-07-23-A');
+
 if (window._iaceAbort) window._iaceAbort.abort();
 const ac = new AbortController();
 window._iaceAbort = ac;
@@ -68,25 +70,58 @@ document.addEventListener('interview-ace:replay-relock', () => {
   chrome.runtime.sendMessage({ type: 'replay-relock' });
 }, { signal: ac.signal });
 
-// On /app: push replay status changes into the page as custom events
-if (window.location.pathname.startsWith('/app')) {
-  chrome.storage.local.get(['replay_status'], ({ replay_status }) => {
+// On /app and /support: push replay + mic status changes into the page as custom events
+if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/support')) {
+  chrome.storage.local.get(['replay_status', 'mic_status'], ({ replay_status, mic_status }) => {
     if (replay_status) {
       document.dispatchEvent(new CustomEvent('interview-ace:replay-status', { detail: replay_status }));
     }
+    if (mic_status) {
+      document.dispatchEvent(new CustomEvent('interview-ace:mic-status', { detail: mic_status }));
+    }
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.replay_status?.newValue) {
+    if (area !== 'local') return;
+    if (changes.replay_status?.newValue) {
       document.dispatchEvent(new CustomEvent('interview-ace:replay-status', {
         detail: changes.replay_status.newValue,
+      }));
+    }
+    if (changes.mic_status?.newValue) {
+      document.dispatchEvent(new CustomEvent('interview-ace:mic-status', {
+        detail: changes.mic_status.newValue,
       }));
     }
   });
 }
 
+// Read-only presence/link check — unlike interview-ace:connect, never writes to storage,
+// so it's safe to fire from any page without risking clobbering a real stored token.
+document.addEventListener('interview-ace:ping', () => {
+  chrome.storage.local.get(['server_url', 'api_token'], ({ server_url, api_token }) => {
+    // Deliberately not checking server_url === window.location.origin: captures always
+    // go to the stored server_url regardless of which host the current tab is on (e.g.
+    // 127.0.0.1 vs localhost are different origins but the same server), so requiring
+    // an exact match here just produced false "not connected" reports.
+    const linked = !!(server_url && api_token);
+    const version = chrome.runtime.getManifest().version;
+    document.dispatchEvent(new CustomEvent('interview-ace:pong', { detail: { linked, version } }));
+  });
+}, { signal: ac.signal });
+
+document.addEventListener('interview-ace:mic-check', () => {
+  chrome.runtime.sendMessage({ type: 'check-mic-permission' });
+}, { signal: ac.signal });
+
 document.addEventListener('interview-ace:connect', (e) => {
   const { token, serverUrl } = e.detail;
   chrome.storage.local.set({ api_token: token, server_url: serverUrl }, () => {
+    // The background service worker only pulls account settings (replay,
+    // hotkeys, complexity, etc.) from the server once, at its own startup —
+    // which happens before a fresh install has a token to sync with. Ask it
+    // to sync now that one actually exists, or those settings stay empty
+    // until the service worker happens to restart for an unrelated reason.
+    chrome.runtime.sendMessage({ type: 'sync-account' });
     document.dispatchEvent(new CustomEvent('interview-ace:connected'));
   });
 }, { signal: ac.signal });

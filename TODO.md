@@ -8,6 +8,12 @@
 - [ ] investigate postgres
 - [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
 - [ ] investigate why server starts quckly on mac but slow on pc
+- [ ] add different prompts for different use cases (image, typing etc)
+- [ ] Paste this token into the extension popup along with your server URL
+- [ ] settings mobile refresh
+- [ ] hotkey doesnt turn off extension
+- [ ] add see fix to mic and IR on support page
+
 ## Soon 
 - [ ] google login
 - [ ] shorten landing page

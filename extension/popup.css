@@ -116,11 +116,6 @@ button.primary:hover { background: #133313; }
 .status.ok  { color: #4caf50; }
 .status.err { color: #e57373; }
 
-.hint {
-  font-size: 0.68rem;
-  color: #2e2e2e;
-}
-
 .confirm-overlay {
   position: fixed;
   inset: 0;
@@ -289,9 +284,11 @@ select:focus { border-color: #3a3a3a; }
 
 .mic-grant-btn {
   font-size: 0.72rem;
-  color: #666;
-  border-color: #2a2a2a;
+  color: #4caf50;
+  background: #0e2e0e;
+  border-color: #1e4a1e;
 }
+.mic-grant-btn:hover { background: #133313; }
 
 .style-pills {
   display: flex;

@@ -55,7 +55,7 @@ class User(Base):
     hotkey_typing      = Column(String, nullable=True)
     typing_passthrough = Column(Boolean, default=True, nullable=False, server_default="1")
     response_style     = Column(Enum(ResponseStyle), nullable=True)
-    replay_enabled     = Column(Boolean, default=False, nullable=False, server_default="0")
+    replay_enabled     = Column(Boolean, default=True, nullable=False, server_default="1")
     replay_seconds     = Column(Integer, default=10,    nullable=False, server_default="10")
     referral_credit_pence = Column(Integer, default=0, nullable=False, server_default="0")
     sub_trial_used     = Column(Boolean, default=False, nullable=False, server_default="0")

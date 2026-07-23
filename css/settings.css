@@ -70,6 +70,8 @@
 .settings-sidebar {
   position: sticky;
   top: 88px;
+  max-height: calc(100vh - 108px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -534,6 +536,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   border-radius: 6px;
   border: 1px solid var(--line-strong);
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -701,6 +704,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   gap: 8px;
   align-items: stretch;
 }
+.ref-form-row .field-input { min-width: 0; }
 .ref-applied-msg { font-size: 13.5px; color: var(--accent); }
 
 /* ── Light mode overrides ── */
@@ -713,7 +717,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 /* ── Responsive ── */
 @media (max-width: 780px) {
   .settings-grid { grid-template-columns: 1fr; }
-  .settings-sidebar { position: static; flex-direction: row; flex-wrap: wrap; gap: 0; }
+  .settings-sidebar { position: static; flex-direction: row; flex-wrap: wrap; gap: 0; min-width: 0; }
   .sidebar-identity { display: none; }
   .sidebar-nav {
     flex-direction: row;
@@ -723,6 +727,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
     border-bottom: 1px solid var(--line);
     padding-bottom: 2px;
     width: 100%;
+    min-width: 0;
   }
   .sidebar-nav-btn {
     border-left: none;
@@ -741,4 +746,31 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   .response-preview { position: static; }
   .referral-promo-card { flex-direction: column; align-items: flex-start; }
   .settings-wrap { padding: 20px 16px 60px; }
+}
+
+@media (max-width: 480px) {
+  .settings-wrap { padding: 16px 12px 44px; }
+  .settings-grid { gap: 24px; }
+  .settings-content { gap: 28px; }
+  .settings-card { padding: 16px; }
+  .section-title { font-size: 18px; }
+
+  /* Hotkey rows: label + hotkey button + reset no longer fit comfortably on
+     one line once a longer label meets a custom-recorded combo — stack them
+     and give the controls room instead of forcing everything to shrink. */
+  .hk-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .hk-ctrl { width: 100%; justify-content: space-between; }
+
+  .response-grid { gap: 16px; }
+  .preview-body { padding: 12px; }
+
+  .ref-form-row { flex-direction: column; }
+  .ref-form-row .settings-btn { justify-content: center; }
+
+  .settings-btn { width: 100%; justify-content: center; }
+  .regen-row .settings-btn-sm,
+  .fallback-body .settings-btn-sm { width: auto; }
+
+  .billing-status-row { flex-wrap: wrap; }
+  .card-row { gap: 12px; }
 }

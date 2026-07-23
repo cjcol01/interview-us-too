@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const { server_url, api_token, complexity, response_style, last_capture, last_error, enabled,
-          hotkey_capture, hotkey_audio, hotkey_toggle, hotkey_replay,
+          hotkey_capture,
           replay_enabled, replay_seconds } =
     await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'response_style',
                                     'last_capture', 'last_error', 'enabled',
-                                    'hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay',
+                                    'hotkey_capture',
                                     'replay_enabled', 'replay_seconds']);
 
   const serverInput   = document.getElementById('server_url');
@@ -21,10 +21,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (server_url) serverInput.value = server_url;
   if (api_token)  tokenInput.value  = api_token;
 
-  document.getElementById('hint-capture').textContent     = hotkey_capture || 'Ctrl+Shift+7';
-  document.getElementById('hint-audio').textContent       = hotkey_audio   || 'Ctrl+Shift+8';
-  document.getElementById('hint-toggle').textContent      = hotkey_toggle  || 'Ctrl+Shift+9';
-  document.getElementById('hint-replay').textContent      = hotkey_replay  || 'Ctrl+Shift+6';
   document.getElementById('confirm-capture-key').textContent = hotkey_capture || 'Ctrl+Shift+7';
 
   let isEnabled = enabled ?? false;
@@ -310,6 +306,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     replaySection.style.display = 'block';
     replayWinLabel.textContent  = `Window: ${replay_seconds || 10}s`;
   }
+
+  // Live-update if the setting changes while the popup happens to be open
+  // (e.g. toggled on Settings in another tab) — otherwise this only ever
+  // reflects whatever was true the moment the popup was opened.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.replay_enabled) {
+      replaySection.style.display = changes.replay_enabled.newValue ? 'block' : 'none';
+    }
+    if (changes.replay_seconds) {
+      replayWinLabel.textContent = `Window: ${changes.replay_seconds.newValue || 10}s`;
+    }
+  });
 
   function applyReplayStatus(status) {
     if (!status) return;

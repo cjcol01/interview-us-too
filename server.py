@@ -1344,6 +1344,22 @@ def faq_page(
     return templates.TemplateResponse(request=request, name="faq.html", context={"show_navbar": True})
 
 
+@app.get("/support")
+def support_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
+    api_token = None
+    if user:
+        _ensure_api_token(user, db)
+        api_token = user.api_token
+    return templates.TemplateResponse(request=request, name="support.html", context={
+        "show_navbar": True,
+        "api_token": api_token,
+    })
+
+
 @app.get("/install-manual")
 def install_manual_page(
     request: Request,

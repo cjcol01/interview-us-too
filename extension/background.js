@@ -233,6 +233,12 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     chrome.action.setBadgeText({ text: 'ERR' });
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
     setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
+    chrome.storage.local.set({ mic_status: { state: 'error', message: msg.error } }).catch(() => {});
+    maybeCloseOffscreen();
+  } else if (msg.type === 'check-mic-permission') {
+    checkMicPermission();
+  } else if (msg.type === 'mic-permission-result') {
+    chrome.storage.local.set({ mic_status: { state: msg.state } }).catch(() => {});
     maybeCloseOffscreen();
   } else if (msg.type === 'offscreen-ready') {
     _offscreenReadyResolve?.();
@@ -263,6 +269,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     handleStreamDeath();
   } else if (msg.type === 'replay-relock') {
     handleReplayRelock();
+  } else if (msg.type === 'sync-account') {
+    fetchAccountLevel();
   }
   return false;
 });
@@ -320,7 +328,26 @@ async function handleAudioStop() {
   chrome.runtime.sendMessage({ type: 'stop-recording' });
 }
 
+// ── Passive mic-permission check (for the /app status dot) ─────────────────────
+async function checkMicPermission() {
+  const existing = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+    documentUrls: [chrome.runtime.getURL('offscreen.html')],
+  });
+  if (existing.length === 0) {
+    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    await chrome.offscreen.createDocument({
+      url: 'offscreen.html',
+      reasons: ['USER_MEDIA'],
+      justification: 'Check microphone permission status',
+    });
+    await readyPromise;
+  }
+  chrome.runtime.sendMessage({ type: 'query-mic-permission' });
+}
+
 async function handleAudioData(base64, mimeType) {
+  chrome.storage.local.set({ mic_status: { state: 'granted' } }).catch(() => {});
   const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
   if (server_url && api_token) {
     const binary = atob(base64);
@@ -460,6 +487,12 @@ async function handleReplayUnlock() {
 }
 
 async function handleReplayTrigger(senderTabId) {
+  const { enabled } = await chrome.storage.local.get(['enabled']);
+  if (!enabled) {
+    await chrome.storage.local.set({ last_disabled_press: Date.now() });
+    await flashDisabled();
+    return;
+  }
   if (!_replayArmed) return;
 
   // Always read the current setting — user may have changed it since locking

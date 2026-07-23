@@ -34,7 +34,14 @@
       typing:  '{{ typing }}',
     };
     window.MI_FIRST_RUN_CTA_LABEL = 'Start setup →';
-    window.MI_ON_FIRST_RUN_FINISH = function () {
+    window.MI_ON_FIRST_RUN_FINISH = async function () {
+      // Mark the tutorial seen so index.html's initTrial() doesn't replay the
+      // simulated call again on first visit to /app after onboarding.
+      try {
+        const r = await fetch('/api/trial/status');
+        const d = await r.json();
+        if (d.user_id) localStorage.setItem('ia_tutorial_v1_' + d.user_id, '1');
+      } catch {}
       window.location.href = '/onboarding';
     };
     openMockInterview(true);

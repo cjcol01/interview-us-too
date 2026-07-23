@@ -88,6 +88,7 @@
             <li data-rule="number">One number</li>
             <li data-rule="symbol">One symbol (e.g. !?@#$%)</li>
           </ul>
+          <p class="pw-all-good" id="pw-all-good">Great password!</p>
         </div>
         <div class="auth-actions">
           <label class="auth-checkbox">
@@ -146,7 +147,10 @@
 
     document.getElementById('reg-password').addEventListener('input', (e) => {
       const value = e.target.value;
-      document.getElementById('pw-requirements').classList.toggle('visible', value.length > 0);
+      const hasValue = value.length > 0;
+      const allMet = hasValue && Object.values(PW_RULES).every(check => check(value));
+      document.getElementById('pw-requirements').classList.toggle('visible', hasValue && !allMet);
+      document.getElementById('pw-all-good').classList.toggle('visible', allMet);
       for (const [rule, check] of Object.entries(PW_RULES)) {
         document.querySelector(`#pw-requirements li[data-rule="${rule}"]`)
           .classList.toggle('met', check(value));

@@ -11,7 +11,7 @@ def register(test, skip, client):
         db = SessionLocal()
         try:
             u = make_user(db, AccountLevel.trial)
-            assert u.replay_enabled is False
+            assert u.replay_enabled is True
             assert u.replay_seconds == 10
             assert u.hotkey_replay is None
         finally:
@@ -190,7 +190,7 @@ def register(test, skip, client):
             assert r.status_code == 200
             body = r.json()
             assert "replay" in body
-            assert body["replay"]["enabled"] is False
+            assert body["replay"]["enabled"] is True
             assert body["replay"]["seconds"] == 10
             assert "replay" in body["hotkeys"]
             assert body["hotkeys"]["replay"] == HOTKEY_DEFAULTS["replay"]
