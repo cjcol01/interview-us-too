@@ -47,9 +47,22 @@ def get_db():
 
 
 def init_db():
+    # startup profiling: SQLite DDL/migrations touch the DB file (and its WAL/-shm sidecars)
+    # repeatedly; on a slow filesystem (e.g. a WSL2 9p mount) that dominates boot. Time each
+    # sub-phase so the [startup] logs pinpoint it. See STARTUP_PERF.md.
+    import time as _time
+    from analytics import logger
+    _t = [_time.perf_counter()]
+
+    def _mark(label):
+        now = _time.perf_counter()
+        logger.info("[startup]   init_db %-16s +%5.2fs", label, now - _t[0])
+        _t[0] = now
+
     from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
+    _mark("create_all")
     # add new columns to existing DBs without dropping data
     inspector = inspect(engine)
     existing = {c["name"] for c in inspector.get_columns("users")}
@@ -96,6 +109,7 @@ def init_db():
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_interview_sessions_user_id ON interview_sessions(user_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_verify_token ON users(verify_token)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_reset_token ON users(reset_token)"))
+    _mark("migrations+indexes")
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:
@@ -105,6 +119,7 @@ def init_db():
         db.commit()
     finally:
         db.close()
+    _mark("referral backfill")
     # one-off: migrate the old single custom_context text column (pre-multi-context) into
     # the new interview_contexts table, as slot 1, marked active for that user.
     if "custom_context" in existing:

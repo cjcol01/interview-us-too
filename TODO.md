@@ -5,7 +5,9 @@
 - [ ] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
 - [ ] pull onboarding4 
 - [ ] after welcome, tell people they can change hotkeys at any time
-
+- [ ] check loadtest - login/ bcrypt writes should only happen once
+- [ ] investigate postgres
+- [ ] investigate why server starts quckly on mac but slow on pc
 ## Soon 
 - [ ] google login
 - [ ] shorten landing page

@@ -1,3 +1,9 @@
+# startup profiling: capture the very first instant of the process (before any other
+# import) so the [startup] logs can also show how long stdlib imports themselves took —
+# on a slow filesystem even those add up. See STARTUP_PERF.md.
+import time as _time
+_PROC_T0 = _time.perf_counter()
+
 import asyncio
 import base64
 import json
@@ -14,7 +20,13 @@ from typing import Optional
 
 from urllib.parse import urlencode
 
-import anthropic
+# --- startup profiling (see STARTUP_PERF.md) — capture the clock *before* the heavy
+# third-party imports below so we can measure how long they take. On a slow filesystem
+# (e.g. a WSL2 9p-mounted repo/venv) importing anthropic+openai reads ~2700 small module
+# files and this phase balloons; the [startup] logs below make that visible per boot. ---
+_BOOT_T0 = time.perf_counter()
+
+import anthropic  # noqa: E402
 import redis.asyncio as aioredis
 import redis.exceptions as redis_exceptions
 import requests
@@ -40,6 +52,21 @@ from mailer import send_account_banned_email, send_account_deletion_email, send_
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
+
+# --- startup profiling: log where boot time goes so slow environments (e.g. a WSL2
+# 9p-mounted repo) can be diagnosed straight from the logs. See STARTUP_PERF.md. ---
+_BOOT_LAST = _BOOT_T0
+
+
+def _boot_mark(label: str) -> None:
+    global _BOOT_LAST
+    now = time.perf_counter()
+    logger.info("[startup] %-24s +%5.2fs (since proc start %5.2fs)", label, now - _BOOT_LAST, now - _PROC_T0)
+    _BOOT_LAST = now
+
+
+logger.info("[startup] %-24s +%5.2fs (since proc start %5.2fs)", "stdlib imports", _BOOT_T0 - _PROC_T0, _BOOT_T0 - _PROC_T0)
+_boot_mark("heavy imports loaded")
 
 # test comment for cicd
 def _optional_user_from_request(request: Request) -> Optional[User]:
@@ -111,7 +138,9 @@ SCREENSHOTS_DIR = Path("screenshots")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _boot_mark("lifespan start")
     init_db()
+    _boot_mark("init_db() done")
     SCREENSHOTS_DIR.mkdir(exist_ok=True)
     app.state.started_at = datetime.utcnow()
     if os.getenv("TESTING") == "1":
@@ -136,7 +165,9 @@ async def lifespan(app: FastAPI):
                     raise
                 logger.warning("Redis not reachable yet (attempt %d/5) — retrying in 2s", attempt + 1)
                 await asyncio.sleep(2)
+        _boot_mark("redis reachable")
     logger.info("[ready] http://localhost:%d", SERVER_PORT)
+    _boot_mark("READY (total boot)")
     if os.getenv("TESTING") != "1":
         # The openai SDK pays a one-time ~5s warm-up tax on its first real API call per
         # process (httpx/transport init — confirmed via timing, not network latency; a
