@@ -1075,6 +1075,8 @@ def index(request: Request, user: User = Depends(require_user)):
         return RedirectResponse("/verify-pending")
     if user.account_level == AccountLevel.free:
         return RedirectResponse("/pricing")
+    if user.account_level == AccountLevel.trial and not user.welcome_seen:
+        return RedirectResponse("/welcome")
     if user.account_level == AccountLevel.trial and not user.setup_complete:
         return RedirectResponse("/onboarding")
     return templates.TemplateResponse(request=request, name="index.html", context={
@@ -1105,6 +1107,9 @@ def onboarding_page(
         return RedirectResponse("/verify-pending")
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
+    if not user.welcome_seen:
+        user.welcome_seen = True
+        db.commit()
     _ensure_api_token(user, db)
     track(user.id, "onboarding_viewed")
     hk = _user_hotkeys(user)

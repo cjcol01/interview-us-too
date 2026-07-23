@@ -88,10 +88,16 @@ def init_db():
             ("account_flag",           "VARCHAR"),
             ("account_flag_seen",      "BOOLEAN DEFAULT 1"),
             ("google_id",              "VARCHAR"),
+            ("welcome_seen",            "BOOLEAN DEFAULT 0"),
         ]
+        welcome_seen_is_new = "welcome_seen" not in existing
         for col, definition in migrations:
             if col not in existing:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))  # no-op if column exists
+        if welcome_seen_is_new:
+            # anyone who'd already finished onboarding before this column existed has
+            # necessarily already seen the welcome demo — don't replay it for them
+            conn.execute(text("UPDATE users SET welcome_seen = 1 WHERE setup_complete = 1"))
         # index=True on a model only applies via create_all() for brand-new tables — add it
         # explicitly here so existing (pre-change) databases pick it up too.
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_interview_sessions_user_id ON interview_sessions(user_id)"))

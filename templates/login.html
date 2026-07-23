@@ -60,15 +60,17 @@
 
       <!-- register form -->
       <form id="register-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'register')" style="display:none" novalidate>
-        <div class="field-group">
-          <label class="field-label" for="reg-full-name">Full name</label>
-          <input class="field-input" id="reg-full-name" type="text" name="full_name"
-            autocomplete="name" placeholder="John Smith">
-        </div>
-        <div class="field-group">
-          <label class="field-label" for="reg-username">Username</label>
-          <input class="field-input" id="reg-username" type="text" name="username"
-            autocomplete="username" placeholder="JohnS">
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label" for="reg-full-name">Full name</label>
+            <input class="field-input" id="reg-full-name" type="text" name="full_name"
+              autocomplete="name" placeholder="John Smith">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="reg-username">Username</label>
+            <input class="field-input" id="reg-username" type="text" name="username"
+              autocomplete="username" placeholder="JohnS">
+          </div>
         </div>
         <div class="field-group">
           <label class="field-label" for="reg-email">Email</label>
@@ -87,12 +89,14 @@
             <li data-rule="symbol">One symbol (e.g. !?@#$%)</li>
           </ul>
         </div>
-        <label class="auth-checkbox">
-          <input type="checkbox" id="reg-agree" name="agree">
-          <span>I agree to the <a href="#" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
-        </label>
-        <div id="register-error" class="auth-error"></div>
-        <button type="submit" class="auth-submit">Create account</button>
+        <div class="auth-actions">
+          <label class="auth-checkbox">
+            <input type="checkbox" id="reg-agree" name="agree">
+            <span>I agree to the <a href="#" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
+          </label>
+          <div id="register-error" class="auth-error"></div>
+          <button type="submit" class="auth-submit">Create account</button>
+        </div>
         {% if google_enabled %}
         <div class="auth-divider"><span>or</span></div>
         <a class="auth-google" id="google-register-btn" href="/auth/google">
@@ -171,6 +175,7 @@
       if (!data.full_name) return 'Full name is required.';
       if (!data.username) return 'Username is required.';
       if (!data.email) return 'Email is required.';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return 'Enter a valid email address.';
       if (!data.password) return 'Password is required.';
       if (!Object.values(PW_RULES).every(check => check(data.password))) {
         return 'Password does not meet the requirements above.';

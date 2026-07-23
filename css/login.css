@@ -97,6 +97,8 @@
 /* Form */
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-row { display: flex; gap: 12px; }
+.field-row .field-group { flex: 1; min-width: 0; }
 .field-label {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10.5px;
@@ -147,6 +149,11 @@
 }
 .pw-requirements li.met { color: var(--accent); }
 .pw-requirements li.met::before { content: "✓"; }
+
+/* Tight group for the terms checkbox, its error slot, and the submit button —
+   these read as one action block, so they shouldn't get the form's full field gap. */
+.auth-actions { display: flex; flex-direction: column; gap: 6px; }
+.auth-actions .auth-submit { margin-top: 2px; }
 
 /* Agree-to-terms checkbox */
 .auth-checkbox {

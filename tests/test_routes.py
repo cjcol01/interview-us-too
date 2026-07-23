@@ -554,12 +554,27 @@ def register(test, skip, client):
         finally:
             db.close(); delete_by_name(uname)
 
+    def test_app_redirects_trial_no_welcome_to_welcome():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.welcome_seen = False
+            db.commit()
+            r = client.get("/app", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/welcome" in r.headers.get("location", "")
+        finally:
+            db.close(); delete_by_name(uname)
+
     def test_app_redirects_trial_no_setup_to_onboarding():
         token, uname = make_cookie(AccountLevel.trial)
         db = SessionLocal()
         try:
             u = db.query(User).filter(User.username == uname).first()
             u.email_verified = True
+            u.welcome_seen = True
             u.setup_complete = False
             db.commit()
             r = client.get("/app", cookies={"session": token}, follow_redirects=False)
@@ -568,9 +583,26 @@ def register(test, skip, client):
         finally:
             db.close(); delete_by_name(uname)
 
+    def test_onboarding_visit_marks_welcome_seen():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.welcome_seen = False
+            db.commit()
+            r = client.get("/onboarding", cookies={"session": token})
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.welcome_seen is True
+        finally:
+            db.close(); delete_by_name(uname)
+
     test("GET /app: unverified user → /verify-pending",           test_app_redirects_unverified_to_verify_pending)
     test("GET /app: free user → /pricing",                        test_app_redirects_free_to_pricing)
+    test("GET /app: trial, welcome not seen → /welcome",          test_app_redirects_trial_no_welcome_to_welcome)
     test("GET /app: trial without setup → /onboarding",           test_app_redirects_trial_no_setup_to_onboarding)
+    test("GET /onboarding: marks welcome_seen",                   test_onboarding_visit_marks_welcome_seen)
 
     # -- POST /api/notify/disabled and /api/notify/enabled ------------------
 
