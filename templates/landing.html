@@ -435,8 +435,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <div class="ia-proof-track-wrap">
     <div class="ia-proof-track">
       {% set reviews = [
-        ("Marcus O.", "Frontend Developer",       "I freeze up under pressure every single time. Having a calm nudge in my pocket was the difference this time around.", 5),
-        ("Elena R.",  "Data Scientist",           "Instant replay caught a question I missed and handed me an answer in a few seconds", 5),
+        ("Marcus O.", "Frontend Developer",       "I freeze under pressure every time. Having an AI with me was the difference this time around.", 5),
+        ("Elena R.",  "Data Scientist",           "Instant replay got me through a question I had no idea about and gave me an answer basically", 5),
         ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round.", 5),
         ("Tom K.",    "DevOps Engineer",          "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running.", 5),
         ("Sophie L.", "Product Engineer",         "Went in expecting to really lean on it. Just knowing it was there stopped me from freezing in the first place, used it maybe twice the whole interview process.", 5),
@@ -1008,6 +1008,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       var bubbleText = card.parentNode.querySelector('.ia-proof-reply-bubble-text');
       var loremIdx = i % LOREM_QUOTES.length;
       return {
+        card: card, isReal: true,
         q: q, n: n, r: r, a: a, bubbleText: bubbleText,
         qHtml: q.innerHTML, nText: n.textContent, rText: r.textContent, aText: a.textContent,
         bubbleHtml: bubbleText ? bubbleText.innerHTML : null,
@@ -1025,15 +1026,30 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         s.r.textContent = s.loremRole;
         s.a.textContent = s.loremName.split(' ').map(function(w) { return w.charAt(0); }).join('');
         if (s.bubbleText) s.bubbleText.textContent = s.loremReply;
+        s.isReal = false;
       });
     }
+    function restoreCard(s) {
+      if (s.isReal) return;
+      s.q.innerHTML = s.qHtml;
+      s.n.textContent = s.nText;
+      s.r.textContent = s.rText;
+      s.a.textContent = s.aText;
+      if (s.bubbleText) s.bubbleText.innerHTML = s.bubbleHtml;
+      s.isReal = true;
+    }
     function restoreRealContent() {
+      proofSnapshots.forEach(restoreCard);
+    }
+    // Swap lorem -> real only on cards currently fully off-screen (scrolled past
+    // the left edge, or still waiting off the right), so the change is never
+    // visible on a card the user can see.
+    function swapOffscreenToReal() {
+      var vw = window.innerWidth || document.documentElement.clientWidth;
       proofSnapshots.forEach(function(s) {
-        s.q.innerHTML = s.qHtml;
-        s.n.textContent = s.nText;
-        s.r.textContent = s.rText;
-        s.a.textContent = s.aText;
-        if (s.bubbleText) s.bubbleText.innerHTML = s.bubbleHtml;
+        if (s.isReal) return;
+        var rect = s.card.getBoundingClientRect();
+        if (rect.right < 0 || rect.left > vw) restoreCard(s);
       });
     }
 
@@ -1061,10 +1077,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
     // Reveal boost: fires once, the first time the strip scrolls into view.
     var revealed = noMotion; // reduced-motion users get the plain static strip, no boost
-    var boosting = false, boostStart = 0, boostReturnedReal = false;
-    var BOOST_PEAK_SPEED = 22;  // px/frame at full zoom — well past readable
+    var boosting = false, boostStart = 0;
+    var BOOST_PEAK_SPEED = 70;  // px/frame at full zoom — well past readable
     var BOOST_MS = 5000;        // time to ease from peak down to DRIFT_SPEED
-    var BOOST_READ_AT = 0.6;    // swap lorem -> real once eased this far through the boost
 
     function wrap() {
       while (pos <= -halfWidth) pos += halfWidth;
@@ -1082,7 +1097,6 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       if (revealed || boosting) return;
       setLoremContent();
       boosting = true;
-      boostReturnedReal = false;
       boostStart = performance.now();
       vel = -BOOST_PEAK_SPEED;
     }
@@ -1094,11 +1108,11 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         var t = Math.min(1, (performance.now() - boostStart) / BOOST_MS);
         var eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
         var speed = BOOST_PEAK_SPEED + (DRIFT_SPEED - BOOST_PEAK_SPEED) * eased;
-        if (!boostReturnedReal && eased >= BOOST_READ_AT) { restoreRealContent(); boostReturnedReal = true; }
+        swapOffscreenToReal(); // flip cards to real only while they're off-screen
         pos -= speed;
         wrap();
-        render((1 - eased) * 3);
-        if (t >= 1) { boosting = false; revealed = true; vel = -DRIFT_SPEED; }
+        render();
+        if (t >= 1) { boosting = false; revealed = true; vel = -DRIFT_SPEED; restoreRealContent(); }
       } else if (settling) {
         // Decay toward the baseline drift speed (not toward zero) so a fling never
         // dips to a near-stop before the auto-drift resumes — it eases straight into it.
@@ -1128,7 +1142,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     }
 
     function begin(x) {
-      if (boosting) { boosting = false; revealed = true; if (!boostReturnedReal) { restoreRealContent(); boostReturnedReal = true; } proofTrack.style.filter = ''; }
+      if (boosting) { boosting = false; revealed = true; restoreRealContent(); proofTrack.style.filter = ''; }
       dragging = true; settling = false; lockedAxis = null;
       proofWrap.classList.add('ia-proof-dragging');
       startX = x; startPos = pos; lastX = x; lastT = performance.now();

@@ -75,12 +75,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     statusEl.className = 'status ' + (isError ? 'err' : 'ok');
   }
 
-  if (last_error) {
-    showStatus(last_error, true);
-  } else if (last_capture) {
+  // Re-check the server for a lingering error instead of trusting (or aging out) a
+  // stale banner. Server answers → error is no longer true, clear it. Rejected/
+  // unreachable → surface the real, current reason.
+  async function revalidateError(url, tok, storedError) {
+    try {
+      const resp = await fetch(`${url}/api/me`, { headers: { 'Authorization': `Bearer ${tok}` } });
+      if (resp.ok) {
+        await chrome.storage.local.set({ last_error: '' });
+        return; // baseline status (last capture / blank) already on screen
+      }
+      showStatus(resp.status === 401 || resp.status === 403
+        ? 'Token invalid or expired — re-check your API token below'
+        : storedError, true);
+    } catch {
+      showStatus('Can’t reach the server — check the URL below and your connection', true);
+    }
+  }
+
+  // A persisted error describes a *past* capture attempt. Rather than trust a stale
+  // banner (or guess at its age with a timeout), re-check the server on open: if it
+  // answers, the error is no longer true, so clear it; if it doesn't, the problem is
+  // real right now and we show an accurate connection message.
+  if (last_capture) {
     showStatus(`Last capture: ${last_capture}`);
   } else if (!api_token || !server_url) {
     showStatus('Configure server URL and token below', true);
+  }
+
+  if (last_error && api_token && server_url) {
+    revalidateError(server_url, api_token, last_error);
   }
 
   toggleBtn.addEventListener('click', () => {
