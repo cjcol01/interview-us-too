@@ -110,6 +110,26 @@ async function notifyEnabled() {
   }).catch(() => {});
 }
 
+async function forceEnable() {
+  const { enabled } = await chrome.storage.local.get(['enabled']);
+  if (enabled) return;
+  await chrome.storage.local.set({ enabled: true });
+  await notifyEnabled();
+}
+
+// Opens (or refocuses) grant-mic.html — a real tab, unlike the offscreen document, so it can
+// actually show the native mic-permission prompt. Reuses an existing tab instead of stacking
+// up duplicates if the hotkey gets pressed more than once while still unresolved.
+async function openGrantMicTab() {
+  const url = chrome.runtime.getURL('grant-mic.html');
+  const existing = await chrome.tabs.query({ url });
+  if (existing.length) {
+    chrome.tabs.update(existing[0].id, { active: true });
+  } else {
+    chrome.tabs.create({ url });
+  }
+}
+
 async function handleCapture() {
   const { enabled } = await chrome.storage.local.get(['enabled']);
   if (!enabled) {
@@ -122,11 +142,11 @@ async function handleCapture() {
 
 async function handleToggle(senderTabId) {
   const { enabled } = await chrome.storage.local.get(['enabled']);
-  if (enabled) return; // hotkey only arms — use the extension popup to disarm
-  await chrome.storage.local.set({ enabled: true });
-  await notifyEnabled();
+  const next = !enabled;
+  await chrome.storage.local.set({ enabled: next });
+  if (next) await notifyEnabled();
   if (senderTabId) {
-    chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: true }).catch(() => {});
+    chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: next }).catch(() => {});
   }
 }
 
@@ -217,6 +237,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     handleCapture();
   } else if (msg.type === 'toggle') {
     handleToggle(sender.tab?.id);
+  } else if (msg.type === 'force-enable') {
+    forceEnable();
   } else if (msg.type === 'audio-start') {
     handleAudioStart();
   } else if (msg.type === 'audio-stop') {
@@ -234,6 +256,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
     setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
     chrome.storage.local.set({ mic_status: { state: 'error', message: msg.error } }).catch(() => {});
+    if (msg.errorName === 'NotAllowedError') openGrantMicTab();
     maybeCloseOffscreen();
   } else if (msg.type === 'check-mic-permission') {
     checkMicPermission();
@@ -432,12 +455,14 @@ async function handleReplayLock(tabId, windowSec) {
   _replayWindowSec = windowSec;
 
   // Remember origin so we can detect cross-origin navigation later
+  let tabTitle = 'Unknown tab';
   try {
     const tab = await chrome.tabs.get(tabId);
     _replayTabOrigin = tab.url ? new URL(tab.url).origin : null;
+    tabTitle = tab.title || tabTitle;
   } catch { _replayTabOrigin = null; }
 
-  broadcastReplayStatus('arming');
+  broadcastReplayStatus('arming', { tabTitle });
 
   // Ensure a clean offscreen doc — close any stale one first (awaited so we
   // don't race between close and create), then create fresh unless the mic

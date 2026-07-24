@@ -30,20 +30,20 @@ def register(test, skip, client):
 
     # ── 2. POST /api/settings/replay persists ────────────────────────────────
 
-    def test_replay_persist_enabled_5s():
+    def test_replay_persist_enabled_15s():
         db = SessionLocal()
         try:
             u = make_user(db, AccountLevel.trial)
             token = create_token(u.id)
             r = client.post(
                 "/api/settings/replay",
-                json={"enabled": True, "seconds": 5},
+                json={"enabled": True, "seconds": 15},
                 cookies={"session": token},
             )
             assert r.status_code == 200
             db.refresh(u)
             assert u.replay_enabled is True
-            assert u.replay_seconds == 5
+            assert u.replay_seconds == 15
         finally:
             cleanup(db, u)
             db.close()
@@ -101,6 +101,21 @@ def register(test, skip, client):
             cleanup(db, u)
             db.close()
 
+    def test_replay_rejects_seconds_9():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            token = create_token(u.id)
+            r = client.post(
+                "/api/settings/replay",
+                json={"enabled": True, "seconds": 9},
+                cookies={"session": token},
+            )
+            assert r.status_code == 422
+        finally:
+            cleanup(db, u)
+            db.close()
+
     def test_replay_rejects_seconds_31():
         db = SessionLocal()
         try:
@@ -140,6 +155,80 @@ def register(test, skip, client):
                 "/api/settings/replay",
                 json={"enabled": True},
                 cookies={"session": token},
+            )
+            assert r.status_code == 422
+        finally:
+            cleanup(db, u)
+            db.close()
+
+    # ── 3b. POST /api/settings/replay-window (Bearer, extension-facing) ──────
+
+    def test_replay_window_bearer_persists():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post(
+                "/api/settings/replay-window",
+                json={"seconds": 20},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 200
+            assert r.json() == {"status": "ok", "seconds": 20}
+            db.refresh(u)
+            assert u.replay_seconds == 20
+        finally:
+            cleanup(db, u)
+            db.close()
+
+    def test_replay_window_bearer_leaves_enabled_untouched():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            token = create_token(u.id)
+            client.post(
+                "/api/settings/replay",
+                json={"enabled": False, "seconds": 10},
+                cookies={"session": token},
+            )
+            r = client.post(
+                "/api/settings/replay-window",
+                json={"seconds": 25},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.replay_enabled is False
+            assert u.replay_seconds == 25
+        finally:
+            cleanup(db, u)
+            db.close()
+
+    def test_replay_window_bearer_requires_auth():
+        r = client.post("/api/settings/replay-window", json={"seconds": 15})
+        assert r.status_code in (401, 403)
+
+    def test_replay_window_bearer_rejects_below_min():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post(
+                "/api/settings/replay-window",
+                json={"seconds": 9},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 422
+        finally:
+            cleanup(db, u)
+            db.close()
+
+    def test_replay_window_bearer_rejects_above_max():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post(
+                "/api/settings/replay-window",
+                json={"seconds": 31},
+                headers={"Authorization": f"Bearer {u.api_token}"},
             )
             assert r.status_code == 422
         finally:
@@ -225,13 +314,19 @@ def register(test, skip, client):
 
     test("Replay defaults on fresh user (columns)",               test_defaults_columns)
     test("Replay default reflected in _user_hotkeys helper",      test_defaults_in_user_hotkeys_helper)
-    test("POST /api/settings/replay persists (enabled, 5s)",      test_replay_persist_enabled_5s)
+    test("POST /api/settings/replay persists (enabled, 15s)",     test_replay_persist_enabled_15s)
     test("POST /api/settings/replay persists (enabled, 25s)",     test_replay_persist_enabled_25s)
     test("POST /api/settings/replay persists (disabled)",         test_replay_persist_disabled)
     test("POST /api/settings/replay: seconds=0 → 422",           test_replay_rejects_seconds_zero)
+    test("POST /api/settings/replay: seconds=9 → 422",           test_replay_rejects_seconds_9)
     test("POST /api/settings/replay: seconds=31 → 422",          test_replay_rejects_seconds_31)
     test("POST /api/settings/replay: float seconds → 422",        test_replay_rejects_float_seconds)
     test("POST /api/settings/replay: missing fields → 422",       test_replay_rejects_missing_fields)
+    test("POST /api/settings/replay-window (Bearer) persists",    test_replay_window_bearer_persists)
+    test("POST /api/settings/replay-window leaves enabled as-is", test_replay_window_bearer_leaves_enabled_untouched)
+    test("POST /api/settings/replay-window requires Bearer",      test_replay_window_bearer_requires_auth)
+    test("POST /api/settings/replay-window: seconds=9 → 422",     test_replay_window_bearer_rejects_below_min)
+    test("POST /api/settings/replay-window: seconds=31 → 422",    test_replay_window_bearer_rejects_above_max)
     test("POST /api/settings/hotkeys: replay field persists",     test_hotkeys_with_replay_field_persists)
     test("POST /api/settings/hotkeys: omitting replay → 422",     test_hotkeys_without_replay_is_422)
     test("/api/me includes replay defaults",                      test_api_me_includes_replay_defaults)

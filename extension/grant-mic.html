@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Grant Mic Permission</title>
+  <title>Microphone Access</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -24,13 +24,52 @@
     .status { font-size: 0.9rem; margin-top: 16px; min-height: 1.2em; }
     .ok  { color: #4caf50; }
     .err { color: #e57373; }
+    .hidden { display: none; }
+    .denied-help { margin-top: 22px; text-align: left; }
+    .denied-help p { font-size: 0.78rem; color: #888; margin-bottom: 12px; }
+    .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      background: #171717;
+      border: 1px solid #333;
+      color: #ccc;
+      font-family: inherit;
+      font-size: 0.76rem;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: border-color .15s, color .15s;
+    }
+    .copy-btn:hover { border-color: #555; }
+    .copy-btn.copied { color: #4caf50; border-color: #4caf50; }
+    .denied-help ol { font-size: 0.76rem; color: #777; line-height: 1.8; padding-left: 18px; margin: 0 0 14px; }
+    .support-link {
+      display: inline-block;
+      font-size: 0.76rem;
+      color: #888;
+      text-decoration: underline;
+    }
+    .support-link:hover { color: #ccc; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Microphone Permission</h1>
-    <p>Allow mic access in the prompt above so the audio hotkey can record without showing a recording indicator in your interview tab.</p>
+    <h1>Meeting Microphone Access</h1>
+    <p>Allow microphone access in the prompt above to continue.</p>
     <div id="status" class="status">Waiting for permission prompt...</div>
+    <div id="denied-help" class="denied-help hidden">
+      <p>This is usually blocked at the extension's own site-permission page in Chrome, not a normal website setting.</p>
+      <button type="button" id="copy-settings-link" class="copy-btn">📋 Copy link to that settings page</button>
+      <ol>
+        <li>Paste it into a new tab's address bar and press Enter.</li>
+        <li>Set Microphone to "Allow".</li>
+        <li>Come back to this tab and try again.</li>
+      </ol>
+      <a href="#" id="support-link" class="support-link hidden" target="_blank" rel="noopener">Still stuck? See the full guide →</a>
+    </div>
   </div>
   <script src="grant-mic.js"></script>
 </body>

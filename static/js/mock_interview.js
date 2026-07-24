@@ -4,13 +4,98 @@
 // first-run demo closes) and `window.MI_FIRST_RUN_CTA_LABEL` (button text shown on the "Done"
 // screen during a first run) before this script runs.
 
-let _miTimers = [];
-function miAfter(ms, fn) { _miTimers.push(setTimeout(fn, ms)); }
-function miClearTimers() { _miTimers.forEach(clearTimeout); _miTimers = []; }
+// Pausable timers: every delay in this file goes through miAfter (rather than raw
+// setTimeout) so miPauseTimers/miResumeTimers — used while the leave-confirmation dialog is
+// open — can freeze the whole call (dialogue, streaming text, beat transitions) and pick up
+// exactly where it left off, instead of losing time or racing ahead while paused.
+let _miPendingTimers = [];
+let _miPaused = false;
+let _miSpeedLevel = 0; // -2..2 — one press of the tortoise/hare buttons = 20% off default per step
+
+function miSpeedMultiplier() { return 1 - _miSpeedLevel * 0.2; }
+
+function miScheduleTimer(scaled, fn) {
+  const timer = { fn, remaining: scaled, startedAt: Date.now(), handle: null };
+  if (!_miPaused) {
+    timer.handle = setTimeout(() => {
+      _miPendingTimers = _miPendingTimers.filter((t) => t !== timer);
+      fn();
+    }, scaled);
+  }
+  _miPendingTimers.push(timer);
+  return timer;
+}
+
+function miAfter(ms, fn) { return miScheduleTimer(ms * miSpeedMultiplier(), fn); }
+
+// Unscaled version of miAfter — used for the two things the tortoise/hare buttons should
+// never touch: how long the AI takes to start responding, and the typing/streaming speed.
+function miAfterFixed(ms, fn) { return miScheduleTimer(ms, fn); }
+
+function miUpdateSpeedBtns() {
+  const slowBtn = document.getElementById('mi-slow-btn');
+  const fastBtn = document.getElementById('mi-fast-btn');
+  const slowBar = document.getElementById('mi-slow-bar');
+  const fastBar = document.getElementById('mi-fast-bar');
+  const slowLevel = _miSpeedLevel < 0 ? -_miSpeedLevel : 0;
+  const fastLevel = _miSpeedLevel > 0 ? _miSpeedLevel : 0;
+  [[slowBtn, slowBar, slowLevel], [fastBtn, fastBar, fastLevel]].forEach(([btn, bar, level]) => {
+    if (btn) {
+      btn.classList.toggle('active', level > 0);
+      btn.classList.toggle('level-1', level === 1);
+      btn.classList.toggle('level-2', level >= 2);
+    }
+    if (bar) {
+      bar.classList.remove('level-1', 'level-2');
+      if (level === 1) bar.classList.add('level-1');
+      else if (level >= 2) bar.classList.add('level-2');
+    }
+  });
+}
+
+function miSlowDown() {
+  _miSpeedLevel = Math.max(-2, _miSpeedLevel - 1);
+  miUpdateSpeedBtns();
+}
+
+function miSpeedUp() {
+  _miSpeedLevel = Math.min(2, _miSpeedLevel + 1);
+  miUpdateSpeedBtns();
+}
+
+function miClearTimers() {
+  _miPendingTimers.forEach((t) => { if (t.handle) clearTimeout(t.handle); });
+  _miPendingTimers = [];
+}
+
+function miPauseTimers() {
+  if (_miPaused) return;
+  _miPaused = true;
+  const now = Date.now();
+  _miPendingTimers.forEach((t) => {
+    if (!t.handle) return;
+    clearTimeout(t.handle);
+    t.remaining = Math.max(0, t.remaining - (now - t.startedAt));
+    t.handle = null;
+  });
+}
+
+function miResumeTimers() {
+  if (!_miPaused) return;
+  _miPaused = false;
+  _miPendingTimers.forEach((t) => {
+    t.startedAt = Date.now();
+    t.handle = setTimeout(() => {
+      _miPendingTimers = _miPendingTimers.filter((x) => x !== t);
+      t.fn();
+    }, t.remaining);
+  });
+}
+
 const MI_PREFERS_REDUCED_MOTION = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function miStreamText(el, text, done) {
-  if (MI_PREFERS_REDUCED_MOTION) { el.textContent = text; if (done) miAfter(150, done); return; }
+  if (MI_PREFERS_REDUCED_MOTION) { el.textContent = text; if (done) miAfterFixed(150, done); return; }
   let i = 0;
   function tick() {
     if (i >= text.length) { if (done) done(); return; }
@@ -18,19 +103,19 @@ function miStreamText(el, text, done) {
     const ch = text[i];
     const delay = ch === '\n' ? 70 + Math.random() * 50 : ch === ' ' ? 9 : 20 + Math.random() * 18;
     i++;
-    _miTimers.push(setTimeout(tick, delay));
+    miAfterFixed(delay, tick);
   }
   tick();
 }
 
 function miStreamMarkdown(el, text, done) {
-  if (MI_PREFERS_REDUCED_MOTION) { el.innerHTML = marked.parse(text); if (done) miAfter(150, done); return; }
+  if (MI_PREFERS_REDUCED_MOTION) { el.innerHTML = marked.parse(text); if (done) miAfterFixed(150, done); return; }
   let i = 0;
   function tick() {
     if (i >= text.length) { el.innerHTML = marked.parse(text); if (done) done(); return; }
     i = Math.min(i + 3, text.length);
     el.innerHTML = marked.parse(text.slice(0, i));
-    _miTimers.push(setTimeout(tick, 26 + Math.random() * 26));
+    miAfterFixed(26 + Math.random() * 26, tick);
   }
   tick();
 }
@@ -39,7 +124,7 @@ function miStreamMarkdown(el, text, done) {
 // The field is a plain div (not an <input>) so long questions wrap onto multiple lines
 // instead of scrolling off the edge of a single-line box.
 function miTypeIntoField(field, text, done) {
-  if (MI_PREFERS_REDUCED_MOTION) { field.textContent = text; if (done) miAfter(150, done); return; }
+  if (MI_PREFERS_REDUCED_MOTION) { field.textContent = text; if (done) miAfterFixed(150, done); return; }
   let i = 0;
   function tick() {
     if (i >= text.length) { if (done) done(); return; }
@@ -47,7 +132,7 @@ function miTypeIntoField(field, text, done) {
     const ch = text[i];
     const delay = ch === ' ' ? 9 : 20 + Math.random() * 18;
     i++;
-    _miTimers.push(setTimeout(tick, delay));
+    miAfterFixed(delay, tick);
   }
   tick();
 }
@@ -131,7 +216,6 @@ const MI_BEATS = [
     hotkeyLabel: 'Hold to talk',
     via: 'voice',
     sendingPhases: [
-      { text: 'Listening to your voice…', wave: true, ms: 700 },
       { text: 'Sending to AI…', wave: false, ms: 500 },
     ],
     line: "Now how would you solve it recursively instead?",
@@ -152,6 +236,7 @@ const MI_BEATS = [
     line: "One more — tell me about a time you demonstrated leadership.",
     popup: "Press the hotkey — it grabs the last 30 seconds of everyone's audio and sends it to the AI.",
     transcription: "(replayed) Tell me about a time you demonstrated leadership.",
+    contextNote: '📎 Drawing from your uploaded information',
     answer: "**Situation:** Our release process was manual and slow, and nobody had really owned fixing it.\n\n**Task:** I wanted to cut deploy time without waiting for a formal mandate to do it.\n\n**Action:** I built a small CI pipeline on a side branch, demoed it to the team, then paired with two teammates to roll it into our actual workflow.\n\n**Result:** Deploys went from about 40 minutes to under 5, and the team adopted it as the standard within a month.",
     youReply: "There was a stretch where our deploys were slow and manual, so I built a CI pipeline on my own time, demoed it, and paired with the team to roll it in — deploys went from 40 minutes to under 5.",
     recap: 'Replay the last 30 seconds of the call',
@@ -174,13 +259,17 @@ const MI_BEATS = [
 // first-time viewer knows which hotkey to press and where the answer will land.
 const MI_NUDGES = {
   capture: { eyebrow: 'Stuck?', body: 'Send your screen — the answer shows up here.' },
-  audio:   { eyebrow: 'One linked conversation', body: "Want to tweak an answer? Just ask or type a clarifying question — it remembers everything so far" },
+  audio:   { eyebrow: 'One linked conversation', body: "Want to tweak an answer? Just ask or type a clarifying question — unlike competitors, it remembers everything so far" },
   replay:  { eyebrow: 'Missed the question?', body: "Replay the last 30 seconds of audio. You can also upload context about yourself or the company ahead of time for the AI to draw from." },
-  typing:  { eyebrow: 'Not sure where to start?', body: 'Type it privately — the answer shows up here.' },
+  typing:  { eyebrow: 'Not sure where to start?', body: 'Type it, or paste it privately — the answer shows up here.' },
 };
 
 let _miIndex = -1;
 let _miAwaitingBeat = null;
+let _miAudioHeld = false;
+let _miListening = false;      // audio beat: the waveform panel is up, working toward the 1.2s minimum
+let _miListeningStartedAt = 0;
+let _miCallEnded = false; // last question answered — waiting for the user to click Leave
 let _miIsFirstRun = false;
 let _miCallInterval = null;
 let _miCallSecs = 0;
@@ -267,6 +356,17 @@ function miStopCallTimer() {
   _miCallInterval = null;
 }
 
+// Unlike miStopCallTimer, this doesn't reset _miCallSecs — resuming picks up where it froze.
+function miPauseCallTimer() {
+  clearInterval(_miCallInterval);
+  _miCallInterval = null;
+}
+
+function miResumeCallTimer() {
+  if (_miCallInterval) return;
+  _miCallInterval = setInterval(() => { _miCallSecs++; miUpdateCallTimer(); }, 1000);
+}
+
 function miUpdateCallTimer() {
   const mm = String(Math.floor(_miCallSecs / 60)).padStart(2, '0');
   const ss = String(_miCallSecs % 60).padStart(2, '0');
@@ -278,18 +378,37 @@ function miUpdateCallTimer() {
 // an old answer card, a "sent" typing field, etc. — visible behind the intro.
 function miResetCallState() {
   _miAwaitingBeat = null;
+  _miAudioHeld = false;
+  _miListening = false;
+  _miCallEnded = false;
+  _miPaused = false;
+  document.getElementById('mi-leave-btn').classList.remove('mi-leave-jump');
+  document.getElementById('mi-leave-confirm').classList.remove('active');
   miDismissHotkeyNudge();
   miShowPhonePanel('mi-phone-idle');
   miPhoneFocus(false);
   document.getElementById('mi-interviewer-tile').classList.remove('speaking');
   document.getElementById('mi-you-tile').classList.remove('speaking');
   document.getElementById('mi-you-status').classList.remove('live');
-  document.getElementById('mi-phone-progress').textContent = 'Private · Question 1 of 4';
+  document.getElementById('mi-back-btn').disabled = true;
   const typingField = document.getElementById('mi-typing-field');
   typingField.classList.remove('sent');
   typingField.textContent = '';
   miHideScreenshot();
   miStopCallTimer();
+}
+
+// A real InterviewAce extension installed in this browser listens for the same hotkeys the
+// demo uses. Rather than force it disabled (which left no normal way to turn it back on
+// mid-demo), the call blocks those specific keystrokes from ever reaching its content-script
+// listener in the first place — see the window-capture keydown/keyup listeners below. The
+// extension itself is left completely alone: still fully on/off-able, nothing about it changes.
+let _miCallLive = false;
+
+function miSpeakIntro() {
+  miAfter(1500, () => {
+    miSpeak(MI_INTRO_LINE, 'interviewer', () => miAfter(2200, miNextBeat));
+  });
 }
 
 function miJoinCall() {
@@ -298,7 +417,8 @@ function miJoinCall() {
   miShowScreen('mi-call');
   miStartCallTimer();
   _miIndex = -1;
-  miSpeak(MI_INTRO_LINE, 'interviewer', () => miAfter(1000, miNextBeat));
+  _miCallLive = true;
+  miSpeakIntro();
 }
 
 function miRestart() {
@@ -307,47 +427,101 @@ function miRestart() {
   miShowScreen('mi-call');
   miStartCallTimer();
   _miIndex = -1;
-  miSpeak(MI_INTRO_LINE, 'interviewer', () => miAfter(1000, miNextBeat));
+  _miCallLive = true;
+  miSpeakIntro();
+}
+
+// Shared UI reset used before (re-)rendering any beat or the introduction — always drops the
+// screenshot first, even for a beat that uses one, so re-entering that beat (going back) is a
+// clean unshare-then-reshare rather than leaving a stale share visible underneath.
+function miResetTileUI() {
+  _miCallEnded = false;
+  document.getElementById('mi-leave-btn').classList.remove('mi-leave-jump');
+  miShowPhonePanel('mi-phone-idle');
+  miPhoneFocus(false);
+  document.getElementById('mi-interviewer-tile').classList.remove('speaking');
+  document.getElementById('mi-you-tile').classList.remove('speaking');
+  document.getElementById('mi-you-status').classList.remove('live');
+  document.getElementById('mi-cursor').style.display = 'none';
+  miHideScreenshot();
+}
+
+// Renders beat `index` from the start (interviewer asks it again) — shared by miNextBeat
+// (advancing forward) and miGoBack (rewinding to replay a question).
+function miRenderBeat(index) {
+  const beat = MI_BEATS[index];
+  miResetTileUI();
+  document.getElementById('mi-back-btn').disabled = false;
+
+  miSpeak(beat.line, 'interviewer', () => {
+    if (beat.screenshot) {
+      miAfter(2000, () => {
+        miShowScreenshot();
+        miAfter(1000, () => {
+          miSpeak(beat.followup, 'interviewer', () => miAfter(2300, () => miShowNeedHelp(beat)));
+        });
+      });
+    } else {
+      miAfter(2300, () => miShowNeedHelp(beat));
+    }
+  });
 }
 
 function miNextBeat() {
   _miIndex++;
   if (_miIndex >= MI_BEATS.length) { miFinish(); return; }
-  const beat = MI_BEATS[_miIndex];
+  miRenderBeat(_miIndex);
+}
 
-  document.getElementById('mi-phone-progress').textContent = `Private · Question ${_miIndex + 1} of ${MI_BEATS.length}`;
-  miShowPhonePanel('mi-phone-idle');
-  miPhoneFocus(false);
-  document.getElementById('mi-you-status').classList.remove('live');
-  if (!beat.screenshot) miHideScreenshot();
+// Replays the introduction, then lets the normal flow carry on into Q1 — same path miJoinCall
+// takes. Nothing precedes the introduction, so the back button is disabled again from here.
+function miGoToIntro() {
+  _miIndex = -1;
+  miResetTileUI();
+  document.getElementById('mi-back-btn').disabled = true;
+  miSpeakIntro();
+}
 
-  miSpeak(beat.line, 'interviewer', () => {
-    if (beat.screenshot) {
-      miAfter(500, () => {
-        miShowScreenshot();
-        miAfter(1000, () => {
-          miSpeak(beat.followup, 'interviewer', () => miAfter(1100, () => miShowNeedHelp(beat)));
-        });
-      });
-    } else {
-      miAfter(1100, () => miShowNeedHelp(beat));
-    }
-  });
+// Rewinds to the previous question (or the introduction, once Q1 is current) —
+// clearing any in-flight speech/timers first.
+function miGoBack() {
+  if (_miIndex < 0) return; // already at the introduction — nothing earlier
+
+  miClearTimers();
+  _miAwaitingBeat = null;
+  _miAudioHeld = false;
+  _miListening = false;
+  miDismissHotkeyNudge();
+
+  if (_miIndex === 0) {
+    miGoToIntro();
+    return;
+  }
+  _miIndex--;
+  miRenderBeat(_miIndex);
+}
+
+// Dev-build-only shortcut (button gated server-side on config.DEV_BUILD) — jumps straight to
+// the next question from wherever the current one is, skipping its remaining wait/hotkey
+// steps. miNextBeat already handles every starting point correctly: from the introduction
+// (_miIndex -1) it lands on Q1, and from the last question it finishes the call.
+function miDevSkipQuestion() {
+  miClearTimers();
+  _miAwaitingBeat = null;
+  _miAudioHeld = false;
+  _miListening = false;
+  miDismissHotkeyNudge();
+  miNextBeat();
 }
 
 function miShowNeedHelp(beat) {
   document.getElementById('mi-nh-text').textContent = beat.popup;
-  document.getElementById('mi-nh-hotkey-label').textContent = beat.hotkeyLabel;
-  const keyEl = document.getElementById('mi-nh-key');
   const btnEl = document.getElementById('mi-nh-btn');
-  const hotkeyRow = document.getElementById('mi-nh-hotkey-row');
   const row = document.getElementById('mi-typing-row');
   const field = document.getElementById('mi-typing-field');
 
-  hotkeyRow.style.display = '';
   btnEl.style.display = '';
   btnEl.textContent = 'Send to AI';
-  keyEl.innerHTML = miRenderHotkey(miHotkeys()[beat.hotkeyKey]);
   row.classList.remove('active');
   field.textContent = '';
   field.classList.remove('sent');
@@ -362,12 +536,10 @@ function miShowNeedHelp(beat) {
 // demo question, then sends it automatically once the text finishes appearing — no second
 // press needed.
 function miStartTyping(beat) {
-  const hotkeyRow = document.getElementById('mi-nh-hotkey-row');
   const btnEl = document.getElementById('mi-nh-btn');
   const row = document.getElementById('mi-typing-row');
   const field = document.getElementById('mi-typing-field');
 
-  hotkeyRow.style.display = 'none';
   btnEl.style.display = 'none';
   row.classList.add('active');
   field.textContent = '';
@@ -384,19 +556,64 @@ function miStartTyping(beat) {
   });
 }
 
-// Purely in-page: never arms the real extension or calls a capture endpoint.
-// Real hotkeys are intercepted by the extension at the OS/browser level, separate from this listener.
-document.addEventListener('keydown', (e) => {
+// Purely in-page — never arms the real extension or calls a capture endpoint on its own.
+// The audio beat is hold-to-talk: keydown just arms "listening" (shows the waveform panel),
+// the send only fires on keyup — mirroring how the real hotkey behaves.
+//
+// Registered on window with capture:true, rather than document uncaptured, so it runs before
+// the real extension's content-script listener — which sits on document with capture:true —
+// since the capture phase visits window before document. Content scripts share the page's DOM
+// event dispatch despite running in an isolated JS world, so calling stopPropagation here for
+// the extension's own action hotkeys (capture/audio/replay/typing) genuinely keeps its listener
+// from ever seeing that keystroke, rather than just telling it to ignore one it already got.
+// The toggle hotkey is deliberately left alone — the real extension stays fully on/off-able
+// through the whole call, only its actions are kept from firing.
+const MI_LISTEN_MIN_MS = 1200;
+
+function miIsExtensionActionHotkey(e) {
+  const hk = miHotkeys();
+  return miMatchHotkey(e, hk.capture) || miMatchHotkey(e, hk.audio) || miMatchHotkey(e, hk.replay) || miMatchHotkey(e, hk.typing);
+}
+
+// Shows the waveform and starts timing it — shared by a real key hold (keydown, below) and a
+// button tap (miTrigger, since a tap has no "hold" of its own to time against).
+function miBeginListening() {
+  _miListening = true;
+  _miListeningStartedAt = Date.now();
+  miDismissHotkeyNudge();
+  miShowPhonePanel('mi-listening');
+}
+
+window.addEventListener('keydown', (e) => {
+  if (_miCallLive && miIsExtensionActionHotkey(e)) e.stopPropagation();
+  if (_miPaused) return; // leave-confirmation dialog is open
   if (!_miAwaitingBeat) return;
-  if (miMatchHotkey(e, miHotkeys()[_miAwaitingBeat.hotkeyKey])) {
-    e.preventDefault();
+  if (!miMatchHotkey(e, miHotkeys()[_miAwaitingBeat.hotkeyKey])) return;
+  e.preventDefault();
+  if (_miAwaitingBeat.hotkeyKey === 'audio') {
+    if (_miAudioHeld) return; // key-repeat while already held
+    _miAudioHeld = true;
+    miBeginListening();
+  } else {
     miTrigger();
   }
-});
+}, { capture: true });
 
-// Triggered by a real hotkey press or the "Send to AI" button. For the typing beat this
-// opens the typing box (which sends itself once the autotype finishes); every other beat
-// sends straight away.
+window.addEventListener('keyup', (e) => {
+  if (_miCallLive && miIsExtensionActionHotkey(e)) e.stopPropagation();
+  if (_miPaused) return; // leave-confirmation dialog is open
+  if (!_miAudioHeld || !_miAwaitingBeat) return;
+  if (!miMatchHotkey(e, miHotkeys()[_miAwaitingBeat.hotkeyKey])) return;
+  e.preventDefault();
+  _miAudioHeld = false;
+  miTrigger();
+}, { capture: true });
+
+// Triggered by a real hotkey release, the "Send to AI" button, or (for audio) a real keyup.
+// For the typing beat this opens the typing box (which sends itself once the autotype
+// finishes); every other beat sends straight away. The audio beat always shows at least
+// MI_LISTEN_MIN_MS of waveform before sending — a tap starts it fresh, a real hold that
+// already ran that long sends immediately since the minimum's already been met.
 function miTrigger(typedText) {
   if (!_miAwaitingBeat) return;
   const beat = _miAwaitingBeat;
@@ -409,9 +626,12 @@ function miTrigger(typedText) {
   }
 
   if (beat.hotkeyKey === 'audio') {
-    // A beat of "still talking" before the question actually goes out, rather than sending
-    // the instant the hotkey is pressed.
-    miAfter(1000, () => miRevealAnswer(beat, typedText));
+    if (!_miListening) miBeginListening(); // tapped the button — no real hold happened
+    const wait = Math.max(0, MI_LISTEN_MIN_MS - (Date.now() - _miListeningStartedAt));
+    miAfter(wait, () => {
+      _miListening = false;
+      miRevealAnswer(beat, typedText);
+    });
     return;
   }
 
@@ -430,7 +650,7 @@ function miRenderSendingPhases(beat, done) {
     const phase = phases[i++];
     const wave = phase.wave ? '<span class="mi-sending-wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span>' : '';
     body.innerHTML = `<div class="mi-sending"><span class="mi-sending-dot"></span><span class="mi-sending-text">${phase.text}</span>${wave}</div>`;
-    miAfter(phase.ms, step);
+    miAfterFixed(phase.ms, step);
   }
   step();
 }
@@ -454,8 +674,15 @@ function miRevealAnswer(beat, typedText) {
     transcription.style.display = 'none';
   }
 
+  const contextNote = document.getElementById('mi-answer-context-note');
   miRenderSendingPhases(beat, () => {
     body.innerHTML = '';
+    if (beat.contextNote) {
+      contextNote.textContent = beat.contextNote;
+      contextNote.style.display = '';
+    } else {
+      contextNote.style.display = 'none';
+    }
     miStreamMarkdown(body, beat.answer, () => {
       // Give the user a moment to read the finished answer, then drop the phone out of
       // focus. Only once it's dropped do you relay the answer back to the interviewer,
@@ -466,8 +693,11 @@ function miRevealAnswer(beat, typedText) {
           miSpeak(beat.youReply, 'you', () => {
             miAfter(900, () => {
               const hasNext = _miIndex + 1 < MI_BEATS.length;
-              const line = hasNext ? 'Great — next question…' : "That's everything — nice work.";
-              miSpeak(line, 'interviewer', () => miAfter(hasNext ? 900 : 2400, miNextBeat));
+              if (hasNext) {
+                miSpeak('Great — next question…', 'interviewer', () => miAfter(2100, miNextBeat));
+              } else {
+                miSpeak("That's everything — nice work.", 'interviewer', miEnterCallEnd);
+              }
             });
           });
         });
@@ -476,15 +706,63 @@ function miRevealAnswer(beat, typedText) {
   });
 }
 
+// Last question's answered — rather than auto-advancing to the Done/recap screen, wait for
+// the user to click Leave themselves (it jumps to draw the eye). A couple of nudges keep it
+// from feeling stuck: a plain reminder, then — if they still haven't — a little easter egg.
+function miEnterCallEnd() {
+  _miCallEnded = true;
+  document.getElementById('mi-leave-btn').classList.add('mi-leave-jump');
+  miAfter(3000, () => {
+    miSpeak("That wraps up the interview — go ahead and click Leave whenever you're ready.", 'interviewer', () => {
+      miAfter(3000, () => {
+        miSpeak("Wow — I can see you're a keen bean! Honestly, that went so well I want to make you an offer on the spot.", 'interviewer', () => {
+          miAfter(600, () => {
+            miSpeak("Fully remote, £1,000,000 a year, full benefits, subsidised lunch, free parking — and a company dog called Steve. Just click Leave and it's yours.", 'interviewer', () => {});
+          });
+        });
+      });
+    });
+  });
+}
+
+// Leave button: mid-call this confirms first (pausing everything while it's open) since
+// leaving loses the rest of the walkthrough. Once the call has actually ended, the warning
+// is unnecessary — it just goes straight to the Done/recap screen.
+function miRequestLeave() {
+  if (_miCallEnded) {
+    miFinish();
+    return;
+  }
+  miPauseTimers();
+  miPauseCallTimer();
+  document.getElementById('mi-leave-confirm').classList.add('active');
+}
+
+function miCancelLeave() {
+  document.getElementById('mi-leave-confirm').classList.remove('active');
+  miResumeCallTimer();
+  miResumeTimers();
+}
+
+function miConfirmLeave() {
+  document.getElementById('mi-leave-confirm').classList.remove('active');
+  miClose();
+}
+
 function miFinish() {
+  miClearTimers();
   miStopCallTimer();
+  _miCallLive = false;
   miShowScreen('mi-done');
 }
 
 function miClose() {
   miClearTimers();
   miStopCallTimer();
+  _miCallLive = false;
   _miAwaitingBeat = null;
+  _miAudioHeld = false;
+  _miListening = false;
   document.getElementById('mock-interview-overlay').classList.remove('visible');
   if (_miIsFirstRun) {
     _miIsFirstRun = false;

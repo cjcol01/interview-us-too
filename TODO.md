@@ -2,22 +2,17 @@
 
 ## Now
 
-- [ ] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
-- [ ] pull onboarding4 
+- [x] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
 - [ ] after welcome, tell people they can change hotkeys at any time
 - [ ] investigate postgres
 - [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
-- [ ] investigate why server starts quckly on mac but slow on pc
 - [ ] add different prompts for different use cases (image, typing etc)
 - [ ] Paste this token into the extension popup along with your server URL
 - [ ] settings mobile refresh
-- [ ] hotkey doesnt turn off extension
-- [ ] add see fix to mic and IR on support page
-- [ ] clear up wording on support page - detechify
-- [ ] pull polishing2
+- [ ] proper on call esque alerts for major server issues, one api (ais) going down, failures, api credit run out etc
+
 
 ## Soon 
-- [ ] google login
 - [ ] shorten landing page
 - [ ] dark mode text can be hard to read
 - [ ] find new name 
@@ -83,3 +78,9 @@
 - [x] clean context - only keep x messages or purge old ones if not discussed
 - [x] typing mode to edit question - not start new question
 - [x] check loadtest - login/bcrypt writes should only happen once — locustfile.py now always uses a pre-minted session cookie from seed_users.py, no /auth/login POST during the ramp at all
+- [x] pull onboarding4 
+- [x] hotkey doesnt turn off extension
+- [x] add see fix to mic and IR on support page
+- [x] clear up wording on support page - detechify
+- [x] investigate why server starts quckly on mac but slow on pc
+- [x] google login

@@ -32,6 +32,9 @@
   --icon-bg:      rgba(20,20,18,0.03);
   --lime-cta-shadow: rgba(63,98,18,0.22);
   --hero-glow:    rgba(198,242,78,0.14);
+  --gold:         #E7B54A;
+  --gold-line:    rgba(231,181,74,0.40);
+  --gold-on:      #1A1405;
 }
 
 :root[data-theme="dark"] {
@@ -62,6 +65,9 @@
   --icon-bg:      rgba(255,255,255,0.04);
   --lime-cta-shadow: rgba(198,242,78,0.25);
   --hero-glow:    rgba(198,242,78,0.07);
+  --gold:         #E7B54A;
+  --gold-line:    rgba(231,181,74,0.40);
+  --gold-on:      #1A1405;
 }
 
 ::selection { background: rgba(198,242,78,0.30); color: #1A1A18; }
@@ -200,6 +206,7 @@ a { color: inherit; text-decoration: none; }
 
 /* ===== HERO DEMO ===== */
 .ia-hero-demo { display: flex; flex-direction: column; gap: 10px; max-width: 100%; position: relative; }
+.ia-demo-caption { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #67676F; text-align: center; margin: 0; }
 .ia-demo-frame { position: relative; padding-bottom: 50px; max-width: 100%; }
 
 /* Demo tabs — theme-aware */
@@ -214,6 +221,42 @@ a { color: inherit; text-decoration: none; }
 }
 .demo-tab:hover { border-color: var(--line-strong); color: var(--text-1); }
 .demo-tab.active { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+
+.demo-speed-btn {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; line-height: 1; color: var(--text-2);
+  border-radius: 6px; border: 1px solid var(--accent-line);
+  background: var(--icon-bg); cursor: pointer; transition: all .15s;
+}
+/* Not :first-of-type — the dev-build back/pause/forward buttons are also <button>s that can
+   sit earlier in the row, which would make one of those "first of type" instead. */
+#demoSlowBtn { margin-left: auto; }
+.demo-speed-btn:hover { border-color: var(--accent-line); color: var(--text-1); }
+/* Clicked: the resting outline goes away — the bar plus a toned fill (stronger at level 2)
+   is the only feedback left. */
+.demo-speed-btn.active { border-color: transparent; color: var(--accent); }
+.demo-speed-btn.level-1 { background: var(--accent-soft); }
+.demo-speed-btn.level-2 { background: rgba(198,242,78,0.16); }
+
+.demo-speed-bar {
+  position: absolute; left: 4px; right: 4px; bottom: 3px;
+  height: 2px; border-radius: 1px; background: var(--line-strong);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .15s, background .15s;
+}
+.demo-speed-bar.level-1 { background: var(--text-2); transform: scaleX(0.5); }
+.demo-speed-bar.level-2 { background: var(--accent); transform: scaleX(1); }
+
+/* Dev-build-only demo controls (config.DEV_BUILD) */
+.demo-dev-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; font-size: 12px; line-height: 1;
+  border-radius: 6px; border: 1px solid var(--line-strong);
+  color: var(--text-2); background: var(--icon-bg);
+  cursor: pointer; transition: all .15s;
+}
+.demo-dev-btn:hover { border-color: var(--accent-line); color: var(--accent); }
 
 /* Demo stage — always dark */
 .demo-stage {
@@ -325,8 +368,12 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 32px 72px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
   animation: ia-float 6s ease-in-out infinite;
 }
-.phone-notch-wrap { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 56px; height: 14px; background: #1A1A20; border-radius: 0 0 10px 10px; z-index: 5; }
 .phone-status-bar { display: flex; align-items: center; justify-content: space-between; padding: 5px 13px 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #67676F; flex-shrink: 0; }
+.phone-signal { display: flex; align-items: flex-end; gap: 2px; }
+.phone-signal-bar { width: 2px; border-radius: 1px; background: #67676F; }
+.phone-signal-bar--sm { height: 3px; }
+.phone-signal-bar--md { height: 5px; }
+.phone-signal-bar--lg { height: 7px; }
 .phone-screen { flex: 1; padding: 7px 10px 10px; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 .phone-home-bar { height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; margin: 4px auto 8px; width: 46px; flex-shrink: 0; }
 
@@ -361,6 +408,11 @@ a { color: inherit; text-decoration: none; }
 .phone-answer-header { display: flex; align-items: center; gap: 6px; margin-bottom: 7px; }
 .phone-answer-dot { width: 6px; height: 6px; border-radius: 50%; background: #C6F24E; box-shadow: 0 0 6px #C6F24E; flex-shrink: 0; }
 .phone-answer-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: #C6F24E; letter-spacing: 0.05em; }
+.phone-context-note {
+  font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #9C9CA6;
+  background: rgba(255,255,255,0.04); border-radius: 5px; padding: 4px 7px;
+  margin: 0 0 7px; flex-shrink: 0;
+}
 .phone-code, .phone-prose {
   font-family: 'JetBrains Mono', monospace; font-size: 9px; line-height: 1.6;
   color: #D6D6DC; margin: 0; white-space: pre-wrap; word-break: break-word;
@@ -425,6 +477,7 @@ a { color: inherit; text-decoration: none; }
 .ia-proof-track-wrap.ia-proof-dragging { cursor: grabbing; }
 .ia-proof-track {
   display: flex; width: max-content;
+  align-items: flex-start;
   will-change: transform;
   backface-visibility: hidden;
   user-select: none;
@@ -443,9 +496,12 @@ a { color: inherit; text-decoration: none; }
 }
 .ia-proof-hint svg { flex-shrink: 0; }
 .ia-proof-hint--hidden { opacity: 0; }
-.ia-proof-card {
+.ia-proof-col {
   flex: 0 0 300px;
   margin-right: 16px;
+  display: flex; flex-direction: column;
+}
+.ia-proof-card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -454,8 +510,8 @@ a { color: inherit; text-decoration: none; }
 }
 .ia-proof-stars { color: var(--accent); font-size: 13px; letter-spacing: 2px; }
 .ia-proof-star-empty { color: var(--line-strong); }
-.ia-proof-quote { font-size: 13.5px; color: var(--text-2); line-height: 1.6; flex: 1; }
-.ia-proof-person { display: flex; align-items: center; gap: 10px; }
+.ia-proof-quote { font-size: 13.5px; color: var(--text-2); line-height: 1.6; }
+.ia-proof-person { display: flex; align-items: center; gap: 10px; margin-top: auto; }
 /* Landing page tokens invert the rest of the app: :root (no attribute) IS light here, and
    :root[data-theme="dark"] is the override — see the file banner up top. So the default rule
    below must be the light-safe styling (stronger fill + dark text over a white --card); the
@@ -475,7 +531,58 @@ a { color: inherit; text-decoration: none; }
   color: #E2E2F0;
 }
 
-@media (max-width: 460px) { .ia-proof-card { flex-basis: 260px; } }
+.ia-proof-card--pick, .ia-proof-card--shipped {
+  overflow: hidden;
+  padding-top: 0;
+}
+.ia-proof-card--pick { border-color: var(--gold-line); }
+.ia-proof-card--shipped { border-color: var(--accent-line); }
+.ia-proof-pick-banner {
+  background: var(--gold); color: var(--gold-on);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 9px 22px; margin: 0 -22px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ia-proof-shipped-banner {
+  background: var(--accent-soft); border-bottom: 1px solid var(--accent-line);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 9px 22px; margin: 0 -22px;
+  display: flex; align-items: center; gap: 8px;
+}
+.ia-proof-reply-bubble {
+  position: relative;
+  margin: 14px 8px 0;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex; gap: 10px;
+}
+.ia-proof-reply-bubble::before {
+  content: "";
+  position: absolute; top: -6px; left: 26px;
+  width: 11px; height: 11px;
+  background: var(--accent-soft);
+  border-left: 1px solid var(--accent-line);
+  border-top: 1px solid var(--accent-line);
+  transform: rotate(45deg);
+}
+.ia-proof-reply-bubble-mark {
+  width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0;
+  background: var(--accent); color: var(--accent-on);
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.ia-proof-reply-bubble-label {
+  font-family: 'JetBrains Mono', monospace; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 3px;
+}
+.ia-proof-reply-bubble-text { font-size: 12.5px; line-height: 1.45; color: var(--text-2); }
+
+@media (max-width: 460px) { .ia-proof-col { flex-basis: 260px; } }
 
 /* ===== SECTION UTILITIES ===== */
 .ia-section { padding: 100px max(28px,4vw); }

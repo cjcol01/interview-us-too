@@ -20,7 +20,7 @@
 
     {% if is_partner %}
     <div class="joined-banner">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
       You're a Tier {{ partner_tier }} partner, earning {{ tier2_pct if partner_tier >= 2 else tier1_pct }}% on every payment your referrals make.
     </div>
     {% endif %}

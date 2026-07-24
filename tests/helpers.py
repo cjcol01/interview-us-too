@@ -1,8 +1,18 @@
 import secrets as _sec
+from pathlib import Path
 
 from auth import create_token, generate_unique_referral_code, hash_password
 from database import SessionLocal
 from models import AccountLevel, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User
+
+_AUDIO_FIXTURE = Path(__file__).parent / "fixtures" / "test_audio.wav"
+
+
+def fake_audio_bytes():
+    """Real WAV bytes for tests that mock out transcription but still post to
+    /api/audio-capture — server.py rejects anything under 2000 bytes as "no audio
+    was captured" before it ever reaches the (mocked) transcription call."""
+    return _AUDIO_FIXTURE.read_bytes()
 
 
 def make_user(db, account_level=AccountLevel.trial, *, with_code=True, stripe_id=None):

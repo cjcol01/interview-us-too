@@ -1,39 +1,52 @@
+const COMPLEXITY_DESC = { 1: 'Concise hint', 2: 'Full solution', 3: 'Optimal + trade-offs' };
+
 document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('version-label').textContent = 'V' + chrome.runtime.getManifest().version;
+
   const { server_url, api_token, complexity, response_style, last_capture, last_error, enabled,
-          hotkey_capture,
+          hotkey_capture, is_unlimited,
           replay_enabled, replay_seconds } =
     await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'response_style',
                                     'last_capture', 'last_error', 'enabled',
-                                    'hotkey_capture',
+                                    'hotkey_capture', 'is_unlimited',
                                     'replay_enabled', 'replay_seconds']);
 
   const serverInput   = document.getElementById('server_url');
   const tokenInput    = document.getElementById('api_token');
   const toggleBtn     = document.getElementById('toggle_token');
   const complexityVal = document.getElementById('complexity_val');
+  const complexityDesc = document.getElementById('complexity_desc');
   const saveBtn       = document.getElementById('save');
   const statusEl      = document.getElementById('status');
   const enabledBtn      = document.getElementById('toggle_enabled');
+  const armTitle        = enabledBtn.querySelector('.arm-title');
+  const armSub          = enabledBtn.querySelector('.arm-sub');
+  const armState        = enabledBtn.querySelector('.arm-state');
   const confirmOverlay  = document.getElementById('confirm-overlay');
+  const confirmBody     = document.getElementById('confirm-body');
   const confirmOk       = document.getElementById('confirm-ok');
   const confirmCancel   = document.getElementById('confirm-cancel');
 
   if (server_url) serverInput.value = server_url;
   if (api_token)  tokenInput.value  = api_token;
 
-  document.getElementById('confirm-capture-key').textContent = hotkey_capture || 'Ctrl+Shift+7';
-
   let isEnabled = enabled ?? false;
 
   function applyEnabledState() {
-    enabledBtn.textContent = isEnabled ? 'ON' : 'OFF';
-    enabledBtn.className = 'toggle-btn ' + (isEnabled ? 'on' : 'off');
+    enabledBtn.className = 'arm-btn ' + (isEnabled ? 'on' : 'off');
+    armTitle.textContent = isEnabled ? 'Assistant armed' : 'Assistant off';
+    armSub.textContent   = isEnabled ? 'LISTENING FOR HOTKEY' : 'TAP TO ARM';
+    armState.textContent = isEnabled ? 'ON' : 'OFF';
   }
 
   applyEnabledState();
 
   enabledBtn.addEventListener('click', () => {
     if (!isEnabled) {
+      confirmBody.textContent = is_unlimited
+        ? ''
+        : 'Turning this on starts using a session as soon as you use any hotkey — toggle it off between interviews to avoid using one by accident.';
+      confirmOk.textContent = is_unlimited ? 'Yes' : 'Got it, turn on';
       confirmOverlay.classList.remove('hidden');
     } else {
       isEnabled = false;
@@ -55,6 +68,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let comp = complexity ?? 2;
   complexityVal.textContent = comp;
+  complexityDesc.textContent = COMPLEXITY_DESC[comp];
 
   function showStatus(msg, isError = false) {
     statusEl.textContent = msg;
@@ -72,15 +86,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   toggleBtn.addEventListener('click', () => {
     const show = tokenInput.type === 'password';
     tokenInput.type = show ? 'text' : 'password';
-    toggleBtn.textContent = show ? '🚫' : '👁';
+    toggleBtn.innerHTML = show ? '&#9673;' : '&#9678;';
   });
 
   document.getElementById('complexity_down').addEventListener('click', () => {
-    if (comp > 1) { comp--; complexityVal.textContent = comp; }
+    if (comp > 1) { comp--; complexityVal.textContent = comp; complexityDesc.textContent = COMPLEXITY_DESC[comp]; }
   });
 
   document.getElementById('complexity_up').addEventListener('click', () => {
-    if (comp < 3) { comp++; complexityVal.textContent = comp; }
+    if (comp < 3) { comp++; complexityVal.textContent = comp; complexityDesc.textContent = COMPLEXITY_DESC[comp]; }
   });
 
   saveBtn.addEventListener('click', async () => {
@@ -91,11 +105,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!tok)  { showStatus('API token is required', true); return; }
 
     await chrome.storage.local.set({ server_url: url, api_token: tok, complexity: comp, last_error: '' });
-    showStatus('Saved!');
-    setTimeout(() => {
-      statusEl.textContent = last_capture ? `Last capture: ${last_capture}` : '';
-      statusEl.className = 'status ok';
-    }, 1500);
+
+    const prevLabel = saveBtn.textContent;
+    saveBtn.textContent = 'Saved ✓';
+    setTimeout(() => { saveBtn.textContent = prevLabel; }, 1600);
+
+    statusEl.textContent = last_capture ? `Last capture: ${last_capture}` : '';
+    statusEl.className = 'status ok';
 
     try {
       const resp = await fetch(`${url}/api/me`, { headers: { 'Authorization': `Bearer ${tok}` } });
@@ -116,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Response style pills ───────────────────────────────────────────────────
-  const stylePills = document.querySelectorAll('.style-pill');
+  const stylePills = document.querySelectorAll('.pill');
   let activeStyle  = response_style || 'conversational';
 
   function applyStyleUI(style) {
@@ -177,7 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     _mic.testing           = true;
     micMeterWrap.style.display = '';
-    micTestBtn.textContent     = 'Stop';
+    micTestBtn.textContent     = 'Listening…';
     micTestBtn.classList.add('testing');
 
     _mic.ctx = new AudioContext();
@@ -240,15 +256,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       permState = perm.state;
     } catch {}
 
+    grantMicBtn.style.display = '';
     if (permState === 'granted') {
       await populateMicDevices(mic_device_id || '');
-      grantMicBtn.style.display  = 'none';
       micTestBtn.disabled        = false;
-      micPermDot.className       = 'mic-perm-dot ok';
+      micPermDot.className       = 'status-dot ok';
+      grantMicBtn.textContent    = 'Microphone connected';
+      grantMicBtn.className      = 'btn ghost small full connected';
+      grantMicBtn.disabled       = true;
     } else {
-      grantMicBtn.style.display  = '';
       micTestBtn.disabled        = true;
-      micPermDot.className       = permState === 'denied' ? 'mic-perm-dot err' : 'mic-perm-dot';
+      micPermDot.className       = permState === 'denied' ? 'status-dot err' : 'status-dot';
+      grantMicBtn.textContent    = 'Grant mic permission';
+      grantMicBtn.className      = 'btn ghost small full';
+      grantMicBtn.disabled       = false;
     }
   }
 
@@ -296,15 +317,41 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ── Replay section ────────────────────────────────────────────────────────
-  const replaySection  = document.getElementById('replay-section');
-  const replayPill     = document.getElementById('replay-pill');
-  const replayWinLabel = document.getElementById('replay-window-label');
-  const lockBtn        = document.getElementById('replay-lock-btn');
-  const unlockBtn      = document.getElementById('replay-unlock-btn');
+  const replaySection   = document.getElementById('replay-section');
+  const replayPill      = document.getElementById('replay-pill');
+  const replayWinReadout = document.getElementById('replay-window-readout');
+  const replaySlider    = document.getElementById('replay-window-slider');
+  const lockRow         = document.getElementById('replay-lock-row');
+  const lockedRow       = document.getElementById('replay-locked-row');
+  const lockedTabEl     = document.getElementById('replay-locked-tab');
+  const lockBtn         = document.getElementById('replay-lock-btn');
+  const unlockBtn       = document.getElementById('replay-unlock-btn');
+
+  function updateReplayWindowUI(secs) {
+    replaySlider.value = secs;
+    const clamped = Number(replaySlider.value); // native range input clamps to min/max
+    replayWinReadout.textContent = `${clamped}s`;
+    return clamped;
+  }
+
+  // The popup only has a Bearer token, not the cookie session /api/settings/replay needs, so
+  // it syncs the window seconds through the Bearer-authed counterpart instead — otherwise this
+  // change would live only in chrome.storage.local and get clobbered the next time anything
+  // (e.g. opening Settings) re-syncs account settings down from the server.
+  function syncReplayWindowToServer(secs) {
+    chrome.storage.local.get(['server_url', 'api_token'], ({ server_url: url, api_token: tok }) => {
+      if (!url || !tok) return;
+      fetch(`${url}/api/settings/replay-window`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seconds: secs }),
+      }).catch(() => {});
+    });
+  }
 
   if (replay_enabled) {
-    replaySection.style.display = 'block';
-    replayWinLabel.textContent  = `Window: ${replay_seconds || 10}s`;
+    replaySection.style.display = 'flex';
+    updateReplayWindowUI(replay_seconds || 10);
   }
 
   // Live-update if the setting changes while the popup happens to be open
@@ -313,40 +360,55 @@ document.addEventListener('DOMContentLoaded', async () => {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes.replay_enabled) {
-      replaySection.style.display = changes.replay_enabled.newValue ? 'block' : 'none';
+      replaySection.style.display = changes.replay_enabled.newValue ? 'flex' : 'none';
     }
     if (changes.replay_seconds) {
-      replayWinLabel.textContent = `Window: ${changes.replay_seconds.newValue || 10}s`;
+      updateReplayWindowUI(changes.replay_seconds.newValue || 10);
     }
+  });
+
+  // 'input' fires continuously while dragging — keep local storage current (background.js
+  // reads it fresh whenever the lock button is pressed) without hammering the server.
+  replaySlider.addEventListener('input', () => {
+    const clamped = updateReplayWindowUI(replaySlider.value);
+    chrome.storage.local.set({ replay_seconds: clamped });
+  });
+
+  // 'change' fires once the drag settles — that's when it's worth a network round trip.
+  replaySlider.addEventListener('change', () => {
+    const clamped = updateReplayWindowUI(replaySlider.value);
+    syncReplayWindowToServer(clamped);
   });
 
   function applyReplayStatus(status) {
     if (!status) return;
     const { state, tabTitle } = status;
-    replayPill.className = 'replay-pill ' + state;
+    replayPill.className = 'badge ' + state;
     if (state === 'idle') {
-      replayPill.textContent  = 'Idle';
-      lockBtn.textContent     = 'Lock to this tab';
-      lockBtn.style.display   = '';
-      unlockBtn.style.display = 'none';
+      replayPill.textContent = 'Idle';
+      lockBtn.textContent    = 'Lock to this tab';
+      lockRow.style.display   = '';
+      lockedRow.style.display = 'none';
     } else if (state === 'arming') {
-      replayPill.textContent  = 'Arming…';
-      lockBtn.style.display   = 'none';
-      unlockBtn.style.display = '';
+      replayPill.textContent  = 'Filling buffer…';
+      lockedTabEl.textContent = tabTitle || 'this tab';
+      lockRow.style.display   = 'none';
+      lockedRow.style.display = 'flex';
     } else if (state === 'armed') {
-      replayPill.textContent  = tabTitle ? `Armed: ${tabTitle.slice(0, 24)}` : 'Armed';
-      lockBtn.style.display   = 'none';
-      unlockBtn.style.display = '';
+      replayPill.textContent  = 'Buffer ready';
+      lockedTabEl.textContent = tabTitle || 'Unknown tab';
+      lockRow.style.display   = 'none';
+      lockedRow.style.display = 'flex';
     } else if (state === 'stream-ended') {
-      replayPill.textContent  = 'Stream lost';
-      lockBtn.textContent     = 'Re-lock to a tab';
-      lockBtn.style.display   = '';
-      unlockBtn.style.display = 'none';
+      replayPill.textContent = 'Stream lost';
+      lockBtn.textContent    = 'Re-lock to a tab';
+      lockRow.style.display   = '';
+      lockedRow.style.display = 'none';
     } else if (state === 'error') {
-      replayPill.textContent  = 'Error — re-lock';
-      lockBtn.textContent     = 'Lock to this tab';
-      lockBtn.style.display   = '';
-      unlockBtn.style.display = 'none';
+      replayPill.textContent = 'Error — re-lock';
+      lockBtn.textContent    = 'Lock to this tab';
+      lockRow.style.display   = '';
+      lockedRow.style.display = 'none';
     }
   }
 
@@ -363,8 +425,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   lockBtn.addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
-    const windowSec = replay_seconds || 10;
-    chrome.runtime.sendMessage({ type: 'replay-lock', tabId: tab.id, windowSec });
+    const { replay_seconds: secs } = await chrome.storage.local.get(['replay_seconds']);
+    chrome.runtime.sendMessage({ type: 'replay-lock', tabId: tab.id, windowSec: secs || 10 });
   });
 
   unlockBtn.addEventListener('click', () => {

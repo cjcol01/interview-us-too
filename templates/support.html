@@ -50,7 +50,7 @@
       <div class="check-row unknown" id="check-phone" data-issue="6">
         <div class="check-icon-tile">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+            <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>
           </svg>
         </div>
         <div class="check-info">
@@ -63,8 +63,7 @@
       <div class="check-row unknown" id="check-mic" data-issue="1">
         <div class="check-icon-tile">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+            <path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/>
           </svg>
         </div>
         <div class="check-info">
@@ -77,7 +76,7 @@
       <div class="check-row unknown" id="check-replay" data-issue="2">
         <div class="check-icon-tile">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+            <path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5m4-1v5l4 2"/>
           </svg>
         </div>
         <div class="check-info">
@@ -118,15 +117,20 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Chrome blocks microphone access per-site until you grant it, and once you deny it, Chrome won't prompt again — it just fails silently from then on. It can also happen if your OS has the wrong input device selected, muted, or if another app is holding the mic exclusively.</p>
+        <p class="issue-why">Microphone access is granted once, through a real permission prompt — but the extension records in a hidden background process that can't show that prompt itself. If you already dismissed or denied it, it stays silent from then on instead of asking again.</p>
         <ol class="issue-fix">
-          <li>Open <code>chrome://settings/content/microphone</code> and make sure this site isn't listed under "Not allowed".</li>
-          <li>Click the padlock icon in the address bar → Site settings → set Microphone to "Allow", then reload the dashboard tab.</li>
+          <li>Press the voice hotkey once. If permission isn't granted yet, a plain "Meeting Microphone Access" tab now opens on its own — click <strong>Allow</strong> in the prompt there.</li>
+          <li>Nothing open? Click the extension icon in your toolbar and press <strong>Grant mic permission</strong> in the popup.</li>
+          <li>
+            Already clicked <strong>Never allow</strong> once? It won't ask again until you clear it manually:
+            <span class="copy-chip" id="mic-settings-copy-chip" onclick="copyMicSettingsLink(this)" title="Click to copy — paste into a new tab's address bar">📋 Copy link to the extension's mic settings</span>
+            then set Microphone to "Allow" on that page.
+          </li>
           <li>Check System Settings → Sound and confirm the right input device is selected and isn't muted.</li>
-          <li>Close other apps that might be using the mic exclusively (Zoom, Teams, OBS), then try the hotkey again.</li>
+          <li>Close any other app that might be using the mic exclusively, then try the hotkey again.</li>
           <li>Run the system check above — the Microphone row turns green once permission is granted.</li>
         </ol>
-        <div class="issue-note"><strong>Note:</strong> Chrome never re-prompts after a denial — you have to clear the block manually in site settings.</div>
+        <div class="issue-note"><strong>Note:</strong> this is the extension's own permission, separate from any website's — it won't show up under a friendly name in Chrome's settings, which is why the link above goes straight to it instead of the generic microphone list.</div>
       </div>
     </div>
 
@@ -169,7 +173,7 @@
       <div class="issue-body">
         <p class="issue-why">Managed or work Chrome profiles often block installs that aren't on an approved list, and Chrome frequently hides a newly installed extension behind the puzzle-piece icon instead of pinning it to the toolbar.</p>
         <ol class="issue-fix">
-          <li>Confirm you're using Chrome or another Chromium browser — Safari and Firefox aren't supported (yet).</li>
+          <li>Confirm you're using Chrome or another Chromium browser — Safari and Firefox aren't supported (yet!).</li>
           <li>Click the puzzle-piece icon in the toolbar and pin InterviewAce so it's always visible.</li>
           <li>If a work laptop blocks the install, try a personal Chrome profile, or use the <a href="/install-manual">manual install</a> instead.</li>
         </ol>
@@ -189,15 +193,14 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">This means the extension's content script never injected into this tab at all, so there's nothing to talk to — different from "not connected", where it responds but has no stored account link. It's usually a permission or install-source issue rather than anything about your account.</p>
+        <p class="issue-why">This means the extension isn't responding on this tab at all — different from "not connected", where it responds fine but just isn't linked to your account yet. It's almost always a permission or setup issue, easy to fix below.</p>
         <ol class="issue-fix">
-          <li>Open <code>chrome://extensions</code> and confirm InterviewAce is toggled on, not just installed.</li>
-          <li>Click "Details" on the extension and check "Site access" — set it to "On all sites". Sideloaded/unpacked installs sometimes default to something more restricted.</li>
+          <li>Open <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions')" title="Click to copy — paste into your address bar">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar) and confirm InterviewAce is toggled on, not just installed.</li>
+          <li>Click "Details" on the extension and check "Site access" — set it to "On all sites".</li>
           <li>If you're in an Incognito or Guest window, extensions don't run there unless "Allow in Incognito" is switched on for it.</li>
-          <li>Do a full reload of the tab (not just re-running the check) — permission changes only apply to newly loaded tabs.</li>
+          <li>Do a full reload of the tab — click the reload button in your browser's toolbar <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> (not just re-running the check below) — permission changes only apply to newly loaded tabs.</li>
           <li>Run the system check above again.</li>
         </ol>
-        <div class="issue-note"><strong>Note:</strong> if you maintain your own build of the extension, double-check you're loading the folder you think you are — Chrome will happily keep running a stale copy from a different location.</div>
       </div>
     </div>
 
@@ -288,8 +291,8 @@
       <div class="issue-body">
         <p class="issue-why">The extension only listens for hotkeys on pages where its content script has already loaded, and a custom key combo can silently collide with a shortcut the browser or OS already owns.</p>
         <ol class="issue-fix">
-          <li>Refresh the page after installing or updating the extension — content scripts don't inject into tabs that were already open.</li>
-          <li>Check <a href="/settings#shortcuts">Settings → Shortcuts</a> for the exact combo currently set, and try re-recording it in case of a conflict.</li>
+          <li>Refresh the page after installing or updating the extension — it doesn't load into tabs that were already open.</li>
+          <li>Check <a href="/settings#shortcuts">Settings → Shortcuts</a> or the bottom of the <a href="/app#hotkey-reference">dashboard page</a> for the exact combo currently set, and try re-recording it in case of a conflict.</li>
           <li>Avoid combos your browser or OS already owns.</li>
           <li>Confirm the extension is toggled on — press the toggle hotkey or check the popup.</li>
         </ol>
@@ -324,7 +327,7 @@
   <!-- ══ Still stuck CTA ═════════════════════════════════════════ -->
   <div class="stuck-card">
     <div class="stuck-title">Still stuck?</div>
-    <div class="stuck-sub">Send us your diagnostics log and we'll reply within a few hours — usually much faster during interview season.</div>
+    <div class="stuck-sub">Reply is usually in minutes.</div>
     <a class="stuck-btn" id="stuck-btn" href="mailto:support@interviewace.co">Contact support</a>
   </div>
 
@@ -339,7 +342,7 @@
   function _setCheck(name, state, statusText) {
     _diag[name] = state;
     const row = document.getElementById('check-' + name);
-    row.classList.remove('ok', 'bad', 'unknown');
+    row.classList.remove('ok', 'bad', 'warn', 'unknown');
     row.classList.add(state);
     document.getElementById('check-' + name + '-status').textContent = statusText;
     _updateStuckMailto();
@@ -348,7 +351,7 @@
   function _refreshSubline() {
     const subline = document.getElementById('check-subline');
     if (!_settled) { subline.textContent = 'Checking…'; return; }
-    const bad = Object.values(_diag).filter((s) => s === 'bad').length;
+    const bad = Object.values(_diag).filter((s) => s === 'bad' || s === 'warn').length;
     subline.textContent = bad === 0
       ? 'Last checked just now · all clear'
       : 'Last checked just now · ' + bad + (bad === 1 ? ' needs' : ' need') + ' attention';
@@ -396,14 +399,36 @@
   // Extension + phone link share the same read-only ping/pong — the phone
   // reaches the dashboard the same way the extension does (same account,
   // no separate pairing), so a broken extension link means neither works.
+  let _extLinked = null;
+  let _extEnabled = null;
+  function _updateExtCheck() {
+    if (_extLinked === null) return;
+    if (!_extLinked) {
+      _setCheck('ext', 'bad', 'Not connected');
+      _setExtFixState('not-connected');
+    } else if (_extEnabled === false) {
+      _setCheck('ext', 'warn', 'Connected · switched off');
+      _setExtFixState('ok');
+    } else {
+      const version = _extVersion;
+      _setCheck('ext', 'ok', 'Connected' + (version ? ' · v' + version : ''));
+      _setExtFixState('ok');
+    }
+    _setCheck('phone', _extLinked ? 'ok' : 'bad', _extLinked ? 'Reachable · same account' : "Won't receive answers");
+  }
+
+  let _extVersion = null;
   document.addEventListener('interview-ace:pong', (e) => {
     _pongSeen = true;
     clearTimeout(_extTimeout);
-    const linked = !!(e.detail && e.detail.linked);
-    const version = e.detail && e.detail.version;
-    _setCheck('ext', linked ? 'ok' : 'bad', linked ? ('Connected' + (version ? ' · v' + version : '')) : 'Not connected');
-    _setExtFixState(linked ? 'ok' : 'not-connected');
-    _setCheck('phone', linked ? 'ok' : 'bad', linked ? 'Reachable · same account' : "Won't receive answers");
+    _extLinked = !!(e.detail && e.detail.linked);
+    _extVersion = e.detail && e.detail.version;
+    _updateExtCheck();
+  });
+
+  document.addEventListener('interview-ace:enabled-status', (e) => {
+    _extEnabled = !!(e.detail && e.detail.enabled);
+    _updateExtCheck();
   });
 
   function connectExtensionFromSupport(triggerBtn) {
@@ -432,7 +457,7 @@
     if (state === 'granted') _setCheck('mic', 'ok', 'Granted · ready');
     else if (state === 'denied') _setCheck('mic', 'bad', 'No signal — permission?');
     else if (state === 'error') _setCheck('mic', 'bad', 'No signal — check device');
-    else _setCheck('mic', 'unknown', 'Not requested yet');
+    else _setCheck('mic', 'warn', 'Not granted yet — test it before your interview');
   });
 
   document.addEventListener('interview-ace:replay-status', (e) => {
@@ -444,7 +469,7 @@
     const state = _replayLast && _replayLast.state;
     if (state === 'armed') _setCheck('replay', 'ok', 'Armed · locked to tab');
     else if (state === 'error' || state === 'stream-ended') _setCheck('replay', 'bad', 'Buffer empty / off');
-    else _setCheck('replay', 'unknown', 'Not locked to a tab');
+    else _setCheck('replay', 'warn', 'Not locked to a tab — set it up before your interview');
   }
 
   // The extension's content script injects at document_idle, which can run
@@ -481,6 +506,15 @@
   _applyReplayCheck();
   _updateStuckMailto();
 
+  // Mic permission is only pushed here when explicitly re-queried, unlike ext/enabled state —
+  // re-check whenever this tab regains focus (e.g. after granting/revoking it elsewhere),
+  // rather than only on page load or the manual "Run diagnostics" button.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    _micSeen = false;
+    _retryDispatch('interview-ace:mic-check', () => _micSeen);
+  });
+
   setTimeout(() => { _settled = true; _refreshSubline(); }, 1800);
 
   function runDiagnostics() {
@@ -503,6 +537,36 @@
       _settled = true;
       _refreshSubline();
     }, 1400);
+  }
+
+  // ── Copy chip for chrome:// URLs (Chrome blocks web pages from linking to
+  // chrome:// URLs directly, so these are copy-to-clipboard instead of <a>) ─
+  function copyChromeUrl(el, url) {
+    navigator.clipboard.writeText(url).then(() => {
+      const label = el.childNodes[0];
+      const original = label.textContent;
+      label.textContent = 'Copied!';
+      el.classList.add('copied');
+      setTimeout(() => { label.textContent = original; el.classList.remove('copied'); }, 1500);
+    });
+  }
+
+  // Only the extension's own content script can look up its chrome-extension://<id> origin
+  // (chrome.runtime.id isn't available to a page script), so this settings link is fetched
+  // from it rather than being a static string like the other copy chips on this page. Uses the
+  // same retry dispatch as ping/mic-check above since content.js can inject after this script
+  // already ran once.
+  let _micSettingsUrl = null;
+  let _micSettingsSeen = false;
+  document.addEventListener('interview-ace:mic-settings-link-result', (e) => {
+    _micSettingsSeen = true;
+    _micSettingsUrl = e.detail && e.detail.url;
+  });
+  _retryDispatch('interview-ace:mic-settings-link', () => _micSettingsSeen);
+
+  function copyMicSettingsLink(el) {
+    if (!_micSettingsUrl) return; // extension not detected yet, or not installed
+    copyChromeUrl(el, _micSettingsUrl);
   }
 
   // ── Filter bar ───────────────────────────────────────────────────────────

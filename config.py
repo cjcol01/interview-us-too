@@ -105,3 +105,7 @@ SIDELOAD_ZIP_URL = os.getenv(
 # and no verification email is sent. Convenient for local dev; must be unset
 # (or "0") in production or every signup skips email verification.
 SKIP_EMAIL_VERIFICATION = os.getenv("SKIP_EMAIL_VERIFICATION", "0") == "1"
+
+# DEV_BUILD: master switch for dev-only conveniences gated behind it elsewhere
+# in the codebase. Must be unset (or "0") in production.
+DEV_BUILD = os.getenv("DEV_BUILD", "0") == "1"

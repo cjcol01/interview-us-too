@@ -120,12 +120,11 @@
         <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
         <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
         <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
 
-        <button class="ob-manual-toggle ob-advanced-toggle" onclick="toggleAdvanced()">Show advanced features</button>
+        <button class="ob-manual-toggle ob-advanced-toggle" onclick="toggleAdvanced()">Show details</button>
         <div id="advanced-section" class="ob-manual-section">
-          <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
-          <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
-
           <div class="ob-feature-callout">
             <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
             <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
@@ -399,6 +398,7 @@
     }
 
     async function confirmStart() {
+      document.dispatchEvent(new CustomEvent('interview-ace:enable'));
       await fetch('/api/trial/start', { method: 'POST' }).catch(() => {});
       window.location.href = '/app';
     }

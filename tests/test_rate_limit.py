@@ -220,7 +220,7 @@ def register(test, skip, client):
     def test_audio_rapid_calls_hit_cooldown_429():
         from database import SessionLocal
         from models import AccountLevel
-        from tests.helpers import cleanup, make_user
+        from tests.helpers import cleanup, fake_audio_bytes, make_user
 
         db = SessionLocal()
         try:
@@ -232,10 +232,14 @@ def register(test, skip, client):
                 raise RuntimeError("Whisper unavailable")
 
             orig = server.openai_client.audio.transcriptions.create
+            # Force no Deepgram fallback configured — otherwise a real DEEPGRAM_API_KEY in
+            # this checkout's .env would let the first call succeed via failover instead of 500.
+            orig_deepgram_key = server.DEEPGRAM_API_KEY
             server.openai_client.audio.transcriptions.create = _raise
+            server.DEEPGRAM_API_KEY = ""
             try:
                 audio_args = dict(
-                    files={"audio": ("rec.webm", b"fake", "audio/webm")},
+                    files={"audio": ("rec.webm", fake_audio_bytes(), "audio/webm")},
                     headers={"Authorization": f"Bearer {u.api_token}"},
                 )
                 first = client.post("/api/audio-capture", **audio_args)
@@ -244,6 +248,7 @@ def register(test, skip, client):
                 assert second.status_code == 429
             finally:
                 server.openai_client.audio.transcriptions.create = orig
+                server.DEEPGRAM_API_KEY = orig_deepgram_key
         finally:
             cleanup(db, u)
             db.close()

@@ -43,7 +43,11 @@ async function startMicRecording(deviceId) {
     const audio = deviceId ? { deviceId: { ideal: deviceId } } : true;
     _mic.stream = await navigator.mediaDevices.getUserMedia({ audio, video: false });
   } catch (e) {
-    chrome.runtime.sendMessage({ type: 'audio-error', error: e.message });
+    // e.name is 'NotAllowedError' when mic permission was never granted — offscreen documents
+    // are headless and can't show the native permission prompt themselves (background.js opens
+    // grant-mic.html, a real tab, to get one), so this always fails silently on a first-ever
+    // hotkey press rather than prompting.
+    chrome.runtime.sendMessage({ type: 'audio-error', error: e.message, errorName: e.name });
     return;
   }
 

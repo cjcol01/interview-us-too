@@ -1,4 +1,4 @@
-console.log('[InterviewAce] content.js loaded — build-check-2026-07-23-A');
+console.log('[InterviewAce] content.js loaded — build-check-2026-07-24-F');
 
 if (window._iaceAbort) window._iaceAbort.abort();
 const ac = new AbortController();
@@ -70,15 +70,19 @@ document.addEventListener('interview-ace:replay-relock', () => {
   chrome.runtime.sendMessage({ type: 'replay-relock' });
 }, { signal: ac.signal });
 
-// On /app and /support: push replay + mic status changes into the page as custom events
+// On /app and /support: push replay + mic + enabled status changes into the page as custom
+// events. Unlike the 'toggled' message (sent only to whichever tab issued the toggle), this
+// covers every tab showing these pages regardless of where the extension was actually
+// toggled — hotkey, popup, or another tab entirely — since it's driven by storage.onChanged.
 if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/support')) {
-  chrome.storage.local.get(['replay_status', 'mic_status'], ({ replay_status, mic_status }) => {
+  chrome.storage.local.get(['replay_status', 'mic_status', 'enabled'], ({ replay_status, mic_status, enabled }) => {
     if (replay_status) {
       document.dispatchEvent(new CustomEvent('interview-ace:replay-status', { detail: replay_status }));
     }
     if (mic_status) {
       document.dispatchEvent(new CustomEvent('interview-ace:mic-status', { detail: mic_status }));
     }
+    document.dispatchEvent(new CustomEvent('interview-ace:enabled-status', { detail: { enabled: enabled ?? false } }));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
@@ -90,6 +94,11 @@ if (window.location.pathname.startsWith('/app') || window.location.pathname.star
     if (changes.mic_status?.newValue) {
       document.dispatchEvent(new CustomEvent('interview-ace:mic-status', {
         detail: changes.mic_status.newValue,
+      }));
+    }
+    if (changes.enabled?.newValue !== undefined) {
+      document.dispatchEvent(new CustomEvent('interview-ace:enabled-status', {
+        detail: { enabled: changes.enabled.newValue },
       }));
     }
   });
@@ -113,6 +122,21 @@ document.addEventListener('interview-ace:mic-check', () => {
   chrome.runtime.sendMessage({ type: 'check-mic-permission' });
 }, { signal: ac.signal });
 
+// The extension's mic permission lives at its own chrome-extension://<id> origin, which only
+// this content script can look up (chrome.runtime.id isn't available to a regular page) — used
+// by the support page's "Mic silent" card to link straight to the right settings entry instead
+// of the generic microphone list, where it'd show up as an unlabeled chrome-extension:// origin
+// among ordinary websites.
+document.addEventListener('interview-ace:mic-settings-link', () => {
+  const url = 'chrome://settings/content/siteDetails?site='
+    + encodeURIComponent('chrome-extension://' + chrome.runtime.id + '/');
+  document.dispatchEvent(new CustomEvent('interview-ace:mic-settings-link-result', { detail: { url } }));
+}, { signal: ac.signal });
+
+document.addEventListener('interview-ace:enable', () => {
+  chrome.runtime.sendMessage({ type: 'force-enable' });
+}, { signal: ac.signal });
+
 document.addEventListener('interview-ace:connect', (e) => {
   const { token, serverUrl } = e.detail;
   chrome.storage.local.set({ api_token: token, server_url: serverUrl }, () => {
@@ -131,14 +155,16 @@ let _audioRecording = false;
 let _typingActive = false;
 let _typingBuffer = '';
 let _passthrough = true;
+let _enabled = false;
 
-chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay', 'hotkey_typing', 'typing_passthrough'], (r) => {
+chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay', 'hotkey_typing', 'typing_passthrough', 'enabled'], (r) => {
   if (r.hotkey_capture) _hotkeys.capture = r.hotkey_capture;
   if (r.hotkey_audio)   _hotkeys.audio   = r.hotkey_audio;
   if (r.hotkey_toggle)  _hotkeys.toggle  = r.hotkey_toggle;
   if (r.hotkey_replay)  _hotkeys.replay  = r.hotkey_replay;
   if (r.hotkey_typing)  _hotkeys.typing  = r.hotkey_typing;
   if (r.typing_passthrough !== undefined) _passthrough = r.typing_passthrough;
+  if (r.enabled !== undefined) _enabled = r.enabled;
 });
 
 const _onStorageChanged = (changes) => {
@@ -148,6 +174,7 @@ const _onStorageChanged = (changes) => {
   if (changes.hotkey_replay?.newValue)  _hotkeys.replay  = changes.hotkey_replay.newValue;
   if (changes.hotkey_typing?.newValue)  _hotkeys.typing  = changes.hotkey_typing.newValue;
   if (changes.typing_passthrough?.newValue !== undefined) _passthrough = changes.typing_passthrough.newValue;
+  if (changes.enabled?.newValue !== undefined) _enabled = changes.enabled.newValue;
 };
 chrome.storage.onChanged.addListener(_onStorageChanged);
 ac.signal.addEventListener('abort', () => chrome.storage.onChanged.removeListener(_onStorageChanged));
@@ -171,6 +198,21 @@ function matchesHotkey(e, hotkey) {
 }
 
 document.addEventListener('keydown', (e) => {
+  // The toggle hotkey always works, even while disabled — otherwise there'd be no keyboard
+  // way back on. Checked before the typing-buffer branch below since that would otherwise
+  // swallow every keystroke, toggle included, whenever typing mode happens to be active.
+  if (!_typingActive && matchesHotkey(e, _hotkeys.toggle)) {
+    if (e.repeat) return;
+    e.preventDefault();
+    e.stopPropagation();
+    chrome.runtime.sendMessage({ type: 'toggle' });
+    return;
+  }
+
+  // Disabled: don't intercept anything else — let every other keystroke (including this
+  // tab's own typing) reach the page untouched instead of being swallowed and dropped.
+  if (!_enabled) return;
+
   // Typing-mode toggle — checked first so it always stops capture, even mid-typing.
   if (matchesHotkey(e, _hotkeys.typing)) {
     if (e.repeat) return;
@@ -218,8 +260,6 @@ document.addEventListener('keydown', (e) => {
     chrome.runtime.sendMessage({ type: 'audio-start' });
   } else if (matchesHotkey(e, _hotkeys.capture)) {
     chrome.runtime.sendMessage({ type: 'capture' });
-  } else if (matchesHotkey(e, _hotkeys.toggle)) {
-    chrome.runtime.sendMessage({ type: 'toggle' });
   } else if (matchesHotkey(e, _hotkeys.replay)) {
     chrome.runtime.sendMessage({ type: 'replay-trigger' });
   }

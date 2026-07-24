@@ -61,20 +61,13 @@
       <span id="status">connecting...</span>
       <a id="support-btn" href="/support" aria-label="Support">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <circle cx="12" cy="12" r="4"/>
-          <line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/>
-          <line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/>
-          <line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/>
-          <line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/>
+          <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0a2.34 2.34 0 0 0 3.319 1.915a2.34 2.34 0 0 1 2.33 4.033a2.34 2.34 0 0 0 0 3.831a2.34 2.34 0 0 1-2.33 4.033a2.34 2.34 0 0 0-3.319 1.915a2.34 2.34 0 0 1-4.659 0a2.34 2.34 0 0 0-3.32-1.915a2.34 2.34 0 0 1-2.33-4.033a2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/>
         </svg>
         Support
       </a>
       <button id="tutorial-btn" onclick="openMockInterview(false)" aria-label="How it works">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 16v-4"/>
-          <path d="M12 8h.01"/>
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/>
         </svg>
       </button>
     </div>
@@ -90,9 +83,7 @@
     <div id="screenshot-wrap" class="mini" onclick="toggleImage()">
       <div id="placeholder">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-          <rect x="2" y="4" width="20" height="14" rx="2"/>
-          <line x1="8" y1="22" x2="16" y2="22"/>
-          <line x1="12" y1="18" x2="12" y2="22"/>
+          <rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8m-4-4v4"/>
         </svg>
         <span>Waiting for capture…</span>
       </div>
@@ -159,7 +150,7 @@
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Instant replay</span>
-          <span class="hk-ref-desc">Tap — resend the last 15s of audio</span>
+          <span class="hk-ref-desc">Tap — resend the last {{ replay_seconds }}s of audio</span>
           <span class="hk-ref-key" id="hkref-replay"></span>
         </div>
         <div class="hk-ref-row">
@@ -368,7 +359,7 @@
           } else if (data.type === 'audio-error') {
             statusEl.textContent = 'live';
             statusEl.className = 'live';
-            analysisEl.textContent = 'Audio error: ' + (data.message || 'unknown error');
+            analysisEl.textContent = data.message || "Couldn't process that recording — try again.";
             analysisEl.className = '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
@@ -623,6 +614,27 @@
       _supportBtn.classList.toggle('needs-attention', active);
     }
 
+    // Ext dot has three real states: not detected/not connected (bad, red), connected but
+    // switched off (warn, orange — a real in-between, not "broken"), and connected + on (ok).
+    // Linked and enabled arrive independently (pong vs. the enabled-status event) so this
+    // recomputes from whichever combination is known so far each time either one lands.
+    let _extLinked = null;
+    let _extEnabled = null;
+    function _updateExtDot() {
+      if (_extLinked === null) return;
+      if (!_extLinked) {
+        _setDot('ext', 'bad', 'Extension installed but not connected — connect it in Settings → Extension.');
+        _setSupportBounce(true);
+      } else if (_extEnabled === false) {
+        const toggleKey = (window.MI_HOTKEYS || {}).toggle || 'the toggle hotkey';
+        _setDot('ext', 'warn', 'Extension connected but switched off — press ' + toggleKey + ' to turn it back on.');
+        _setSupportBounce(true);
+      } else {
+        _setDot('ext', 'ok', 'Extension connected and linked to your account.');
+        _setSupportBounce(false);
+      }
+    }
+
     const _extDotTimeout = setTimeout(() => {
       if (_pongSeen) return;
       _setDot('ext', 'bad', 'Extension not detected — install it from the Chrome Web Store, then connect it in Settings → Extension.');
@@ -631,15 +643,15 @@
     document.addEventListener('interview-ace:pong', (e) => {
       _pongSeen = true;
       clearTimeout(_extDotTimeout);
-      if (e.detail && e.detail.linked) {
-        _setDot('ext', 'ok', 'Extension connected and linked to your account.');
-        _setSupportBounce(false);
-      } else {
-        _setDot('ext', 'bad', 'Extension installed but not connected — connect it in Settings → Extension.');
-        _setSupportBounce(true);
-      }
+      _extLinked = !!(e.detail && e.detail.linked);
+      _updateExtDot();
     });
     _retryDispatch('interview-ace:ping', () => _pongSeen);
+
+    document.addEventListener('interview-ace:enabled-status', (e) => {
+      _extEnabled = !!(e.detail && e.detail.enabled);
+      _updateExtDot();
+    });
 
     // Mic: passive permission check, requested fresh on load.
     const _micDotTimeout = setTimeout(() => {
@@ -657,10 +669,21 @@
       } else if (state === 'error') {
         _setDot('mic', 'bad', 'Microphone isn’t working — check that a microphone is connected and permission is allowed, then try again.');
       } else {
-        _setDot('mic', 'neutral', 'Microphone permission not requested yet — you’ll be asked the first time you hold the voice-capture hotkey.');
+        _setDot('mic', 'warn', 'Microphone permission not granted yet — press and hold the voice-capture hotkey now to grant it before your interview.');
       }
     });
     _retryDispatch('interview-ace:mic-check', () => _micSeen);
+
+    // Mic permission is only ever pushed to the page when explicitly re-queried — unlike
+    // ext-linked/enabled state, nothing writes to storage on its own when the browser-level
+    // permission changes elsewhere (e.g. the user grants it via grant-mic.html in another tab,
+    // or revokes it from chrome://settings). Re-check whenever this tab regains focus, since
+    // that's the natural moment right after such a change.
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return;
+      _micSeen = false;
+      _retryDispatch('interview-ace:mic-check', () => _micSeen);
+    });
 
     // Instant replay: reuse the same status stream as the replay badge above.
     function _applyReplayDot(status) {
@@ -671,7 +694,7 @@
       } else if (state === 'error' || state === 'stream-ended') {
         _setDot('replay', 'bad', 'Instant replay lost its connection — click re-lock in the extension popup.');
       } else {
-        _setDot('replay', 'neutral', "Instant replay isn't locked to a tab. If you want to use it this interview, lock it to a tab in the extension popup first.");
+        _setDot('replay', 'warn', "Instant replay isn't locked to a tab yet — lock it to your meeting tab in the extension popup now so it's ready before your interview.");
       }
     }
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));

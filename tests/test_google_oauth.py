@@ -27,12 +27,17 @@ def register(test, skip, client):
         return parse_qs(urlparse(loc).query)["state"][0]
 
     def test_routes_404_when_disabled():
-        # The dev .env ships blank GOOGLE_CLIENT_ID/SECRET, so this is the real default.
-        assert server.GOOGLE_OAUTH_ENABLED is False
-        r1 = client.get("/auth/google", follow_redirects=False)
-        r2 = client.get("/auth/google/callback?code=x&state=y", follow_redirects=False)
-        assert r1.status_code == 404
-        assert r2.status_code == 404
+        # Force the disabled state rather than relying on the ambient .env — a dev
+        # checkout with real GOOGLE_CLIENT_ID/SECRET configured would otherwise fail here.
+        orig_enabled = server.GOOGLE_OAUTH_ENABLED
+        server.GOOGLE_OAUTH_ENABLED = False
+        try:
+            r1 = client.get("/auth/google", follow_redirects=False)
+            r2 = client.get("/auth/google/callback?code=x&state=y", follow_redirects=False)
+            assert r1.status_code == 404
+            assert r2.status_code == 404
+        finally:
+            server.GOOGLE_OAUTH_ENABLED = orig_enabled
 
     def test_new_email_creates_verified_trial_user_and_consumes_referral():
         db = SessionLocal()

@@ -9,7 +9,7 @@ def register(test, skip, client):
     from config import ANTHROPIC_API_KEY, OPENAI_API_KEY
     from database import SessionLocal
     from models import AccountLevel, InterviewSession
-    from tests.helpers import cleanup, make_user
+    from tests.helpers import cleanup, fake_audio_bytes, make_user
 
     live_ok = (
         OPENAI_API_KEY
@@ -76,20 +76,25 @@ def register(test, skip, client):
             u = make_user(db, AccountLevel.paid)
             import server
             original = server.openai_client.audio.transcriptions.create
+            # Force no Deepgram fallback configured — otherwise a real DEEPGRAM_API_KEY in
+            # this checkout's .env would let the request succeed via failover instead of 500.
+            orig_deepgram_key = server.DEEPGRAM_API_KEY
 
             def _raise(*args, **kwargs):
                 raise RuntimeError("Whisper unavailable")
 
             server.openai_client.audio.transcriptions.create = _raise
+            server.DEEPGRAM_API_KEY = ""
             try:
                 r = client.post(
                     "/api/audio-capture",
-                    files={"audio": ("rec.wav", b"fake-bytes", "audio/wav")},
+                    files={"audio": ("rec.wav", fake_audio_bytes(), "audio/wav")},
                     headers={"Authorization": f"Bearer {u.api_token}"},
                 )
                 assert r.status_code == 500
             finally:
                 server.openai_client.audio.transcriptions.create = original
+                server.DEEPGRAM_API_KEY = orig_deepgram_key
         finally:
             cleanup(db, u)
             db.close()

@@ -49,17 +49,24 @@
 
       <div class="demo-tabs">
         <div class="demo-tab active" data-tab="0">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
           Screenshot
         </div>
         <div class="demo-tab" data-tab="1">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg>
           Voice
         </div>
         <div class="demo-tab" data-tab="2">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5m4-1v5l4 2"/></svg>
           Replay
         </div>
+        {% if DEV_BUILD %}
+        <button type="button" class="demo-dev-btn" id="devBackBtn" title="Back (dev build only)">&#9198;</button>
+        <button type="button" class="demo-dev-btn" id="devPauseBtn" title="Pause (dev build only)">&#9208;</button>
+        <button type="button" class="demo-dev-btn" id="devForwardBtn" title="Forward (dev build only)">&#9197;</button>
+        {% endif %}
+        <button type="button" class="demo-speed-btn" id="demoSlowBtn" title="Slow down the demo"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="M19.31 5.6c-1.22-.04-2.43.9-2.81 2.4c-.5 2-.5 2-1.5 3c-2 2-5 3-11 4c-1 .16-1.5.5-2 1c2 0 4 0 2.5 1.5L3 19h3l2-2c2 1 3.33 1 5.33 0l.67 2h3l-1-3s1-4 2-5s1 0 2 0s2-1 2-2.5C22 8 22 7 20.5 6c-.35-.24-.76-.38-1.19-.4M9 6a6 6 0 0 0-6 6c0 .6.13 1.08.23 1.6c5.92-.98 9.06-2.01 10.7-3.66l.5-.5A6.01 6.01 0 0 0 9 6"/></svg><span class="demo-speed-bar" id="demoSlowBar"></span></button>
+        <button type="button" class="demo-speed-btn" id="demoFastBtn" title="Speed up the demo"><svg viewBox="0 0 24 24" width="15" height="15"><path fill="currentColor" d="m18.05 21l-2.73-4.74c0-1.73-1.07-2.84-2.37-2.84c-.9 0-1.68.5-2.08 1.24c.33-.19.72-.29 1.13-.29c1.3 0 2.36 1.06 2.36 2.36c0 1.31-1.05 2.38-2.36 2.38h3.3V21H6.79c-.24 0-.49-.09-.67-.28a.95.95 0 0 1 0-1.34l.5-.5c-.34-.15-.62-.38-.9-.62c-.22.5-.72.85-1.3.85a1.425 1.425 0 0 1 0-2.85l.47.08v-1.97a4.73 4.73 0 0 1 4.74-4.74h.02c2.12.01 3.77.84 3.77-.47c0-.93.2-1.3.54-1.82c-.73-.34-1.56-.55-2.43-.55c-.53 0-.95-.42-.95-.95c0-.43.28-.79.67-.91l-.67-.04c-.52 0-.95-.42-.95-.94c0-.53.43-.95.95-.95h.95c2.1 0 3.94 1.15 4.93 2.85l.28-.01c.71 0 1.37.23 1.91.61l.45.38c2.17 1.95 1.9 3.27 1.9 3.28c0 1.28-1.06 2.33-2.35 2.33l-.49-.05v.08c0 1.11-.48 2.1-1.23 2.8L20.24 21zm.11-13.26c-.53 0-.95.42-.95.94c0 .53.42.95.95.95c.52 0 .95-.42.95-.95c0-.52-.43-.94-.95-.94"/></svg><span class="demo-speed-bar" id="demoFastBar"></span></button>
       </div>
 
       <div class="ia-demo-frame">
@@ -111,7 +118,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                 </div>
                 <div class="demo-capture-bar">
                   <div class="demo-capture-btn" id="s0CaptureBtn">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
                     Capture
                   </div>
                   <kbd class="demo-hotkey">&#8997; Space</kbd>
@@ -140,7 +147,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   <div class="zoom-caption-bar" id="s1Caption">&nbsp;</div>
                   <div class="demo-voice-bar">
                     <div class="demo-voice-btn" id="s1VoiceBtn">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg>
                       Hold to record
                     </div>
                     <kbd class="demo-hotkey">&#8997; V</kbd>
@@ -170,7 +177,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   <div class="zoom-caption-bar" id="s2Caption">&nbsp;</div>
                   <div class="demo-voice-bar">
                     <div class="demo-replay-btn" id="s2ReplayBtn">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5m4-1v5l4 2"/></svg>
                       Instant replay
                     </div>
                     <kbd class="demo-hotkey">&#8997; R</kbd>
@@ -189,13 +196,19 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       <!-- Phone: floats in front of stage -->
       <div class="demo-phone-panel">
         <div class="phone-frame">
-          <div class="phone-notch-wrap"></div>
-          <div class="phone-status-bar"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div class="phone-status-bar">
+            <span>9:41</span>
+            <span class="phone-signal" aria-hidden="true">
+              <span class="phone-signal-bar phone-signal-bar--sm"></span>
+              <span class="phone-signal-bar phone-signal-bar--md"></span>
+              <span class="phone-signal-bar phone-signal-bar--lg"></span>
+            </span>
+          </div>
           <div class="phone-screen">
 
             <div class="phone-state visible" id="phIdle">
               <div class="phone-idle-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01" stroke-width="2.5"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
               </div>
               <p class="phone-idle">Waiting&hellip;</p>
             </div>
@@ -251,6 +264,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                 <span class="phone-answer-dot"></span>
                 <span class="phone-answer-label">InterviewAce</span>
               </div>
+              <p class="phone-context-note" id="phContextNote" style="display:none;"></p>
               <pre class="phone-prose" id="phProse"></pre>
               <div class="phone-flash" id="phFlash2"></div>
             </div>
@@ -260,6 +274,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
       </div>
       </div>
+      <p class="ia-demo-caption">Preview only — see the full interactive walkthrough immediately after sign-up .</p>
     </div>
 
   </div>
@@ -327,8 +342,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <div class="ia-step-num">1</div>
           <div class="ia-step-rule"></div>
         </div>
-        <h3>Tap, hold, or type a hidden hotkey</h3>
-        <p>Tap to capture your screen instantly — intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI.</p>
+        <h3>Tap a hidden hotkey</h3>
+        <p>Tap to capture your screen instantly — intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI. Send a replay of the last 15 seconds of conversation for analysis.</p>
         <div class="ia-tile-badge">+ type your own question silently</div>
       </div>
       <div class="ia-step" data-reveal>
@@ -338,6 +353,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
         <h3>AI reads or listens</h3>
         <p>Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first — same output, hands-free.</p>
+        <div class="ia-tile-badge">missed it? instant replay — last 15s</div>
       </div>
       <div class="ia-step" data-reveal>
         <div class="ia-step-top">
@@ -346,9 +362,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
         <h3>Answer streams to your phone</h3>
         <p>Results appear in seconds with syntax-highlighted code and explanation.</p>
-        <div class="ia-tile-badge">missed it? instant replay — last 15s</div>
       </div>
     </div>
+    {% if DEV_BUILD %}
     <div class="ia-how-video" data-reveal>
       <div class="ia-video-wrap">
         <iframe
@@ -360,6 +376,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </iframe>
       </div>
     </div>
+    {% endif %}
   </div>
 </section>
 
@@ -374,16 +391,16 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
       <div class="ia-tile ia-tile--wide" data-reveal>
         <div class="ia-tile-icon ia-tile-icon--accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
         </div>
         <h3>Undetectable by design</h3>
-        <p>Hotkeys are intercepted at the OS level — not inside the browser. No window switching, no tabs, no clipboard access. Screen-monitoring software sees nothing unusual because nothing unusual is happening.</p>
-        <div class="ia-tile-badge">OS-level interception · Zero browser footprint</div>
+        <p>Hotkeys are captured silently in the page — no popups, no new windows, no clipboard access. Screen-shares and monitoring software see nothing unusual, because nothing new ever appears on screen.</p>
+        <div class="ia-tile-badge">No popups · No pasting · Discreet by design</div>
       </div>
 
       <div class="ia-tile ia-tile--wide" data-reveal>
         <div class="ia-tile-icon ia-tile-icon--accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
         </div>
         <h3>Streams to your phone</h3>
         <p>The answer never appears on your interview screen. Syntax-highlighted code, complexity, and explanation — formatted to read at a glance. Also works on a second monitor.</p>
@@ -391,7 +408,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
       <div class="ia-tile ia-tile--wide" data-reveal>
         <div class="ia-tile-icon ia-tile-icon--accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"/><circle cx="12" cy="13" r="3"/></svg>
         </div>
         <h3>Screen or voice</h3>
         <p>Tap to screenshot the question, or hold to record the interviewer. Both stream the same Claude analysis.</p>
@@ -399,7 +416,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
       <div class="ia-tile ia-tile--wide" data-reveal>
         <div class="ia-tile-icon ia-tile-icon--accent">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-5.07"/></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5m4-1v5l4 2"/></svg>
         </div>
         <h3>Instant replay</h3>
         <p>Missed what they said? Replay sends the last 15s of their question to AI after the fact.</p>
@@ -418,42 +435,63 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <div class="ia-proof-track-wrap">
     <div class="ia-proof-track">
       {% set reviews = [
-        ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round.", 5),
         ("Marcus O.", "Frontend Developer",       "I freeze up under pressure every single time. Having a calm nudge in my pocket was the difference this time around.", 5),
-        ("Elena R.",  "Data Scientist",           "Instant replay caught a question I fumbled and handed me a clean way back into it 15 seconds later.", 5),
+        ("Elena R.",  "Data Scientist",           "Instant replay caught a question I missed and handed me an answer in a few seconds", 5),
+        ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round.", 5),
         ("Tom K.",    "DevOps Engineer",          "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running.", 5),
+        ("Sophie L.", "Product Engineer",         "Went in expecting to really lean on it. Just knowing it was there stopped me from freezing in the first place, used it maybe twice the whole interview process.", 5),
         ("Aisha B.",  "New Grad, CS",             "First real interview loop of my life and I didn't blank once. Worth it for the confidence alone.", 5),
-        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and it kept me structured instead of rambling for ten minutes.", 5),
+        ("Ravi P.",   "Platform Engineer",        "Asked support if I could type my own question when a whiteboard photo was too messy to read. A typing hotkey showed up 2 days (days!) later", 5),
+        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and even though I knew most answers, it kept me structured instead of rambling", 5),
         ("Hannah W.", "Career Switcher",          "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen.", 5),
-        ("Chris N.",  "Full-Stack Engineer",      "Quietly the best interview prep tool I've tried. Feels like having a second brain in the room.", 5),
-        ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round. Nobody on the call blinked.", 5),
-        ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window a touch longer than 15s for interviewers who ramble. Still landed the offer.", 4),
+        ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round. Nobody on the call noticed.", 5),
+        ("Chris N.",  "Full-Stack Engineer",      "The best interview prep tool I've tried. Feels like having a second brain with me.", 5),
         ("Owen F.",   "Site Reliability Engineer", "Got an incident-response scenario question and it gave me exactly the structure I needed without sounding scripted.", 5),
-        ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is underrated — dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
-        ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to glance at my phone instead of just winging it. Once the habit stuck, it was a real safety net.", 4),
-        ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it transcribed the question fast enough that I never felt the pause.", 5),
-        ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That alone got me through two rounds I'd normally have tanked.", 5),
-        ("Callum D.", "Platform Engineer",        "Cancelled after landing the job and it took two clicks. No hard feelings — I'd use it again next search.", 5),
-        ("Leo A.",    "Software Engineer",        "Worried the interviewer would clock me glancing down at my phone. Propped it just below the laptop screen instead — from their side it just looks like I'm reading off my monitor.", 5),
+        ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is so good — dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
+        ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to glance at my phone instead of just winging it. Once started looking, it was a safety net.", 4),
+        ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window was longer than 15s for interviewers who can't stop yapping. Still got an offer (but not from the rambler :o).", 4),
+        ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it transcribed the question fast enough that I never felt like I was waiting.", 5),
+        ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That alone got me through two rounds I'd normally have tanked. Still didn't get the job lol.", 5),
+        ("Callum D.", "Platform Engineer",        "Cancelled after landing the job and it took two clicks. I'd use it again for the next job hunt.", 5),
+        ("Leo A.",    "Software Engineer",        "Scared the interviewer would clock me looking at my phone. leaned it against the laptop screen, from their side it just looks like I'm reading off my monitor.", 5),
         ("Priyanka V.", "Cloud Engineer",         "Was convinced someone would notice me looking away. Turns out if the phone sits right under the webcam, checking it looks exactly like reading your own screen.", 5),
-        ("Theo B.",   "iOS Developer",            "Screen capture nailed the exact prompt and detected Swift instantly. No fiddling, just the answer.", 5),
-        ("Freya F.",  "Data Engineer",            "Used it on three rounds this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
-        ("Jonas T.",  "Security Engineer",        "Zero browser footprint was the dealbreaker for me. Checked it myself — nothing shows up. Genuinely undetectable.", 5),
-        ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was brutal. This bridged the gap while I caught up.", 5),
-        ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is genius. Hands stay on the keyboard the whole time.", 5),
+        ("Theo B.",   "iOS Developer",            "Screen capture nailed the exact prompt and detected a weird language (zig) instantly.", 5),
+        ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was tough. This helped me until I caught up.", 5),
+        ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is sick. Hands stay on the keyboard the whole time.", 5),
+        ("Freya F.",  "Data Engineer",            "Used it for like 13 interviews across 6 different companies this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
         ("Kenji M.",  "Staff Engineer",           "Even at my level the nerves hit. Discreet, fast, and it reads perfectly at a glance on a second monitor.", 5),
+        ("Diego M.",  "Backend Engineer",         "Knowing replay was there if I blanked made me so much calmer. Ended up barely using it — just knowing I could made such a difference", 5)
       ] %}
+      {% set picks = ["Freya F.", "Leo A.", "Chris N.", "Priya S."] %}
+      {% set shipped = {
+        "Ravi P.": "Great suggestion Ravi!. Glad we could ship it to you so quick!",
+        "Grace T.": "Done — Settings now has a replay length slider, 10 to 30 seconds.",
+      } %}
+      {% set short_extra = ["Isabel R.", "Ben C.", "Diego M.", "Priyanka V.", "Freya F.", "Sophie L.", "Leo A.", "Priya S."] %}
       {% for name, role, quote, rating in reviews + reviews %}
-      <div class="ia-proof-card"{% if loop.index0 >= reviews|length %} aria-hidden="true"{% endif %}>
-        <div class="ia-proof-stars" aria-hidden="true">{{ '★' * rating }}{% if rating < 5 %}<span class="ia-proof-star-empty">{{ '★' * (5 - rating) }}</span>{% endif %}</div>
-        <p class="ia-proof-quote">&ldquo;{{ quote }}&rdquo;</p>
-        <div class="ia-proof-person">
-          <div class="ia-proof-avatar">{{ name.split(' ')|map('first')|join('') }}</div>
-          <div>
-            <div class="ia-proof-name">{{ name }}</div>
-            <div class="ia-proof-role">{{ role }}</div>
+      {% set tall = quote|length >= 130 and name not in short_extra %}
+      <div class="ia-proof-col"{% if loop.index0 >= reviews|length %} aria-hidden="true"{% endif %}>
+        <div class="ia-proof-card {{ 'ia-proof-card--long' if tall else 'ia-proof-card--short' }}{% if name in picks %} ia-proof-card--pick{% elif name in shipped %} ia-proof-card--shipped{% endif %}">
+          {% if name in picks %}<div class="ia-proof-pick-banner">★ Our Top Picks</div>{% elif name in shipped %}<div class="ia-proof-shipped-banner">✓ Suggestion shipped</div>{% endif %}
+          <div class="ia-proof-stars" aria-hidden="true">{{ '★' * rating }}{% if rating < 5 %}<span class="ia-proof-star-empty">{{ '★' * (5 - rating) }}</span>{% endif %}</div>
+          <p class="ia-proof-quote">&ldquo;{{ quote }}&rdquo;</p>
+          <div class="ia-proof-person">
+            <div class="ia-proof-avatar">{{ name.split(' ')|map('first')|join('') }}</div>
+            <div>
+              <div class="ia-proof-name">{{ name }}</div>
+              <div class="ia-proof-role">{{ role }}</div>
+            </div>
           </div>
         </div>
+        {% if name in shipped %}
+        <div class="ia-proof-reply-bubble">
+          <div class="ia-proof-reply-bubble-mark">IA</div>
+          <div>
+            <div class="ia-proof-reply-bubble-label">Team reply · Fixed</div>
+            <p class="ia-proof-reply-bubble-text">{{ shipped[name] }}</p>
+          </div>
+        </div>
+        {% endif %}
       </div>
       {% endfor %}
     </div>
@@ -629,23 +667,26 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   ];
 
   var VOICE_SETS = [
+    { q: 'Tell me about a time you\ndisagreed with a teammate.',
+      a: 'Situation: split on caching\napproach.\n\nAction: prototyped both,\nbenchmarked.\n\nResult: data settled it,\nno ego.',
+      note: '📎 Referencing the caching project from your resume' },
     { q: 'Explain the difference between concurrency and parallelism.',
       a: 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound' },
-    { q: 'Tell me about a time you\ndisagreed with a teammate.',
-      a: 'Situation: split on caching\napproach.\n\nAction: prototyped both,\nbenchmarked.\n\nResult: data settled it,\nno ego.' },
+    { q: 'How do ACME Corp’s values\nline up with how you work?',
+      a: 'ACME’s stated value: "ship\nfast, learn faster."\n\nMatches how I work — I’d\nrather prototype and iterate\nthan over-plan upfront.\n\nSame instinct as the caching\nprototype from earlier — build,\nthen refine.',
+      note: '📎 Drawing from the ACME Corp notes you saved' },
     { q: 'How many windows are there\nin New York City?',
-      a: '~8M people, ~3M households.\nAvg 6 windows/home → 18M.\n\n+ offices, retail, transit\n≈ 25–30M windows total.\n\nShow the method, not\nthe number.' },
-    { q: 'What’s the difference between\nSQL and NoSQL databases?',
-      a: 'SQL: structured, relational,\nstrong consistency (ACID).\n\nNoSQL: flexible schema,\nscales horizontally, eventual\nconsistency.\n\nPick by access pattern,\nnot hype.' }
+      a: '~8M people, ~3M households.\nAvg 6 windows/home → 18M.\n\n+ offices, retail, transit\n≈ 25–30M windows total.\n\nShow the method, not\nthe number.' }
   ];
 
   var REPLAY_SETS = [
     { q: 'What are the time and space\ncomplexity tradeoffs here?',
       a: 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.' },
     { q: 'Why do you want to\nwork here?',
-      a: 'Product: solves a problem\nyou’ve personally hit.\n\nTeam: engineering culture\nmatches how you work.\n\nBe specific — skip the\ngeneric "great culture" line.' },
+      a: 'Product: ACME’s caching\nlayer fixes exactly what\nI hit last quarter.\n\nTeam: engineering culture\nmatches how you work.\n\nBe specific — skip the\ngeneric "great culture" line.',
+      note: '📎 Drawing from the job description you saved' },
     { q: 'How many piano tuners are\nthere in Chicago?',
-      a: '~9M people, ~3M households.\n~2% own pianos → 60k pianos.\n\nTuned ~1x/yr, 4/day, 250\ndays/yr → 1 tuner per 1,000.\n\n≈ 60 piano tuners in Chicago.' },
+      a: '~9M people, ~3M households.\n~2% own pianos → 60k pianos.\n\nTuned ~1x/yr, 4/day, 250\ndays/yr → 1 tuner per 1,000.\n\n≈ 60 piano tuners in Chicago.\n\nThe reasoning carries more\nweight than the final figure.' },
     { q: 'How would you handle a service\nthat suddenly gets 10x traffic?',
       a: 'Short term: autoscale, cache,\nshed non-critical requests.\n\nLong term: queue writes,\nread replicas, rate limits.\n\nProtect the core path first.' }
   ];
@@ -653,9 +694,16 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   var timers = [];
   var activeTab = 0;
   var sIdx = 0, vIdx = 0, rIdx = 0;
+  var devPaused = false;
+  var devAdvanceStalled = false;
+  var speedLevel = 0; // -2..2, one press = 20% off the default per step
 
-  function after(ms, fn) { var t = setTimeout(fn, ms); timers.push(t); return t; }
-  function clearAll() { timers.forEach(clearTimeout); timers = []; }
+  function speedMultiplier() { return 1 - speedLevel * 0.2; }
+  function after(ms, fn) { var t = setTimeout(fn, ms * speedMultiplier()); timers.push(t); return t; }
+  // Unscaled version of `after` — used for the two things the tortoise/hare controls should
+  // never touch: how long the AI takes to start responding, and the typing/streaming speed.
+  function afterFixed(ms, fn) { var t = setTimeout(fn, ms); timers.push(t); return t; }
+  function clearAll() { timers.forEach(clearTimeout); timers = []; devAdvanceStalled = false; }
 
   function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function highlight(c) {
@@ -687,9 +735,16 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       var ch = text[i];
       var delay = ch === '\n' ? 50 + Math.random()*40 : ch === ' ' ? 5 : 12 + Math.random()*12;
       i++;
-      timers.push(setTimeout(tick, delay));
+      afterFixed(delay, tick);
     }
     tick();
+  }
+
+  function showContextNote(set) {
+    var note = document.getElementById('phContextNote');
+    if (!note) return;
+    if (set.note) { note.textContent = set.note; note.style.display = ''; }
+    else { note.style.display = 'none'; }
   }
 
   function phoneShow(id) {
@@ -707,7 +762,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     frame.classList.add('answer-arriving');
   }
 
-  function scheduleAdvance() { after(3500, function() { runScenario((activeTab + 1) % 3); }); }
+  function scheduleAdvance() {
+    after(3500, function() {
+      if (devPaused) { devAdvanceStalled = true; return; }
+      runScenario((activeTab + 1) % 3);
+    });
+  }
 
   function switchScene(idx, url) {
     document.querySelectorAll('.demo-scene').forEach(function(s, i) { s.classList.toggle('active', i === idx); });
@@ -728,7 +788,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       if (intcpt) { intcpt.classList.add('visible'); after(1900, function() { intcpt.classList.remove('visible'); }); }
       after(400, function() {
         phoneShow('phAnalyzing');
-        after(900, function() {
+        afterFixed(900, function() {
           phoneShow('phAnswerCode');
           var code = document.getElementById('phCode');
           var cpx = document.getElementById('phComplexity');
@@ -750,7 +810,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     if (caption) caption.textContent = '';
     after(400, function() { streamText(caption, set.q, null, false); });
     after(750, function() {
-      var svg = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+      var svg = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg>';
       if (voiceBtn) { voiceBtn.innerHTML = svg + ' Recording…'; voiceBtn.classList.add('recording'); }
       if (hint) hint.textContent = 'Release to send…';
       phoneShow('phRecording');
@@ -758,8 +818,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         if (voiceBtn) { voiceBtn.innerHTML = svg + ' Hold to record'; voiceBtn.classList.remove('recording'); }
         if (hint) hint.textContent = 'Hold while interviewer speaks';
         phoneShow('phAnalyzing');
-        after(1000, function() {
+        afterFixed(1000, function() {
           phoneShow('phAnswerProse');
+          showContextNote(set);
           var prose = document.getElementById('phProse');
           if (prose) prose.textContent = '';
           flashPhone();
@@ -782,8 +843,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           phoneShow('phCapturing');
           after(950, function() {
             phoneShow('phAnalyzing');
-            after(1000, function() {
+            afterFixed(1000, function() {
               phoneShow('phAnswerProse');
+              showContextNote(set);
               var prose = document.getElementById('phProse');
               if (prose) prose.textContent = '';
               flashPhone();
@@ -807,6 +869,69 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   document.querySelectorAll('.demo-tab').forEach(function(tab, i) {
     tab.addEventListener('click', function() { runScenario(i); });
   });
+
+  /* ── Dev-only demo controls (config.DEV_BUILD) ── */
+  var devPauseBtn = document.getElementById('devPauseBtn');
+  var devBackBtn = document.getElementById('devBackBtn');
+  var devForwardBtn = document.getElementById('devForwardBtn');
+
+  function devUpdatePauseBtn() {
+    if (devPauseBtn) devPauseBtn.innerHTML = devPaused ? '&#9205;' : '&#9208;';
+  }
+
+  if (devPauseBtn) {
+    devPauseBtn.addEventListener('click', function() {
+      if (devPaused) {
+        devPaused = false;
+        if (devAdvanceStalled) { devAdvanceStalled = false; runScenario((activeTab + 1) % 3); }
+      } else {
+        devPaused = true;
+      }
+      devUpdatePauseBtn();
+    });
+  }
+  if (devForwardBtn) {
+    devForwardBtn.addEventListener('click', function() { runScenario((activeTab + 1) % 3); });
+  }
+  if (devBackBtn) {
+    devBackBtn.addEventListener('click', function() { runScenario((activeTab + 2) % 3); });
+  }
+
+  /* ── Speed controls (live) — one press = 20% off default, capped at 2 presses either way ── */
+  var demoSlowBtn = document.getElementById('demoSlowBtn');
+  var demoFastBtn = document.getElementById('demoFastBtn');
+  var demoSlowBar = document.getElementById('demoSlowBar');
+  var demoFastBar = document.getElementById('demoFastBar');
+
+  function setSpeedLevel(el, level) {
+    if (!el) return;
+    el.classList.remove('level-1', 'level-2');
+    if (level === 1) el.classList.add('level-1');
+    else if (level >= 2) el.classList.add('level-2');
+  }
+
+  function updateSpeedBtns() {
+    var slowLevel = speedLevel < 0 ? -speedLevel : 0;
+    var fastLevel = speedLevel > 0 ? speedLevel : 0;
+    if (demoSlowBtn) demoSlowBtn.classList.toggle('active', slowLevel > 0);
+    if (demoFastBtn) demoFastBtn.classList.toggle('active', fastLevel > 0);
+    setSpeedLevel(demoSlowBtn, slowLevel);
+    setSpeedLevel(demoFastBtn, fastLevel);
+    setSpeedLevel(demoSlowBar, slowLevel);
+    setSpeedLevel(demoFastBar, fastLevel);
+  }
+  if (demoSlowBtn) {
+    demoSlowBtn.addEventListener('click', function() {
+      speedLevel = Math.max(-2, speedLevel - 1);
+      updateSpeedBtns();
+    });
+  }
+  if (demoFastBtn) {
+    demoFastBtn.addEventListener('click', function() {
+      speedLevel = Math.min(2, speedLevel + 1);
+      updateSpeedBtns();
+    });
+  }
 
   var stage = document.getElementById('demoStage');
   if (stage) {
@@ -844,6 +969,24 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     var MAX_FLING_VEL = 40;   // px/frame cap so a fast flick doesn't fly off
     var FLING_DECAY = 0.94;   // per-frame velocity decay while settling, toward baseline drift speed (not zero)
 
+    // Each card is tagged --short or --long; size every card in a tier to the
+    // tallest natural (content-driven) height within that same tier, so heights
+    // land on exactly two values with no arbitrary guessed padding.
+    function equalizeProofCardHeights() {
+      ['ia-proof-card--short', 'ia-proof-card--long'].forEach(function(cls) {
+        var cards = proofTrack.querySelectorAll('.' + cls);
+        if (!cards.length) return;
+        cards.forEach(function(c) { c.style.minHeight = ''; });
+        var max = 0;
+        cards.forEach(function(c) { max = Math.max(max, c.getBoundingClientRect().height); });
+        cards.forEach(function(c) { c.style.minHeight = max + 'px'; });
+      });
+    }
+    equalizeProofCardHeights();
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(equalizeProofCardHeights);
+    }
+
     // Measure the true repeat period directly (distance from the first real card
     // to its first duplicate) rather than trusting scrollWidth/2 — scrollWidth can
     // silently drop the last card's trailing margin in some browsers, which made
@@ -856,6 +999,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     }
     var halfWidth = measureHalfWidth();
     window.addEventListener('resize', function() {
+      equalizeProofCardHeights();
       halfWidth = measureHalfWidth();
       DRIFT_SPEED = MOBILE_QUERY.matches ? BASE_DRIFT_SPEED * 0.7 : BASE_DRIFT_SPEED;
     });

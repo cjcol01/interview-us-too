@@ -468,6 +468,7 @@
 }
 @media (min-width: 560px) { .mi-controlbar { height: 70px; gap: 11px; } }
 .mi-ctrl-circle {
+  position: relative;
   width: 40px; height: 40px;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,0.12);
@@ -476,8 +477,32 @@
   color: #ECECEE;
   transition: color .15s, background .15s, border-color .15s;
 }
+/* Clicked (level 1 or 2): the "you can click this" outline goes away — the bar plus a
+   toned-down fill (stronger at level 2) is the only feedback left. */
+.mi-speed-btn.active { border-color: transparent; color: #C6F24E; }
+.mi-speed-btn.level-1 { background: rgba(198,242,78,0.06); }
+.mi-speed-btn.level-2 { background: rgba(198,242,78,0.16); }
+.mi-speed-bar {
+  position: absolute; left: 9px; right: 9px; bottom: 7px;
+  height: 2px; border-radius: 1px; background: rgba(255,255,255,0.15);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform .15s, background .15s;
+}
+.mi-speed-bar.level-1 { background: #9C9CA6; transform: scaleX(0.5); }
+.mi-speed-bar.level-2 { background: #C6F24E; transform: scaleX(1); }
 @media (min-width: 560px) { .mi-ctrl-circle { width: 44px; height: 44px; } }
 .mi-ctrl-circle.sharing { color: #C6F24E; background: rgba(198,242,78,0.1); border-color: rgba(198,242,78,0.4); }
+
+/* Real buttons get a resting green outline so it's clear they're clickable without
+   needing to hover first; purely decorative status icons (mic/video/share) get dimmed
+   instead, so the contrast alone tells them apart. */
+.mi-ctrl-btn { padding: 0; font: inherit; cursor: pointer; border-color: rgba(198,242,78,0.35); }
+.mi-ctrl-btn:hover:not(:disabled) { border-color: rgba(198,242,78,0.65); }
+.mi-ctrl-btn:disabled { opacity: .35; cursor: default; border-color: rgba(255,255,255,0.12); }
+.mi-decorative { opacity: .5; }
+.mi-decorative.sharing { opacity: 1; }
+.mi-dev-btn { color: #E0A96A; border-color: rgba(224,169,106,0.35); }
+.mi-dev-btn:hover { border-color: rgba(224,169,106,0.6); }
 .mi-leave-btn {
   display: inline-flex; align-items: center;
   height: 40px;
@@ -493,6 +518,49 @@
   margin-left: 6px;
 }
 @media (min-width: 560px) { .mi-leave-btn { height: 44px; padding: 0 18px; font-size: 13.5px; } }
+
+/* Draws the eye once the interview is actually over and it's just waiting on a click. */
+.mi-leave-btn.mi-leave-jump { animation: mi-leave-jump 1s ease-in-out infinite; }
+@keyframes mi-leave-jump {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-7px); }
+  50% { transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .mi-leave-btn.mi-leave-jump { animation: none; } }
+
+/* ── Leave confirmation (mid-call only — disabled once the call has ended) ── */
+.mi-leave-confirm {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(6,6,8,0.72);
+  backdrop-filter: blur(2px);
+}
+.mi-leave-confirm.active { display: flex; animation: mi-fade .2s ease; }
+.mi-leave-confirm-box {
+  width: 100%;
+  max-width: 340px;
+  background: #17171b;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+.mi-leave-confirm-title { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; color: #F4F4F6; margin: 0 0 8px; }
+.mi-leave-confirm-body { font-size: 13.5px; color: #9C9CA6; line-height: 1.5; margin: 0 0 18px; }
+.mi-leave-confirm-actions { display: flex; gap: 10px; }
+.mi-leave-confirm-actions .mi-btn-primary { width: auto; flex: 1; margin-bottom: 0; }
+.mi-leave-confirm-actions .mi-btn-ghost {
+  width: auto;
+  flex: 1;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 12px;
+}
 
 /* ── Phone mockup (AI answer surface) ── */
 .mi-call-right {
@@ -568,32 +636,13 @@
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 @media (min-width: 900px) { .mi-phone-bezel > .mi-phone-header { border-radius: 38px 38px 0 0; padding: 24px 20px 14px; } }
-.mi-phone-header-top { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+.mi-phone-header-top { display: flex; align-items: center; margin-top: 14px; }
 .mi-phone-brand {
   display: flex; align-items: center; gap: 7px;
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
   font-size: 14px;
   color: #F4F4F6;
-}
-.mi-phone-private {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #67676F;
-  background: #141417;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 980px;
-  padding: 4px 9px;
-}
-.mi-phone-progress {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #67676F;
-  margin-top: 10px;
 }
 .mi-phone-body {
   flex: 1;
@@ -628,10 +677,6 @@
   margin-bottom: 8px;
 }
 .mi-nh-text { font-size: 13.5px; color: #ECECEE; line-height: 1.5; margin: 0 0 14px; }
-.mi-nh-hotkey-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.mi-nh-hotkey-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #67676F; }
-.mi-nh-key { display: flex; align-items: center; gap: 2px; }
-.mi-nh-keyboard-note { font-size: 11px; color: #5b5b63; margin: 0 0 14px; line-height: 1.4; }
 .mi-nh-btn {
   font-family: 'Hanken Grotesk', sans-serif;
   font-size: 12.5px;
@@ -691,6 +736,53 @@
   color: #67676F;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+
+/* Hold-to-talk: shown while the audio hotkey is physically held down, mirrors the
+   waveform on the landing page demo (.phone-waveform / .phone-wave-bar) — including
+   centering the whole state in the available space, not stacking it top-left. */
+.mi-phone-panel.mi-listening.active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  text-align: center;
+}
+.mi-listening-row { display: flex; align-items: center; gap: 8px; }
+.mi-listening-dot { width: 8px; height: 8px; border-radius: 50%; background: #E5484D; animation: mi-pulse 1s ease-in-out infinite; flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .mi-listening-dot { animation: none; } }
+.mi-listening-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ECECEE;
+}
+.mi-listening-wave { display: flex; align-items: flex-end; justify-content: center; gap: 4px; height: 34px; }
+.mi-listening-wave span { width: 5px; background: #C6F24E; border-radius: 2px; animation: mi-wave 0.8s ease-in-out infinite; }
+.mi-listening-wave span:nth-child(1) { height: 13px; animation-delay: 0s; }
+.mi-listening-wave span:nth-child(2) { height: 23px; animation-delay: .08s; }
+.mi-listening-wave span:nth-child(3) { height: 17px; animation-delay: .16s; }
+.mi-listening-wave span:nth-child(4) { height: 27px; animation-delay: .06s; }
+.mi-listening-wave span:nth-child(5) { height: 20px; animation-delay: .14s; }
+.mi-listening-wave span:nth-child(6) { height: 12px; animation-delay: .1s; }
+.mi-listening-wave span:nth-child(7) { height: 25px; animation-delay: .04s; }
+.mi-listening-wave span:nth-child(8) { height: 16px; animation-delay: .12s; }
+@media (prefers-reduced-motion: reduce) { .mi-listening-wave span { animation: none; height: 16px; } }
+.mi-listening-hint { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #67676F; margin: 0; }
+
+.mi-answer-context-note {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: #9C9CA6;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin: 0 0 12px;
 }
 
 .mi-answer-transcription { margin: 0 0 12px; }
@@ -850,6 +942,12 @@
   border-bottom-width: 2px;
   border-radius: 5px;
   padding: 3px 7px;
+}
+.mi-hotkey-nudge-note {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #67676F;
+  margin: 8px 0 0;
 }
 .mi-hotkey-nudge-arrow {
   position: absolute;

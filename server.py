@@ -50,7 +50,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
@@ -136,6 +136,7 @@ templates = Jinja2Templates(directory="templates", context_processors=[_template
 templates.env.globals["POSTHOG_KEY"] = POSTHOG_API_KEY
 templates.env.globals["POSTHOG_HOST"] = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 templates.env.globals["APP_VERSION"] = APP_VERSION
+templates.env.globals["DEV_BUILD"] = DEV_BUILD
 SCREENSHOTS_DIR = Path("screenshots")
 
 
@@ -322,6 +323,11 @@ def _deepgram_transcribe(audio_bytes: bytes, suffix: str) -> str:
         data=audio_bytes,
         timeout=30,
     )
+    if not resp.ok:
+        # raise_for_status()'s own message is just "400 Client Error: ... for url: ..." — no
+        # detail on *why*. Deepgram's body has the actual reason; log it so a future 400 is
+        # diagnosable instead of a repeat of this one.
+        logger.error("[audio] Deepgram %s: %s", resp.status_code, resp.text[:500])
     resp.raise_for_status()
     return resp.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
 
@@ -348,7 +354,7 @@ class HotkeySettings(BaseModel):
 
 HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9", "replay": "Ctrl+Shift+6", "typing": "Ctrl+Shift+5"}
 
-REPLAY_SECONDS_MIN = 1
+REPLAY_SECONDS_MIN = 10
 REPLAY_SECONDS_MAX = 30
 
 
@@ -1082,6 +1088,8 @@ def index(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="index.html", context={
         **_user_hotkeys(user),
         "show_navbar": True,
+        "dev_build": DEV_BUILD,
+        "replay_seconds": user.replay_seconds,
     })
 
 
@@ -1094,6 +1102,7 @@ def welcome_page(request: Request, user: User = Depends(require_user)):
     track(user.id, "welcome_viewed")
     return templates.TemplateResponse(request=request, name="welcome.html", context={
         **_user_hotkeys(user),
+        "dev_build": DEV_BUILD,
     })
 
 
@@ -1373,6 +1382,15 @@ def install_manual_page(
         "zip_url": SIDELOAD_ZIP_URL,
         "mirror_zip_url": same_origin_zip_url,
     })
+
+
+# Dev-only scratch page for comparing hand-drawn site icons against a few open-source icon
+# packs side by side (currently Lucide/Tabler/Phosphor + a tortoise/turtle naming spot-check).
+@app.get("/icons")
+def icons_compare_page(request: Request):
+    if not DEV_BUILD:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request=request, name="icons_compare.html", context={})
 
 
 @app.post("/partner/waitlist")
@@ -2941,6 +2959,15 @@ async def api_audio_capture(
     await broadcast(r, user.id, "audio-working", {})
 
     audio_bytes = await audio.read()
+
+    # A real webm/opus clip is always well over this; near-empty means the mic never actually
+    # captured anything (e.g. permission was revoked mid-recording) — catch it before spending
+    # an API call on it, with a message that actually says what to do instead of a stack trace.
+    if len(audio_bytes) < 2000:
+        message = "No audio was captured — check your microphone and try again."
+        await broadcast(r, user.id, "audio-error", {"message": message})
+        raise HTTPException(status_code=400, detail=message)
+
     suffix = "." + (audio.filename or "recording.webm").rsplit(".", 1)[-1]
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(audio_bytes)
@@ -2976,7 +3003,10 @@ async def api_audio_capture(
         })
         track(user.id, "audio_capture_submitted")
     except Exception as exc:
-        await broadcast(r, user.id, "audio-error", {"message": str(exc)})
+        # Never forward the raw exception text (e.g. "400 Client Error: ... for url: ...") to
+        # the dashboard — log the real detail server-side, show the user something actionable.
+        logger.error("[audio] processing failed: %s", exc)
+        await broadcast(r, user.id, "audio-error", {"message": "Couldn't process that recording — try again."})
         raise HTTPException(status_code=500, detail="Audio processing failed")
     finally:
         os.unlink(tmp_path)
@@ -3043,6 +3073,20 @@ def save_replay(data: ReplaySettings, user: User = Depends(get_current_user), db
     user.replay_seconds = data.seconds
     db.commit()
     return {"status": "ok"}
+
+
+class ReplayWindowRequest(BaseModel):
+    seconds: int = Field(ge=REPLAY_SECONDS_MIN, le=REPLAY_SECONDS_MAX)
+
+
+# Bearer-token counterpart to /api/settings/replay's seconds field, for the extension popup's
+# own buffer-window slider — it only has a Bearer token, not a cookie session. Deliberately
+# leaves replay_enabled untouched; that toggle only exists on the Settings page.
+@app.post("/api/settings/replay-window")
+async def set_replay_window(data: ReplayWindowRequest, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
+    user.replay_seconds = data.seconds
+    db.commit()
+    return {"status": "ok", "seconds": data.seconds}
 
 
 @app.post("/api/settings/response-style")

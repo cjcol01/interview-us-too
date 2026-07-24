@@ -698,6 +698,7 @@ main {
 }
 .hk-status-led.ok { background: var(--accent); }
 .hk-status-led.bad { background: var(--danger); }
+.hk-status-led.warn { background: #fb923c; }
 .hk-status-led.neutral { background: var(--text-3); opacity: .6; }
 .hk-status-tip {
   position: absolute;

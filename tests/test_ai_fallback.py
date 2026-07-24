@@ -31,7 +31,7 @@ class _FakeOpenAIStream:
 def register(test, skip, client):
     from database import SessionLocal
     from models import AccountLevel
-    from tests.helpers import cleanup, make_user
+    from tests.helpers import cleanup, fake_audio_bytes, make_user
 
     def test_claude_failure_falls_over_to_openai():
         from auth import create_token
@@ -85,7 +85,7 @@ def register(test, skip, client):
             try:
                 r = client.post(
                     "/api/audio-capture",
-                    files={"audio": ("rec.wav", b"fake-bytes", "audio/wav")},
+                    files={"audio": ("rec.wav", fake_audio_bytes(), "audio/wav")},
                     headers={"Authorization": f"Bearer {u.api_token}"},
                 )
                 assert r.status_code == 200, r.text

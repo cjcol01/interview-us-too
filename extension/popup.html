@@ -2,66 +2,89 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Interview Assistant</title>
+  <title>InterviewAce</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="confirm-overlay" class="confirm-overlay hidden">
     <div class="confirm-box">
       <p class="confirm-title">Start a session?</p>
-      <p class="confirm-body">Each time you press <kbd id="confirm-capture-key">Ctrl+Shift+7</kbd> it will send your screen to the AI and consume one token from your plan.</p>
+      <p class="confirm-body" id="confirm-body">Turning this on starts using a session as soon as you use any hotkey — toggle it off between interviews to avoid using one by accident.</p>
       <div class="confirm-actions">
-        <button id="confirm-cancel" class="confirm-btn">Cancel</button>
-        <button id="confirm-ok" class="confirm-btn ok">Got it, turn on</button>
+        <button id="confirm-cancel" class="btn ghost">Cancel</button>
+        <button id="confirm-ok" class="btn accent">Got it, turn on</button>
       </div>
     </div>
   </div>
 
-  <div class="container">
-    <h1>Interview Assistant</h1>
+  <header class="header">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <span class="wordmark">InterviewAce</span>
+    </div>
+    <span class="version" id="version-label">V1.0.0</span>
+  </header>
 
-    <button id="toggle_enabled" class="toggle-btn off">OFF</button>
+  <div class="container">
+    <button id="toggle_enabled" class="arm-btn off">
+      <span class="arm-dot"></span>
+      <span class="arm-copy">
+        <span class="arm-title">Assistant off</span>
+        <span class="arm-sub">TAP TO ARM</span>
+      </span>
+      <span class="arm-state">OFF</span>
+    </button>
 
     <div class="field">
       <label for="server_url">Server URL</label>
-      <input type="url" id="server_url" placeholder="https://yourdomain.com" spellcheck="false">
+      <input type="url" id="server_url" class="mono-input" placeholder="https://yourdomain.com" spellcheck="false">
     </div>
 
     <div class="field">
       <label for="api_token">API Token</label>
       <div class="input-row">
-        <input type="password" id="api_token" placeholder="Paste from Settings page" spellcheck="false">
-        <button id="toggle_token" class="icon-btn" title="Show/hide token">&#128065;</button>
+        <input type="password" id="api_token" class="mono-input accent-text" placeholder="Paste from Settings page" spellcheck="false">
+        <button id="toggle_token" class="icon-btn" title="Show/hide token">&#9678;</button>
       </div>
     </div>
 
     <div class="row-between">
-      <label>Complexity</label>
+      <div class="complexity-copy">
+        <label>Complexity</label>
+        <span class="complexity-desc" id="complexity_desc">Full solution</span>
+      </div>
       <div class="stepper">
-        <button id="complexity_down">&#8722;</button>
+        <button id="complexity_down" class="stepper-btn">&#8722;</button>
         <span id="complexity_val">2</span>
-        <button id="complexity_up">&#43;</button>
+        <button id="complexity_up" class="stepper-btn">&#43;</button>
       </div>
     </div>
 
     <div class="field">
       <label>Response Style</label>
       <div class="style-pills" id="style-pills">
-        <button class="style-pill" data-style="conversational">Conversational</button>
-        <button class="style-pill" data-style="bullets">Bullets</button>
-        <button class="style-pill" data-style="summary">Summary</button>
-        <button class="style-pill" data-style="one_liner">One liner</button>
+        <button class="pill" data-style="conversational">Conversational</button>
+        <button class="pill" data-style="bullets">Bullets</button>
+        <button class="pill" data-style="summary">Summary</button>
+        <button class="pill" data-style="one_liner">One liner</button>
       </div>
     </div>
 
-    <button id="save" class="primary">Save settings</button>
+    <button id="save" class="btn primary full">Save settings</button>
 
     <div id="status" class="status"></div>
+  </div>
 
+  <div class="divider"></div>
+
+  <div class="container">
     <div class="mic-section">
       <div class="row-between">
-        <label>Mic Input <span id="mic-perm-dot" class="mic-perm-dot"></span></label>
-        <button id="mic-test-btn" class="replay-btn">Test</button>
+        <label>Mic Input <span id="mic-perm-dot" class="status-dot"></span></label>
+        <button id="mic-test-btn" class="btn ghost small">Test</button>
       </div>
       <select id="mic-select">
         <option value="">Default microphone</option>
@@ -69,23 +92,30 @@
       <div class="mic-meter-wrap" id="mic-meter-wrap" style="display:none;">
         <div id="mic-meter-bar" class="mic-meter-bar"></div>
       </div>
-      <button id="grant_mic" class="mic-grant-btn" style="display:none;">Grant mic permission</button>
+      <button id="grant_mic" class="btn ghost small full" style="display:none;">Grant mic permission</button>
     </div>
 
-    <div id="replay-section" style="display:none;border-top:1px solid #333;margin-top:10px;padding-top:10px;">
-      <div class="row-between" style="margin-bottom:6px;">
-        <label style="font-weight:600;font-size:0.85rem;">Instant Replay</label>
-        <span id="replay-pill" class="replay-pill idle">Idle</span>
+    <div id="replay-section" class="replay-card" style="display:none;">
+      <div class="row-between replay-head">
+        <label>Instant Replay</label>
+        <span id="replay-pill" class="badge idle">Idle</span>
       </div>
-      <div class="row-between" style="margin-bottom:4px;">
-        <span id="replay-window-label" style="font-size:0.78rem;color:#888;">Window: 10s</span>
-        <div>
-          <button id="replay-lock-btn" class="replay-btn">Lock to this tab</button>
-          <button id="replay-unlock-btn" class="replay-btn secondary" style="display:none;">Unlock</button>
-        </div>
+      <div class="row-between replay-window-row">
+        <span class="mono-label">Window</span>
+        <span id="replay-window-readout" class="mono-readout">10s</span>
+      </div>
+      <input type="range" id="replay-window-slider" class="slider" min="10" max="30" step="5" value="10">
+      <div class="replay-actions" id="replay-lock-row">
+        <button id="replay-lock-btn" class="btn ghost small full">Lock to this tab</button>
+      </div>
+      <div class="replay-locked-row" id="replay-locked-row" style="display:none;">
+        <span class="locked-tab-label">Locked to:</span>
+        <span id="replay-locked-tab" class="locked-tab-name"></span>
+        <button id="replay-unlock-btn" class="btn ghost small">Unlock</button>
       </div>
     </div>
   </div>
+
   <script src="popup.js"></script>
 </body>
 </html>
