@@ -987,6 +987,56 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       document.fonts.ready.then(equalizeProofCardHeights);
     }
 
+    // Scroll-triggered zoom-in: the first time this section comes into view, cards
+    // rip past too fast to read (placeholder lorem ipsum, since the real content
+    // would just be a blur anyway) and ease down into the normal drift speed —
+    // swapping back to the real reviews once it's slow enough to actually read.
+    var LOREM_QUOTES = [
+      'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod.',
+      'Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi.',
+      'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum.',
+      'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui.'
+    ];
+    var LOREM_NAMES = ['Lorem I.', 'Ipsum D.', 'Dolor S.', 'Amet C.'];
+    var LOREM_ROLES = ['Placeholder Role', 'Sample Title', 'Example Role', 'Demo Title'];
+
+    var proofSnapshots = Array.prototype.map.call(proofTrack.querySelectorAll('.ia-proof-card'), function(card, i) {
+      var q = card.querySelector('.ia-proof-quote');
+      var n = card.querySelector('.ia-proof-name');
+      var r = card.querySelector('.ia-proof-role');
+      var a = card.querySelector('.ia-proof-avatar');
+      var bubbleText = card.parentNode.querySelector('.ia-proof-reply-bubble-text');
+      var loremIdx = i % LOREM_QUOTES.length;
+      return {
+        q: q, n: n, r: r, a: a, bubbleText: bubbleText,
+        qHtml: q.innerHTML, nText: n.textContent, rText: r.textContent, aText: a.textContent,
+        bubbleHtml: bubbleText ? bubbleText.innerHTML : null,
+        loremName: LOREM_NAMES[loremIdx],
+        loremRole: LOREM_ROLES[loremIdx],
+        loremQuote: LOREM_QUOTES[loremIdx],
+        loremReply: LOREM_QUOTES[(loremIdx + 1) % LOREM_QUOTES.length]
+      };
+    });
+
+    function setLoremContent() {
+      proofSnapshots.forEach(function(s) {
+        s.q.innerHTML = '&ldquo;' + s.loremQuote + '&rdquo;';
+        s.n.textContent = s.loremName;
+        s.r.textContent = s.loremRole;
+        s.a.textContent = s.loremName.split(' ').map(function(w) { return w.charAt(0); }).join('');
+        if (s.bubbleText) s.bubbleText.textContent = s.loremReply;
+      });
+    }
+    function restoreRealContent() {
+      proofSnapshots.forEach(function(s) {
+        s.q.innerHTML = s.qHtml;
+        s.n.textContent = s.nText;
+        s.r.textContent = s.rText;
+        s.a.textContent = s.aText;
+        if (s.bubbleText) s.bubbleText.innerHTML = s.bubbleHtml;
+      });
+    }
+
     // Measure the true repeat period directly (distance from the first real card
     // to its first duplicate) rather than trusting scrollWidth/2 — scrollWidth can
     // silently drop the last card's trailing margin in some browsers, which made
@@ -1009,18 +1059,46 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     var startX = 0, startPos = 0, lastX = 0, lastT = 0;
     var lockedAxis = null; // 'x' | 'y' | null — for touch, decided on first move
 
+    // Reveal boost: fires once, the first time the strip scrolls into view.
+    var revealed = noMotion; // reduced-motion users get the plain static strip, no boost
+    var boosting = false, boostStart = 0, boostReturnedReal = false;
+    var BOOST_PEAK_SPEED = 22;  // px/frame at full zoom — well past readable
+    var BOOST_MS = 5000;        // time to ease from peak down to DRIFT_SPEED
+    var BOOST_READ_AT = 0.6;    // swap lorem -> real once eased this far through the boost
+
     function wrap() {
       while (pos <= -halfWidth) pos += halfWidth;
       while (pos > 0) pos -= halfWidth;
     }
-    function render() { proofTrack.style.transform = 'translate3d(' + pos.toFixed(2) + 'px,0,0)'; }
+    function render(blurPx) {
+      proofTrack.style.transform = 'translate3d(' + pos.toFixed(2) + 'px,0,0)';
+      proofTrack.style.filter = blurPx ? 'blur(' + blurPx.toFixed(2) + 'px)' : '';
+    }
     function dismissHint() {
       if (proofHint) proofHint.classList.add('ia-proof-hint--hidden');
+    }
+
+    function startBoost() {
+      if (revealed || boosting) return;
+      setLoremContent();
+      boosting = true;
+      boostReturnedReal = false;
+      boostStart = performance.now();
+      vel = -BOOST_PEAK_SPEED;
     }
 
     function tick() {
       if (dragging) {
         // position is updated directly in the move handler
+      } else if (boosting) {
+        var t = Math.min(1, (performance.now() - boostStart) / BOOST_MS);
+        var eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+        var speed = BOOST_PEAK_SPEED + (DRIFT_SPEED - BOOST_PEAK_SPEED) * eased;
+        if (!boostReturnedReal && eased >= BOOST_READ_AT) { restoreRealContent(); boostReturnedReal = true; }
+        pos -= speed;
+        wrap();
+        render((1 - eased) * 3);
+        if (t >= 1) { boosting = false; revealed = true; vel = -DRIFT_SPEED; }
       } else if (settling) {
         // Decay toward the baseline drift speed (not toward zero) so a fling never
         // dips to a near-stop before the auto-drift resumes — it eases straight into it.
@@ -1030,7 +1108,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         if (Math.abs(vel - target) < 0.02) { vel = target; settling = false; }
         wrap();
         render();
-      } else if (!noMotion) {
+      } else if (revealed && !noMotion) {
         pos -= DRIFT_SPEED;
         wrap();
         render();
@@ -1038,7 +1116,19 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       requestAnimationFrame(tick);
     }
 
+    if (!noMotion && 'IntersectionObserver' in window) {
+      var proofRevealObs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) {
+          if (e.isIntersecting) { proofRevealObs.unobserve(e.target); startBoost(); }
+        });
+      }, { threshold: 0.2 });
+      proofRevealObs.observe(proofWrap);
+    } else if (!noMotion) {
+      revealed = true; // no IntersectionObserver support — skip the gimmick, just drift normally
+    }
+
     function begin(x) {
+      if (boosting) { boosting = false; revealed = true; if (!boostReturnedReal) { restoreRealContent(); boostReturnedReal = true; } proofTrack.style.filter = ''; }
       dragging = true; settling = false; lockedAxis = null;
       proofWrap.classList.add('ia-proof-dragging');
       startX = x; startPos = pos; lastX = x; lastT = performance.now();
