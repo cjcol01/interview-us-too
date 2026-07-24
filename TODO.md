@@ -13,6 +13,8 @@
 - [ ] settings mobile refresh
 - [ ] hotkey doesnt turn off extension
 - [ ] add see fix to mic and IR on support page
+- [ ] clear up wording on support page - detechify
+- [ ] pull polishing2
 
 ## Soon 
 - [ ] google login

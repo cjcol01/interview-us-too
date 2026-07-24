@@ -143,7 +143,7 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Instant replay only buffers audio from a tab you've explicitly locked in the extension popup. If nothing is locked, or the locked tab was closed or refreshed, there's no buffer for the hotkey to pull from.</p>
+        <p class="issue-why">Instant replay only buffers audio from a tab you've explicitly locked in the extension popup. If nothing is locked, or the locked tab was closed or refreshed, there's no buffer for the hotkey to pull from. Check its still locked and wait up to 30 seconds.</p>
         <ol class="issue-fix">
           <li>Open the extension popup and lock it to your interview tab.</li>
           <li>Leave that tab open and playing audio for a few seconds before pressing replay — the buffer needs time to fill.</li>
@@ -169,7 +169,7 @@
       <div class="issue-body">
         <p class="issue-why">Managed or work Chrome profiles often block installs that aren't on an approved list, and Chrome frequently hides a newly installed extension behind the puzzle-piece icon instead of pinning it to the toolbar.</p>
         <ol class="issue-fix">
-          <li>Confirm you're using Chrome or another Chromium browser — Safari and Firefox aren't supported.</li>
+          <li>Confirm you're using Chrome or another Chromium browser — Safari and Firefox aren't supported (yet).</li>
           <li>Click the puzzle-piece icon in the toolbar and pin InterviewAce so it's always visible.</li>
           <li>If a work laptop blocks the install, try a personal Chrome profile, or use the <a href="/install-manual">manual install</a> instead.</li>
         </ol>
