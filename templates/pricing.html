@@ -35,21 +35,24 @@
             <div class="plan-name">First-time offer</div>
             <div class="plan-price">
               <span class="price-main">£2</span>
-              <span class="price-suffix">for 3 sessions</span>
-              <span class="price-was">£10 regular</span>
+              <span class="price-suffix">for 1 session</span>
             </div>
           </div>
           <p class="plan-desc">One-time purchase — no subscription, no renewal, no card saved after checkout.</p>
           <div class="intro-features">
-            <div class="feature"><span class="feature-icon"></span>3 full sessions (2.5 hrs each)</div>
+            <div class="feature"><span class="feature-icon"></span>1 full session (1.5 hours)</div>
             <div class="feature"><span class="feature-icon"></span>AI analysis on every capture</div>
           </div>
         </div>
         <div class="intro-right">
           <a class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/login?next=/billing/checkout?plan=sessions' }}">
-            Claim deal — £2
+            {% if is_referred %}Claim free session{% else %}Claim deal — £2{% endif %}
           </a>
+          {% if is_referred %}
+          <p class="plan-fine credit-note">&#10003; Free first session with your referral — card required, £0 charged</p>
+          {% else %}
           <p class="plan-fine">Single payment · No auto-renewal</p>
+          {% endif %}
           {% if referral_credit_pence > 0 %}
           {% set intro_applied = [referral_credit_pence, 200]|min %}
           {% set intro_over = referral_credit_pence - intro_applied %}
@@ -90,7 +93,7 @@
           </div>
           <div class="feature">
             <span class="feature-icon"></span>
-            2.5 hrs per session
+            1.5 hrs per session
           </div>
           <div class="feature">
             <span class="feature-icon"></span>
@@ -106,6 +109,9 @@
           Get 3 sessions — £10
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
+        {% if is_referred and referral_discount_active %}
+        <p class="plan-fine credit-note">&#10003; £5 off applied at checkout — your referral reward</p>
+        {% endif %}
         {% if referral_credit_pence > 0 %}
         {% set pack_applied = [referral_credit_pence, 1000]|min %}
         {% set pack_over = referral_credit_pence - pack_applied %}

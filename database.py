@@ -47,7 +47,7 @@ def get_db():
 
 
 def init_db():
-    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User  # noqa: F401 — ensures tables are registered
+    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User, Withdrawal  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -82,6 +82,7 @@ def init_db():
             ("partner_waitlist",       "BOOLEAN DEFAULT 0"),
             ("partner_status",         "VARCHAR DEFAULT 'none'"),
             ("partner_tier",           "INTEGER DEFAULT 0"),
+            ("partner_tier_manual",    "BOOLEAN DEFAULT 0"),
             ("reset_token",            "VARCHAR"),
             ("reset_token_expiry",     "DATETIME"),
             ("active_context_slot",    "INTEGER"),

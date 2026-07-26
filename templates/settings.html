@@ -465,8 +465,11 @@
           <!-- Referral promo card -->
           <div class="settings-card referral-promo-card">
             <div class="referral-promo-left">
-              <div class="card-row-label" style="margin-bottom:4px;">Refer &amp; Earn</div>
-              <p class="card-row-desc">Share your link, earn up to £5 per friend.</p>
+              <div class="card-row-label" style="margin-bottom:4px;">Refer &amp; Earn{% if partner_tier and partner_tier >= 2 %} · Tier {{ partner_tier }} partner{% endif %}</div>
+              <p class="card-row-desc">
+                Share your link, earn £{{ "%.0f"|format(tier1_flat_pence / 100) }} cash per paid referral.
+                {% if partner_available_pence %} <strong>£{{ "%.2f"|format(partner_available_pence / 100) }} available</strong> to withdraw.{% endif %}
+              </p>
             </div>
             <a class="settings-btn" href="/referral">View referral page ›</a>
           </div>

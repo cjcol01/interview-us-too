@@ -7,7 +7,7 @@ import secrets as _sec
 from unittest.mock import MagicMock, patch
 
 from database import SessionLocal, init_db
-from models import AccountLevel, IntroCardFingerprint, Referral, ReferralStatus, User
+from models import AccountLevel, IntroCardFingerprint, PartnerCommission, Referral, ReferralStatus, User
 from tests.helpers import cleanup, delete_by_name, make_cookie, make_user
 
 
@@ -108,7 +108,7 @@ def register(test, skip, client=None):
 
     # -- _handle_sessions_purchase -------------------------------------------
 
-    def test_sessions_purchase_grants_3_sessions():
+    def test_sessions_purchase_grants_1_session():
         init_db()
         db = SessionLocal()
         try:
@@ -117,7 +117,7 @@ def register(test, skip, client=None):
             data = _fake_checkout_event(cid, "sessions")["data"]["object"]
             _handle_sessions_purchase(data, db)
             db.refresh(u)
-            assert u.sessions_remaining == 3
+            assert u.sessions_remaining == 1
             assert u.intro_redeemed is True
         finally:
             cleanup(db, u); db.close()
@@ -199,7 +199,7 @@ def register(test, skip, client=None):
             mock_refund.assert_not_called()
             db.refresh(u)
             assert u.intro_declined is False
-            assert u.sessions_remaining == 3
+            assert u.sessions_remaining == 1
             assert db.query(IntroCardFingerprint).filter(IntroCardFingerprint.fingerprint == fp).first() is not None
         finally:
             db.query(IntroCardFingerprint).filter(IntroCardFingerprint.fingerprint == fp).delete()
@@ -207,7 +207,7 @@ def register(test, skip, client=None):
 
     # -- Referral credit on intro purchase -----------------------------------
 
-    def test_referrer_credited_on_intro_purchase():
+    def test_no_referrer_reward_on_intro():
         init_db()
         db = SessionLocal()
         try:
@@ -224,10 +224,9 @@ def register(test, skip, client=None):
             with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
                 _handle_sessions_purchase(data, db)
 
-            mock_credit.assert_called_once()
-            args, kwargs = mock_credit.call_args
-            assert args[0] == referrer_cid
-            assert kwargs["amount"] == -200
+            # The intro never pays the referrer — only a real paid plan does.
+            mock_credit.assert_not_called()
+            assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
             db.refresh(ref_row)
             assert ref_row.intro_credited is True
             assert ref_row.status == ReferralStatus.intro
@@ -258,7 +257,7 @@ def register(test, skip, client=None):
 
     # -- Referral credit on subscription ------------------------------------
 
-    def test_referrer_credited_on_subscription():
+    def test_referrer_flat_reward_on_subscription():
         init_db()
         db = SessionLocal()
         try:
@@ -275,10 +274,14 @@ def register(test, skip, client=None):
             with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
 
-            mock_credit.assert_called_once()
-            args, kwargs = mock_credit.call_args
-            assert args[0] == referrer_cid
-            assert kwargs["amount"] == -500  # no intro done → full £5
+            # Tier-1 referrer earns a flat £5 as a withdrawable commission row — no bill credit.
+            mock_credit.assert_not_called()
+            flat = db.query(PartnerCommission).filter(
+                PartnerCommission.partner_id == referrer.id,
+                PartnerCommission.kind == "referral_flat",
+            ).first()
+            assert flat is not None
+            assert flat.amount_pence == 500
             db.refresh(ref_row)
             assert ref_row.sub_credited is True
             assert ref_row.status == ReferralStatus.subscribed
@@ -346,7 +349,7 @@ def register(test, skip, client=None):
         finally:
             cleanup(db, referrer, referee); db.close()
 
-    def test_trialing_then_active_credits_once():
+    def test_trialing_then_active_rewards_once():
         init_db()
         db = SessionLocal()
         try:
@@ -360,13 +363,17 @@ def register(test, skip, client=None):
             db.add(ref_row)
             db.commit()
 
-            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
+            with patch("billing.stripe.Customer.create_balance_transaction"):
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "trialing"), db)
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
 
-            mock_credit.assert_called_once()
-            _, kwargs = mock_credit.call_args
-            assert kwargs["amount"] == -500  # no intro done → full £5
+            # Trialing pays nothing; the single activation earns exactly one flat £5 row.
+            flats = db.query(PartnerCommission).filter(
+                PartnerCommission.partner_id == referrer.id,
+                PartnerCommission.kind == "referral_flat",
+            ).all()
+            assert len(flats) == 1
+            assert flats[0].amount_pence == 500
         finally:
             cleanup(db, referrer, referee); db.close()
 
@@ -518,42 +525,18 @@ def register(test, skip, client=None):
     test("_sync_subscription: trialing → unlimited",             test_sync_trialing_sets_unlimited)
     test("_sync_subscription: canceled → free",                  test_sync_canceled_sets_free)
     test("_sync_subscription: unknown customer is noop",         test_sync_unknown_customer_is_noop)
-    test("Sessions purchase grants 3 sessions",                  test_sessions_purchase_grants_3_sessions)
+    test("Sessions purchase (intro) grants 1 session",           test_sessions_purchase_grants_1_session)
     test("Sessions pack grants 3 sessions",                      test_sessions_pack_grants_3_sessions)
     test("Sessions purchase: unknown plan is noop",              test_sessions_purchase_unknown_plan_is_noop)
     test("Sessions purchase: no user is noop",                   test_sessions_purchase_no_user_is_noop)
     test("Sessions purchase: dup card fingerprint → refund+decline", test_sessions_purchase_duplicate_fingerprint_refunds_and_declines)
     test("Sessions purchase: fresh fingerprint → recorded+granted",  test_sessions_purchase_fresh_fingerprint_records_and_grants)
-    test("Referrer credited £2 on referee intro purchase",       test_referrer_credited_on_intro_purchase)
+    test("No referrer reward on referee intro purchase",         test_no_referrer_reward_on_intro)
     test("No double-credit on intro (intro_credited guard)",     test_no_double_credit_intro)
-    test("Referrer credited £3 when referee subscribes",         test_referrer_credited_on_subscription)
+    test("Referrer earns flat £5 when referee subscribes",       test_referrer_flat_reward_on_subscription)
     test("No double-credit on subscription (sub_credited guard)",test_no_double_credit_subscription)
     test("_credit_referrer skips if no Stripe customer",         test_credit_referrer_skips_if_no_stripe_customer)
-    def test_referrer_credited_300_on_subscription_if_intro_done():
-        init_db()
-        db = SessionLocal()
-        try:
-            referrer_cid = _stripe_id()
-            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
-            referee_cid = _stripe_id()
-            referee_sid = _sub_id()
-            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
-            referee.referred_by_id = referrer.id
-            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
-                               intro_credited=True, status=ReferralStatus.intro)
-            db.add(ref_row)
-            db.commit()
-
-            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
-                _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
-
-            mock_credit.assert_called_once()
-            _, kwargs = mock_credit.call_args
-            assert kwargs["amount"] == -300  # intro already done → only £3 remaining
-        finally:
-            cleanup(db, referrer, referee); db.close()
-
-    def test_referrer_credited_500_on_sessions_pack_no_intro():
+    def test_referrer_flat_reward_on_sessions_pack():
         init_db()
         db = SessionLocal()
         try:
@@ -570,41 +553,20 @@ def register(test, skip, client=None):
             with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
                 _handle_sessions_purchase(data, db)
 
-            mock_credit.assert_called_once()
-            args, kwargs = mock_credit.call_args
-            assert args[0] == referrer_cid
-            assert kwargs["amount"] == -500  # no intro → full £5
+            # Flat £5 as a commission row (the £10 pack is a real paid plan); no bill credit.
+            mock_credit.assert_not_called()
+            flat = db.query(PartnerCommission).filter(
+                PartnerCommission.partner_id == referrer.id,
+                PartnerCommission.kind == "referral_flat",
+            ).first()
+            assert flat is not None and flat.amount_pence == 500
             db.refresh(ref_row)
             assert ref_row.sub_credited is True
             assert ref_row.status == ReferralStatus.subscribed
         finally:
             cleanup(db, referrer, referee); db.close()
 
-    def test_referrer_credited_300_on_sessions_pack_if_intro_done():
-        init_db()
-        db = SessionLocal()
-        try:
-            referrer_cid = _stripe_id()
-            referrer = make_user(db, AccountLevel.unlimited, stripe_id=referrer_cid)
-            referee_cid = _stripe_id()
-            referee = make_user(db, AccountLevel.trial, stripe_id=referee_cid)
-            referee.referred_by_id = referrer.id
-            ref_row = Referral(referrer_id=referrer.id, referee_id=referee.id,
-                               intro_credited=True, status=ReferralStatus.intro)
-            db.add(ref_row)
-            db.commit()
-
-            data = _fake_checkout_event(referee_cid, "sessions_pack")["data"]["object"]
-            with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
-                _handle_sessions_purchase(data, db)
-
-            mock_credit.assert_called_once()
-            _, kwargs = mock_credit.call_args
-            assert kwargs["amount"] == -300  # intro done → £3 remaining
-        finally:
-            cleanup(db, referrer, referee); db.close()
-
-    def test_no_double_credit_sessions_pack():
+    def test_no_double_reward_sessions_pack():
         init_db()
         db = SessionLocal()
         try:
@@ -623,11 +585,14 @@ def register(test, skip, client=None):
                 _handle_sessions_purchase(data, db)
 
             mock_credit.assert_not_called()
+            assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
         finally:
             cleanup(db, referrer, referee); db.close()
 
-    test("#1: trialing does NOT credit referrer",                test_trialing_does_not_credit_referrer)
-    test("#1: trialing then active credits referrer once",       test_trialing_then_active_credits_once)
+    test("Referrer earns flat £5 on referee sessions pack",      test_referrer_flat_reward_on_sessions_pack)
+    test("No double reward on sessions pack (sub_credited guard)", test_no_double_reward_sessions_pack)
+    test("#1: trialing does NOT reward referrer",                test_trialing_does_not_credit_referrer)
+    test("#1: trialing then active rewards referrer once",       test_trialing_then_active_rewards_once)
     test("#7: sub_trial_used set after first subscription",      test_sub_trial_used_set_after_subscription)
     test("#3: pack purchase keeps unlimited account level",      test_sessions_pack_does_not_downgrade_unlimited)
     test("#6: _credit_referrer increments DB credit",            test_credit_referrer_increments_db_credit)
@@ -806,7 +771,7 @@ def register_http(test, skip, client):
                                 headers={"stripe-signature": "test"})
             assert r.status_code == 200
             db.refresh(u)
-            assert u.sessions_remaining == 3
+            assert u.sessions_remaining == 1
             assert u.intro_redeemed is True
         finally:
             cleanup(db, u); db.close()

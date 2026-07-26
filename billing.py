@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from analytics import logger, track
-from config import BASE_URL, PARTNER_HOLD_DAYS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
+from config import BASE_URL, INTRO_SESSIONS, PACK_SESSIONS, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
 from models import AccountLevel, CommissionStatus, IntroCardFingerprint, PartnerCommission, Referral, ReferralStatus, User
 
 stripe.api_key = STRIPE_SECRET_KEY
@@ -37,12 +37,19 @@ def _credit_referrer(referrer: User, amount_pence: int, description: str) -> Non
 
 
 def _partner_rate_bps(partner: User) -> int:
-    return PARTNER_TIER2_BPS if partner.partner_tier >= 2 else PARTNER_TIER1_BPS
+    """Recurring commission rate. Tiers 2/3 earn a %; Tier 1 (the implicit default, tier < 2)
+    earns a flat one-off reward instead, so its % rate is zero."""
+    if partner.partner_tier >= 3:
+        return PARTNER_TIER3_BPS
+    if partner.partner_tier >= 2:
+        return PARTNER_TIER2_BPS
+    return 0
 
 
 def _recompute_partner_tier(partner: User, db: Session) -> None:
-    """Re-derive a partner's tier from how many of their referees have fully paid."""
-    if partner.partner_status != "active":
+    """Auto-upgrade a Tier-1 referrer to Tier 2 once enough referees have fully paid. Never
+    downgrades, and never touches a tier an admin set manually."""
+    if partner.partner_tier_manual:
         return
     # The session is autoflush=False (database.py) — the caller's just-set
     # Referral.status=subscribed wouldn't be visible to this count without a flush.
@@ -51,7 +58,37 @@ def _recompute_partner_tier(partner: User, db: Session) -> None:
         Referral.referrer_id == partner.id,
         Referral.status == ReferralStatus.subscribed,
     ).count()
-    partner.partner_tier = 2 if paid_count >= PARTNER_TIER2_MIN_PAID else 1
+    if paid_count >= PARTNER_TIER2_MIN_PAID and partner.partner_tier < 2:
+        partner.partner_status = "active"
+        partner.partner_tier = 2
+
+
+def _accrue_flat_referral(referrer: User, referee: User, stripe_ref: str | None, db: Session) -> None:
+    """Tier-1 one-off flat cash reward for a referee's first real paid conversion (£10 pack or
+    £15 sub — never the £2 intro). Fires at most once per referee. Caller commits."""
+    if PARTNER_TIER1_FLAT_PENCE <= 0:
+        return
+    already = db.query(PartnerCommission).filter(
+        PartnerCommission.partner_id == referrer.id,
+        PartnerCommission.referee_id == referee.id,
+        PartnerCommission.kind == "referral_flat",
+    ).first()
+    if already:
+        return
+    now = datetime.utcnow()
+    db.add(PartnerCommission(
+        partner_id=referrer.id,
+        referee_id=referee.id,
+        source_amount_pence=0,
+        rate_bps=0,
+        amount_pence=PARTNER_TIER1_FLAT_PENCE,
+        kind="referral_flat",
+        stripe_ref=stripe_ref,
+        status=CommissionStatus.pending,
+        created_at=now,
+        mature_at=now + timedelta(days=PARTNER_HOLD_DAYS),
+    ))
+    logger.info("[partner] flat referral reward %dp for %s from %s", PARTNER_TIER1_FLAT_PENCE, referrer.email, referee.email)
 
 
 def _accrue_commission(referrer: User, referee: User, amount_pence: int, kind: str, stripe_ref: str | None, db: Session) -> None:
@@ -89,6 +126,17 @@ def _accrue_commission(referrer: User, referee: User, amount_pence: int, kind: s
     logger.info("[partner] accrued %dp commission (%d bps) for %s from %s (%s)", commission, rate_bps, referrer.email, referee.email, kind)
 
 
+def _reward_referrer_on_paid(referrer: User, referee: User, amount_pence: int, kind: str, stripe_ref: str | None, db: Session, accrue_pct: bool = True) -> None:
+    """A referee just made a real paid conversion. Tiers 2/3 earn recurring %; Tier 1 (everyone
+    else) earns a one-off flat reward. `accrue_pct=False` for subscriptions, whose % is accrued
+    per-invoice in _handle_invoice_paid rather than at activation. Caller commits."""
+    if referrer.partner_tier >= 2 and referrer.partner_status == "active":
+        if accrue_pct:
+            _accrue_commission(referrer, referee, amount_pence, kind, stripe_ref, db)
+    else:
+        _accrue_flat_referral(referrer, referee, stripe_ref, db)
+
+
 def apply_retention_coupon(user: User) -> None:
     if not user.stripe_sub_id:
         raise ValueError("No active subscription found.")
@@ -124,7 +172,13 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
-        if user.referral_credit_pence > 0:
+        # A referred user's first session is free — a 100%-off coupon nets the £2 intro to £0,
+        # but the card is still collected (so the fingerprint anti-abuse check still runs). This
+        # IS their intro, so it can't stack with a paid one (intro_redeemed enforces single use).
+        if user.referred_by_id and not user.intro_redeemed and STRIPE_INTRO_FREE_COUPON_ID:
+            key = "promotion_code" if STRIPE_INTRO_FREE_COUPON_ID.startswith("promo_") else "coupon"
+            kwargs["discounts"] = [{key: STRIPE_INTRO_FREE_COUPON_ID}]
+        elif user.referral_credit_pence > 0:
             kwargs["discounts"] = [{"coupon": _create_credit_coupon(user.referral_credit_pence)}]
         session = stripe.checkout.Session.create(**kwargs)
 
@@ -138,7 +192,11 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
-        if user.referral_credit_pence > 0:
+        # £5 off the referee's first real paid plan (the pack counts, the £2 intro does not).
+        if apply_referral_discount and STRIPE_REFERRAL_COUPON_ID:
+            key = "promotion_code" if STRIPE_REFERRAL_COUPON_ID.startswith("promo_") else "coupon"
+            kwargs["discounts"] = [{key: STRIPE_REFERRAL_COUPON_ID}]
+        elif user.referral_credit_pence > 0:
             kwargs["discounts"] = [{"coupon": _create_credit_coupon(user.referral_credit_pence)}]
         session = stripe.checkout.Session.create(**kwargs)
 
@@ -257,11 +315,9 @@ def _sync_subscription(sub: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    # Partners earn %-commission (accrued in _handle_invoice_paid, off the real
-                    # amount paid) instead of the flat one-off credit non-partners get.
-                    if referrer.partner_status != "active":
-                        credit = 300 if ref.intro_credited else 500
-                        _credit_referrer(referrer, credit, f"Referral — {user.email} subscribed")
+                    # Tier 1 earns a flat one-off reward on this first paid conversion; Tiers 2/3
+                    # earn recurring % instead — accrued per invoice in _handle_invoice_paid.
+                    _reward_referrer_on_paid(referrer, user, 0, "subscription", sub["id"], db, accrue_pct=False)
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
@@ -317,7 +373,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
                     db.commit()
                     return
                 db.add(IntroCardFingerprint(fingerprint=fingerprint))
-        user.sessions_remaining += 3
+        user.sessions_remaining += INTRO_SESSIONS
         user.intro_redeemed = True
         if user.referred_by_id:
             ref = db.query(Referral).filter(
@@ -325,19 +381,15 @@ def _handle_sessions_purchase(data: dict, db: Session):
                 Referral.intro_credited == False,  # noqa: E712
             ).first()
             if ref:
-                referrer = db.query(User).filter(User.id == ref.referrer_id).first()
-                if referrer:
-                    if referrer.partner_status != "active":
-                        _credit_referrer(referrer, 200, f"Referral — {user.email} bought intro")
-                    else:
-                        _accrue_commission(referrer, user, data.get("amount_total") or 0, "intro", data.get("id"), db)
-                    ref.intro_credited = True
-                    ref.status = ReferralStatus.intro
-                    ref.intro_at = datetime.utcnow()
-        track(user.id, "sessions_purchased", plan="sessions", sessions_added=3)
+                # No referrer reward on the intro — the flat/% payout fires only on a real paid
+                # plan (£10 pack or £15 sub). We still record that the intro was used.
+                ref.intro_credited = True
+                ref.status = ReferralStatus.intro
+                ref.intro_at = datetime.utcnow()
+        track(user.id, "sessions_purchased", plan="sessions", sessions_added=INTRO_SESSIONS)
 
     elif plan == "sessions_pack":
-        user.sessions_remaining += 3
+        user.sessions_remaining += PACK_SESSIONS
         if user.referred_by_id:
             ref = db.query(Referral).filter(
                 Referral.referee_id == user.id,
@@ -346,16 +398,12 @@ def _handle_sessions_purchase(data: dict, db: Session):
             if ref:
                 referrer = db.query(User).filter(User.id == ref.referrer_id).first()
                 if referrer:
-                    if referrer.partner_status != "active":
-                        credit = 300 if ref.intro_credited else 500
-                        _credit_referrer(referrer, credit, f"Referral — {user.email} bought sessions pack")
-                    else:
-                        _accrue_commission(referrer, user, data.get("amount_total") or 0, "sessions_pack", data.get("id"), db)
+                    _reward_referrer_on_paid(referrer, user, data.get("amount_total") or 0, "sessions_pack", data.get("id"), db)
                     ref.sub_credited = True
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
                     _recompute_partner_tier(referrer, db)
-        track(user.id, "sessions_purchased", plan="sessions_pack", sessions_added=3)
+        track(user.id, "sessions_purchased", plan="sessions_pack", sessions_added=PACK_SESSIONS)
 
     else:
         logger.warning("[webhook] unrecognised plan %r — ignoring", plan)

@@ -62,8 +62,9 @@ class User(Base):
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
-    partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active
-    partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0 (not joined) | 1 | 2
+    partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active (active = upgraded to a %-commission tier)
+    partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0/1 = implicit flat Tier 1 | 2 = 15% | 3 = 25%
+    partner_tier_manual = Column(Boolean, default=False, nullable=False, server_default="0")  # admin-granted tier — sticky, never auto-downgraded
     active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (if any) is sent to the AI
     account_flag        = Column(String, nullable=True)  # e.g. "paused" — set by admin actions, cleared once seen
     account_flag_seen   = Column(Boolean, default=True, nullable=False, server_default="1")
@@ -121,6 +122,25 @@ class PartnerCommission(Base):
     status              = Column(Enum(CommissionStatus), default=CommissionStatus.pending, nullable=False)
     created_at          = Column(DateTime, default=datetime.utcnow, nullable=False)
     mature_at           = Column(DateTime, nullable=False)  # created_at, or +hold for first commission per referee
+
+
+class WithdrawalStatus(str, enum.Enum):
+    requested = "requested"  # partner asked to cash out — awaiting manual payout
+    paid      = "paid"       # admin has sent the money
+    rejected  = "rejected"   # declined (e.g. bad details) — releases the held balance
+
+
+class Withdrawal(Base):
+    __tablename__ = "withdrawals"
+
+    id           = Column(Integer, primary_key=True, index=True)
+    partner_id   = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    amount_pence = Column(Integer, nullable=False)
+    method       = Column(String, nullable=False)   # bank | paypal
+    destination  = Column(String, nullable=False)   # account details / PayPal email (free text)
+    status       = Column(Enum(WithdrawalStatus), default=WithdrawalStatus.requested, nullable=False)
+    created_at   = Column(DateTime, default=datetime.utcnow, nullable=False)
+    paid_at      = Column(DateTime, nullable=True)
 
 
 class InterviewSession(Base):

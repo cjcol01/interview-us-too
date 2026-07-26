@@ -73,10 +73,10 @@ def register(test, skip, client=None):
             cleanup(db, u)
             db.close()
 
-    def test_session_duration_is_2h30m():
+    def test_session_duration_is_1h30m():
         from datetime import timedelta
         from server import SESSION_DURATION
-        assert SESSION_DURATION == timedelta(hours=2, minutes=30)
+        assert SESSION_DURATION == timedelta(hours=1, minutes=30)
         init_db()
         db = SessionLocal()
         try:
@@ -194,7 +194,7 @@ def register(test, skip, client=None):
     test("Session created on first hotkey press",      test_session_created_on_first_capture)
     test("Active session reused within 2.5hr window",  test_session_reused_within_window)
     test("New session created after expiry",           test_new_session_after_expiry)
-    test("Session duration is exactly 2h30m",          test_session_duration_is_2h30m)
+    test("Session duration is exactly 1h30m",          test_session_duration_is_1h30m)
     test("/api/trial/start creates InterviewSession",  test_trial_start_creates_session)
     test("/api/trial/start rejected for non-trial",    test_trial_start_rejected_on_non_trial)
     test("/api/trial/start rejected if already used",  test_trial_start_rejected_if_already_used)

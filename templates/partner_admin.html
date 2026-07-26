@@ -4,15 +4,21 @@
   <meta name="robots" content="noindex, nofollow">
   <style>
     main.partner-admin-main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
-    .pa-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pa-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 40px; }
     .pa-table th, .pa-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
     .pa-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
     .pa-empty { padding: 40px 0; text-align: center; color: var(--text-3, #888); }
+    .pa-form { display: inline; }
+    .pa-form button { font-size: 12px; padding: 4px 10px; cursor: pointer; }
+    .pa-manual { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 40px; }
+    .pa-manual input, .pa-manual select { padding: 6px 10px; font-size: 13px; }
+    .pa-note { color: var(--text-3, #888); font-size: 12px; }
+    h2 { font-size: 16px; margin-top: 8px; }
   </style>
 {% endblock %}
 {% block content %}
   <main class="partner-admin-main">
-    <h1>Active partners</h1>
+    <h1>Partners</h1>
     {% if partners %}
     <table class="pa-table">
       <thead>
@@ -23,6 +29,7 @@
           <th>Paid referrals</th>
           <th>Pending</th>
           <th>Available</th>
+          <th>Withdrawn</th>
           <th>Lifetime</th>
         </tr>
       </thead>
@@ -30,18 +37,70 @@
         {% for p in partners %}
         <tr>
           <td>{{ p.email }}</td>
-          <td>{{ p.tier }}</td>
+          <td>{{ p.tier }}{% if p.tier_manual %} <span class="pa-note">(manual)</span>{% endif %}</td>
           <td>{{ p.signup_count }}</td>
           <td>{{ p.paid_count }}</td>
           <td>£{{ "%.2f" | format(p.pending_pence / 100) }}</td>
           <td>£{{ "%.2f" | format(p.available_pence / 100) }}</td>
+          <td>£{{ "%.2f" | format(p.withdrawn_pence / 100) }}</td>
           <td>£{{ "%.2f" | format(p.lifetime_pence / 100) }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     {% else %}
-    <div class="pa-empty">No active partners yet.</div>
+    <div class="pa-empty">No partners with earnings yet.</div>
+    {% endif %}
+
+    <h2>Grant a tier manually</h2>
+    <form action="/partner/admin/tier" method="post" class="pa-manual">
+      <input type="email" name="email" placeholder="partner@email.com" required>
+      <select name="tier">
+        <option value="2">Tier 2 ({{ tier2_pct }}%)</option>
+        <option value="3">Tier 3 ({{ tier3_pct }}%)</option>
+        <option value="1">Tier 1 (reset to flat / automatic)</option>
+      </select>
+      <button type="submit">Grant</button>
+      <span class="pa-note">Tier 2/3 are sticky — never auto-downgraded.</span>
+    </form>
+
+    <h2>Withdrawal requests</h2>
+    {% if withdrawals %}
+    <table class="pa-table">
+      <thead>
+        <tr>
+          <th>Requested</th>
+          <th>Email</th>
+          <th>Amount</th>
+          <th>Method</th>
+          <th>Destination</th>
+          <th>Status</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for w in withdrawals %}
+        <tr>
+          <td>{{ w.date }}</td>
+          <td>{{ w.email }}</td>
+          <td>£{{ "%.2f" | format(w.amount_pence / 100) }}</td>
+          <td>{{ w.method | capitalize }}</td>
+          <td>{{ w.destination }}</td>
+          <td>{{ w.status | capitalize }}</td>
+          <td>
+            {% if w.status == 'requested' %}
+            <form action="/partner/admin/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit">Mark paid</button></form>
+            <form action="/partner/admin/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit">Reject</button></form>
+            {% else %}
+            &mdash;
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="pa-empty">No withdrawal requests yet.</div>
     {% endif %}
   </main>
 {% endblock %}

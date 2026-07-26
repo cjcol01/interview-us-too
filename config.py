@@ -36,16 +36,29 @@ STRIPE_PRICE_ID               = os.getenv("STRIPE_PRICE_ID", "")
 STRIPE_SESSIONS_PRICE_ID      = os.getenv("STRIPE_SESSIONS_INTRO_PRICE_ID", "")
 STRIPE_SESSIONS_PACK_PRICE_ID = os.getenv("STRIPE_SESSIONS_PACK_PRICE_ID", "")
 STRIPE_SUB_PRICE_ID           = os.getenv("STRIPE_SUB_PRICE_ID") or STRIPE_PRICE_ID
-STRIPE_REFERRAL_COUPON_ID     = os.getenv("STRIPE_REFERRAL_COUPON_ID", "")
+STRIPE_REFERRAL_COUPON_ID     = os.getenv("STRIPE_REFERRAL_COUPON_ID", "")     # £5 off the referee's first paid plan
+STRIPE_INTRO_FREE_COUPON_ID   = os.getenv("STRIPE_INTRO_FREE_COUPON_ID", "")   # 100%-off-once coupon: a referred user's free first session
 STRIPE_RETENTION_COUPON_ID   = os.getenv("STRIPE_RETENTION_COUPON_ID", "")
 STRIPE_SUB_PRICE_PENCE        = int(os.getenv("STRIPE_SUB_PRICE_PENCE", "0"))
 
-# Partner (affiliate) programme — rates in basis points (1500 = 15%).
-PARTNER_TIER1_BPS        = int(os.getenv("PARTNER_TIER1_BPS", "1500"))
-PARTNER_TIER2_BPS        = int(os.getenv("PARTNER_TIER2_BPS", "2500"))
-PARTNER_JOIN_MIN_SIGNUPS = int(os.getenv("PARTNER_JOIN_MIN_SIGNUPS", "3"))
-PARTNER_TIER2_MIN_PAID   = int(os.getenv("PARTNER_TIER2_MIN_PAID", "15"))
+# Sessions granted per one-time purchase. Amounts (the £2 / £10 charged) live in Stripe;
+# only how many sessions each grants lives here.
+INTRO_SESSIONS = int(os.getenv("INTRO_SESSIONS", "1"))   # £2 intro → 1 session
+PACK_SESSIONS  = int(os.getenv("PACK_SESSIONS",  "3"))   # £10 pack → 3 sessions
+
+# Partner (affiliate) programme — a three-tier ladder:
+#   Tier 1 (implicit — every user): a flat one-off cash reward (PARTNER_TIER1_FLAT_PENCE) per
+#           referee who converts to a real paid plan (£10 pack or £15 sub). Never on the £2 intro.
+#   Tier 2 (auto at PARTNER_TIER2_MIN_PAID paid referrals, or granted manually): recurring %.
+#   Tier 3 (manual only — e.g. granted during outreach): higher recurring %.
+# Recurring rates are in basis points (1500 = 15%). partner_tier 2 → Tier 2, 3 → Tier 3;
+# anything below (0/1) is the implicit flat Tier 1.
+PARTNER_TIER1_FLAT_PENCE = int(os.getenv("PARTNER_TIER1_FLAT_PENCE", "500"))   # £5 flat
+PARTNER_TIER2_BPS        = int(os.getenv("PARTNER_TIER2_BPS", "1500"))         # 15%
+PARTNER_TIER3_BPS        = int(os.getenv("PARTNER_TIER3_BPS", "2500"))         # 25%
+PARTNER_TIER2_MIN_PAID   = int(os.getenv("PARTNER_TIER2_MIN_PAID", "3"))
 PARTNER_HOLD_DAYS        = int(os.getenv("PARTNER_HOLD_DAYS", "60"))
+PARTNER_WITHDRAWAL_THRESHOLD_PENCE = int(os.getenv("PARTNER_WITHDRAWAL_THRESHOLD_PENCE", "2000"))  # £20 min payout
 
 _missing = [
     name for name, val in [

@@ -50,11 +50,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_JOIN_MIN_SIGNUPS, PARTNER_TIER1_BPS, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
-from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User
+from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User, Withdrawal, WithdrawalStatus
 
 # --- startup profiling: log where boot time goes so slow environments (e.g. a WSL2
 # 9p-mounted repo) can be diagnosed straight from the logs. See STARTUP_PERF.md. ---
@@ -332,7 +332,7 @@ def _deepgram_transcribe(audio_bytes: bytes, suffix: str) -> str:
     return resp.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
 
 
-SESSION_DURATION = timedelta(hours=2, minutes=30)
+SESSION_DURATION = timedelta(hours=1, minutes=30)
 TRIAL_DURATION   = timedelta(minutes=10)
 
 COMPLEXITY_MIN = 1
@@ -1262,12 +1262,20 @@ def referral_page(
             "status": ref_row.status.value,
             "referee_level": referee_user.account_level.value,
         })
+    bal = _partner_balance(user, db)
     return templates.TemplateResponse(request=request, name="referral.html", context={
         "referral_code": user.referral_code,
         "referrals": referrals,
         "referral_credit_pence": user.referral_credit_pence,
         "is_referred": user.referred_by_id is not None,
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
+        "partner_tier": _partner_display_tier(user),
+        "tier1_flat_pence": PARTNER_TIER1_FLAT_PENCE,
+        "available_pence": bal["available_pence"],
+        "pending_pence": bal["pending_pence"],
+        "lifetime_pence": bal["lifetime_pence"],
+        "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
+        "can_withdraw": bal["available_pence"] >= PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
         "ref_success": ref_success == "1",
         "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "show_navbar": True,
@@ -1321,6 +1329,36 @@ def _partner_counts(user: User, db: Session) -> tuple[int, int]:
     return signup_count, paid_count
 
 
+def _partner_balance(user: User, db: Session) -> dict:
+    """Cash-ledger totals for a referrer, in pence. `available` is matured commission minus any
+    non-rejected withdrawals (a requested-but-unpaid withdrawal still holds the balance)."""
+    now = datetime.utcnow()
+    lifetime = pending = matured = 0
+    for c in db.query(PartnerCommission).filter(PartnerCommission.partner_id == user.id).all():
+        if c.status == CommissionStatus.reversed:
+            continue
+        lifetime += c.amount_pence
+        if c.mature_at <= now:
+            matured += c.amount_pence
+        else:
+            pending += c.amount_pence
+    withdrawn = db.query(func.coalesce(func.sum(Withdrawal.amount_pence), 0)).filter(
+        Withdrawal.partner_id == user.id,
+        Withdrawal.status != WithdrawalStatus.rejected,
+    ).scalar() or 0
+    return {
+        "lifetime_pence": lifetime,
+        "pending_pence": pending,
+        "available_pence": max(0, matured - withdrawn),
+        "withdrawn_pence": withdrawn,
+    }
+
+
+def _partner_display_tier(user: User) -> int:
+    """Everyone is at least Tier 1 (the implicit flat-reward tier); tiers 2/3 are upgrades."""
+    return max(user.partner_tier, 1)
+
+
 @app.get("/partner")
 def partner_page(
     request: Request,
@@ -1331,16 +1369,14 @@ def partner_page(
     signup_count, paid_count = _partner_counts(user, db)
     return templates.TemplateResponse(request=request, name="partner.html", context={
         "user_email": user.email,
-        "is_partner": user.partner_status == "active",
-        "partner_tier": user.partner_tier,
-        "eligible": signup_count >= PARTNER_JOIN_MIN_SIGNUPS,
+        "partner_tier": _partner_display_tier(user),
         "signup_count": signup_count,
         "paid_count": paid_count,
-        "join_min_signups": PARTNER_JOIN_MIN_SIGNUPS,
         "tier2_min_paid": PARTNER_TIER2_MIN_PAID,
-        "tier1_pct": PARTNER_TIER1_BPS // 100,
+        "tier1_flat_pence": PARTNER_TIER1_FLAT_PENCE,
         "tier2_pct": PARTNER_TIER2_BPS // 100,
-        "joined": user.partner_waitlist or joined == "1",
+        "tier3_pct": PARTNER_TIER3_BPS // 100,
+        "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
         "show_navbar": True,
     })
 
@@ -1410,14 +1446,9 @@ def partner_join(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if user.partner_status != "active":
-        signup_count, paid_count = _partner_counts(user, db)
-        if signup_count < PARTNER_JOIN_MIN_SIGNUPS:
-            return RedirectResponse("/partner", status_code=303)
-        user.partner_status = "active"
-        user.partner_tier = 2 if paid_count >= PARTNER_TIER2_MIN_PAID else 1
-        db.commit()
-        track(user.id, "partner_joined", tier=user.partner_tier)
+    # Tier 1 is automatic for every user now, so there's nothing to "join" — this just takes
+    # the user to their partner dashboard. (Tier 2/3 upgrades happen automatically at
+    # PARTNER_TIER2_MIN_PAID paid referrals, or are granted manually by an admin.)
     return RedirectResponse("/partner/dashboard", status_code=303)
 
 
@@ -1426,14 +1457,16 @@ def partner_dashboard(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
+    withdraw_error: Optional[str] = None,
+    withdraw_success: Optional[str] = None,
 ):
-    if user.partner_status != "active":
-        return RedirectResponse("/partner", status_code=303)
+    # Everyone is a partner now (Tier 1 is automatic), so no eligibility gate.
     if not user.referral_code:
         user.referral_code = generate_unique_referral_code(db)
         db.commit()
 
     signup_count, paid_count = _partner_counts(user, db)
+    display_tier = _partner_display_tier(user)
 
     commission_rows = (
         db.query(PartnerCommission, User)
@@ -1443,21 +1476,11 @@ def partner_dashboard(
         .all()
     )
     now = datetime.utcnow()
-    pending_pence = available_pence = lifetime_pence = 0
     commissions = []
     for c, referee in commission_rows:
         if c.status == CommissionStatus.reversed:
             continue
-        lifetime_pence += c.amount_pence
-        matured = c.mature_at <= now
-        if c.status == CommissionStatus.paid:
-            display_status = "paid"
-        elif matured:
-            available_pence += c.amount_pence
-            display_status = "available"
-        else:
-            pending_pence += c.amount_pence
-            display_status = "pending"
+        display_status = "available" if c.mature_at <= now else "pending"
         commissions.append({
             "referee_name": referee.username,
             "amount_pence": c.amount_pence,
@@ -1467,21 +1490,73 @@ def partner_dashboard(
             "matures": f"{c.mature_at.day} {c.mature_at.strftime('%b %Y')}" if display_status == "pending" else None,
         })
 
+    withdrawals = [
+        {
+            "amount_pence": w.amount_pence,
+            "method": w.method,
+            "status": w.status.value,
+            "date": f"{w.created_at.day} {w.created_at.strftime('%b %Y')}",
+        }
+        for w in db.query(Withdrawal).filter(Withdrawal.partner_id == user.id).order_by(Withdrawal.created_at.desc()).all()
+    ]
+
+    bal = _partner_balance(user, db)
     return templates.TemplateResponse(request=request, name="partner_dashboard.html", context={
         "referral_code": user.referral_code,
-        "partner_tier": user.partner_tier,
-        "rate_pct": (PARTNER_TIER2_BPS if user.partner_tier >= 2 else PARTNER_TIER1_BPS) // 100,
+        "partner_tier": display_tier,
+        "tier_is_flat": display_tier < 2,
+        "flat_pence": PARTNER_TIER1_FLAT_PENCE,
+        "rate_pct": (PARTNER_TIER3_BPS if display_tier >= 3 else PARTNER_TIER2_BPS if display_tier >= 2 else 0) // 100,
         "tier2_pct": PARTNER_TIER2_BPS // 100,
+        "tier3_pct": PARTNER_TIER3_BPS // 100,
         "signup_count": signup_count,
         "paid_count": paid_count,
         "tier2_min_paid": PARTNER_TIER2_MIN_PAID,
         "hold_days": PARTNER_HOLD_DAYS,
-        "pending_pence": pending_pence,
-        "available_pence": available_pence,
-        "lifetime_pence": lifetime_pence,
+        "pending_pence": bal["pending_pence"],
+        "available_pence": bal["available_pence"],
+        "lifetime_pence": bal["lifetime_pence"],
         "commissions": commissions,
+        "withdrawals": withdrawals,
+        "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
+        "can_withdraw": bal["available_pence"] >= PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
+        "withdraw_error": _WITHDRAW_ERROR_MESSAGES.get(withdraw_error),
+        "withdraw_success": withdraw_success == "1",
         "show_navbar": True,
     })
+
+
+_WITHDRAW_ERROR_MESSAGES = {
+    "below_threshold": "You need at least the minimum balance before you can withdraw.",
+    "missing_details": "Please choose a method and enter your payout details.",
+    "bad_method": "Please choose a valid payout method.",
+}
+
+
+@app.post("/partner/withdraw")
+def partner_withdraw(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    method: str = Form(...),
+    destination: str = Form(...),
+):
+    if method not in ("bank", "paypal"):
+        return RedirectResponse("/partner/dashboard?withdraw_error=bad_method", status_code=303)
+    if not destination.strip():
+        return RedirectResponse("/partner/dashboard?withdraw_error=missing_details", status_code=303)
+    bal = _partner_balance(user, db)
+    if bal["available_pence"] < PARTNER_WITHDRAWAL_THRESHOLD_PENCE:
+        return RedirectResponse("/partner/dashboard?withdraw_error=below_threshold", status_code=303)
+    # Withdraw the whole available balance — the threshold is a floor, not a fixed amount.
+    db.add(Withdrawal(
+        partner_id=user.id,
+        amount_pence=bal["available_pence"],
+        method=method,
+        destination=destination.strip()[:500],
+    ))
+    db.commit()
+    track(user.id, "partner_withdrawal_requested", amount_pence=bal["available_pence"], method=method)
+    return RedirectResponse("/partner/dashboard?withdraw_success=1", status_code=303)
 
 
 @app.get("/partner/admin")
@@ -1490,31 +1565,87 @@ def partner_admin(
     db: Session = Depends(get_db),
     _: None = Depends(_require_author),
 ):
-    partners = db.query(User).filter(User.partner_status == "active").order_by(User.id).all()
-    now = datetime.utcnow()
+    # Anyone who's actually earned something (has a commission row) or has been upgraded to a
+    # %-tier — not literally every signed-up user (they're all implicit Tier 1).
+    earner_ids = {pid for (pid,) in db.query(PartnerCommission.partner_id).distinct().all()}
+    upgraded_ids = {uid for (uid,) in db.query(User.id).filter(User.partner_tier >= 2).all()}
+    partners = db.query(User).filter(User.id.in_(earner_ids | upgraded_ids)).order_by(User.id).all() if (earner_ids | upgraded_ids) else []
     rows = []
     for p in partners:
         signup_count, paid_count = _partner_counts(p, db)
-        rows_c = db.query(PartnerCommission).filter(PartnerCommission.partner_id == p.id).all()
-        lifetime = sum(c.amount_pence for c in rows_c if c.status != CommissionStatus.reversed)
-        available = sum(
-            c.amount_pence for c in rows_c
-            if c.status not in (CommissionStatus.paid, CommissionStatus.reversed) and c.mature_at <= now
-        )
-        pending = sum(
-            c.amount_pence for c in rows_c
-            if c.status not in (CommissionStatus.paid, CommissionStatus.reversed) and c.mature_at > now
-        )
+        bal = _partner_balance(p, db)
         rows.append({
+            "id": p.id,
             "email": p.email,
-            "tier": p.partner_tier,
+            "tier": _partner_display_tier(p),
+            "tier_manual": p.partner_tier_manual,
             "signup_count": signup_count,
             "paid_count": paid_count,
-            "pending_pence": pending,
-            "available_pence": available,
-            "lifetime_pence": lifetime,
+            "pending_pence": bal["pending_pence"],
+            "available_pence": bal["available_pence"],
+            "lifetime_pence": bal["lifetime_pence"],
+            "withdrawn_pence": bal["withdrawn_pence"],
         })
-    return templates.TemplateResponse(request=request, name="partner_admin.html", context={"partners": rows, "show_navbar": True})
+
+    withdrawal_rows = (
+        db.query(Withdrawal, User)
+        .join(User, User.id == Withdrawal.partner_id)
+        .order_by(Withdrawal.created_at.desc())
+        .all()
+    )
+    withdrawals = [
+        {
+            "id": w.id,
+            "email": u.email,
+            "amount_pence": w.amount_pence,
+            "method": w.method,
+            "destination": w.destination,
+            "status": w.status.value,
+            "date": f"{w.created_at.day} {w.created_at.strftime('%b %Y')}",
+        }
+        for w, u in withdrawal_rows
+    ]
+    return templates.TemplateResponse(request=request, name="partner_admin.html", context={
+        "partners": rows,
+        "withdrawals": withdrawals,
+        "tier2_pct": PARTNER_TIER2_BPS // 100,
+        "tier3_pct": PARTNER_TIER3_BPS // 100,
+        "show_navbar": True,
+    })
+
+
+@app.post("/partner/admin/withdraw/{withdrawal_id}/{action}")
+def partner_admin_withdraw(
+    withdrawal_id: int,
+    action: str,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+):
+    w = db.query(Withdrawal).filter(Withdrawal.id == withdrawal_id).first()
+    if w and action in ("paid", "rejected"):
+        w.status = WithdrawalStatus.paid if action == "paid" else WithdrawalStatus.rejected
+        w.paid_at = datetime.utcnow() if action == "paid" else None
+        db.commit()
+    return RedirectResponse("/partner/admin", status_code=303)
+
+
+@app.post("/partner/admin/tier")
+def partner_admin_set_tier(
+    db: Session = Depends(get_db),
+    email: str = Form(...),
+    tier: int = Form(...),
+    _: None = Depends(_require_author),
+):
+    """Manually grant a partner tier (e.g. Tier 3 during outreach). Marks it sticky so the
+    auto-recompute never downgrades it. Tier 1 clears the manual flag back to automatic."""
+    target = db.query(User).filter(User.email == email.strip()).first()
+    if target and tier in (1, 2, 3):
+        target.partner_tier = tier
+        target.partner_status = "active" if tier >= 2 else target.partner_status
+        target.partner_tier_manual = tier >= 2
+        db.commit()
+        track(target.id, "partner_tier_granted", tier=tier)
+    return RedirectResponse("/partner/admin", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -2682,9 +2813,10 @@ async def settings_page(
             {"slot": i, "name": saved_contexts[i].name if i in saved_contexts else "", "text": saved_contexts[i].text if i in saved_contexts else ""}
             for i in range(1, MAX_CONTEXTS_PER_USER + 1)
         ]
-        return account_flag_notice, cancel_at, hk, contexts
+        bal = _partner_balance(user, db)
+        return account_flag_notice, cancel_at, hk, contexts, bal
 
-    account_flag_notice, cancel_at, hk, contexts = await run_in_threadpool(_load_page_data)
+    account_flag_notice, cancel_at, hk, contexts, bal = await run_in_threadpool(_load_page_data)
 
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
@@ -2697,6 +2829,11 @@ async def settings_page(
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
+        "partner_tier": _partner_display_tier(user),
+        "partner_available_pence": bal["available_pence"],
+        "partner_pending_pence": bal["pending_pence"],
+        "partner_lifetime_pence": bal["lifetime_pence"],
+        "tier1_flat_pence": PARTNER_TIER1_FLAT_PENCE,
         "offer_claimed": offer == "claimed" and user.retention_offer_claimed,
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
@@ -3261,7 +3398,9 @@ async def account_delete_confirm(
 @app.get("/billing/checkout")
 def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
     apply_discount = False
-    if plan == "subscription" and user.referred_by_id:
+    # £5 off the referee's first real paid plan — the £10 pack or the £15 subscription (never
+    # the £2 intro). The free-first-session (100%-off intro) is handled inside create_checkout_session.
+    if plan in ("subscription", "sessions_pack") and user.referred_by_id:
         ref = db.query(Referral).filter(Referral.referee_id == user.id).first()
         if ref and ref.status != ReferralStatus.subscribed:
             apply_discount = True

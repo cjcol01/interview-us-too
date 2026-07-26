@@ -13,8 +13,13 @@
         </svg>
         Partner dashboard
       </div>
+      {% if tier_is_flat %}
+      <h1>Tier {{ partner_tier }} partner<br><span>£{{ "%.0f"|format(flat_pence / 100) }} cash per paid referral</span></h1>
+      <p>Earn a flat £{{ "%.0f"|format(flat_pence / 100) }} whenever someone you referred upgrades to a paid plan. Reach {{ tier2_min_paid }} paying referrals to unlock recurring commission ({{ tier2_pct }}%).</p>
+      {% else %}
       <h1>Tier {{ partner_tier }} partner<br><span>Earning {{ rate_pct }}% on every payment</span></h1>
       <p>Commission accrues automatically whenever someone you referred pays — renewals included.</p>
+      {% endif %}
     </div>
 
     <!-- Balances -->
@@ -22,7 +27,7 @@
       <div class="card balance-card">
         <div class="card-label">Available</div>
         <div class="balance-amount">£{{ "%.2f" | format(available_pence / 100) }}</div>
-        <div class="balance-note">Ready to withdraw — cash payouts launching soon.</div>
+        <div class="balance-note">Cleared and ready to withdraw (min £{{ "%.0f"|format(withdrawal_threshold_pence / 100) }}).</div>
       </div>
       <div class="card balance-card">
         <div class="card-label">Pending</div>
@@ -36,13 +41,58 @@
       </div>
     </div>
 
+    <!-- Withdraw -->
+    <div class="card">
+      <div class="card-label">Withdraw</div>
+      {% if withdraw_success %}
+        <div class="feedback success" style="margin-bottom:12px;">&#10003; Withdrawal requested — we'll process your payout shortly.</div>
+      {% endif %}
+      {% if withdraw_error %}
+        <div class="feedback error" style="margin-bottom:12px;">{{ withdraw_error }}</div>
+      {% endif %}
+      {% if can_withdraw %}
+        <p class="progress-copy">Cash out your available balance of <strong>£{{ "%.2f"|format(available_pence / 100) }}</strong> to your bank or PayPal.</p>
+        <form action="/partner/withdraw" method="post" class="withdraw-form">
+          <div class="code-row">
+            <select name="method" class="link-input" required>
+              <option value="bank">Bank transfer</option>
+              <option value="paypal">PayPal</option>
+            </select>
+          </div>
+          <div class="code-row" style="margin-top:10px;">
+            <input class="link-input" type="text" name="destination" placeholder="Sort code + account no, or PayPal email" maxlength="200" autocomplete="off" required>
+            <button class="apply-btn" type="submit">Withdraw</button>
+          </div>
+        </form>
+      {% else %}
+        <p class="progress-copy">You can withdraw once your available balance reaches £{{ "%.0f"|format(withdrawal_threshold_pence / 100) }}. {% if pending_pence %}You have £{{ "%.2f"|format(pending_pence / 100) }} still maturing.{% endif %}</p>
+      {% endif %}
+      {% if withdrawals %}
+      <div class="referral-list" style="margin-top:14px;">
+        {% for w in withdrawals %}
+        <div class="referral-row">
+          <div class="referral-info">
+            <div class="referral-name">£{{ "%.2f"|format(w.amount_pence / 100) }} &middot; {{ w.method | capitalize }}</div>
+            <div class="referral-date">{{ w.date }}</div>
+          </div>
+          <div class="referral-status">
+            <span class="status-pill {{ 'available' if w.status == 'paid' else 'pending' if w.status == 'requested' else 'reversed' }}">{{ w.status | capitalize }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
     <!-- Tier progress -->
     <div class="card">
       <div class="card-label">Tier progress</div>
-      {% if partner_tier >= 2 %}
-        <p class="progress-copy">You've reached Tier 2 — the top rate. You're earning {{ tier2_pct }}% on every payment your referrals make.</p>
+      {% if partner_tier >= 3 %}
+        <p class="progress-copy">You're a Tier 3 partner — the top rate. You earn {{ tier3_pct }}% on every payment your referrals make.</p>
+      {% elif partner_tier >= 2 %}
+        <p class="progress-copy">You've reached Tier 2 — earning {{ tier2_pct }}% on every payment your referrals make. Tier 3 ({{ tier3_pct }}%) is granted to top partners on request.</p>
       {% else %}
-        <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}%).</p>
+        <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}% recurring commission).</p>
         <div class="progress-bar">
           <div class="progress-fill" style="width: {{ (100 * paid_count / tier2_min_paid) | round(0, 'floor') if tier2_min_paid else 0 }}%;"></div>
         </div>
