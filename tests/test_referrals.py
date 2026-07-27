@@ -170,17 +170,22 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
-    # -- /referral page ------------------------------------------------------
+    # -- /referral (legacy redirect into /partner/dashboard) ------------------
 
-    def test_referral_page_requires_auth():
+    def test_referral_page_redirects_to_dashboard():
         r = client.get("/referral", follow_redirects=False)
         assert r.status_code in (302, 307)
-        assert "login" in r.headers.get("location", "")
+        assert "/partner/dashboard" in r.headers.get("location", "")
 
-    def test_referral_page_shows_code():
+    def test_referral_page_forwards_query_string():
+        r = client.get("/referral?ref_success=1", follow_redirects=False)
+        assert r.status_code in (302, 307)
+        assert "/partner/dashboard?ref_success=1" == r.headers.get("location", "")
+
+    def test_partner_dashboard_shows_code():
         token, uname = make_cookie(AccountLevel.trial)
         try:
-            r = client.get("/referral", cookies={"session": token})
+            r = client.get("/partner/dashboard", cookies={"session": token})
             assert r.status_code == 200
             db = SessionLocal()
             try:
@@ -191,16 +196,16 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
-    def test_referral_page_empty_list_for_new_user():
+    def test_partner_dashboard_empty_list_for_new_user():
         token, uname = make_cookie(AccountLevel.trial)
         try:
-            r = client.get("/referral", cookies={"session": token})
+            r = client.get("/partner/dashboard", cookies={"session": token})
             assert r.status_code == 200
             assert "No referrals yet" in r.text
         finally:
             delete_by_name(uname)
 
-    def test_referral_page_shows_referee():
+    def test_partner_dashboard_shows_referee():
         init_db()
         db = SessionLocal()
         referrer = make_user(db, AccountLevel.unlimited)
@@ -212,7 +217,7 @@ def register(test, skip, client):
         try:
             from auth import create_token
             token = create_token(referrer.id)
-            r = client.get("/referral", cookies={"session": token})
+            r = client.get("/partner/dashboard", cookies={"session": token})
             assert r.status_code == 200
             assert referee.username in r.text
         finally:
@@ -284,10 +289,11 @@ def register(test, skip, client):
     test("Register with invalid ref cookie → no referral created",    test_register_with_invalid_ref_cookie_no_referral)
     test("Register with own code creates referral (2nd account)",     test_register_with_others_code_creates_referral)
     test("/referral/apply blocks self-referral",                      test_referral_apply_blocks_self_referral)
-    test("/referral requires auth",                                    test_referral_page_requires_auth)
-    test("/referral shows user's referral code",                       test_referral_page_shows_code)
-    test("/referral shows empty state for new user",                   test_referral_page_empty_list_for_new_user)
-    test("/referral shows referee in list",                            test_referral_page_shows_referee)
+    test("/referral redirects to /partner/dashboard",                  test_referral_page_redirects_to_dashboard)
+    test("/referral forwards its query string on redirect",            test_referral_page_forwards_query_string)
+    test("/partner/dashboard shows user's referral code",               test_partner_dashboard_shows_code)
+    test("/partner/dashboard shows empty state for new user",           test_partner_dashboard_empty_list_for_new_user)
+    test("/partner/dashboard shows referee in list",                    test_partner_dashboard_shows_referee)
     test("Checkout applies discount for referred subscriber",          test_checkout_applies_discount_for_referred_user)
     test("Checkout skips discount for non-referred user",              test_checkout_no_discount_for_non_referred_user)
 

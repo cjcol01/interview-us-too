@@ -63,34 +63,6 @@ def _recompute_partner_tier(partner: User, db: Session) -> None:
         partner.partner_tier = 2
 
 
-def _accrue_flat_referral(referrer: User, referee: User, stripe_ref: str | None, db: Session) -> None:
-    """Tier-1 one-off flat cash reward for a referee's first real paid conversion (£10 pack or
-    £15 sub — never the £2 intro). Fires at most once per referee. Caller commits."""
-    if PARTNER_TIER1_FLAT_PENCE <= 0:
-        return
-    already = db.query(PartnerCommission).filter(
-        PartnerCommission.partner_id == referrer.id,
-        PartnerCommission.referee_id == referee.id,
-        PartnerCommission.kind == "referral_flat",
-    ).first()
-    if already:
-        return
-    now = datetime.utcnow()
-    db.add(PartnerCommission(
-        partner_id=referrer.id,
-        referee_id=referee.id,
-        source_amount_pence=0,
-        rate_bps=0,
-        amount_pence=PARTNER_TIER1_FLAT_PENCE,
-        kind="referral_flat",
-        stripe_ref=stripe_ref,
-        status=CommissionStatus.pending,
-        created_at=now,
-        mature_at=now + timedelta(days=PARTNER_HOLD_DAYS),
-    ))
-    logger.info("[partner] flat referral reward %dp for %s from %s", PARTNER_TIER1_FLAT_PENCE, referrer.email, referee.email)
-
-
 def _accrue_commission(referrer: User, referee: User, amount_pence: int, kind: str, stripe_ref: str | None, db: Session) -> None:
     """Record a partner's commission on a payment made by one of their referees. Idempotent on stripe_ref —
     caller commits."""
@@ -127,14 +99,16 @@ def _accrue_commission(referrer: User, referee: User, amount_pence: int, kind: s
 
 
 def _reward_referrer_on_paid(referrer: User, referee: User, amount_pence: int, kind: str, stripe_ref: str | None, db: Session, accrue_pct: bool = True) -> None:
-    """A referee just made a real paid conversion. Tiers 2/3 earn recurring %; Tier 1 (everyone
-    else) earns a one-off flat reward. `accrue_pct=False` for subscriptions, whose % is accrued
-    per-invoice in _handle_invoice_paid rather than at activation. Caller commits."""
+    """A referee just made a real paid conversion. Tiers 2/3 earn recurring % cash commission;
+    Tier 1 (everyone else) earns a one-off account credit toward their own subscription instead —
+    no cash, no withdrawal. `accrue_pct=False` for subscriptions, whose % is accrued per-invoice in
+    _handle_invoice_paid rather than at activation. Caller commits. Idempotent: callers only reach
+    this once per referee, gated on Referral.sub_credited at the call site."""
     if referrer.partner_tier >= 2 and referrer.partner_status == "active":
         if accrue_pct:
             _accrue_commission(referrer, referee, amount_pence, kind, stripe_ref, db)
-    else:
-        _accrue_flat_referral(referrer, referee, stripe_ref, db)
+    elif PARTNER_TIER1_FLAT_PENCE > 0:
+        _credit_referrer(referrer, PARTNER_TIER1_FLAT_PENCE, f"Referral reward: {referee.email}")
 
 
 def apply_retention_coupon(user: User) -> None:

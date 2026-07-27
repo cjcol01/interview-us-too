@@ -50,8 +50,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_interview_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User, Withdrawal, WithdrawalStatus
@@ -139,6 +139,32 @@ templates.env.globals["APP_VERSION"] = APP_VERSION
 templates.env.globals["DEV_BUILD"] = DEV_BUILD
 SCREENSHOTS_DIR = Path("screenshots")
 
+INTERVIEW_REMINDER_CHECK_SECONDS = 6 * 3600
+
+
+def _send_due_interview_reminders() -> int:
+    """Email anyone whose interview_date is tomorrow and who hasn't been reminded yet.
+    Runs in a thread from the background loop started in lifespan(); also called directly
+    by tests. Returns the number of reminders sent."""
+    db = SessionLocal()
+    try:
+        tomorrow = (datetime.utcnow() + timedelta(days=1)).date()
+        due = db.query(User).filter(
+            User.interview_date == tomorrow,
+            User.interview_reminder_sent == false(),
+        ).all()
+        for u in due:
+            try:
+                send_interview_reminder_email(u.email, u.full_name)
+                u.interview_reminder_sent = True
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception("[interview-reminder] failed to send to user %s", u.id)
+        return len(due)
+    finally:
+        db.close()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -184,9 +210,20 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
         app.state.openai_warmup_task = asyncio.create_task(_warm_openai())
+
+        async def _interview_reminder_loop():
+            while True:
+                try:
+                    await asyncio.to_thread(_send_due_interview_reminders)
+                except Exception:
+                    logger.exception("[interview-reminder] loop iteration failed")
+                await asyncio.sleep(INTERVIEW_REMINDER_CHECK_SECONDS)
+        app.state.interview_reminder_task = asyncio.create_task(_interview_reminder_loop())
     try:
         yield
     finally:
+        if getattr(app.state, "interview_reminder_task", None):
+            app.state.interview_reminder_task.cancel()
         await app.state.redis.aclose()
 
 
@@ -715,7 +752,7 @@ def preview_502():
 def login_page(request: Request, user: Optional[User] = Depends(get_optional_user), next: Optional[str] = None):
     if user:
         return RedirectResponse(next or "/app")
-    return templates.TemplateResponse(request=request, name="login.html", context={"google_enabled": GOOGLE_OAUTH_ENABLED})
+    return templates.TemplateResponse(request=request, name="login.html", context={"google_enabled": GOOGLE_OAUTH_ENABLED, "github_enabled": GITHUB_OAUTH_ENABLED})
 
 
 @app.post("/auth/login")
@@ -959,6 +996,158 @@ async def auth_google_callback(
     return response
 
 
+async def _github_exchange_claims(code: str) -> dict:
+    """Exchanges an OAuth authorization code for the caller's GitHub identity. Split out as
+    its own function (rather than inlined in the callback route) so tests can monkeypatch it
+    instead of hitting GitHub's real API."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "InterviewAce"}
+    async with httpx.AsyncClient(timeout=10) as client:
+        token_resp = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id": GITHUB_CLIENT_ID,
+                "client_secret": GITHUB_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": f"{BASE_URL}/auth/github/callback",
+            },
+            headers={"Accept": "application/json"},
+        )
+        token_resp.raise_for_status()
+        access_token = token_resp.json().get("access_token")
+        if not access_token:
+            raise ValueError("GitHub token exchange returned no access_token")
+
+        auth_headers = {**headers, "Authorization": f"Bearer {access_token}"}
+        user_resp = await client.get("https://api.github.com/user", headers=auth_headers)
+        user_resp.raise_for_status()
+        profile = user_resp.json()
+
+        # The profile's email field is only populated if the user made it public — and GitHub
+        # only lets a public profile email be one already verified for the account. If it's
+        # absent (kept private), fall back to the dedicated emails endpoint (needs the
+        # user:email scope we requested) and use its explicit verified flag instead.
+        email, email_verified = profile.get("email"), bool(profile.get("email"))
+        if not email:
+            emails_resp = await client.get("https://api.github.com/user/emails", headers=auth_headers)
+            emails_resp.raise_for_status()
+            primary = next((e for e in emails_resp.json() if e.get("primary")), None)
+            if primary:
+                email, email_verified = primary["email"], bool(primary.get("verified"))
+
+    return {
+        "sub": str(profile["id"]),
+        "email": email or "",
+        "email_verified": email_verified,
+        "name": profile.get("name") or profile.get("login") or (email.split("@")[0] if email else ""),
+    }
+
+
+@app.get("/auth/github")
+async def auth_github_start(request: Request, next: Optional[str] = None, ref: Optional[str] = Cookie(default=None)):
+    if not GITHUB_OAUTH_ENABLED:
+        raise HTTPException(status_code=404)
+    r = request.app.state.redis
+    state = secrets.token_urlsafe(24)
+    await r.setex(f"oauth:github:{state}", 600, json.dumps({"next": next, "ref": ref}))
+    params = {
+        "client_id": GITHUB_CLIENT_ID,
+        "redirect_uri": f"{BASE_URL}/auth/github/callback",
+        "scope": "read:user user:email",
+        "state": state,
+        "allow_signup": "true",
+    }
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{urlencode(params)}", status_code=302)
+
+
+@app.get("/auth/github/callback")
+async def auth_github_callback(
+    request: Request,
+    db: Session = Depends(get_db),
+    code: Optional[str] = None,
+    state: Optional[str] = None,
+    error: Optional[str] = None,
+):
+    if not GITHUB_OAUTH_ENABLED:
+        raise HTTPException(status_code=404)
+    if error or not code or not state:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    r = request.app.state.redis
+    stashed = await r.get(f"oauth:github:{state}")
+    if not stashed:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    await r.delete(f"oauth:github:{state}")
+    stashed = json.loads(stashed)
+    next_url, ref = stashed.get("next"), stashed.get("ref")
+
+    try:
+        claims = await _github_exchange_claims(code)
+    except Exception:
+        logger.exception("GitHub OAuth token exchange failed")
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    if not claims["email"]:
+        return RedirectResponse("/login?error=oauth_failed", status_code=303)
+
+    def _resolve_user():
+        user = db.query(User).filter(User.github_id == claims["sub"]).first()
+        if user:
+            return user, False
+
+        existing = db.query(User).filter(User.email == claims["email"]).first()
+        if existing:
+            existing.github_id = claims["sub"]
+            if not existing.email_verified:
+                # Same pre-hijacking protection as the Google flow above: GitHub's proof of
+                # ownership wins, and any password already set on the account is invalidated.
+                existing.email_verified = True
+                existing.password_hash = hash_password(secrets.token_urlsafe(32))
+            db.commit()
+            return existing, False
+
+        username = generate_unique_username(db, claims["email"].split("@")[0])
+        new_user = User(
+            username=username,
+            email=claims["email"],
+            full_name=claims["name"],
+            password_hash=hash_password(secrets.token_urlsafe(32)),  # unused — GitHub-only account
+            account_level=AccountLevel.trial,
+            email_verified=True,
+            github_id=claims["sub"],
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+
+        new_user.referral_code = generate_unique_referral_code(db)
+        if ref:
+            referrer = db.query(User).filter(User.referral_code == ref).first()
+            if referrer and referrer.id != new_user.id:
+                new_user.referred_by_id = referrer.id
+                db.add(Referral(referrer_id=referrer.id, referee_id=new_user.id))
+        db.commit()
+        return new_user, True
+
+    user, is_new = await run_in_threadpool(_resolve_user)
+    if not user.is_active:
+        return RedirectResponse("/login?error=account_suspended", status_code=303)
+
+    if is_new:
+        identify(user.id, user.email, user.full_name, user.account_level.value)
+        track(user.id, "signup", referred=bool(ref), method="github")
+    else:
+        user.last_login = datetime.utcnow()
+        db.commit()
+        track(user.id, "login", method="github")
+
+    token = create_token(user.id)
+    response = RedirectResponse(next_url or "/app", status_code=303)
+    response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
+    if ref:
+        response.delete_cookie("ref")
+    return response
+
+
 @app.post("/auth/resend-verification")
 async def resend_verification(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     if user.email_verified:
@@ -1090,6 +1279,7 @@ def index(request: Request, user: User = Depends(require_user)):
         "show_navbar": True,
         "dev_build": DEV_BUILD,
         "replay_seconds": user.replay_seconds,
+        "first_name": (user.full_name or "").split(" ")[0] or "there",
     })
 
 
@@ -1103,7 +1293,41 @@ def welcome_page(request: Request, user: User = Depends(require_user)):
     return templates.TemplateResponse(request=request, name="welcome.html", context={
         **_user_hotkeys(user),
         "dev_build": DEV_BUILD,
+        "first_name": (user.full_name or "").split(" ")[0] or "there",
     })
+
+
+@app.get("/welcome/next")
+def welcome_next_page(request: Request, user: User = Depends(require_user)):
+    if not user.email_verified:
+        return RedirectResponse("/verify-pending")
+    if user.account_level != AccountLevel.trial:
+        return RedirectResponse("/app")
+    track(user.id, "welcome_next_viewed")
+    return templates.TemplateResponse(request=request, name="welcome_next.html", context={
+        "dev_build": DEV_BUILD,
+        "interview_date": user.interview_date.isoformat() if user.interview_date else "",
+    })
+
+
+@app.post("/api/welcome/interview-date")
+def save_interview_date(
+    interview_date: str = Form(""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    interview_date = (interview_date or "").strip()
+    if interview_date:
+        try:
+            parsed = datetime.strptime(interview_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date")
+        if parsed != user.interview_date:
+            user.interview_date = parsed
+            user.interview_reminder_sent = False
+        db.commit()
+        track(user.id, "welcome_interview_date_saved")
+    return {"status": "ok"}
 
 
 @app.get("/onboarding")
@@ -1237,49 +1461,12 @@ def referral_redirect(
 
 
 @app.get("/referral")
-def referral_page(
-    request: Request,
-    user: User = Depends(require_user),
-    db: Session = Depends(get_db),
-    ref_success: Optional[str] = None,
-    ref_error: Optional[str] = None,
-):
-    if not user.referral_code:
-        user.referral_code = generate_unique_referral_code(db)
-        db.commit()
-    referral_rows = (
-        db.query(Referral, User)
-        .join(User, User.id == Referral.referee_id)
-        .filter(Referral.referrer_id == user.id)
-        .order_by(Referral.created_at.desc())
-        .all()
-    )
-    referrals = []
-    for ref_row, referee_user in referral_rows:
-        referrals.append({
-            "referee_name": referee_user.username,
-            "joined_date": f"{ref_row.created_at.day} {ref_row.created_at.strftime('%b %Y')}",
-            "status": ref_row.status.value,
-            "referee_level": referee_user.account_level.value,
-        })
-    bal = _partner_balance(user, db)
-    return templates.TemplateResponse(request=request, name="referral.html", context={
-        "referral_code": user.referral_code,
-        "referrals": referrals,
-        "referral_credit_pence": user.referral_credit_pence,
-        "is_referred": user.referred_by_id is not None,
-        "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
-        "partner_tier": _partner_display_tier(user),
-        "tier1_flat_pence": PARTNER_TIER1_FLAT_PENCE,
-        "available_pence": bal["available_pence"],
-        "pending_pence": bal["pending_pence"],
-        "lifetime_pence": bal["lifetime_pence"],
-        "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
-        "can_withdraw": bal["available_pence"] >= PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
-        "ref_success": ref_success == "1",
-        "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
-        "show_navbar": True,
-    })
+def referral_page(request: Request):
+    """Referral and partner are one flow now, hosted at /partner/dashboard — this route just
+    keeps old bookmarks/emails pointing at /referral working, forwarding any query string
+    (e.g. ref_success/ref_error) so in-flight feedback still shows."""
+    qs = request.url.query
+    return RedirectResponse(f"/partner/dashboard?{qs}" if qs else "/partner/dashboard", status_code=302)
 
 
 def _parse_referral_code(raw: str) -> str:
@@ -1290,6 +1477,16 @@ def _parse_referral_code(raw: str) -> str:
     return raw
 
 
+def _can_apply_referral_code(user: User) -> bool:
+    """A referral code can only be applied before the user's first payment of any kind —
+    once they've paid, there's no unpaid balance left for a code to discount."""
+    return not (
+        user.intro_redeemed
+        or user.sub_invoice_paid
+        or user.account_level in (AccountLevel.paid, AccountLevel.unlimited)
+    )
+
+
 @app.post("/referral/apply")
 def apply_referral_code(
     user: User = Depends(get_current_user),
@@ -1298,12 +1495,12 @@ def apply_referral_code(
     source: str = Form(default="referral"),
 ):
     def redirect(param: str, value: str):
-        base = "/settings" if source == "settings" else "/referral"
+        base = "/settings" if source == "settings" else "/partner/dashboard"
         return RedirectResponse(f"{base}?{param}={value}", status_code=303)
 
     if user.referred_by_id or db.query(Referral).filter(Referral.referee_id == user.id).first():
         return redirect("ref_error", "already_referred")
-    if user.intro_redeemed or user.sub_invoice_paid or user.account_level in (AccountLevel.paid, AccountLevel.unlimited):
+    if not _can_apply_referral_code(user):
         return redirect("ref_error", "already_paid")
     referrer = db.query(User).filter(User.referral_code == _parse_referral_code(code)).first()
     if not referrer:
@@ -1359,24 +1556,38 @@ def _partner_display_tier(user: User) -> int:
     return max(user.partner_tier, 1)
 
 
+_EXAMPLE_MEMBERS = 10
+_EXAMPLE_MONTHS = 6
+
+
 @app.get("/partner")
 def partner_page(
     request: Request,
     user: User = Depends(require_user),
     db: Session = Depends(get_db),
-    joined: str = Query(default=""),
 ):
-    signup_count, paid_count = _partner_counts(user, db)
+    _signup_count, paid_count = _partner_counts(user, db)
+    # Illustrative example on the tier table: Tier 1's reward is a one-off per referral (so
+    # duration doesn't change its total); Tiers 2/3 compound with every monthly renewal.
+    monthly_price = STRIPE_SUB_PRICE_PENCE
+    example_tier1_pence = _EXAMPLE_MEMBERS * PARTNER_TIER1_FLAT_PENCE
+    example_tier2_pence = _EXAMPLE_MEMBERS * _EXAMPLE_MONTHS * (monthly_price * PARTNER_TIER2_BPS // 10000)
+    example_tier3_pence = _EXAMPLE_MEMBERS * _EXAMPLE_MONTHS * (monthly_price * PARTNER_TIER3_BPS // 10000)
     return templates.TemplateResponse(request=request, name="partner.html", context={
         "user_email": user.email,
         "partner_tier": _partner_display_tier(user),
-        "signup_count": signup_count,
         "paid_count": paid_count,
         "tier2_min_paid": PARTNER_TIER2_MIN_PAID,
         "tier1_flat_pence": PARTNER_TIER1_FLAT_PENCE,
         "tier2_pct": PARTNER_TIER2_BPS // 100,
         "tier3_pct": PARTNER_TIER3_BPS // 100,
         "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
+        "example_members": _EXAMPLE_MEMBERS,
+        "example_months": _EXAMPLE_MONTHS,
+        "example_tier1_pence": example_tier1_pence,
+        "example_tier2_pence": example_tier2_pence,
+        "example_tier3_pence": example_tier3_pence,
+        "sub_price_pence": monthly_price,
         "show_navbar": True,
     })
 
@@ -1429,29 +1640,6 @@ def icons_compare_page(request: Request):
     return templates.TemplateResponse(request=request, name="icons_compare.html", context={})
 
 
-@app.post("/partner/waitlist")
-def partner_waitlist(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    if not user.partner_waitlist:
-        user.partner_waitlist = True
-        db.commit()
-        track(user.id, "partner_waitlist_joined")
-    return RedirectResponse("/partner?joined=1", status_code=303)
-
-
-@app.post("/partner/join")
-def partner_join(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    # Tier 1 is automatic for every user now, so there's nothing to "join" — this just takes
-    # the user to their partner dashboard. (Tier 2/3 upgrades happen automatically at
-    # PARTNER_TIER2_MIN_PAID paid referrals, or are granted manually by an admin.)
-    return RedirectResponse("/partner/dashboard", status_code=303)
-
-
 @app.get("/partner/dashboard")
 def partner_dashboard(
     request: Request,
@@ -1459,6 +1647,8 @@ def partner_dashboard(
     db: Session = Depends(get_db),
     withdraw_error: Optional[str] = None,
     withdraw_success: Optional[str] = None,
+    ref_success: Optional[str] = None,
+    ref_error: Optional[str] = None,
 ):
     # Everyone is a partner now (Tier 1 is automatic), so no eligibility gate.
     if not user.referral_code:
@@ -1467,6 +1657,22 @@ def partner_dashboard(
 
     signup_count, paid_count = _partner_counts(user, db)
     display_tier = _partner_display_tier(user)
+
+    referral_rows = (
+        db.query(Referral, User)
+        .join(User, User.id == Referral.referee_id)
+        .filter(Referral.referrer_id == user.id)
+        .order_by(Referral.created_at.desc())
+        .all()
+    )
+    referrals = []
+    for ref_row, referee_user in referral_rows:
+        referrals.append({
+            "referee_name": referee_user.username,
+            "joined_date": f"{ref_row.created_at.day} {ref_row.created_at.strftime('%b %Y')}",
+            "status": ref_row.status.value,
+            "referee_level": referee_user.account_level.value,
+        })
 
     commission_rows = (
         db.query(PartnerCommission, User)
@@ -1516,12 +1722,19 @@ def partner_dashboard(
         "pending_pence": bal["pending_pence"],
         "available_pence": bal["available_pence"],
         "lifetime_pence": bal["lifetime_pence"],
+        "referral_credit_pence": user.referral_credit_pence,
+        "is_referred": user.referred_by_id is not None,
+        "can_apply_referral": _can_apply_referral_code(user),
+        "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
+        "referrals": referrals,
         "commissions": commissions,
         "withdrawals": withdrawals,
         "withdrawal_threshold_pence": PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
-        "can_withdraw": bal["available_pence"] >= PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
+        "can_withdraw": display_tier >= 2 and bal["available_pence"] >= PARTNER_WITHDRAWAL_THRESHOLD_PENCE,
         "withdraw_error": _WITHDRAW_ERROR_MESSAGES.get(withdraw_error),
         "withdraw_success": withdraw_success == "1",
+        "ref_success": ref_success == "1",
+        "error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "show_navbar": True,
     })
 
@@ -1530,6 +1743,7 @@ _WITHDRAW_ERROR_MESSAGES = {
     "below_threshold": "You need at least the minimum balance before you can withdraw.",
     "missing_details": "Please choose a method and enter your payout details.",
     "bad_method": "Please choose a valid payout method.",
+    "not_eligible": "Cash withdrawals unlock at Tier 2.",
 }
 
 
@@ -1540,6 +1754,9 @@ def partner_withdraw(
     method: str = Form(...),
     destination: str = Form(...),
 ):
+    # Tier 1's reward is account credit, not cash — withdrawals only unlock at Tier 2 (%-commission).
+    if _partner_display_tier(user) < 2:
+        return RedirectResponse("/partner/dashboard?withdraw_error=not_eligible", status_code=303)
     if method not in ("bank", "paypal"):
         return RedirectResponse("/partner/dashboard?withdraw_error=bad_method", status_code=303)
     if not destination.strip():
@@ -2826,6 +3043,7 @@ async def settings_page(
         "base_url": BASE_URL,
         "sub_cancel_at": cancel_at,
         "is_referred": user.referred_by_id is not None,
+        "can_apply_referral": _can_apply_referral_code(user),
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
@@ -3547,6 +3765,10 @@ if __name__ == "__main__":
         uvicorn.run(
             "server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True,
             reload_excludes=["screenshots/*", "*.db", "*.db-*", "__pycache__/*", "*.pyc"],
+            # Without this, reload hangs forever on "Waiting for connections to close" if a
+            # browser tab has the dashboard's /stream SSE connection open — that connection
+            # never closes on its own, and uvicorn's default graceful shutdown has no timeout.
+            timeout_graceful_shutdown=3,
         )
     else:
         uvicorn.run(app, host=SERVER_HOST, port=SERVER_PORT)

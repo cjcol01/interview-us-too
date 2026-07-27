@@ -52,11 +52,7 @@ function dismissAnnouncement(id) {
     {% if user %}
     <a href="/app" class="navbar-link{% if request.url.path == '/app' %} active{% endif %}">Monitor</a>
     <a href="/settings" class="navbar-link{% if request.url.path == '/settings' %} active{% endif %}">Settings{% if unseen_account_flag %}<span class="navbar-flag-dot" aria-label="Account notice" title="Account notice"></span>{% endif %}</a>
-    {% if user.partner_status == 'active' %}
-    <a href="/partner/dashboard" class="navbar-link{% if request.url.path == '/partner/dashboard' %} active{% endif %}">Partner</a>
-    {% else %}
-    <a href="/referral" class="navbar-link{% if request.url.path == '/referral' %} active{% endif %}">Referral</a>
-    {% endif %}
+    <a href="/partner" class="navbar-link{% if request.url.path.startswith('/partner') %} active{% endif %}">Partner</a>
     <a href="/faq" class="navbar-link{% if request.url.path == '/faq' %} active{% endif %}">FAQ</a>
     <a href="/support" class="navbar-link{% if request.url.path == '/support' %} active{% endif %}">Support</a>
     {% if account_level != 'unlimited' %}

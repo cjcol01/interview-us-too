@@ -36,6 +36,7 @@ class User(Base):
     stripe_sub_id      = Column(String, nullable=True, unique=True)
     api_token          = Column(String, nullable=True, unique=True)
     google_id          = Column(String, nullable=True, unique=True, index=True)
+    github_id          = Column(String, nullable=True, unique=True, index=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
     verify_token       = Column(String, nullable=True, index=True)
     reset_token        = Column(String, nullable=True, index=True)
@@ -61,13 +62,14 @@ class User(Base):
     sub_trial_used     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
-    partner_waitlist        = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active (active = upgraded to a %-commission tier)
     partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0/1 = implicit flat Tier 1 | 2 = 15% | 3 = 25%
     partner_tier_manual = Column(Boolean, default=False, nullable=False, server_default="0")  # admin-granted tier — sticky, never auto-downgraded
     active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (if any) is sent to the AI
     account_flag        = Column(String, nullable=True)  # e.g. "paused" — set by admin actions, cleared once seen
     account_flag_seen   = Column(Boolean, default=True, nullable=False, server_default="1")
+    interview_date         = Column(Date, nullable=True)  # user-supplied date of their real interview, for the day-before reminder email
+    interview_reminder_sent = Column(Boolean, default=False, nullable=False, server_default="0")
 
 
 class InterviewContext(Base):

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Welcome — InterviewAce{% endblock %}
+{% block head %}
+  <link rel="stylesheet" href="/css/onboarding.css">
+{% endblock %}
+{% block content %}
+  <header class="ob-header">
+    <a class="ob-logo" href="/">
+      <span class="ob-logo-dot"></span>InterviewAce
+    </a>
+    <a href="/onboarding" class="ob-skip">Skip for now</a>
+  </header>
+
+  <main class="ob-main wn-main">
+    <div class="wn-layout">
+      <div class="wn-hero">
+        <div class="wn-kicker"><span class="wn-kicker-num">02</span> &middot; Last question</div>
+        <h1 class="wn-heading">So — when's<br>the real one?</h1>
+        <p class="wn-sub">Give us a day and we'll have your app set up, tested and ready for you.</p>
+
+        <div class="wn-pills" id="wn-pills">
+          <button type="button" class="wn-pill" data-choice="tomorrow">Tomorrow</button>
+          <button type="button" class="wn-pill" data-choice="soon">this week</button>
+          <button type="button" class="wn-pill" data-choice="next_week">Next week</button>
+          <button type="button" class="wn-pill" data-choice="custom">Pick a date</button>
+          <button type="button" class="wn-pill wn-pill-muted" data-choice="unknown">Still looking</button>
+        </div>
+        <input type="date" id="wn-date-input" class="wn-date-input" style="display:none;">
+
+        <div class="wn-done-row">
+          <button class="wn-done-btn" id="wn-done-btn" onclick="wnDone()">Done — take me in</button>
+          <p class="wn-done-caption">One email the evening before. Change it any time.</p>
+        </div>
+      </div>
+
+      <div class="wn-avoid">
+        <h2>What we don't do</h2>
+        <div class="wn-avoid-list">
+          <div class="wn-avoid-item">
+            <span class="wn-avoid-label">Invent your experience</span>
+            <p>Every answer is built from your CV and the context you gave us.</p>
+          </div>
+          <div class="wn-avoid-item">
+            <span class="wn-avoid-label">Talk for you</span>
+            <p>You still say it, in your words. We hand you the thread you'd have found anyway.</p>
+          </div>
+          <div class="wn-avoid-item">
+            <span class="wn-avoid-label">Nag you</span>
+            <p>One email — tied to your date, or one in a week if you're still looking. Then we stay quiet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      const pills = document.querySelectorAll('.wn-pill');
+      const soonPill = document.querySelector('[data-choice="soon"]');
+      const customPill = document.querySelector('[data-choice="custom"]');
+      const dateInput = document.getElementById('wn-date-input');
+      let _selected = null;
+
+      function fmtShort(d) {
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+      function addDays(n) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + n);
+        return d;
+      }
+      function toISO(d) {
+        const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+      function selectPill(pill) {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+      }
+
+      // Quick picks read left-to-right as an increasing offset from today, each pill
+      // showing the real date it sets so there's no guessing what a click does.
+      document.querySelector('[data-choice="soon"]').textContent = fmtShort(addDays(2));
+      document.querySelector('[data-choice="next_week"]').textContent = fmtShort(addDays(7));
+
+      pills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          const choice = pill.dataset.choice;
+          if (choice === 'custom') {
+            dateInput.style.display = 'block';
+            dateInput.min = toISO(addDays(0));
+            if (dateInput.showPicker) { try { dateInput.showPicker(); } catch {} }
+            dateInput.focus();
+            return;
+          }
+          dateInput.style.display = 'none';
+          if (choice === 'tomorrow') _selected = addDays(1);
+          else if (choice === 'soon') _selected = addDays(2);
+          else if (choice === 'next_week') _selected = addDays(7);
+          else if (choice === 'unknown') _selected = addDays(7); // no date yet — check back in with them in a week instead of going quiet
+          selectPill(pill);
+        });
+      });
+
+      dateInput.addEventListener('change', () => {
+        if (!dateInput.value) return;
+        _selected = new Date(dateInput.value + 'T00:00:00');
+        customPill.textContent = fmtShort(_selected);
+        selectPill(customPill);
+      });
+
+      const existing = {{ interview_date | tojson }};
+      if (existing) {
+        _selected = new Date(existing + 'T00:00:00');
+        dateInput.value = existing;
+        customPill.textContent = fmtShort(_selected);
+        selectPill(customPill);
+      } else {
+        // Default to the day-after-tomorrow pick so the row never looks like nothing's chosen.
+        _selected = addDays(2);
+        selectPill(soonPill);
+      }
+
+      window.wnDone = async function () {
+        const btn = document.getElementById('wn-done-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        try {
+          if (_selected) {
+            await fetch('/api/welcome/interview-date', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: 'interview_date=' + encodeURIComponent(toISO(_selected)),
+            });
+          }
+        } catch {}
+        window.location.href = '/onboarding';
+      };
+    })();
+  </script>
+{% endblock %}

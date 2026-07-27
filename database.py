@@ -79,7 +79,6 @@ def init_db():
             ("sub_trial_used",         "BOOLEAN DEFAULT 0"),
             ("sub_invoice_paid",       "BOOLEAN DEFAULT 0"),
             ("retention_offer_claimed","BOOLEAN DEFAULT 0"),
-            ("partner_waitlist",       "BOOLEAN DEFAULT 0"),
             ("partner_status",         "VARCHAR DEFAULT 'none'"),
             ("partner_tier",           "INTEGER DEFAULT 0"),
             ("partner_tier_manual",    "BOOLEAN DEFAULT 0"),
@@ -89,7 +88,10 @@ def init_db():
             ("account_flag",           "VARCHAR"),
             ("account_flag_seen",      "BOOLEAN DEFAULT 1"),
             ("google_id",              "VARCHAR"),
+            ("github_id",              "VARCHAR"),
             ("welcome_seen",            "BOOLEAN DEFAULT 0"),
+            ("interview_date",          "DATE"),
+            ("interview_reminder_sent", "BOOLEAN DEFAULT 0"),
         ]
         welcome_seen_is_new = "welcome_seen" not in existing
         for col, definition in migrations:
@@ -105,6 +107,7 @@ def init_db():
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_verify_token ON users(verify_token)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_reset_token ON users(reset_token)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users(google_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_github_id ON users(github_id)"))
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:

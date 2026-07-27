@@ -19,7 +19,7 @@
         </div>
         <div class="mi-lobby-panel">
           <div class="mi-kicker"><span class="mi-kicker-num">01</span> &middot; Practice interview</div>
-          <h2>Ready to join?</h2>
+          <h2>Ready to join{% if first_name %}, {{ first_name }}{% endif %}?</h2>
           <p class="mi-gr-sub">A short simulated call — see exactly how InterviewAce works in a real interview. Nothing here is recorded, and it won't touch your trial time.</p>
           <div class="mi-gr-checklist">
             <div class="mi-gr-item"><span class="mi-gr-item-icon">🎬</span><span>This is a walkthrough, not a live call — no camera, microphone, or real interviewer involved.</span></div>
@@ -171,6 +171,13 @@
                   <span class="mi-answer-label">Answer &middot; via <span id="mi-answer-via"></span></span>
                   <span class="mi-answer-status" id="mi-answer-status">private</span>
                 </div>
+                <p class="mi-style-toast" id="mi-style-toast">Not the length or style you want? switch your response style any time and every answer adapts.</p>
+                <div class="mi-style-switch" id="mi-style-switch">
+                  <button type="button" class="mi-style-pill" data-style="one_liner">1-liner</button>
+                  <button type="button" class="mi-style-pill active" data-style="conversational">Convo</button>
+                  <button type="button" class="mi-style-pill" data-style="bullets">Bullets</button>
+                  <button type="button" class="mi-style-pill" data-style="summary">Summary</button>
+                </div>
                 <div class="mi-answer-transcription" id="mi-answer-transcription">
                   <div class="mi-answer-transcription-label" id="mi-answer-transcription-label">You said</div>
                   <div id="mi-answer-transcription-text"></div>
@@ -191,7 +198,7 @@
         <div class="mi-done-header">
           <span class="mi-done-check" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
           <div>
-            <h3 class="mi-done-title">That's the whole loop.</h3>
+            <h3 class="mi-done-title">That's the whole loop{% if first_name %}, {{ first_name }}{% endif %}.</h3>
             <p class="mi-done-sub">Four ways to get an answer — private, instant, and invisible to the interviewer.</p>
           </div>
         </div>

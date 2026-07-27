@@ -89,11 +89,11 @@ def main():
             sub_invoice_paid=True, partner_status="active", partner_tier=2,
         )
         make_user(
-            db, username="dummy_partner_waitlist", email="dummy.partnerwaitlist@example.test",
-            full_name="Wesley Waitlist", account_level=AccountLevel.unlimited,
+            db, username="dummy_partner_credit", email="dummy.partnercredit@example.test",
+            full_name="Wesley Tier1", account_level=AccountLevel.unlimited,
             created_days_ago=20, last_login_days_ago=2,
-            stripe_customer_id="cus_dummy_partnerwl", stripe_sub_id="sub_dummy_partnerwl",
-            sub_invoice_paid=True, partner_waitlist=True,
+            stripe_customer_id="cus_dummy_partnercredit", stripe_sub_id="sub_dummy_partnercredit",
+            sub_invoice_paid=True, referral_credit_pence=500,
         )
 
         # --- Free ---

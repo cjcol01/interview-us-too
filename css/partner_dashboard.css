@@ -153,6 +153,93 @@ main {
   transform: none;
 }
 
+/* Share pills */
+.share-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color .15s, color .15s;
+}
+.share-btn:hover { border-color: var(--accent); color: var(--text-1); }
+
+.link-card-note { font-size: 12.5px; color: var(--text-3); line-height: 1.6; margin-top: 12px; }
+
+/* ── Credit earned (Tier 1) ── */
+.credit-card { text-align: center; }
+.credit-card .balance-amount { font-size: 2rem; }
+
+/* ── Enter a code ── */
+.code-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+.code-input {
+  flex: 1;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 11px 14px;
+  color: var(--text-1);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  outline: none;
+  transition: border-color .15s;
+}
+.code-input:focus { border-color: var(--accent); }
+.code-input::placeholder { color: var(--text-3); letter-spacing: 0; font-family: 'Hanken Grotesk', sans-serif; }
+
+.apply-btn {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 11px 18px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  white-space: nowrap;
+}
+.apply-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(255,255,255,.14); }
+
+.feedback {
+  margin-top: 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+.feedback.success {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+.feedback.error {
+  background: rgba(224,106,106,.08);
+  border: 1px solid rgba(224,106,106,.25);
+  color: var(--danger);
+}
+
+.already-referred { font-size: 13px; color: var(--text-2); line-height: 1.6; padding: 6px 0; }
+
 /* ── Commissions tracker ── */
 .tracker-card { padding: 0; overflow: visible; }
 .tracker-header {
@@ -210,6 +297,17 @@ main {
   background: rgba(224,106,106,.08);
   border: 1px solid rgba(224,106,106,.25);
   color: var(--danger);
+}
+.status-pill.credited,
+.status-pill.subscribed {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+.status-pill.trialing {
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.25);
+  color: #fbbf24;
 }
 
 .referral-amount { font-size: 13px; font-weight: 600; color: var(--accent); }

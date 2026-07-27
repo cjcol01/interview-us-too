@@ -356,6 +356,39 @@ def send_low_sessions_email(to_email: str, sessions_remaining: int) -> None:
         record_email_failure()
 
 
+def send_interview_reminder_email(to_email: str, full_name: str) -> None:
+    logger.info("[email] interview reminder sent to %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    first_name = (full_name or "").split(" ")[0] or "there"
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your interview is tomorrow",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Good luck tomorrow, {first_name}</h2>
+              <p style="margin:0 0 16px;color:#4a4a5e;line-height:1.6;">
+                Quick setup check before you go in: make sure the extension is installed, connected,
+                and your phone or second device is signed in and propped up where you can glance at it.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                <a href="{BASE_URL}/settings" style="color:#1a1a2e;">Check your setup</a>
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                This is the only reminder you'll get from us about this interview. Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send interview reminder: %s", e)
+        record_email_failure()
+
+
 def send_announcement_email(to_email: str, subject: str, body: str) -> None:
     """Admin-authored announcement — body is plain text, wrapped in the standard shell.
     Newlines are preserved as line breaks; no other formatting is assumed."""

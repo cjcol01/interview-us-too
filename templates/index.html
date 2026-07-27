@@ -503,6 +503,7 @@
       replay:  '{{ replay }}',
       typing:  '{{ typing }}',
     };
+    window.MI_FIRST_NAME = {{ first_name | tojson }};
     window.MI_FIRST_RUN_CTA_LABEL = 'Start my trial →';
     window.MI_ON_FIRST_RUN_FINISH = function () {
       localStorage.setItem(_tutorialKey, '1');

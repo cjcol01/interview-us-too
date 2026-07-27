@@ -90,57 +90,17 @@
       margin-bottom: 16px;
     }
 
-    /* ── Benefits grid ── */
-    .benefits-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-    @media (max-width: 480px) { .benefits-grid { grid-template-columns: 1fr; } }
-
-    .benefit-item {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: border-color 0.15s;
-    }
-    .benefit-item:hover { border-color: rgba(108,99,255,0.3); }
-
-    .benefit-icon {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      background: rgba(108,99,255,0.1);
-      border: 1px solid rgba(108,99,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #a78bfa;
-    }
-
-    .benefit-item h3 {
-      font-size: 0.88rem;
-      font-weight: 700;
-    }
-
-    .benefit-item p {
-      font-size: 0.79rem;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
     /* ── Compare table ── */
     .compare-card { padding: 0; overflow: hidden; }
     .compare-card .card-label { padding: 16px 20px 0; margin-bottom: 12px; }
 
-    .compare-table { display: flex; flex-direction: column; }
+    .tier-table-wrap { overflow-x: auto; }
+
+    .compare-table { display: flex; flex-direction: column; min-width: 460px; }
 
     .compare-row {
       display: grid;
-      grid-template-columns: 1fr 110px 110px;
+      grid-template-columns: 1.3fr 1fr 1fr 1fr;
       padding: 11px 20px;
       border-top: 1px solid var(--border);
       align-items: center;
@@ -164,6 +124,7 @@
       font-size: 0.82rem;
       color: var(--text);
     }
+    .compare-feature--tip { display: flex; align-items: center; gap: 5px; }
 
     .compare-val {
       font-size: 0.82rem;
@@ -172,41 +133,34 @@
     }
     .compare-val.muted { color: var(--muted); }
     .compare-val.accent { color: var(--accent2); }
+    .compare-val a { color: inherit; }
 
-    /* ── Tiers ── */
-    .tier-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
+    .info-tip {
+      position: relative;
+      display: inline-flex;
+      color: var(--muted);
+      cursor: help;
+      outline: none;
     }
-    @media (max-width: 480px) { .tier-grid { grid-template-columns: 1fr; } }
-
-    .tier-item {
-      background: var(--bg);
+    .info-tip-bubble {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: 220px;
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 16px;
-      transition: border-color 0.15s;
-    }
-    .tier-item.current {
-      border-color: rgba(108,99,255,0.4);
-      background: linear-gradient(160deg, rgba(108,99,255,0.08), var(--bg));
-    }
-    .tier-name {
+      padding: 10px 12px;
       font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      font-weight: 400;
       color: var(--muted);
-      margin-bottom: 4px;
+      line-height: 1.5;
+      text-align: left;
+      box-shadow: 0 4px 20px rgba(0,0,0,.4);
+      z-index: 10;
     }
-    .tier-rate {
-      font-size: 1.4rem;
-      font-weight: 800;
-      color: var(--accent2);
-      margin-bottom: 8px;
-    }
-    .tier-item p { font-size: 0.79rem; color: var(--muted); line-height: 1.6; }
+    .info-tip:hover .info-tip-bubble, .info-tip:focus .info-tip-bubble { display: block; }
 
     /* ── Progress bar ── */
     .progress-bar {

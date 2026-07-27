@@ -813,6 +813,39 @@
 .mi-answer-body pre code.hljs { font-size: 12px; line-height: 1.7; border-radius: 10px; padding: 13px 14px; display: block; color: #D4D4D4; }
 .mi-answer-body code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(198,242,78,0.08); color: #C6F24E; padding: 1px 5px; border-radius: 3px; }
 
+/* Response-style switcher: kept to one compact pill row so it doesn't crowd the phone —
+   explained once via .mi-style-toast rather than a permanent label taking up space. */
+.mi-style-toast {
+  display: none;
+  font-size: 11px;
+  line-height: 1.45;
+  color: #ECECEE;
+  background: rgba(198,242,78,0.08);
+  border: 1px solid rgba(198,242,78,0.28);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin: 0 0 10px;
+}
+.mi-style-toast.active { display: block; animation: mi-fade .25s ease; }
+.mi-style-switch { display: flex; gap: 6px; margin: 0 0 12px; }
+.mi-style-pill {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: #9C9CA6;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.mi-style-pill:hover { border-color: rgba(255,255,255,0.22); color: #ECECEE; }
+.mi-style-pill.active { background: rgba(198,242,78,0.12); border-color: rgba(198,242,78,0.4); color: #C6F24E; }
+/* Once the reply's been relayed to the interviewer, restyling this answer no longer makes
+   sense — see miLockStyleSwitch in mock_interview.js. */
+.mi-style-switch.mi-style-locked { opacity: .35; pointer-events: none; }
+
 .mi-sending { display: flex; align-items: center; gap: 10px; padding: 2px 0; }
 .mi-sending-dot { width: 8px; height: 8px; border-radius: 50%; background: #E0A96A; animation: mi-pulse 0.9s ease-in-out infinite; flex-shrink: 0; }
 @media (prefers-reduced-motion: reduce) { .mi-sending-dot { animation: none; } }

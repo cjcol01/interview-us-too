@@ -15,81 +15,79 @@
         Partner programme
       </div>
       <h1>Refer more.<br><span>Earn more.</span></h1>
-      <p>Every member earns £{{ "%.0f"|format(tier1_flat_pence / 100) }} cash per paid referral from day one. Refer enough and you unlock recurring commission — {{ tier2_pct }}% or {{ tier3_pct }}% of everything your referrals pay us, ongoing. Withdraw as cash to your bank or PayPal once you reach £{{ "%.0f"|format(withdrawal_threshold_pence / 100) }}.</p>
+      <p>Every member earns £{{ "%.0f"|format(tier1_flat_pence / 100) }} credit toward their own subscription for every referral who upgrades to a paid plan. Refer enough and you unlock recurring cash commission — {{ tier2_pct }}% or {{ tier3_pct }}% of everything your referrals pay us, ongoing — withdrawable to your bank or PayPal once your balance reaches £{{ "%.0f"|format(withdrawal_threshold_pence / 100) }}.</p>
     </div>
 
     <div class="joined-banner">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>
       {% if partner_tier >= 3 %}
-        You're a Tier 3 partner, earning {{ tier3_pct }}% on every payment your referrals make.
+        You're a Tier 3 partner, earning {{ tier3_pct }}% cash on every payment your referrals make.
       {% elif partner_tier >= 2 %}
-        You're a Tier 2 partner, earning {{ tier2_pct }}% on every payment your referrals make.
+        You're a Tier 2 partner, earning {{ tier2_pct }}% cash on every payment your referrals make.
       {% else %}
-        You're a Tier 1 partner, earning £{{ "%.0f"|format(tier1_flat_pence / 100) }} cash on every paid referral.
+        You're a Tier 1 member, earning £{{ "%.0f"|format(tier1_flat_pence / 100) }} account credit on every paid referral.
       {% endif %}
     </div>
 
-    <!-- Benefits -->
-    <div class="card">
-      <div class="card-label">What you get</div>
-      <div class="benefits-grid">
-        <div class="benefit-item">
-          <div class="benefit-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
+    <!-- Tier comparison -->
+    <div class="card compare-card">
+      <div class="card-label">Compare tiers</div>
+      <div class="tier-table-wrap">
+        <div class="compare-table">
+          <div class="compare-row compare-header">
+            <div></div>
+            <div class="compare-col-label{% if partner_tier == 1 %} highlight{% endif %}">Tier 1</div>
+            <div class="compare-col-label{% if partner_tier == 2 %} highlight{% endif %}">Tier 2</div>
+            <div class="compare-col-label{% if partner_tier >= 3 %} highlight{% endif %}">Tier 3</div>
           </div>
-          <h3>Cash rewards</h3>
-          <p>£{{ "%.0f"|format(tier1_flat_pence / 100) }} for every referral who upgrades to a paid plan — Tiers 2 and 3 earn {{ tier2_pct }}%&ndash;{{ tier3_pct }}% of every payment instead, renewals included.</p>
-        </div>
-        <div class="benefit-item">
-          <div class="benefit-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-            </svg>
+          <div class="compare-row">
+            <div class="compare-feature">Reward per paid referral</div>
+            <div class="compare-val accent">£{{ "%.0f"|format(tier1_flat_pence / 100) }}</div>
+            <div class="compare-val accent">{{ tier2_pct }}%</div>
+            <div class="compare-val accent">{{ tier3_pct }}%</div>
           </div>
-          <h3>Cash withdrawals</h3>
-          <p>Withdraw your balance to your bank or PayPal once it reaches £{{ "%.0f"|format(withdrawal_threshold_pence / 100) }}. No account credit — real money.</p>
-        </div>
-        <div class="benefit-item">
-          <div class="benefit-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
+          <div class="compare-row">
+            <div class="compare-feature compare-feature--tip">
+              {{ example_members }} referrals, {{ example_months }} months
+              <span class="info-tip" tabindex="0">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="11"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span class="info-tip-bubble">Tier 1 is a one-off per referral, so it doesn't grow with time. Tiers 2 and 3 compound with every renewal. Assumes the £{{ "%.0f"|format(sub_price_pence / 100) }}/month plan.</span>
+              </span>
+            </div>
+            <div class="compare-val accent">£{{ "%.0f"|format(example_tier1_pence / 100) }}</div>
+            <div class="compare-val accent">£{{ "%.0f"|format(example_tier2_pence / 100) }}</div>
+            <div class="compare-val accent">£{{ "%.0f"|format(example_tier3_pence / 100) }}</div>
           </div>
-          <h3>Dedicated support</h3>
-          <p>A direct line to the team. Priority help, early access to new features, and input on the roadmap.</p>
-        </div>
-        <div class="benefit-item">
-          <div class="benefit-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
+          <div class="compare-row">
+            <div class="compare-feature">Reward type</div>
+            <div class="compare-val">Account credit</div>
+            <div class="compare-val">Cash or Credit</div>
+            <div class="compare-val">Cash or Credit</div>
           </div>
-          <h3>Partner badge</h3>
-          <p>Recognition on your profile and exclusive partner materials to share with your network.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tiers -->
-    <div class="card">
-      <div class="card-label">The three tiers</div>
-      <div class="tier-grid">
-        <div class="tier-item{% if partner_tier == 1 %} current{% endif %}">
-          <div class="tier-name">Tier 1</div>
-          <div class="tier-rate">£{{ "%.0f"|format(tier1_flat_pence / 100) }}</div>
-          <p>Flat cash per paid referral. Automatic for every member — nothing to unlock.</p>
-        </div>
-        <div class="tier-item{% if partner_tier == 2 %} current{% endif %}">
-          <div class="tier-name">Tier 2</div>
-          <div class="tier-rate">{{ tier2_pct }}%</div>
-          <p>Recurring commission on every payment. Unlocks automatically at {{ tier2_min_paid }} paying referrals.</p>
-        </div>
-        <div class="tier-item{% if partner_tier >= 3 %} current{% endif %}">
-          <div class="tier-name">Tier 3</div>
-          <div class="tier-rate">{{ tier3_pct }}%</div>
-          <p>Our top recurring rate, granted to standout partners. <a href="mailto:support@interviewace.co">Get in touch</a> to apply.</p>
+          <div class="compare-row">
+            <div class="compare-feature">Recurring on renewals</div>
+            <div class="compare-val muted">&ndash;</div>
+            <div class="compare-val">&check;</div>
+            <div class="compare-val">&check;</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Cash withdrawals</div>
+            <div class="compare-val muted">&ndash;</div>
+            <div class="compare-val">&check;</div>
+            <div class="compare-val">&check;</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">Dedicated support</div>
+            <div class="compare-val muted">&ndash;</div>
+            <div class="compare-val">&check;</div>
+            <div class="compare-val">&check;</div>
+          </div>
+          <div class="compare-row">
+            <div class="compare-feature">How to unlock</div>
+            <div class="compare-val muted">Automatic</div>
+            <div class="compare-val muted">{{ tier2_min_paid }} paid referrals</div>
+            <div class="compare-val muted"><a href="mailto:support@interviewace.co">Get in touch</a></div>
+          </div>
         </div>
       </div>
     </div>
@@ -100,24 +98,24 @@
       <div class="waitlist-content">
         <h2>You're earning commission</h2>
         <p>Track your commissions, balance and withdrawals on your partner dashboard.</p>
-        <a class="waitlist-btn" href="/partner/dashboard" style="text-decoration:none;display:inline-block;">View dashboard</a>
+        <a class="waitlist-btn" href="/partner/dashboard" style="text-decoration:none;display:inline-block;">Go to your dashboard</a>
       </div>
     </div>
     {% else %}
     <div class="card waitlist-card">
       <div class="waitlist-content">
         <h2>On your way to Tier 2</h2>
-        <p>You've had <strong>{{ paid_count }} of {{ tier2_min_paid }}</strong> referrals become paying customers. Reach {{ tier2_min_paid }} to unlock {{ tier2_pct }}% recurring commission.</p>
+        <p>You've had <strong>{{ paid_count }} of {{ tier2_min_paid }}</strong> referrals become paying customers. Reach {{ tier2_min_paid }} to unlock {{ tier2_pct }}% recurring cash commission.</p>
         <div class="progress-bar">
           <div class="progress-fill" style="width: {{ (100 * paid_count / tier2_min_paid) | round(0, 'floor') if tier2_min_paid else 0 }}%;"></div>
         </div>
-        <a class="waitlist-btn" href="/partner/dashboard" style="text-decoration:none;display:inline-block;">View your dashboard</a>
+        <a class="waitlist-btn" href="/partner/dashboard" style="text-decoration:none;display:inline-block;">Go to your dashboard</a>
       </div>
     </div>
     {% endif %}
 
     <p class="footer-note">
-      <a href="/referral">&#8592; Back to referrals</a>
+      <a href="/app">&#8592; Back to monitor</a>
     </p>
 
   </main>

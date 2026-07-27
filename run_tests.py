@@ -104,6 +104,10 @@ with TestClient(app) as client:
     import tests.test_google_oauth
     tests.test_google_oauth.register(test, skip, client)
 
+    section("GitHub OAuth")
+    import tests.test_github_oauth
+    tests.test_github_oauth.register(test, skip, client)
+
     section("Rate Limiting")
     import tests.test_rate_limit
     tests.test_rate_limit.register(test, skip, client)

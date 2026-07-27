@@ -380,6 +380,135 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
+    # -- /welcome/next (post-demo full page) -----------------------------------
+
+    def test_welcome_next_renders_for_trial_user():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/welcome/next", cookies={"session": token})
+            assert r.status_code == 200
+            assert "What we don" in r.text
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_welcome_next_redirects_non_trial_to_app():
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/welcome/next", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/app" in r.headers.get("location", "")
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_welcome_next_redirects_unverified_to_verify_pending():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/welcome/next", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "verify-pending" in r.headers.get("location", "")
+        finally:
+            delete_by_name(uname)
+
+    def test_save_interview_date_persists_and_resets_reminder_flag():
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.interview_reminder_sent = True
+            db.commit()
+            r = client.post(
+                "/api/welcome/interview-date",
+                data={"interview_date": "2099-01-15"},
+                cookies={"session": token},
+            )
+            assert r.status_code == 200
+            db.refresh(u)
+            assert u.interview_date.isoformat() == "2099-01-15"
+            assert u.interview_reminder_sent is False
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_save_interview_date_rejects_bad_format():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.post(
+                "/api/welcome/interview-date",
+                data={"interview_date": "not-a-date"},
+                cookies={"session": token},
+            )
+            assert r.status_code == 400
+        finally:
+            delete_by_name(uname)
+
+    def test_save_interview_date_requires_auth():
+        r = client.post("/api/welcome/interview-date", data={"interview_date": "2099-01-15"})
+        assert r.status_code == 401
+
+    # -- Interview reminder scheduler -------------------------------------------
+
+    def test_send_due_interview_reminders_sends_and_marks_sent():
+        import server as srv
+        from datetime import datetime, timedelta
+        from unittest.mock import patch
+        db = SessionLocal()
+        tag = _sec.token_hex(4)
+        uname = f"_remind_{tag}"
+        try:
+            u = User(
+                username=uname, email=f"{uname}@test.internal",
+                full_name="Remind Me", password_hash="x",
+                account_level=AccountLevel.trial,
+                email_verified=True,
+                interview_date=(datetime.utcnow() + timedelta(days=1)).date(),
+                interview_reminder_sent=False,
+            )
+            db.add(u); db.commit()
+            with patch("server.send_interview_reminder_email") as sent:
+                count = srv._send_due_interview_reminders()
+            assert count >= 1
+            sent.assert_any_call(u.email, "Remind Me")
+            db.refresh(u)
+            assert u.interview_reminder_sent is True
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_send_due_interview_reminders_skips_already_sent():
+        import server as srv
+        from datetime import datetime, timedelta
+        from unittest.mock import patch
+        db = SessionLocal()
+        tag = _sec.token_hex(4)
+        uname = f"_remind_{tag}"
+        try:
+            u = User(
+                username=uname, email=f"{uname}@test.internal",
+                full_name="Already Sent", password_hash="x",
+                account_level=AccountLevel.trial,
+                email_verified=True,
+                interview_date=(datetime.utcnow() + timedelta(days=1)).date(),
+                interview_reminder_sent=True,
+            )
+            db.add(u); db.commit()
+            with patch("server.send_interview_reminder_email") as sent:
+                srv._send_due_interview_reminders()
+            sent.assert_not_called()
+        finally:
+            db.close()
+            delete_by_name(uname)
+
     # -- /verify-pending ------------------------------------------------------
 
     def test_verify_pending_renders_for_unverified():
@@ -491,6 +620,14 @@ def register(test, skip, client):
     test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
     test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
     test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)
+    test("/welcome/next renders for trial user",                test_welcome_next_renders_for_trial_user)
+    test("/welcome/next redirects non-trial to /app",           test_welcome_next_redirects_non_trial_to_app)
+    test("/welcome/next redirects unverified to /verify-pending", test_welcome_next_redirects_unverified_to_verify_pending)
+    test("Save interview date persists + resets reminder flag", test_save_interview_date_persists_and_resets_reminder_flag)
+    test("Save interview date rejects bad format",              test_save_interview_date_rejects_bad_format)
+    test("Save interview date requires auth",                   test_save_interview_date_requires_auth)
+    test("_send_due_interview_reminders sends + marks sent",   test_send_due_interview_reminders_sends_and_marks_sent)
+    test("_send_due_interview_reminders skips already-sent",   test_send_due_interview_reminders_skips_already_sent)
     test("/verify-pending renders for unverified user",       test_verify_pending_renders_for_unverified)
     test("/verify-pending redirects verified user to /app",   test_verify_pending_redirects_verified_user)
     test("Resend verification ok for unverified user",        test_resend_verification_ok_for_unverified)
@@ -749,41 +886,6 @@ def register(test, skip, client):
 
     test("GET /screenshot blocked for free user (403)",             test_screenshot_blocked_for_free_user)
     test("GET /screenshot: 404 when none taken yet",                test_screenshot_404_when_none_taken)
-
-    # -- POST /partner/waitlist -------------------------------------------------
-
-    def test_partner_waitlist_join_sets_flag():
-        token, uname = make_cookie(AccountLevel.trial)
-        db = SessionLocal()
-        try:
-            u = db.query(User).filter(User.username == uname).first()
-            assert u.partner_waitlist is False
-            r = client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
-            assert r.status_code in (302, 303, 307)
-            assert "joined=1" in r.headers.get("location", "")
-            db.refresh(u)
-            assert u.partner_waitlist is True
-        finally:
-            db.close()
-            delete_by_name(uname)
-
-    def test_partner_waitlist_join_is_idempotent():
-        token, uname = make_cookie(AccountLevel.trial)
-        try:
-            client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
-            r = client.post("/partner/waitlist", cookies={"session": token}, follow_redirects=False)
-            assert r.status_code in (302, 303, 307)
-            assert "joined=1" in r.headers.get("location", "")
-        finally:
-            delete_by_name(uname)
-
-    def test_partner_waitlist_requires_auth():
-        r = client.post("/partner/waitlist", follow_redirects=False)
-        assert r.status_code in (302, 307, 401, 403)
-
-    test("POST /partner/waitlist sets partner_waitlist flag",       test_partner_waitlist_join_sets_flag)
-    test("POST /partner/waitlist is idempotent",                    test_partner_waitlist_join_is_idempotent)
-    test("POST /partner/waitlist requires auth",                    test_partner_waitlist_requires_auth)
 
     # -- Misc public pages -------------------------------------------------------
 

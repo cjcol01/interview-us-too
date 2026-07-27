@@ -68,6 +68,15 @@ function miClearTimers() {
   _miPendingTimers = [];
 }
 
+// Cancels a single timer returned by miAfter/miAfterFixed — used to reschedule the
+// "continue the call" countdown when the visitor switches response style mid-read,
+// without needing to touch any other in-flight timer.
+function miCancelTimer(timer) {
+  if (!timer) return;
+  if (timer.handle) clearTimeout(timer.handle);
+  _miPendingTimers = _miPendingTimers.filter((t) => t !== timer);
+}
+
 function miPauseTimers() {
   if (_miPaused) return;
   _miPaused = true;
@@ -151,6 +160,7 @@ function miSpeak(text, who, done) {
     liveText.textContent = '';
     miStreamText(liveText, text, () => {
       tile.classList.remove('speaking');
+      status.classList.remove('live');
       if (done) done();
     });
     return;
@@ -191,7 +201,16 @@ function miRenderHotkey(hotkey) {
   }).join(' + ');
 }
 
-const MI_INTRO_LINE = "Hi, I'm Alex — nice to meet you! Let's get straight into it.";
+// window.MI_FIRST_NAME (set by the host page — see welcome.html/index.html) is read here
+// rather than baked into static consts, since it's only known once the host template renders.
+function miFirstName() { return window.MI_FIRST_NAME || ''; }
+
+function miIntroLine() {
+  const name = miFirstName();
+  return name
+    ? `Hi, I'm Alex — nice to meet you, ${name}! Let's get straight into it.`
+    : "Hi, I'm Alex — nice to meet you! Let's get straight into it.";
+}
 
 // Each beat: interviewer asks -> you press the hotkey -> the AI answers privately -> you relay
 // `youReply` back to the interviewer -> interviewer moves on. `hotkeyLabel`/`via`/`sendingText`/
@@ -208,6 +227,11 @@ const MI_BEATS = [
     followup: "Great, thanks. Given an array of integers and a target, how would you find two numbers that add up to it?",
     popup: 'Press the hotkey to send your screen to the AI.',
     answer: "Use a hash map to track numbers you've seen:\n\n```python\ndef two_sum(nums, target):\n    seen = {}\n    for i, n in enumerate(nums):\n        if target - n in seen:\n            return [seen[target - n], i]\n        seen[n] = i\n```\n\n**O(n) time, O(n) space** — one pass.",
+    answerVariants: {
+      one_liner: "Hash map of seen numbers, checking `target - n` as you go — O(n) time, one pass.",
+      bullets: "- Walk the array once, tracking seen numbers in a hash map\n- At each index, check if `target - n` is already in the map\n- If yes, return the two indices\n- Otherwise store `n` and keep going\n- **O(n) time, O(n) space**",
+      summary: "A single-pass hash-map approach: track each number you've seen, and check whether its complement (target minus the current number) already exists. This avoids the O(n²) brute-force scan and finds the pair in O(n) time using O(n) extra space for the map.",
+    },
     youReply: "I'd use a hash map to track numbers I've already seen — that gets it done in one pass, O(n) time.",
     recap: 'Send your shared screen to the AI',
   },
@@ -222,6 +246,11 @@ const MI_BEATS = [
     popup: 'Hold the hotkey to talk, then release to send.',
     transcription: 'Hmm, let me think, how would I do this recursively',
     answer: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):\n    seen = seen if seen is not None else {}\n    if i == len(nums):\n        return None\n    if target - nums[i] in seen:\n        return [seen[target - nums[i]], i]\n    seen[nums[i]] = i\n    return two_sum(nums, target, i + 1, seen)\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
+    answerVariants: {
+      one_liner: "Same hash-map check, just done recursively one element at a time — still O(n) time.",
+      bullets: "- Recurse one element at a time instead of looping\n- Same hash map check at each call: is `target - n` already seen?\n- Base case: ran out of elements, return nothing\n- **O(n) time** — trades the loop for stack depth",
+      summary: "It's the identical hash-map technique, just expressed recursively — each call handles one element, checks the map for its complement, then recurses on the rest. Time complexity stays O(n); the trade-off is call-stack depth instead of a loop, which matters for very large inputs.",
+    },
     youReply: "I'd peel off one element at a time, checking the same hash map at each call until I hit a match or run out of numbers — same idea as the loop, just recursive.",
     recap: 'Speak the question out loud',
   },
@@ -238,6 +267,11 @@ const MI_BEATS = [
     transcription: "(replayed) Tell me about a time you demonstrated leadership.",
     contextNote: '📎 Drawing from your uploaded information',
     answer: "**Situation:** Our release process was manual and slow, and nobody had really owned fixing it.\n\n**Task:** I wanted to cut deploy time without waiting for a formal mandate to do it.\n\n**Action:** I built a small CI pipeline on a side branch, demoed it to the team, then paired with two teammates to roll it into our actual workflow.\n\n**Result:** Deploys went from about 40 minutes to under 5, and the team adopted it as the standard within a month.",
+    answerVariants: {
+      one_liner: "Built a CI pipeline solo, demoed it, then paired it in — deploys went from 40 minutes to under 5.",
+      bullets: "- **Situation:** manual, slow release process nobody owned\n- **Task:** cut deploy time without waiting for a mandate\n- **Action:** built a CI pipeline solo, demoed it, paired it into the real workflow\n- **Result:** 40 minutes → under 5, adopted team-wide within a month",
+      summary: "A concise STAR answer: recognizing an unowned, slow release process, building and demoing a CI pipeline independently, then pairing with teammates to roll it into the real workflow — cutting deploy time from 40 minutes to under 5 and getting it adopted as the standard.",
+    },
     youReply: "There was a stretch where our deploys were slow and manual, so I built a CI pipeline on my own time, demoed it, and paired with the team to roll it in — deploys went from 40 minutes to under 5.",
     recap: 'Replay the last 30 seconds of the call',
   },
@@ -250,6 +284,11 @@ const MI_BEATS = [
     popup: "Press the hotkey to type your question to the AI — it shows up here, and doesn't go to your interviewer.",
     autoType: "How do I design a rate limiter for a public API?",
     answer: "Key angles: token bucket vs. sliding window, per-user vs. global limits, and whether it needs to work across multiple servers (shared store like Redis) or just one.",
+    answerVariants: {
+      one_liner: "Token bucket vs sliding window, per-user vs global, and whether state needs to be shared (e.g. Redis) across servers.",
+      bullets: "- Choose an algorithm: token bucket vs sliding window\n- Decide scope: per-user vs global limits\n- Decide storage: in-memory (one server) vs a shared store like Redis (many servers)",
+      summary: "The core decisions are the limiting algorithm (token bucket vs sliding window), the scope of each limit (per-user vs global), and where state lives — in-memory if it's a single server, or a shared store like Redis if the API runs across many.",
+    },
     youReply: "I'd weigh token bucket versus sliding window, decide on per-user versus global limits, and think about whether it needs a shared store like Redis across multiple servers.",
     recap: 'Type it privately — never seen',
   },
@@ -273,6 +312,66 @@ let _miCallEnded = false; // last question answered — waiting for the user to 
 let _miIsFirstRun = false;
 let _miCallInterval = null;
 let _miCallSecs = 0;
+
+// Response-style switcher (mirrors the real ResponseStyle setting in Settings): the
+// selection persists across beats, same as it would for a real account, and only resets
+// when the whole call restarts — see miResetCallState.
+const MI_DEFAULT_STYLE = 'conversational';
+let _miSelectedStyle = MI_DEFAULT_STYLE;
+let _miCurrentAnswerBeat = null; // the beat whose answer is currently on screen, if any
+let _miContinueTimer = null;     // the pending "wrap up this answer and move on" timer
+let _miStyleToastShown = false;  // only explain the switcher once per call
+
+function miAnswerTextFor(beat) {
+  if (_miSelectedStyle === MI_DEFAULT_STYLE) return beat.answer;
+  return (beat.answerVariants && beat.answerVariants[_miSelectedStyle]) || beat.answer;
+}
+
+function miSyncStylePills() {
+  document.querySelectorAll('.mi-style-pill').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.style === _miSelectedStyle);
+  });
+}
+
+function miShowStyleToast() {
+  if (_miStyleToastShown) return;
+  _miStyleToastShown = true;
+  document.getElementById('mi-style-toast').classList.add('active');
+  miAfterFixed(6000, miDismissStyleToast);
+}
+
+function miDismissStyleToast() {
+  document.getElementById('mi-style-toast').classList.remove('active');
+}
+
+// The switcher is only meaningful while this answer is still the thing on screen being
+// read. Once miScheduleContinueAfterAnswer's countdown commits — the phone's about to drop
+// and the reply's about to be spoken — a late click must not be able to re-fire that whole
+// sequence on top of itself, so lock (and visually grey out) the pills right at that moment
+// rather than waiting for the next beat's reset to get around to it.
+function miLockStyleSwitch() {
+  _miCurrentAnswerBeat = null;
+  miDismissStyleToast();
+  document.getElementById('mi-style-switch').classList.add('mi-style-locked');
+}
+
+function miUnlockStyleSwitch(beat) {
+  _miCurrentAnswerBeat = beat;
+  document.getElementById('mi-style-switch').classList.remove('mi-style-locked');
+}
+
+// Bound directly (not on DOMContentLoaded) — this script tag is placed after
+// _mock_interview.html's markup in every host template, so these elements already exist.
+document.querySelectorAll('.mi-style-pill').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (!_miCurrentAnswerBeat || btn.dataset.style === _miSelectedStyle) return;
+    _miSelectedStyle = btn.dataset.style;
+    miSyncStylePills();
+    miDismissStyleToast();
+    document.getElementById('mi-answer-body').innerHTML = marked.parse(miAnswerTextFor(_miCurrentAnswerBeat));
+    miScheduleContinueAfterAnswer(_miCurrentAnswerBeat);
+  });
+});
 
 // Stays up until the user acts on it (hotkey/click) or the next beat replaces it — see
 // miTrigger and miShowNeedHelp, the only two callers of miDismissHotkeyNudge/miShowHotkeyNudge.
@@ -396,6 +495,12 @@ function miResetCallState() {
   typingField.textContent = '';
   miHideScreenshot();
   miStopCallTimer();
+  _miSelectedStyle = MI_DEFAULT_STYLE;
+  _miCurrentAnswerBeat = null;
+  _miStyleToastShown = false;
+  miDismissStyleToast();
+  miSyncStylePills();
+  document.getElementById('mi-style-switch').classList.remove('mi-style-locked');
 }
 
 // A real InterviewAce extension installed in this browser listens for the same hotkeys the
@@ -407,7 +512,7 @@ let _miCallLive = false;
 
 function miSpeakIntro() {
   miAfter(1500, () => {
-    miSpeak(MI_INTRO_LINE, 'interviewer', () => miAfter(2200, miNextBeat));
+    miSpeak(miIntroLine(), 'interviewer', () => miAfter(2200, miNextBeat));
   });
 }
 
@@ -444,6 +549,7 @@ function miResetTileUI() {
   document.getElementById('mi-you-status').classList.remove('live');
   document.getElementById('mi-cursor').style.display = 'none';
   miHideScreenshot();
+  _miCurrentAnswerBeat = null; // last beat's card is going away — its style pills go inert until the next reveal
 }
 
 // Renders beat `index` from the start (interviewer asks it again) — shared by miNextBeat
@@ -683,23 +789,35 @@ function miRevealAnswer(beat, typedText) {
     } else {
       contextNote.style.display = 'none';
     }
-    miStreamMarkdown(body, beat.answer, () => {
-      // Give the user a moment to read the finished answer, then drop the phone out of
-      // focus. Only once it's dropped do you relay the answer back to the interviewer,
-      // so attention has clearly left the phone before the spoken reply fires.
-      miAfter(2500, () => {
-        miPhoneFocus(false);
-        miAfter(600, () => {                 // let the drop animation settle first
-          miSpeak(beat.youReply, 'you', () => {
-            miAfter(900, () => {
-              const hasNext = _miIndex + 1 < MI_BEATS.length;
-              if (hasNext) {
-                miSpeak('Great — next question…', 'interviewer', () => miAfter(2100, miNextBeat));
-              } else {
-                miSpeak("That's everything — nice work.", 'interviewer', miEnterCallEnd);
-              }
-            });
-          });
+    miUnlockStyleSwitch(beat);
+    miSyncStylePills();
+    miStreamMarkdown(body, miAnswerTextFor(beat), () => {
+      miShowStyleToast();
+      miScheduleContinueAfterAnswer(beat);
+    });
+  });
+}
+
+// Give the visitor a moment to read the finished answer (or to try a different response
+// style — see the .mi-style-pill click handler above), then drop the phone out of focus.
+// Only once it's dropped do you relay the answer back to the interviewer, so attention has
+// clearly left the phone before the spoken reply fires. Re-callable: switching style mid-read
+// cancels and restarts this countdown instead of stacking a second one on top.
+function miScheduleContinueAfterAnswer(beat) {
+  miCancelTimer(_miContinueTimer);
+  _miContinueTimer = miAfter(2500, () => {
+    _miContinueTimer = null;
+    miLockStyleSwitch();
+    miPhoneFocus(false);
+    miAfter(600, () => {                 // let the drop animation settle first
+      miSpeak(beat.youReply, 'you', () => {
+        miAfter(900, () => {
+          const hasNext = _miIndex + 1 < MI_BEATS.length;
+          if (hasNext) {
+            miSpeak('Great — next question…', 'interviewer', () => miAfter(2100, miNextBeat));
+          } else {
+            miSpeak("That's everything — nice work.", 'interviewer', miEnterCallEnd);
+          }
         });
       });
     });
@@ -715,7 +833,10 @@ function miEnterCallEnd() {
   miAfter(3000, () => {
     miSpeak("That wraps up the interview — go ahead and click Leave whenever you're ready.", 'interviewer', () => {
       miAfter(3000, () => {
-        miSpeak("Wow — I can see you're a keen bean! Honestly, that went so well I want to make you an offer on the spot.", 'interviewer', () => {
+        const name = miFirstName();
+        miSpeak(name
+          ? `Wow, ${name} — I can see you're a keen bean! Honestly, that went so well I want to make you an offer on the spot.`
+          : "Wow — I can see you're a keen bean! Honestly, that went so well I want to make you an offer on the spot.", 'interviewer', () => {
           miAfter(600, () => {
             miSpeak("Fully remote, £1,000,000 a year, full benefits, subsidised lunch, free parking — and a company dog called Steve. Just click Leave and it's yours.", 'interviewer', () => {});
           });
@@ -753,6 +874,14 @@ function miFinish() {
   miClearTimers();
   miStopCallTimer();
   _miCallLive = false;
+  if (_miIsFirstRun && window.MI_SKIP_DONE_SCREEN) {
+    // /welcome's first run skips the recap card and hands off straight to
+    // MI_ON_FIRST_RUN_FINISH via miClose() — see welcome.html. The /app fallback
+    // replay (first visit without having gone through /welcome) doesn't set this
+    // flag, so it still gets the recap card as before.
+    miClose();
+    return;
+  }
   miShowScreen('mi-done');
 }
 

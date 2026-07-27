@@ -1,7 +1,8 @@
 """
-Partner (affiliate) programme tests — the three-tier model: implicit Tier-1 flat cash on a
-referee's first paid plan, recurring % for Tiers 2/3, auto-upgrade at 3 paid referrals, manual
-tier grants, the first-payment hold, webhook idempotency, the dashboard, and cash withdrawals.
+Partner (affiliate) programme tests — the three-tier model: implicit Tier-1 account credit on a
+referee's first paid plan, recurring % cash for Tiers 2/3, auto-upgrade at 3 paid referrals,
+manual tier grants, the first-payment hold, webhook idempotency, the dashboard, and cash
+withdrawals (Tier 2+ only — Tier 1's reward is credit, not withdrawable cash).
 """
 import secrets as _sec
 from datetime import datetime, timedelta
@@ -60,25 +61,7 @@ def _make_upgraded_partner(db, tier, cid=None, manual=False):
 def register(test, skip, client):
     from billing import _handle_invoice_paid, _handle_sessions_purchase, _sync_subscription, _partner_rate_bps
 
-    # -- Join is now a no-op (Tier 1 is automatic) ----------------------------
-
-    def test_join_redirects_to_dashboard():
-        token, uname = make_cookie(AccountLevel.trial)
-        try:
-            r = client.post("/partner/join", cookies={"session": token}, follow_redirects=False)
-            assert r.status_code in (302, 303, 307)
-            assert "/partner/dashboard" in r.headers.get("location", "")
-        finally:
-            delete_by_name(uname)
-
-    def test_join_requires_auth():
-        r = client.post("/partner/join", follow_redirects=False)
-        assert r.status_code in (302, 303, 307, 401, 403)
-
-    test("POST /partner/join redirects to dashboard (Tier 1 is automatic)", test_join_redirects_to_dashboard)
-    test("POST /partner/join requires auth",                                test_join_requires_auth)
-
-    # -- Tier 1 flat reward ---------------------------------------------------
+    # -- Tier 1 reward = account credit ---------------------------------------
 
     def test_no_reward_on_intro():
         init_db()
@@ -99,7 +82,7 @@ def register(test, skip, client):
         finally:
             cleanup(db, referrer, referee); db.close()
 
-    def test_tier1_flat_reward_on_pack():
+    def test_tier1_credit_reward_on_pack():
         init_db()
         db = SessionLocal()
         referrer = referee = None
@@ -114,12 +97,10 @@ def register(test, skip, client):
             with patch("billing.stripe.Customer.create_balance_transaction"):
                 _handle_sessions_purchase(_checkout_data(referee_cid, "sessions_pack", amount_total=1000), db)
 
-            c = db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first()
-            assert c is not None
-            assert c.kind == "referral_flat"
-            assert c.amount_pence == PARTNER_TIER1_FLAT_PENCE == 500
-            assert c.status == CommissionStatus.pending
-            assert c.mature_at > datetime.utcnow() + timedelta(days=1)
+            db.refresh(referrer)
+            assert referrer.referral_credit_pence == PARTNER_TIER1_FLAT_PENCE == 500
+            # Tier 1 rewards are account credit now, never a cash PartnerCommission row.
+            assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
         finally:
             cleanup(db, referrer, referee); db.close()
 
@@ -136,13 +117,13 @@ def register(test, skip, client):
             db.commit()
 
             _handle_invoice_paid(_invoice(referee_cid, amount_paid=1500), db)
-            # Tier 1 earns nothing on a recurring invoice — the flat reward comes at conversion only.
+            # Tier 1 earns nothing on a recurring invoice — the credit reward comes at conversion only.
             assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
         finally:
             cleanup(db, referrer, referee); db.close()
 
     test("No referrer reward on referee intro",                  test_no_reward_on_intro)
-    test("Tier 1 earns flat £5 on referee sessions pack",        test_tier1_flat_reward_on_pack)
+    test("Tier 1 earns £5 account credit on referee sessions pack", test_tier1_credit_reward_on_pack)
     test("Tier 1 earns nothing on recurring invoices",           test_tier1_no_recurring_on_invoice)
 
     # -- Recurring commission (Tiers 2/3) -------------------------------------
@@ -383,13 +364,27 @@ def register(test, skip, client):
     test("/partner/dashboard requires auth",                     test_dashboard_requires_auth)
     test("/partner/dashboard shows matured balance as available", test_dashboard_shows_matured_balance)
 
-    # -- Withdrawals ----------------------------------------------------------
+    # -- Overview page (tier comparison table) --------------------------------
+
+    def test_partner_overview_shows_tier_table():
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            r = client.get("/partner", cookies={"session": token})
+            assert r.status_code == 200
+            for label in ("Tier 1", "Tier 2", "Tier 3", "Cash withdrawals"):
+                assert label in r.text
+        finally:
+            delete_by_name(uname)
+
+    test("/partner overview renders the tier comparison table", test_partner_overview_shows_tier_table)
+
+    # -- Withdrawals (Tier 2+ only) --------------------------------------------
 
     def _give_available_balance(db, partner, referee, pence):
         db.add(PartnerCommission(
             partner_id=partner.id, referee_id=referee.id,
-            source_amount_pence=pence, rate_bps=0, amount_pence=pence,
-            kind="referral_flat", stripe_ref=f"cs_{_sec.token_hex(4)}",
+            source_amount_pence=pence, rate_bps=1500, amount_pence=pence,
+            kind="subscription", stripe_ref=f"in_{_sec.token_hex(4)}",
             status=CommissionStatus.pending,
             mature_at=datetime.utcnow() - timedelta(days=1),  # matured → available
         ))
@@ -400,7 +395,7 @@ def register(test, skip, client):
         db = SessionLocal()
         partner = referee = None
         try:
-            partner = make_user(db, AccountLevel.unlimited, stripe_id=_stripe_id())
+            partner = _make_upgraded_partner(db, 2)
             referee = make_user(db, AccountLevel.trial)
             _give_available_balance(db, partner, referee, PARTNER_WITHDRAWAL_THRESHOLD_PENCE - 100)
             token = create_token(partner.id)
@@ -418,7 +413,7 @@ def register(test, skip, client):
         db = SessionLocal()
         partner = referee = None
         try:
-            partner = make_user(db, AccountLevel.unlimited, stripe_id=_stripe_id())
+            partner = _make_upgraded_partner(db, 2)
             referee = make_user(db, AccountLevel.trial)
             _give_available_balance(db, partner, referee, PARTNER_WITHDRAWAL_THRESHOLD_PENCE)
             token = create_token(partner.id)
@@ -437,8 +432,29 @@ def register(test, skip, client):
         finally:
             cleanup(db, partner, referee); db.close()
 
+    def test_tier1_withdraw_blocked_even_with_balance():
+        init_db()
+        db = SessionLocal()
+        partner = referee = None
+        try:
+            partner = make_user(db, AccountLevel.unlimited, stripe_id=_stripe_id())  # Tier 1
+            referee = make_user(db, AccountLevel.trial)
+            # Give it a cash balance directly (e.g. a legacy pre-migration commission row) to prove
+            # the tier check blocks withdrawal even when the ledger would otherwise allow it.
+            _give_available_balance(db, partner, referee, PARTNER_WITHDRAWAL_THRESHOLD_PENCE)
+            token = create_token(partner.id)
+            r = client.post("/partner/withdraw", cookies={"session": token},
+                            data={"method": "bank", "destination": "12-34-56 / 12345678"},
+                            follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "withdraw_error=not_eligible" in r.headers.get("location", "")
+            assert db.query(Withdrawal).filter(Withdrawal.partner_id == partner.id).count() == 0
+        finally:
+            cleanup(db, partner, referee); db.close()
+
     test("Withdraw below £20 threshold is rejected",   test_withdraw_below_threshold_rejected)
     test("Withdraw at threshold creates a request and holds balance", test_withdraw_at_threshold_creates_request)
+    test("Tier 1 cannot withdraw cash even with a balance", test_tier1_withdraw_blocked_even_with_balance)
 
     # -- Admin ----------------------------------------------------------------
 

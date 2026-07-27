@@ -17,7 +17,7 @@
 
   <main class="ob-main">
     <div class="ob-intro">
-      <h1>You're in. Here's what it looks like.</h1>
+      <h1>You're in, {{ first_name }}. Here's what it looks like.</h1>
       <p>A 60-second simulated interview call so you can see InterviewAce in action before you set anything up.</p>
     </div>
     <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding">Skip the demo — go straight to setup →</a></p>
@@ -33,7 +33,9 @@
       replay:  '{{ replay }}',
       typing:  '{{ typing }}',
     };
+    window.MI_FIRST_NAME = {{ first_name | tojson }};
     window.MI_FIRST_RUN_CTA_LABEL = 'Start setup →';
+    window.MI_SKIP_DONE_SCREEN = true;
     window.MI_ON_FIRST_RUN_FINISH = async function () {
       // Mark the tutorial seen so index.html's initTrial() doesn't replay the
       // simulated call again on first visit to /app after onboarding.
@@ -42,7 +44,7 @@
         const d = await r.json();
         if (d.user_id) localStorage.setItem('ia_tutorial_v1_' + d.user_id, '1');
       } catch {}
-      window.location.href = '/onboarding';
+      window.location.href = '/welcome/next';
     };
     openMockInterview(true);
   </script>

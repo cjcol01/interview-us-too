@@ -14,14 +14,106 @@
         Partner dashboard
       </div>
       {% if tier_is_flat %}
-      <h1>Tier {{ partner_tier }} partner<br><span>£{{ "%.0f"|format(flat_pence / 100) }} cash per paid referral</span></h1>
-      <p>Earn a flat £{{ "%.0f"|format(flat_pence / 100) }} whenever someone you referred upgrades to a paid plan. Reach {{ tier2_min_paid }} paying referrals to unlock recurring commission ({{ tier2_pct }}%).</p>
+      <h1>Tier {{ partner_tier }} partner<br><span>£{{ "%.0f"|format(flat_pence / 100) }} credit per paid referral</span></h1>
+      <p>Send your link to a friend. When they upgrade to a paid plan, £{{ "%.0f"|format(flat_pence / 100) }} is credited toward your own subscription automatically. Reach {{ tier2_min_paid }} paying referrals to unlock recurring cash commission ({{ tier2_pct }}%).</p>
       {% else %}
       <h1>Tier {{ partner_tier }} partner<br><span>Earning {{ rate_pct }}% on every payment</span></h1>
       <p>Commission accrues automatically whenever someone you referred pays — renewals included.</p>
       {% endif %}
     </div>
 
+    <!-- Your link -->
+    <div class="card link-card">
+      <div class="card-label">Your referral link</div>
+      <div class="link-row">
+        <input
+          class="link-input"
+          id="ref-link"
+          type="text"
+          readonly
+          value="https://interviewace.co/r/{{ referral_code }}"
+        >
+        <button class="copy-btn" id="copy-btn" onclick="copyLink()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          Copy
+        </button>
+      </div>
+      <div class="share-row">
+        <a class="share-btn" href="mailto:?subject=Get%20£5%20off%20InterviewAce&body=Hey%2C%20thought%20you%27d%20find%20this%20useful%20for%20interviews%3A%20https%3A%2F%2Finterviewace.co%2Fr%2F{{ referral_code }}">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+          </svg>
+          Email
+        </a>
+        <a class="share-btn" href="https://wa.me/?text=Hey%2C%20get%20£5%20off%20InterviewAce%3A%20https%3A%2F%2Finterviewace.co%2Fr%2F{{ referral_code }}" target="_blank" rel="noopener">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+          WhatsApp
+        </a>
+        <button class="share-btn" onclick="nativeShare()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+          More
+        </button>
+      </div>
+      <p class="link-card-note">Your friend gets a free first session{% if referral_discount_active %} and £5 off their first paid plan{% endif %} — no code needed, applied automatically at checkout.</p>
+    </div>
+
+    {% if ref_success or is_referred or can_apply_referral %}
+    <!-- Enter a referral code -->
+    <div class="card enter-code-card">
+      <div class="card-label">Been referred by someone?</div>
+
+      {% if ref_success or is_referred %}
+        <p class="already-referred">
+          {% if ref_success %}&#10003; Applied —{% else %}&#10003;{% endif %}
+          {% if referral_discount_active %}
+            £5 off your first full payment will be applied automatically at checkout.
+          {% else %}
+            Referral applied.
+          {% endif %}
+        </p>
+
+      {% else %}
+        <p style="font-size:0.82rem;color:var(--text-3);margin-bottom:12px;line-height:1.6;">
+          Paste a friend's referral link or just the code to get £5 off your first full payment.
+        </p>
+        <form action="/referral/apply" method="post">
+          <input type="hidden" name="source" value="referral">
+          <div class="code-row">
+            <input
+              class="code-input"
+              type="text"
+              name="code"
+              placeholder="Code or full link"
+              maxlength="300"
+              autocomplete="off"
+              spellcheck="false"
+              required
+            >
+            <button class="apply-btn" type="submit">Apply</button>
+          </div>
+        </form>
+        {% if error_msg %}
+          <div class="feedback error">{{ error_msg }}</div>
+        {% endif %}
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if tier_is_flat %}
+    <!-- Credit earned (Tier 1) -->
+    <div class="card credit-card">
+      <div class="card-label">Credit earned</div>
+      <div class="balance-amount">£{{ "%.2f" | format(referral_credit_pence / 100) }}</div>
+      <div class="balance-note">Applied automatically to your subscription at checkout — Reach Tier 2 to earn withdrawable cash instead.</div>
+    </div>
+    {% else %}
     <!-- Balances -->
     <div class="balance-grid">
       <div class="card balance-card">
@@ -83,6 +175,7 @@
       </div>
       {% endif %}
     </div>
+    {% endif %}
 
     <!-- Tier progress -->
     <div class="card">
@@ -92,34 +185,54 @@
       {% elif partner_tier >= 2 %}
         <p class="progress-copy">You've reached Tier 2 — earning {{ tier2_pct }}% on every payment your referrals make. Tier 3 ({{ tier3_pct }}%) is granted to top partners on request.</p>
       {% else %}
-        <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}% recurring commission).</p>
+        <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}% recurring commission, plus cash withdrawals).</p>
         <div class="progress-bar">
           <div class="progress-fill" style="width: {{ (100 * paid_count / tier2_min_paid) | round(0, 'floor') if tier2_min_paid else 0 }}%;"></div>
         </div>
       {% endif %}
     </div>
 
-    <!-- Partner link -->
-    <div class="card link-card">
-      <div class="card-label">Your partner link</div>
-      <div class="link-row">
-        <input
-          class="link-input"
-          id="ref-link"
-          type="text"
-          readonly
-          value="https://interviewace.co/r/{{ referral_code }}"
-        >
-        <button class="copy-btn" id="copy-btn" onclick="copyLink()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-          </svg>
-          Copy
-        </button>
+    <!-- Activity -->
+    {% if tier_is_flat %}
+    <div class="card tracker-card">
+      <div class="tracker-header">
+        <div class="card-label">Your referrals</div>
+        <div class="tracker-header-right">{{ signup_count }} referred</div>
+      </div>
+      <div class="referral-list">
+        {% if referrals %}
+          {% for ref in referrals %}
+          <div class="referral-row">
+            <div class="referral-info">
+              <div class="referral-name">{{ ref.referee_name }}</div>
+              <div class="referral-date">Joined {{ ref.joined_date }}</div>
+            </div>
+            <div class="referral-status">
+              {% if ref.status == 'subscribed' %}
+                <span class="status-pill subscribed">Paid plan</span>
+                <div class="referral-amount">Reward added</div>
+              {% elif ref.status == 'intro' %}
+                <span class="status-pill credited">Free session</span>
+                <div class="referral-amount" style="color:var(--text-3);">Reward on paid plan</div>
+              {% elif ref.status == 'signed_up' and ref.referee_level == 'unlimited' %}
+                <span class="status-pill trialing">In trial</span>
+                <div class="referral-amount" style="color:var(--text-3);">Reward on conversion</div>
+              {% else %}
+                <span class="status-pill pending">Signed up</span>
+                <div class="referral-amount" style="color:var(--text-3);">Pending</div>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            No referrals yet.<br>
+            Share your link above to get started.
+          </div>
+        {% endif %}
       </div>
     </div>
-
-    <!-- Commissions -->
+    {% else %}
     <div class="card tracker-card">
       <div class="tracker-header">
         <div class="card-label">Commissions</div>
@@ -148,6 +261,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     <p class="footer-note">
       <a href="/partner">&#8592; Back to partner programme</a>
@@ -167,6 +281,19 @@
           btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy`;
         }, 2000);
       });
+    }
+
+    function nativeShare() {
+      const link = document.getElementById('ref-link').value;
+      if (navigator.share) {
+        navigator.share({
+          title: 'InterviewAce — Ace your interviews',
+          text: 'Get £5 off your first full payment with this link:',
+          url: link,
+        });
+      } else {
+        copyLink();
+      }
     }
   </script>
 

@@ -257,7 +257,7 @@ def register(test, skip, client=None):
 
     # -- Referral credit on subscription ------------------------------------
 
-    def test_referrer_flat_reward_on_subscription():
+    def test_referrer_credit_reward_on_subscription():
         init_db()
         db = SessionLocal()
         try:
@@ -274,14 +274,12 @@ def register(test, skip, client=None):
             with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
 
-            # Tier-1 referrer earns a flat £5 as a withdrawable commission row — no bill credit.
-            mock_credit.assert_not_called()
-            flat = db.query(PartnerCommission).filter(
-                PartnerCommission.partner_id == referrer.id,
-                PartnerCommission.kind == "referral_flat",
-            ).first()
-            assert flat is not None
-            assert flat.amount_pence == 500
+            # Tier-1 referrer earns a flat £5 as account credit (mirrored to Stripe balance) —
+            # no withdrawable PartnerCommission row.
+            mock_credit.assert_called_once()
+            db.refresh(referrer)
+            assert referrer.referral_credit_pence == 500
+            assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
             db.refresh(ref_row)
             assert ref_row.sub_credited is True
             assert ref_row.status == ReferralStatus.subscribed
@@ -367,13 +365,9 @@ def register(test, skip, client=None):
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "trialing"), db)
                 _sync_subscription(_fake_sub(referee_cid, referee_sid, "active"), db)
 
-            # Trialing pays nothing; the single activation earns exactly one flat £5 row.
-            flats = db.query(PartnerCommission).filter(
-                PartnerCommission.partner_id == referrer.id,
-                PartnerCommission.kind == "referral_flat",
-            ).all()
-            assert len(flats) == 1
-            assert flats[0].amount_pence == 500
+            # Trialing pays nothing; the single activation earns exactly one £5 credit, once.
+            db.refresh(referrer)
+            assert referrer.referral_credit_pence == 500
         finally:
             cleanup(db, referrer, referee); db.close()
 
@@ -533,10 +527,10 @@ def register(test, skip, client=None):
     test("Sessions purchase: fresh fingerprint → recorded+granted",  test_sessions_purchase_fresh_fingerprint_records_and_grants)
     test("No referrer reward on referee intro purchase",         test_no_referrer_reward_on_intro)
     test("No double-credit on intro (intro_credited guard)",     test_no_double_credit_intro)
-    test("Referrer earns flat £5 when referee subscribes",       test_referrer_flat_reward_on_subscription)
+    test("Referrer earns £5 account credit when referee subscribes", test_referrer_credit_reward_on_subscription)
     test("No double-credit on subscription (sub_credited guard)",test_no_double_credit_subscription)
     test("_credit_referrer skips if no Stripe customer",         test_credit_referrer_skips_if_no_stripe_customer)
-    def test_referrer_flat_reward_on_sessions_pack():
+    def test_referrer_credit_reward_on_sessions_pack():
         init_db()
         db = SessionLocal()
         try:
@@ -553,13 +547,11 @@ def register(test, skip, client=None):
             with patch("billing.stripe.Customer.create_balance_transaction") as mock_credit:
                 _handle_sessions_purchase(data, db)
 
-            # Flat £5 as a commission row (the £10 pack is a real paid plan); no bill credit.
-            mock_credit.assert_not_called()
-            flat = db.query(PartnerCommission).filter(
-                PartnerCommission.partner_id == referrer.id,
-                PartnerCommission.kind == "referral_flat",
-            ).first()
-            assert flat is not None and flat.amount_pence == 500
+            # Flat £5 as account credit (the £10 pack is a real paid plan) — no commission row.
+            mock_credit.assert_called_once()
+            db.refresh(referrer)
+            assert referrer.referral_credit_pence == 500
+            assert db.query(PartnerCommission).filter(PartnerCommission.partner_id == referrer.id).first() is None
             db.refresh(ref_row)
             assert ref_row.sub_credited is True
             assert ref_row.status == ReferralStatus.subscribed
@@ -589,7 +581,7 @@ def register(test, skip, client=None):
         finally:
             cleanup(db, referrer, referee); db.close()
 
-    test("Referrer earns flat £5 on referee sessions pack",      test_referrer_flat_reward_on_sessions_pack)
+    test("Referrer earns £5 account credit on referee sessions pack", test_referrer_credit_reward_on_sessions_pack)
     test("No double reward on sessions pack (sub_credited guard)", test_no_double_reward_sessions_pack)
     test("#1: trialing does NOT reward referrer",                test_trialing_does_not_credit_referrer)
     test("#1: trialing then active rewards referrer once",       test_trialing_then_active_rewards_once)
