@@ -351,10 +351,16 @@ input[type=range]::-moz-range-thumb {
 .navbar-dropdown-item:hover { color: var(--text); background: rgba(255,255,255,.04); }
 .navbar-dropdown-item.active { color: var(--text); background: rgba(255,255,255,.06); }
 
+/* Only rendered on the landing page (show_landing_links) — hidden at the same breakpoint
+   where landing.css drops the How it works / Features / Pricing sections these link to,
+   so there's never a nav link pointing at a hidden section. */
+@media (max-width: 960px) {
+  .navbar-center-links { display: none; }
+}
+
 @media (max-width: 640px) {
   .navbar { flex-wrap: wrap; height: auto; min-height: 64px; padding: 0 20px; }
   .navbar-logo { padding: 16px 0; }
-  .navbar-center-links { display: none; }
   .navbar-links {
     display: none;
     flex-direction: column;

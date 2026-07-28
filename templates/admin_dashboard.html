@@ -19,6 +19,13 @@
   {% if sub %}<div class="ad-card-sub">{{ sub }}</div>{% endif %}
 </a>
 {% endmacro %}
+{% macro card_href(label, value, href, sub=none) %}
+<a class="ad-card ad-card-link" href="{{ href }}">
+  <div class="ad-card-label">{{ label }}</div>
+  <div class="ad-card-value">{{ value }}</div>
+  {% if sub %}<div class="ad-card-sub">{{ sub }}</div>{% endif %}
+</a>
+{% endmacro %}
 {% block content %}
   <main class="admin-main admin-main-wide">
     <h1>Growth dashboard</h1>
@@ -82,12 +89,24 @@
         </div>
 
         <div class="ad-section">
+          <h2>Mobile lead capture</h2>
+          <div class="ad-grid">
+            {{ card_href("Leads (7d)", leads_7d, "/admin/leads") }}
+            {{ card_href("Total leads", total_leads, "/admin/leads") }}
+            {{ card_href("Claimed", claimed_leads, "/admin/leads?status=claimed") }}
+            {{ card_href("Claim rate", lead_claim_rate ~ "%", "/admin/leads?status=unclaimed", sub="click for the unclaimed half") }}
+            {{ card_link("Setup unfinished", leads_unfinished, "lead_unfinished", drilldown) }}
+            {{ card_link("Set up, on trial", leads_mobile_trial, "lead_trial", drilldown) }}
+          </div>
+        </div>
+
+        <div class="ad-section">
           <h2>Referrals &amp; partners</h2>
           <div class="ad-grid">
-            {{ card("Total referrals", total_referrals) }}
-            {{ card("Subscribed referrals", subscribed_referrals) }}
-            {{ card("Outstanding referral credit", "£" ~ "%.2f"|format(outstanding_referral_credit_pence / 100)) }}
-            {{ card("Outstanding commission", "£" ~ "%.2f"|format(outstanding_commission_pence / 100)) }}
+            {{ card_href("Total referrals", total_referrals, "/partner/admin") }}
+            {{ card_href("Subscribed referrals", subscribed_referrals, "/partner/admin") }}
+            {{ card_href("Outstanding referral credit", "£" ~ "%.2f"|format(outstanding_referral_credit_pence / 100), "/partner/admin") }}
+            {{ card_href("Outstanding commission", "£" ~ "%.2f"|format(outstanding_commission_pence / 100), "/partner/admin") }}
           </div>
         </div>
       </div>
@@ -141,6 +160,47 @@
         <p class="ua-sub" style="margin-top:0;">Click a card on the left to list its matching users here.</p>
         {% endif %}
       </aside>
+    </div>
+
+    <div class="ad-section">
+      <h2>Mobile lead funnel</h2>
+      <p class="ua-sub">New leads only. Each bar is a share of emails captured.</p>
+      <div class="ad-funnel">
+        {% for s in funnel %}
+        {% set tag = "a" if s.href else "div" %}
+        <{{ tag }} class="ad-funnel-row"{% if s.href %} href="{{ s.href }}"{% endif %}>
+          <div class="ad-funnel-label">{{ s.label }}</div>
+          <div class="ad-funnel-track"><div class="ad-funnel-bar" style="width: {{ s.pct }}%;"></div></div>
+          <div class="ad-funnel-value">{{ s.count }} &middot; {{ s.pct }}%{% if s.step_pct is not none %} ({{ s.step_pct }}% of prev){% endif %}</div>
+        </{{ tag }}>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="ad-section">
+      <h2>Ad attribution — new leads by source</h2>
+      <p class="ua-sub">First-touch <code>utm_source</code> captured on the landing page. "direct" covers anything with no source recorded. Excludes handoff links sent to emails that already had an account — those are logins, not conversions.</p>
+      {% if attribution_rows %}
+      <div class="ua-table-wrap">
+        <table class="ua-table">
+          <thead><tr><th>Source</th><th>Leads captured</th><th>Claimed</th><th>Claim rate</th><th>Paid conversions</th><th>Lead &rarr; paid</th></tr></thead>
+          <tbody>
+            {% for a in attribution_rows %}
+            <tr>
+              <td>{{ a.source }}</td>
+              <td>{{ a.captured }}</td>
+              <td>{{ a.claimed }}</td>
+              <td>{{ a.claim_rate }}%</td>
+              <td>{{ a.paid }}</td>
+              <td>{{ a.paid_rate }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="ua-empty">No leads captured yet.</div>
+      {% endif %}
     </div>
   </main>
   <script>

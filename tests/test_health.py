@@ -198,6 +198,127 @@ def register(test, skip, client):
             cleanup(db, admin)
             db.close()
 
+    def test_recent_error_log_entries_since_filters_old_entries():
+        """`since` backs the 'Clear errors' button — entries at/before the cutoff are
+        dropped, entries after it survive."""
+        import os
+        from datetime import datetime
+        from database import DATA_DIR
+        from server import _recent_error_log_entries, _LOG_FILENAME
+
+        old_marker = "boom-since-filter-old-xyz"
+        new_marker = "boom-since-filter-new-xyz"
+        log_path = os.path.join(DATA_DIR, _LOG_FILENAME)
+        with open(log_path, "a") as f:
+            f.write(f"2026-01-01 00:00:00 [ERROR] {old_marker}\n")
+            f.write(f"2026-07-01 00:00:00 [ERROR] {new_marker}\n")
+
+        entries = _recent_error_log_entries(max_entries=50, since=datetime(2026, 6, 1))
+        joined = "\n".join(entries)
+        assert old_marker not in joined
+        assert new_marker in joined
+
+    def test_admin_health_clear_errors_requires_auth():
+        r = client.post("/admin/health/clear-errors")
+        assert r.status_code == 401
+
+    def test_admin_health_clear_errors_resets_counters():
+        import asyncio
+        from server import _sum_hourly_metric, _incr_hourly_metric
+        from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX
+        import server as _s
+
+        async def _bump():
+            r = _s.app.state.redis
+            await _incr_hourly_metric(r, EMAIL_FAIL_PREFIX)
+            await _incr_hourly_metric(r, HTTP_5XX_PREFIX)
+        asyncio.run(_bump())
+
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            r = client.post("/admin/health/clear-errors", cookies={"session": token})
+            assert r.status_code == 200
+
+            async def _sums():
+                rr = _s.app.state.redis
+                return (
+                    await _sum_hourly_metric(rr, EMAIL_FAIL_PREFIX),
+                    await _sum_hourly_metric(rr, HTTP_5XX_PREFIX),
+                )
+            email_sum, http_sum = asyncio.run(_sums())
+            assert email_sum == 0
+            assert http_sum == 0
+        finally:
+            cleanup(db, admin)
+            db.close()
+
+    def test_admin_health_clear_errors_hides_old_log_entries_but_not_new_ones():
+        import os
+        from datetime import datetime
+        from database import DATA_DIR
+        from server import _LOG_FILENAME
+
+        old_marker = "boom-before-clear-xyz"
+        log_path = os.path.join(DATA_DIR, _LOG_FILENAME)
+        with open(log_path, "a") as f:
+            f.write("2026-01-01 00:00:00 [ERROR] Unhandled exception on GET /old\n")
+            f.write(f"RuntimeError: {old_marker}\n")
+
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            r = client.post("/admin/health/clear-errors", cookies={"session": token})
+            assert r.status_code == 200
+
+            new_marker = "boom-after-clear-xyz"
+            now_str = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            with open(log_path, "a") as f:
+                f.write(f"{now_str} [ERROR] Unhandled exception on GET /new\n")
+                f.write(f"RuntimeError: {new_marker}\n")
+
+            r2 = client.get("/admin/health/logs", cookies={"session": token})
+            assert r2.status_code == 200
+            joined = "\n".join(r2.json()["entries"])
+            assert new_marker in joined
+            assert old_marker not in joined
+        finally:
+            cleanup(db, admin)
+            db.close()
+
+    def test_trigger_test_error_requires_auth():
+        r = client.post("/admin/health/trigger-test-error")
+        assert r.status_code == 401
+
+    def test_trigger_test_error_increments_5xx_and_logs():
+        """Deliberately raises — see test_5xx_response_increments_metric above for why
+        TestClient surfaces this as a raised exception rather than a 500 response object."""
+        import asyncio
+        from server import _sum_hourly_metric, _TestErrorTrigger
+        from metrics import HTTP_5XX_PREFIX
+        import server as _s
+
+        async def _sum():
+            return await _sum_hourly_metric(_s.app.state.redis, HTTP_5XX_PREFIX)
+
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            before = asyncio.run(_sum())
+            try:
+                client.post("/admin/health/trigger-test-error", cookies={"session": token})
+                assert False, "expected the exception to propagate to the test client"
+            except _TestErrorTrigger:
+                pass
+            after = asyncio.run(_sum())
+            assert after == before + 1
+        finally:
+            cleanup(db, admin)
+            db.close()
+
     def test_deep_check_endpoint_requires_auth():
         r = client.get("/admin/health/deep/anthropic")
         assert r.status_code == 401
@@ -291,6 +412,12 @@ def register(test, skip, client):
     test("GET /admin/health: renders 'Show recent errors' button", test_health_renders_show_recent_errors_button)
     test("GET /admin/health/logs requires auth",                   test_admin_health_logs_requires_auth)
     test("GET /admin/health/logs: returns recent ERROR entries",   test_admin_health_logs_endpoint)
+    test("_recent_error_log_entries: since filters old entries",   test_recent_error_log_entries_since_filters_old_entries)
+    test("POST /admin/health/clear-errors requires auth",          test_admin_health_clear_errors_requires_auth)
+    test("POST /admin/health/clear-errors resets counters",        test_admin_health_clear_errors_resets_counters)
+    test("Clear errors hides old log entries, keeps new ones",     test_admin_health_clear_errors_hides_old_log_entries_but_not_new_ones)
+    test("POST /admin/health/trigger-test-error requires auth",    test_trigger_test_error_requires_auth)
+    test("Trigger test error increments 5xx + logs",               test_trigger_test_error_increments_5xx_and_logs)
     test("GET /admin/health/deep/{name} requires auth",            test_deep_check_endpoint_requires_auth)
     test("GET /admin/health/deep/{name}: unknown name → 404",      test_deep_check_endpoint_unknown_name_404)
     test("GET /admin/health/deep/{name}: returns one check result", test_deep_check_endpoint_returns_one_result_per_provider)

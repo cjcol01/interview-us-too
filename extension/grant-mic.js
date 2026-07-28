@@ -1,22 +1,53 @@
 const statusEl   = document.getElementById('status');
 const deniedHelp = document.getElementById('denied-help');
 const copyBtn    = document.getElementById('copy-settings-link');
+const retryBtn   = document.getElementById('retry-btn');
 
-navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-  .then(stream => {
-    stream.getTracks().forEach(t => t.stop());
-    statusEl.textContent = 'Permission granted — you can close this tab.';
-    statusEl.className = 'status ok';
-    setTimeout(() => window.close(), 1500);
-  })
-  .catch(e => {
-    statusEl.textContent = 'Denied: ' + e.message;
-    statusEl.className = 'status err';
-    // Blocked outright (vs. e.g. no mic device found) — this is almost always because the
-    // extension's own chrome-extension:// origin got blocked on a past prompt, not a normal
-    // per-website setting, so point straight at the one settings page that actually fixes it.
-    if (e.name === 'NotAllowedError') deniedHelp.classList.remove('hidden');
-  });
+// Re-runs the permission check — used for the first load, the manual "Refresh" button, and
+// the automatic re-check when the user switches back to this tab after fixing the setting
+// in chrome://settings (see the visibilitychange listener below). A fresh getUserMedia() call
+// picks up a just-granted permission immediately — no actual page reload is needed.
+let _checkingMic = false;
+function requestMic() {
+  if (_checkingMic) return;
+  _checkingMic = true;
+  retryBtn.disabled = true;
+  statusEl.textContent = 'Checking...';
+  statusEl.className = 'status';
+
+  navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    .then(stream => {
+      stream.getTracks().forEach(t => t.stop());
+      deniedHelp.classList.add('hidden');
+      statusEl.textContent = 'Permission granted — you can close this tab.';
+      statusEl.className = 'status ok';
+      setTimeout(() => window.close(), 1500);
+    })
+    .catch(e => {
+      statusEl.textContent = 'Denied: ' + e.message;
+      statusEl.className = 'status err';
+      // Blocked outright (vs. e.g. no mic device found) — this is almost always because the
+      // extension's own chrome-extension:// origin got blocked on a past prompt, not a normal
+      // per-website setting, so point straight at the one settings page that actually fixes it.
+      if (e.name === 'NotAllowedError') deniedHelp.classList.remove('hidden');
+      _checkingMic = false;
+      retryBtn.disabled = false;
+    });
+}
+
+requestMic();
+
+retryBtn.addEventListener('click', requestMic);
+
+// Auto re-check as soon as the user switches back to this tab, so they don't have to
+// remember to click "Refresh" after fixing the setting in chrome://settings. Scoped to only
+// fire while the denied-help flow is showing, so it doesn't re-prompt after success (the tab
+// is already closing) or spam getUserMedia on every tab switch for unrelated error types.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !deniedHelp.classList.contains('hidden')) {
+    requestMic();
+  }
+});
 
 // chrome:// URLs can't be linked to directly from a page — Chrome silently refuses to
 // navigate to them — so this is copy-to-clipboard instead of a real <a href>.

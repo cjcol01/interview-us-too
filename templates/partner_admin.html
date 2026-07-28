@@ -1,26 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Partner Admin — InterviewAce{% endblock %}
+{% import "_admin_actions.html" as actions %}
+{% block title %}Referrals &amp; Partners — InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
   <style>
-    main.partner-admin-main { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
-    .pa-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 40px; }
-    .pa-table th, .pa-table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line, #333); }
-    .pa-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3, #888); }
-    .pa-empty { padding: 40px 0; text-align: center; color: var(--text-3, #888); }
+    .pa-grant-card {
+      border: 1px solid var(--line, #333);
+      border-radius: 12px;
+      padding: 20px 22px;
+      margin: 12px 0 40px;
+      background: rgba(255,255,255,.02);
+    }
+    .pa-grant-card h2 { margin: 0 0 6px; font-size: 16px; }
+    .pa-grant-sub { color: var(--text-3, #888); font-size: 13px; margin: 0 0 16px; }
+    .pa-grant-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .pa-grant-input, .pa-grant-select {
+      padding: 9px 12px; border-radius: 7px; border: 1px solid var(--line, #333);
+      background-color: var(--card, #111114); color: var(--text, #eee); font-size: 13.5px; font-family: inherit;
+    }
+    .pa-grant-input { flex: 1 1 220px; min-width: 200px; }
+    .pa-grant-select { flex: 0 0 auto; }
+    /* The <select> itself picks up background-color/color above fine when closed, but the
+       open dropdown list is styled via <option> in most browsers — without this it fell back
+       to a native white popup, which combined with the light text colour above made the
+       options unreadable. */
+    .pa-grant-select option { background-color: var(--card, #111114); color: var(--text, #eee); }
+    .pa-grant-input:focus, .pa-grant-select:focus { outline: none; border-color: var(--accent-line, rgba(125,196,245,.4)); }
     .pa-form { display: inline; }
-    .pa-form button { font-size: 12px; padding: 4px 10px; cursor: pointer; }
-    .pa-manual { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 12px 0 40px; }
-    .pa-manual input, .pa-manual select { padding: 6px 10px; font-size: 13px; }
-    .pa-note { color: var(--text-3, #888); font-size: 12px; }
-    h2 { font-size: 16px; margin-top: 8px; }
+    .ua-section-title { font-size: 15px; font-weight: 600; margin: 32px 0 12px; }
+    .ua-section-title:first-of-type { margin-top: 0; }
   </style>
 {% endblock %}
 {% block content %}
-  <main class="partner-admin-main">
-    <h1>Partners</h1>
+  <main class="admin-main admin-main-wide">
+    <h1>Referrals &amp; Partners</h1>
+    <p class="ua-sub">Affiliate tier status and commission balances, plus referral activity and referrers flagged for high signups with zero paid conversions.</p>
+    {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
+
+    <div class="ua-section-title">Partners</div>
     {% if partners %}
-    <table class="pa-table">
+    <div class="ua-table-wrap">
+    <table class="ua-table">
       <thead>
         <tr>
           <th>Email</th>
@@ -37,7 +58,7 @@
         {% for p in partners %}
         <tr>
           <td>{{ p.email }}</td>
-          <td>{{ p.tier }}{% if p.tier_manual %} <span class="pa-note">(manual)</span>{% endif %}</td>
+          <td>{{ p.tier }}{% if p.tier_manual %} <span style="color:var(--text-3,#888);">(manual)</span>{% endif %}</td>
           <td>{{ p.signup_count }}</td>
           <td>{{ p.paid_count }}</td>
           <td>£{{ "%.2f" | format(p.pending_pence / 100) }}</td>
@@ -48,25 +69,29 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="pa-empty">No partners with earnings yet.</div>
+    <div class="ua-empty">No partners with earnings yet.</div>
     {% endif %}
 
-    <h2>Grant a tier manually</h2>
-    <form action="/partner/admin/tier" method="post" class="pa-manual">
-      <input type="email" name="email" placeholder="partner@email.com" required>
-      <select name="tier">
-        <option value="2">Tier 2 ({{ tier2_pct }}%)</option>
-        <option value="3">Tier 3 ({{ tier3_pct }}%)</option>
-        <option value="1">Tier 1 (reset to flat / automatic)</option>
-      </select>
-      <button type="submit">Grant</button>
-      <span class="pa-note">Tier 2/3 are sticky — never auto-downgraded.</span>
-    </form>
+    <div class="pa-grant-card">
+      <h2>Grant a tier manually</h2>
+      <p class="pa-grant-sub">Overrides the automatic tier logic. Tier 2/3 granted here are sticky — never auto-downgraded.</p>
+      <form action="/partner/admin/tier" method="post" class="pa-grant-row">
+        <input type="email" name="email" class="pa-grant-input" placeholder="partner@email.com" required>
+        <select name="tier" class="pa-grant-select">
+          <option value="2">Tier 2 ({{ tier2_pct }}%)</option>
+          <option value="3">Tier 3 ({{ tier3_pct }}%)</option>
+          <option value="1">Tier 1 (reset to automatic)</option>
+        </select>
+        <button type="submit" class="ua-btn ua-btn-ok">Grant</button>
+      </form>
+    </div>
 
-    <h2>Withdrawal requests</h2>
+    <div class="ua-section-title">Withdrawal requests</div>
     {% if withdrawals %}
-    <table class="pa-table">
+    <div class="ua-table-wrap">
+    <table class="ua-table">
       <thead>
         <tr>
           <th>Requested</th>
@@ -89,8 +114,8 @@
           <td>{{ w.status | capitalize }}</td>
           <td>
             {% if w.status == 'requested' %}
-            <form action="/partner/admin/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit">Mark paid</button></form>
-            <form action="/partner/admin/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit">Reject</button></form>
+            <form action="/partner/admin/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-ok">Mark paid</button></form>
+            <form action="/partner/admin/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-danger">Reject</button></form>
             {% else %}
             &mdash;
             {% endif %}
@@ -99,8 +124,69 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="pa-empty">No withdrawal requests yet.</div>
+    <div class="ua-empty">No withdrawal requests yet.</div>
+    {% endif %}
+
+    <div class="ua-section-title">Flagged referrers ({{ flag_threshold }}+ signups, 0 paid conversions)</div>
+    {% if flagged %}
+    <div class="ua-table-wrap">
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Signups</th>
+          <th>Paid conversions</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in flagged %}
+        <tr>
+          <td>{{ f.email }}{% if not f.is_active %}<br><span class="ua-banned">Banned</span>{% endif %}</td>
+          <td>{{ f.signups }}</td>
+          <td>0</td>
+          <td>{{ actions.action_buttons(f, "/partner/admin") }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="ua-empty">No referrers past the threshold yet.</div>
+    {% endif %}
+
+    <div class="ua-section-title">Recent referrals (last 200)</div>
+    {% if referrals %}
+    <div class="ua-table-wrap">
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>Referrer</th>
+          <th>Referee</th>
+          <th>Status</th>
+          <th>Intro credited</th>
+          <th>Sub credited</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in referrals %}
+        <tr>
+          <td>{{ r.referrer_email }}</td>
+          <td>{{ r.referee_email }}</td>
+          <td>{{ r.status }}</td>
+          <td>{{ "Yes" if r.intro_credited else "—" }}</td>
+          <td>{{ "Yes" if r.sub_credited else "—" }}</td>
+          <td>{{ r.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="ua-empty">No referrals yet.</div>
     {% endif %}
   </main>
 {% endblock %}

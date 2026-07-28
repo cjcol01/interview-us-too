@@ -30,8 +30,18 @@
       {{ check_row("DB disk usage", metrics.db_disk) }}
       {{ check_row("Billing state", metrics.billing) }}
       {{ check_row("Resend failures", metrics.resend_failures) }}
-      {{ check_row("Error rate (5xx)", metrics.http_5xx) }}
-      <button type="button" class="ua-btn ua-btn-notice" id="hz-errors-btn" onclick="hzToggleRecentErrors()" style="margin:6px 0 4px;">Show recent errors</button>
+      <div class="hz-row">
+        <span class="hz-dot {{ 'hz-dot-ok' if metrics.http_5xx.ok == true else ('hz-dot-fail' if metrics.http_5xx.ok == false else 'hz-dot-unknown') }}"></span>
+        <span class="hz-name">Error rate (5xx)</span>
+        <span class="hz-detail">{{ metrics.http_5xx.detail }}</span>
+        <span class="hz-latency">{{ (metrics.http_5xx.latency_ms ~ ' ms') if metrics.http_5xx.latency_ms is not none else '' }}</span>
+        <button type="button" class="ua-btn ua-btn-danger" id="hz-trigger-error-btn" onclick="hzTriggerTestError()" title="Deliberately raises a 500 so you can watch it land here" style="margin-left:auto;">Trigger test error</button>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin:6px 0 4px; flex-wrap:wrap;">
+        <button type="button" class="ua-btn ua-btn-notice" id="hz-errors-btn" onclick="hzToggleRecentErrors()">Show recent errors</button>
+        <button type="button" class="ua-btn ua-btn-caution" id="hz-clear-errors-btn" onclick="hzClearErrors()">Clear errors</button>
+        <span class="ua-sub" id="hz-cleared-hint" style="margin:0;">{{ ('Cleared ' ~ errors_cleared_display) if errors_cleared_display else 'Not cleared yet' }}</span>
+      </div>
       <div id="hz-errors-container" style="display:none;"></div>
       <p class="ua-sub" style="margin:16px 0 4px;">Rate-limit activity (per minute)</p>
       {% for c in metrics.rate_limits %}
@@ -141,6 +151,35 @@
             ).join('');
         })
         .catch(() => { container.innerHTML = '<p class="ua-empty">Failed to load recent errors.</p>'; hzErrorsLoaded = false; });
+    }
+
+    function hzClearErrors() {
+      if (!confirm('Clear the error counters and "recent errors" list? Nothing is deleted from app.log — this just resets what counts as new.')) return;
+      const btn = document.getElementById('hz-clear-errors-btn');
+      btn.disabled = true;
+      btn.textContent = 'Clearing…';
+      fetch('/admin/health/clear-errors', { method: 'POST' })
+        .then(r => { if (!r.ok) throw new Error('failed'); return r.json(); })
+        .then(() => window.location.reload())
+        .catch(() => {
+          btn.disabled = false;
+          btn.textContent = 'Clear errors';
+          alert('Failed to clear errors — try again.');
+        });
+    }
+
+    function hzTriggerTestError() {
+      // The request is SUPPOSED to come back 500 — that's the whole point, so there's
+      // nothing to branch on here beyond re-enabling the button.
+      const btn = document.getElementById('hz-trigger-error-btn');
+      btn.disabled = true;
+      btn.textContent = 'Triggering…';
+      fetch('/admin/health/trigger-test-error', { method: 'POST' })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = 'Trigger test error';
+          alert('Triggered a 500. Click "Show recent errors" (or refresh the page) to see it land.');
+        });
     }
   </script>
 {% endblock %}

@@ -96,6 +96,32 @@ def register(test, skip, client):
             server.GOOGLE_OAUTH_ENABLED, server._google_exchange_claims = orig_enabled, orig_exchange
             cleanup(db, user); db.close()
 
+    def test_mixed_case_claims_email_normalized_and_matches_existing_lowercase_account():
+        """claims["email"] is lowercased before lookup/storage — otherwise a case-sensitive
+        DB comparison could miss an existing account and create a case-only duplicate."""
+        db = SessionLocal()
+        user = None
+        orig_enabled, orig_exchange = server.GOOGLE_OAUTH_ENABLED, server._google_exchange_claims
+        try:
+            server.GOOGLE_OAUTH_ENABLED = True
+            user = make_user(db, AccountLevel.trial)  # email stored lowercase by make_user
+            sub = f"google-sub-{_sec.token_hex(4)}"
+            mixed_case_email = user.email.upper()
+            server._google_exchange_claims = AsyncMock(return_value=_claims(mixed_case_email, sub))
+
+            state = _start_google_flow()
+            r = client.get(f"/auth/google/callback?code=abc&state={state}", follow_redirects=False)
+            assert r.status_code == 303
+
+            matches = db.query(User).filter(User.email == user.email).all()
+            assert len(matches) == 1  # linked to the existing account, not a new one
+            assert matches[0].id == user.id
+            db.refresh(matches[0])
+            assert matches[0].google_id == sub
+        finally:
+            server.GOOGLE_OAUTH_ENABLED, server._google_exchange_claims = orig_enabled, orig_exchange
+            cleanup(db, user); db.close()
+
     def test_matching_verified_email_links_without_touching_password():
         db = SessionLocal()
         user = None
@@ -167,6 +193,7 @@ def register(test, skip, client):
     test("GET /auth/google* -> 404 when Google OAuth is disabled",                  test_routes_404_when_disabled)
     test("Google callback: new email -> verified trial user + referral",            test_new_email_creates_verified_trial_user_and_consumes_referral)
     test("Google callback: same sub twice -> logs into same user, no duplicate",    test_same_sub_logs_into_same_user_no_duplicate)
+    test("Google callback: mixed-case email matches existing lowercase account",    test_mixed_case_claims_email_normalized_and_matches_existing_lowercase_account)
     test("Google callback: verified existing email -> links, password kept",        test_matching_verified_email_links_without_touching_password)
     test("Google callback: unverified existing email -> links, old password dead", test_matching_unverified_email_links_and_invalidates_old_password)
     test("Google callback: unknown/expired state -> login?error=oauth_failed",      test_bad_state_redirects_to_login_error)

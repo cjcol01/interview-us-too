@@ -1,9 +1,10 @@
 import secrets as _sec
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from auth import create_token, generate_unique_referral_code, hash_password
 from database import SessionLocal
-from models import AccountLevel, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User, Withdrawal
+from models import AccountLevel, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, UsageDaily, User, Withdrawal
 
 _AUDIO_FIXTURE = Path(__file__).parent / "fixtures" / "test_audio.wav"
 
@@ -68,6 +69,7 @@ def cleanup(db, *users):
             (PartnerCommission.partner_id == u.id) | (PartnerCommission.referee_id == u.id)
         ).delete()
         db.query(Withdrawal).filter(Withdrawal.partner_id == u.id).delete()
+        db.query(Lead).filter(Lead.user_id == u.id).delete()
         db.delete(u)
     db.commit()
 
@@ -80,3 +82,48 @@ def delete_by_name(username):
             cleanup(db, u)
     finally:
         db.close()
+
+
+def delete_lead(email):
+    """Cleanup for tests/test_install_link.py cases that create a Lead without ever
+    creating a User (email unique constraint would otherwise cascade across runs)."""
+    db = SessionLocal()
+    try:
+        db.query(Lead).filter(Lead.email == email).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+def delete_leads(db, *emails):
+    """Session-taking twin of delete_lead — for tests that already hold a db session and
+    want cleanup in the same transaction rather than opening a second one."""
+    db.query(Lead).filter(Lead.email.in_([e for e in emails if e])).delete(synchronize_session=False)
+    db.commit()
+
+
+def make_lead(db, *, email=None, kind="new", claimed=False, user=None, attribution=None,
+              created_at=None, interview_date=None):
+    """Lead fixture for the admin leads/funnel/attribution tests. Mirrors what
+    server._rotate_lead_token writes, without needing a live token or an email send."""
+    now = created_at or datetime.utcnow()
+    email = email or f"_lead_{_sec.token_hex(4)}@test.internal"
+    lead = Lead(
+        email=email,
+        token_hash=_sec.token_hex(32),
+        kind=kind,
+        created_at=now,
+        requested_at=now,
+        expires_at=now + timedelta(days=14),
+        interview_date=interview_date,
+        attribution=attribution,
+    )
+    if claimed:
+        lead.claimed_at = now
+        lead.claim_count = 1
+        if user is not None:
+            lead.user_id = user.id
+    db.add(lead)
+    db.commit()
+    db.refresh(lead)
+    return lead

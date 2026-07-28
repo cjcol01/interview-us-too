@@ -81,6 +81,130 @@ def send_password_reset_email(to_email: str, token: str) -> None:
         record_email_failure()
 
 
+def send_install_link_email(to_email: str, token: str) -> None:
+    url = f"{BASE_URL}/claim?token={token}"
+    logger.info("[email] install link for %s: %s", to_email, url)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce install link (open on your laptop)",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Open this on your laptop 💻</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                InterviewAce runs as a Chrome extension, so setup needs a laptop or desktop.
+                Open this email there and tap the button below — you'll land already signed
+                in, one click from installing. No password to create.
+              </p>
+              <a href="{url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
+                 border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
+                Set up InterviewAce
+              </a>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                Or copy this link into your browser:<br>{url}
+              </p>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                This link works for 14 days. Don't forward it — it signs you in.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                If you didn't ask for an InterviewAce install link, you can safely ignore this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send install link: %s", e)
+        record_email_failure()
+
+
+def send_desktop_login_email(to_email: str, token: str) -> None:
+    url = f"{BASE_URL}/claim?token={token}"
+    logger.info("[email] desktop sign-in link for %s: %s", to_email, url)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "Your InterviewAce sign-in link (open on your laptop)",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Pick up on your laptop 💻</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Open this email on the laptop or desktop you'll interview from, then tap the
+                button below — you'll land signed in to your InterviewAce account.
+              </p>
+              <a href="{url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
+                 border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
+                Sign in on this device
+              </a>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                Or copy this link into your browser:<br>{url}
+              </p>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                For your security this link expires in 15 minutes and can only be used once.
+                Never forward it — it signs someone in to your account.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                If you didn't request this, you can safely ignore this email — your account is unchanged.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send desktop sign-in link: %s", e)
+        record_email_failure()
+
+
+def send_password_set_email(to_email: str) -> None:
+    """Sent once, the moment a /claim account (created without any password anyone knows)
+    gets a real one via /finish-signup. Not a token link — a plain notification, because if
+    this wasn't the account owner (a forwarded/intercepted claim link, claimed by someone
+    else), the owner still controls the inbox and can act on this even without a link."""
+    reset_url = f"{BASE_URL}/forgot-password"
+    logger.info("[email] password-set notice for %s", to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": "A password was just set on your InterviewAce account",
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <h2 style="margin:0 0 16px;color:#1a1a2e;">Password set</h2>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                Someone just finished setting up {to_email} with a password, so it can be
+                signed into directly from now on.
+              </p>
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">
+                If this was you, there's nothing else to do. If it wasn't, reset it right
+                away — you still control this inbox either way.
+              </p>
+              <a href="{reset_url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
+                 border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
+                Reset my password
+              </a>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                Questions? Just reply to this email.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send password-set notice: %s", e)
+        record_email_failure()
+
+
 _REASON_LABELS = {
     "got_job":         "I got the job!",
     "too_expensive":   "Too expensive",
@@ -416,6 +540,52 @@ def send_announcement_email(to_email: str, subject: str, body: str) -> None:
         })
     except Exception as e:
         logger.error("[email] failed to send announcement to %s: %s", to_email, e)
+        record_email_failure()
+
+
+def send_lead_announcement_email(to_email: str, subject: str, body: str, token: str) -> None:
+    """Admin-authored nudge to a captured-but-never-claimed lead. Same free-text shell as
+    send_announcement_email above, plus a personalised claim button — the recipient has no
+    account and no session, so a bare link to the site would just re-show the landing page
+    they already bounced off. The token is freshly rotated per send (see _rotate_lead_token
+    in server.py), so any previously emailed link for this address is already dead by the
+    time this arrives."""
+    url = f"{BASE_URL}/claim?token={token}"
+    logger.info("[email] lead announcement %r sent to %s", subject, to_email)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    from html import escape
+    body_html = escape(body).replace("\n", "<br>")
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": to_email,
+            "subject": subject,
+            "html": f"""
+            <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
+              <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">{body_html}</p>
+              <a href="{url}" style="display:inline-block;background:#6c63ff;color:#ffffff;
+                 border-radius:8px;padding:12px 24px;text-decoration:none;font-weight:600;">
+                Set up InterviewAce
+              </a>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                Or copy this link into your browser:<br>{url}
+              </p>
+              <p style="margin:24px 0 0;color:#8a8a9a;font-size:0.82rem;line-height:1.6;">
+                InterviewAce runs as a Chrome extension, so open this on a laptop or desktop.
+                Don't forward this link — it signs you in.
+              </p>
+              <p style="margin:24px 0 0;color:#a0a0b0;font-size:0.78rem;line-height:1.6;border-top:1px solid #eee;padding-top:16px;">
+                You gave us this address on InterviewAce's site. If that wasn't you, ignore this email — no account has been created.
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send lead announcement to %s: %s", to_email, e)
         record_email_failure()
 
 

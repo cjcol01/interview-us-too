@@ -28,12 +28,21 @@
         </div>
       </div>
       <div class="an-field">
-        <label>Audience (select one or more)</label>
+        <label>Audience — accounts (select one or more)</label>
         <div class="an-checkbox-grid">
           {% for key, label in segments %}
           <label class="an-checkbox-item">
-            <input type="checkbox" name="segment" value="{{ key }}" onchange="anUpdateSegment()">
+            <input type="checkbox" name="segment" value="{{ key }}" data-audience="user" onchange="anUpdateSegment(this)">
             {{ label }}{% if key != 'individual' %} <span class="an-segment-count-inline">({{ counts[key] }})</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        <label style="margin-top:16px;">Audience — captured leads (no account yet · email only)</label>
+        <div class="an-checkbox-grid">
+          {% for key, label in lead_segments %}
+          <label class="an-checkbox-item">
+            <input type="checkbox" name="segment" value="{{ key }}" data-audience="lead" onchange="anUpdateSegment(this)">
+            {{ label }} <span class="an-segment-count-inline">({{ counts[key] }})</span>
           </label>
           {% endfor %}
         </div>
@@ -69,7 +78,11 @@
         <tr>
           <td>{{ a.subject }}</td>
           <td><span class="an-badge an-badge-{{ a.channel }}">{{ a.channel }}</span></td>
-          <td>{{ a.segment.replace(',', ', ') }}{% if 'individual' in a.segment.split(',') %} ({{ a.target_email }}){% endif %}</td>
+          <td>
+            {% for k in a.segment.split(',') %}{{ segment_labels.get(k, k) }}{{ ", " if not loop.last }}{% endfor %}
+            {%- if 'individual' in a.segment.split(',') %} ({{ a.target_email }}){% endif %}
+            {%- if a.segment.split(',')[0] in lead_segment_keys %} <span class="an-segment-count-inline">&middot; leads</span>{% endif %}
+          </td>
           <td>{{ a.email_recipient_count if a.email_recipient_count is not none else ("—" if a.channel == "in_app" else "sending…") }}</td>
           <td>{{ a.created_at.strftime("%d %b %Y %H:%M") }}</td>
           <td>{{ "active" if a.in_app_active else "—" }}</td>
@@ -93,11 +106,28 @@
     function anSelectedSegments() {
       return Array.from(document.querySelectorAll('input[name="segment"]:checked')).map(el => el.value);
     }
-    function anUpdateSegment() {
-      const selected = anSelectedSegments();
-      const countEl = document.getElementById('an-segment-count');
+    function anUpdateSegment(changed) {
+      const boxes = Array.from(document.querySelectorAll('input[name="segment"]'));
+      // Account and lead audiences can't share a send (the server rejects it) — so silently
+      // swap sides on click rather than letting an admin compose a whole message and only
+      // find out on submit.
+      if (changed && changed.checked) {
+        const other = changed.dataset.audience === 'lead' ? 'user' : 'lead';
+        boxes.filter(b => b.dataset.audience === other).forEach(b => { b.checked = false; });
+      }
+      const selected = boxes.filter(b => b.checked).map(b => b.value);
+      const leadMode = boxes.some(b => b.checked && b.dataset.audience === 'lead');
+
+      // A lead has no session, so there's no in-app banner to show one. Lock to email.
+      document.querySelectorAll('input[name="channel"]').forEach(radio => {
+        const emailOnly = radio.value === 'email';
+        radio.disabled = leadMode && !emailOnly;
+        if (leadMode && emailOnly) radio.checked = true;
+      });
+
       const targetField = document.getElementById('an-target-email-field');
       targetField.style.display = selected.includes('individual') ? '' : 'none';
+      const countEl = document.getElementById('an-segment-count');
       if (!selected.length) { countEl.textContent = 'Select at least one audience.'; return; }
 
       const params = new URLSearchParams();
@@ -108,7 +138,11 @@
       countEl.textContent = 'Calculating…';
       fetch('/admin/announcements/count?' + params.toString())
         .then(r => r.json())
-        .then(data => { countEl.textContent = data.count + ' recipient(s) currently match this selection.'; })
+        .then(data => {
+          countEl.textContent = data.count + ' ' + (data.audience === 'leads' ? 'lead(s)' : 'recipient(s)')
+            + ' currently match this selection.'
+            + (data.audience === 'leads' ? ' Sending mints each of them a fresh claim link and kills any previous one.' : '');
+        })
         .catch(() => { countEl.textContent = ''; });
     }
     function anConfirmSend(form) {
@@ -118,9 +152,14 @@
         alert('The "Individual" audience needs a target email.');
         return false;
       }
+      const leadMode = Array.from(document.querySelectorAll('input[name="segment"]:checked'))
+                            .some(b => b.dataset.audience === 'lead');
+      const warn = leadMode
+        ? '\n\nThis emails people who have NO account and rotates each of their claim links — any link already in their inbox stops working.'
+        : '';
       const countEl = document.getElementById('an-segment-count');
-      return confirm('Send this announcement (' + form.channel.value + ') to: ' + selected.join(', ') + '\n\n' + countEl.textContent);
+      return confirm('Send this announcement (' + form.channel.value + ') to: ' + selected.join(', ') + '\n\n' + countEl.textContent + warn);
     }
-    document.addEventListener('DOMContentLoaded', anUpdateSegment);
+    document.addEventListener('DOMContentLoaded', function () { anUpdateSegment(null); });
   </script>
 {% endblock %}

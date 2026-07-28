@@ -46,6 +46,27 @@
     .copy-btn:hover { border-color: #555; }
     .copy-btn.copied { color: #4caf50; border-color: #4caf50; }
     .denied-help ol { font-size: 0.76rem; color: #777; line-height: 1.8; padding-left: 18px; margin: 0 0 14px; }
+    .retry-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      background: rgba(76,175,80,0.1);
+      border: 1px solid #4caf50;
+      color: #4caf50;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 9px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background .15s;
+    }
+    .retry-btn:hover { background: rgba(76,175,80,0.18); }
+    .retry-btn:disabled { opacity: .6; cursor: default; }
+    .auto-check-hint { font-size: 0.72rem; color: #555; margin: -6px 0 16px; }
     .support-link {
       display: inline-block;
       font-size: 0.76rem;
@@ -66,8 +87,10 @@
       <ol>
         <li>Paste it into a new tab's address bar and press Enter.</li>
         <li>Set Microphone to "Allow".</li>
-        <li>Come back to this tab and try again.</li>
+        <li>Come back to this tab and click refresh below.</li>
       </ol>
+      <button type="button" id="retry-btn" class="retry-btn">↻ Refresh — check permission again</button>
+      <p class="auto-check-hint">We'll also check automatically as soon as you switch back to this tab.</p>
       <a href="#" id="support-link" class="support-link hidden" target="_blank" rel="noopener">Still stuck? See the full guide →</a>
     </div>
   </div>

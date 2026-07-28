@@ -16,6 +16,11 @@
 - [ ] email me a link at login (for conversion from mobile)
 - [ ] interview date on sign up for follow up email.
 - [ ] setup check before real interview without starting session.
+- [ ] I got the job, referral system, pause instead of cancel
+- [ ] how'd the interview go question and feedback
+- [ ] target salesman
+- [ ] add a next interview date in settings
+- [ ] simplify landing page
 
 ## Soon 
 - [ ] shorten landing page

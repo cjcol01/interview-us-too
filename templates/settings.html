@@ -170,7 +170,9 @@
                 class="field-input field-textarea"
                 id="context-text-input"
                 maxlength="{{ context_text_max_length }}"
-                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Focus on system design trade-offs. A time i demonstrated leadership skills is when..."
+                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Focus on system design trade-offs. 
+ACME's values are move fast and break things and ...
+A time i demonstrated leadership skills is when..."
                 oninput="document.getElementById('context-count').textContent = this.value.length + ' / {{ context_text_max_length }}'"
               ></textarea>
               <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>

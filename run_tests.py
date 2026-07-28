@@ -100,6 +100,10 @@ with TestClient(app) as client:
     import tests.test_mobile_login
     tests.test_mobile_login.register(test, skip, client)
 
+    section("Install Link / Device Handoff")
+    import tests.test_install_link
+    tests.test_install_link.register(test, skip, client)
+
     section("Google OAuth")
     import tests.test_google_oauth
     tests.test_google_oauth.register(test, skip, client)
@@ -138,6 +142,10 @@ with TestClient(app) as client:
     section("Admin — Growth Dashboard")
     import tests.test_dashboard
     tests.test_dashboard.register(test, skip, client)
+
+    section("Admin — Leads")
+    import tests.test_admin_leads
+    tests.test_admin_leads.register(test, skip, client)
 
     section("Admin — System Health")
     import tests.test_health

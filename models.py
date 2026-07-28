@@ -38,6 +38,12 @@ class User(Base):
     google_id          = Column(String, nullable=True, unique=True, index=True)
     github_id          = Column(String, nullable=True, unique=True, index=True)
     email_verified     = Column(Boolean, default=False, nullable=False)
+    # Whether this account has a password only the user knows. True for normal signups
+    # (chosen at registration) and for Google/GitHub accounts (they always re-auth via that
+    # provider, so a password is never needed). False only for accounts created via the
+    # mobile device-handoff /claim flow, until they complete /finish-signup — that flow
+    # proves email ownership but never collects a password, unlike every other signup path.
+    password_set       = Column(Boolean, default=True, nullable=False, server_default="1")
     verify_token       = Column(String, nullable=True, index=True)
     reset_token        = Column(String, nullable=True, index=True)
     reset_token_expiry = Column(DateTime, nullable=True)
@@ -196,3 +202,33 @@ class AnnouncementDismissal(Base):
     announcement_id = Column(Integer, ForeignKey("announcements.id"), nullable=False, index=True)
     user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Lead(Base):
+    """A captured email from the mobile landing-page CTA, before any account exists.
+
+    Deliberately NOT a shell User row: a lead is inert — it doesn't block a later normal
+    signup, doesn't need a synthesised username/full_name, and doesn't pollute user counts
+    or get a referral code from init_db()'s backfill. The User row is created at CLAIM time
+    (see /claim in server.py), which is the moment email ownership is actually proven.
+
+    One row per email — re-requesting rotates token_hash and invalidates the previous link
+    rather than accumulating rows, which matters most for kind == "existing" (a stale live
+    login URL must not sit around in an inbox)."""
+    __tablename__ = "leads"
+
+    id             = Column(Integer, primary_key=True, index=True)
+    email          = Column(String, unique=True, index=True, nullable=False)
+    token_hash     = Column(String, unique=True, index=True, nullable=True)  # sha256 hex of the raw link token; nullable so the purge job can scrub it
+    kind           = Column(String, nullable=False, server_default="new")    # new | existing
+    created_at     = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    requested_at   = Column(DateTime, default=datetime.utcnow, nullable=False)  # last time a link was emailed
+    request_count  = Column(Integer, default=0, nullable=False, server_default="0")
+    expires_at     = Column(DateTime, nullable=False)
+    claimed_at     = Column(DateTime, nullable=True, index=True)
+    claim_count    = Column(Integer, default=0, nullable=False, server_default="0")
+    user_id        = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    interview_date = Column(Date, nullable=True)   # transferred onto User at claim
+    ref_code       = Column(String, nullable=True) # snapshot of the `ref` cookie at capture time — survives the device hop
+    attribution    = Column(Text, nullable=True)   # JSON blob: utm_*, gclid, fbclid, referer, first-touch ts
+    ip             = Column(String, nullable=True) # abuse triage only; scrubbed by the purge job

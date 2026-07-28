@@ -46,8 +46,21 @@ def get_db():
         db.close()
 
 
+def _add_missing_columns(conn, inspector, table, migrations):
+    """Applies an idempotent list of (col, sql_type) ALTER TABLEs to `table` for any column
+    not already present, so create_all()'s "new table" path and this "existing table" path
+    both stay in sync without dropping data. Returns the pre-migration column set (some
+    callers need to know whether a given column was newly added, e.g. for a backfill)."""
+    from sqlalchemy import text
+    existing = {c["name"] for c in inspector.get_columns(table)}
+    for col, definition in migrations:
+        if col not in existing:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {definition}"))  # no-op if column exists
+    return existing
+
+
 def init_db():
-    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, PartnerCommission, Referral, UsageDaily, User, Withdrawal  # noqa: F401 — ensures tables are registered
+    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, UsageDaily, User, Withdrawal  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -92,11 +105,15 @@ def init_db():
             ("welcome_seen",            "BOOLEAN DEFAULT 0"),
             ("interview_date",          "DATE"),
             ("interview_reminder_sent", "BOOLEAN DEFAULT 0"),
+            ("password_set",            "BOOLEAN DEFAULT 1"),
         ]
         welcome_seen_is_new = "welcome_seen" not in existing
-        for col, definition in migrations:
-            if col not in existing:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {definition}"))  # no-op if column exists
+        _add_missing_columns(conn, inspector, "users", migrations)
+        # leads has no columns yet needing an ALTER — create_all() covers a brand-new table
+        # in full. Kept here (empty) so the next column added to `leads` doesn't silently
+        # do nothing on an existing DB, which create_all() alone would do.
+        lead_migrations = []
+        _add_missing_columns(conn, inspector, "leads", lead_migrations)
         if welcome_seen_is_new:
             # anyone who'd already finished onboarding before this column existed has
             # necessarily already seen the welcome demo — don't replay it for them
@@ -108,12 +125,37 @@ def init_db():
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_reset_token ON users(reset_token)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_google_id ON users(google_id)"))
         conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_github_id ON users(github_id)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_leads_email ON leads(email)"))
+        conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_leads_token_hash ON leads(token_hash)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_created_at ON leads(created_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_user_id ON leads(user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_claimed_at ON leads(claimed_at)"))
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:
         from auth import generate_unique_referral_code
         for u in db.query(User).filter(User.referral_code == None).all():  # noqa: E711
             u.referral_code = generate_unique_referral_code(db)
+        db.commit()
+    finally:
+        db.close()
+    # normalize any pre-existing mixed-case emails now that every signup path (register,
+    # Google/GitHub OAuth, /claim) consistently lowercases going forward — without this,
+    # an old mixed-case row would be invisible to those paths' now-lowercased lookups.
+    # Skips (rather than crashes on a UNIQUE violation) if lowercasing a row would collide
+    # with another account — that would mean two accounts already differing only by case,
+    # which needs a human to resolve, not a silent merge.
+    db = SessionLocal()
+    try:
+        from analytics import logger
+        for u in db.query(User).all():
+            lowered = u.email.lower()
+            if lowered == u.email:
+                continue
+            if db.query(User).filter(User.email == lowered, User.id != u.id).first():
+                logger.warning("[init_db] skipping email lowercase for user %s — %s already taken", u.id, lowered)
+                continue
+            u.email = lowered
         db.commit()
     finally:
         db.close()

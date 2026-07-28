@@ -204,6 +204,86 @@ a { color: inherit; text-decoration: none; }
 .ia-trust-row span { display: flex; align-items: center; gap: 7px; }
 .ia-check { color: var(--accent); }
 
+/* ===== HERO LEAD CAPTURE (small screens) ===== */
+/* Rendered on every viewport, shown only ≤720px — this repo does device detection with
+   media queries / matchMedia, never user-agent sniffing. See @media (max-width: 720px) below. */
+.ia-lead { display: none; margin-top: 22px; max-width: 480px; }
+.ia-lead-done { display: none; }
+
+.ia-lead-label {
+  display: block; margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-3);
+}
+.ia-lead-row { display: flex; flex-direction: column; gap: 10px; }
+
+/* First <input> styling in this stylesheet — reuses existing tokens only, no new colours. */
+.ia-lead-input {
+  width: 100%; box-sizing: border-box;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 16px;                       /* ≥16px or iOS Safari zooms the page on focus */
+  color: var(--text-1);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 14px 16px;
+  transition: border-color .15s, box-shadow .15s;
+}
+.ia-lead-input::placeholder { color: var(--text-3); }
+.ia-lead-input:focus {
+  outline: none;
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.ia-lead-input[aria-invalid="true"] { border-color: #C0392B; }
+
+.ia-lead-btn {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 15px; font-weight: 600;
+  color: var(--btn-text); background: var(--btn-bg);
+  border: none; border-radius: 10px; padding: 14px 26px; cursor: pointer;
+  transition: transform .15s, box-shadow .15s, opacity .15s;
+}
+.ia-lead-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--btn-shadow); }
+.ia-lead-btn:disabled { opacity: .55; cursor: default; transform: none; box-shadow: none; }
+
+.ia-lead-date { margin-top: 16px; }
+.ia-lead-date-label {
+  display: block; margin-bottom: 8px;
+  font-size: 13px; color: var(--text-2);
+}
+.ia-lead-optional { color: var(--text-3); }
+.ia-lead-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.ia-lead-pill {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13px; font-weight: 500; color: var(--text-1);
+  background: transparent; border: 1px solid var(--line-strong);
+  border-radius: 980px; padding: 7px 14px; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.ia-lead-pill:hover { border-color: var(--ghost-hover-line); background: var(--ghost-hover-bg); }
+.ia-lead-pill.active { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+.ia-lead-pill-muted { color: var(--text-3); }
+
+.ia-lead-err { min-height: 18px; margin: 8px 0 0; font-size: 13px; color: #C0392B; }
+.ia-lead-alt { display: inline-block; margin-top: 10px; font-size: 13px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; }
+
+.ia-lead-done[hidden] { display: none !important; }
+.ia-lead-done {
+  margin-top: 22px; max-width: 480px;
+  border: 1px solid var(--accent-line); background: var(--accent-soft);
+  border-radius: 12px; padding: 16px 18px;
+  font-size: 15px; line-height: 1.6; color: var(--text-1);
+}
+.ia-lead-done strong { display: block; margin-bottom: 4px; }
+
+/* Honeypot — off-canvas rather than display:none, which some bots skip. */
+.ia-hp {
+  position: absolute; left: -9999px; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}
+
 /* ===== HERO DEMO ===== */
 .ia-hero-demo { display: flex; flex-direction: column; gap: 10px; max-width: 100%; position: relative; }
 .ia-demo-caption { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #67676F; text-align: center; margin: 0; }
@@ -357,8 +437,14 @@ a { color: inherit; text-decoration: none; }
 .demo-replay-btn.pressed { transform: scale(0.94); }
 .demo-voice-hint { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #67676F; }
 
-/* Phone panel — floats in front of the stage */
-.demo-phone-panel { position: absolute; right: -20px; bottom: 0; z-index: 10; }
+/* Phone panel — floats in front of the stage. Flex column so .phone-toast (mobile only)
+   just pushes the frame down from the bottom-anchored position instead of needing a
+   guessed negative offset to float above it. No gap here — the toast's own arrow (see
+   .phone-toast::after) supplies the visual connection, so the two sit flush. */
+.demo-phone-panel {
+  position: absolute; right: -20px; bottom: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center;
+}
 
 .phone-frame {
   width: 170px; height: 340px;
@@ -409,9 +495,37 @@ a { color: inherit; text-decoration: none; }
 .phone-answer-dot { width: 6px; height: 6px; border-radius: 50%; background: #C6F24E; box-shadow: 0 0 6px #C6F24E; flex-shrink: 0; }
 .phone-answer-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; color: #C6F24E; letter-spacing: 0.05em; }
 .phone-context-note {
+  display: none;
   font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: #9C9CA6;
   background: rgba(255,255,255,0.04); border-radius: 5px; padding: 4px 7px;
   margin: 0 0 7px; flex-shrink: 0;
+}
+.phone-context-note.has-note { display: block; }
+
+/* Mobile-only stand-in for .phone-context-note — see @media (max-width: 500px) below, and
+   showContextNote() in the inline script, which writes a shorter version of the same note
+   here (it's a narrow bubble, not room for the full sentence). The ::after arrow anchors it
+   to the phone below so it reads as a callout attached to the phone, not a floating banner. */
+.phone-toast {
+  display: none;
+  position: relative;
+  max-width: 150px;
+  margin-bottom: 9px; /* reserves room for the arrow, which sits in this gap */
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; line-height: 1.4;
+  color: #D6D6DC; text-align: center;
+  background: rgba(13,13,16,0.94); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px; padding: 7px 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.45);
+}
+.phone-toast::after {
+  content: '';
+  position: absolute;
+  right: 22px; bottom: -8px;
+  width: 0; height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+  border-top: 8px solid rgba(13,13,16,0.94);
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,0.25));
 }
 .phone-code, .phone-prose {
   font-family: 'JetBrains Mono', monospace; font-size: 9px; line-height: 1.6;
@@ -753,13 +867,29 @@ a { color: inherit; text-decoration: none; }
   .ia-steps { grid-template-columns: 1fr; gap: 36px; }
   .ia-step-rule { display: none; }
   .ia-pricing { grid-template-columns: 1fr; max-width: 480px; }
+  /* Tablet and below: cut the "How it works", Features and Pricing sections — keep
+     the mobile landing page focused on the hero + CTA instead of a long scroll. */
+  #how, #features, #pricing { display: none; }
+  /* Its target (#how) is gone at this width — don't leave a dead link in the hero. */
+  a.ia-btn-hero[href="#how"] { display: none; }
 }
 
 @media (max-width: 720px) {
   .ia-section { padding: 80px max(20px,4vw); }
   .ia-cta-section { padding: 80px max(20px,4vw); }
-  .ia-hero { padding: 48px max(20px,4vw) 60px; }
-  .ia-h1 { font-size: clamp(38px,10vw,60px); }
+  .ia-hero { padding: 24px max(20px,4vw) 40px; }
+  .ia-hero-inner { gap: 24px; }
+  .ia-hero-copy { padding-top: 0; }
+  .ia-eyebrow { margin-bottom: 16px; }
+  .ia-h1 { font-size: clamp(38px,10vw,60px); margin-bottom: 16px; }
+  .ia-hero-sub { margin-bottom: 22px; }
+  .ia-lead { display: block; margin-top: 16px; }
+  .ia-lead-done.is-shown { display: block; }
+  .ia-cta-desktop { display: none; }
+  /* Mobile already gets to the app via the nav bar — don't spend hero space repeating it,
+     the demo should be the thing they scroll a short way to see. */
+  a.ia-btn-hero[href="/app"] { display: none; }
+  .ia-trust-row { margin-top: 18px; }
 }
 
 @media (max-width: 500px) {
@@ -767,9 +897,14 @@ a { color: inherit; text-decoration: none; }
   .ia-bento { grid-template-columns: 1fr; }
   .ia-hero-btns { flex-direction: column; align-items: flex-start; }
   .ia-hero-demo { width: 100%; }
-  .phone-frame { width: 120px; height: 240px; border-radius: 26px; }
+  /* Bigger than before (was 120x240) — freed up by moving the context note out to the
+     toast below, plus the extra headroom from the hero decluttering. Less wrapped code,
+     less clipped text. */
+  .phone-frame { width: 150px; height: 300px; border-radius: 30px; }
   .demo-phone-panel { right: 0; }
   .ia-demo-frame { padding-bottom: 36px; }
+  .phone-context-note.has-note { display: none; }
+  .phone-toast.has-note { display: block; }
 }
 
 /* ===== REDUCED MOTION ===== */

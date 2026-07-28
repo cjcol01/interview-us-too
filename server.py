@@ -6,6 +6,9 @@ _PROC_T0 = _time.perf_counter()
 
 import asyncio
 import base64
+import csv
+import hashlib
+import io
 import json
 import os
 import re
@@ -18,7 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode
 
 # --- startup profiling (see STARTUP_PERF.md) — capture the clock *before* the heavy
 # third-party imports below so we can measure how long they take. On a slow filesystem
@@ -42,7 +45,8 @@ from fastapi.templating import Jinja2Templates
 from jose import jwt as jose_jwt
 from openai import AsyncOpenAI, OpenAI
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, false, func, or_, text, true
+from sqlalchemy import and_, case, false, func, or_, text, true
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -51,10 +55,10 @@ from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_expiry_reminder_email, send_interview_reminder_email, send_low_sessions_email, send_password_reset_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
-from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User, Withdrawal, WithdrawalStatus
+from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User, Withdrawal, WithdrawalStatus
 
 # --- startup profiling: log where boot time goes so slow environments (e.g. a WSL2
 # 9p-mounted repo) can be diagnosed straight from the logs. See STARTUP_PERF.md. ---
@@ -140,6 +144,31 @@ templates.env.globals["DEV_BUILD"] = DEV_BUILD
 SCREENSHOTS_DIR = Path("screenshots")
 
 INTERVIEW_REMINDER_CHECK_SECONDS = 6 * 3600
+LEAD_PURGE_CHECK_SECONDS = 24 * 3600
+LEAD_IP_SCRUB_DAYS  = 30   # ip/token_hash are only useful for abuse triage / claim
+LEAD_RETENTION_DAYS = 180  # full row deletion — data minimisation for the leads table
+
+
+def _purge_stale_leads() -> int:
+    """Data minimisation for the leads table, which otherwise accumulates email + IP
+    forever: scrubs ip/token_hash 30 days past expiry (their only purpose — abuse triage
+    and claim lookup — is over by then), and deletes the row entirely at 180 days. Runs in
+    a thread from the background loop started in lifespan(); also called directly by
+    tests. Returns the number of rows deleted."""
+    db = SessionLocal()
+    try:
+        now = datetime.utcnow()
+        db.query(Lead).filter(
+            Lead.expires_at < now - timedelta(days=LEAD_IP_SCRUB_DAYS),
+            or_(Lead.ip != None, Lead.token_hash != None),  # noqa: E711
+        ).update({"ip": None, "token_hash": None}, synchronize_session=False)
+        deleted = db.query(Lead).filter(
+            Lead.expires_at < now - timedelta(days=LEAD_RETENTION_DAYS),
+        ).delete(synchronize_session=False)
+        db.commit()
+        return deleted
+    finally:
+        db.close()
 
 
 def _send_due_interview_reminders() -> int:
@@ -219,11 +248,22 @@ async def lifespan(app: FastAPI):
                     logger.exception("[interview-reminder] loop iteration failed")
                 await asyncio.sleep(INTERVIEW_REMINDER_CHECK_SECONDS)
         app.state.interview_reminder_task = asyncio.create_task(_interview_reminder_loop())
+
+        async def _lead_purge_loop():
+            while True:
+                try:
+                    await asyncio.to_thread(_purge_stale_leads)
+                except Exception:
+                    logger.exception("[lead-purge] loop iteration failed")
+                await asyncio.sleep(LEAD_PURGE_CHECK_SECONDS)
+        app.state.lead_purge_task = asyncio.create_task(_lead_purge_loop())
     try:
         yield
     finally:
         if getattr(app.state, "interview_reminder_task", None):
             app.state.interview_reminder_task.cancel()
+        if getattr(app.state, "lead_purge_task", None):
+            app.state.lead_purge_task.cancel()
         await app.state.redis.aclose()
 
 
@@ -371,6 +411,19 @@ def _deepgram_transcribe(audio_bytes: bytes, suffix: str) -> str:
 
 SESSION_DURATION = timedelta(hours=1, minutes=30)
 TRIAL_DURATION   = timedelta(minutes=10)
+
+# Mirrors the client-side check in templates/landing.html and login.html — keep in sync.
+_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+# Mobile lead-capture "device handoff + account claim" flow (/api/install-link, /claim).
+# Asymmetric on purpose: a brand-new lead's link must survive being tapped on the phone
+# first without burning — the whole point is not stranding the user on the wrong device —
+# so it's long-lived and reusable. A link into an *existing* (possibly paying) account is a
+# passwordless login and stays short-lived and single-use, like /mobile-login's Redis token.
+LEAD_NEW_TTL         = timedelta(days=14)
+LEAD_EXISTING_TTL    = timedelta(minutes=15)
+LEAD_POST_CLAIM_TTL  = timedelta(hours=24)   # window a "new" link stays reusable after first claim
+LEAD_MAX_CLAIMS      = 5
 
 COMPLEXITY_MIN = 1
 COMPLEXITY_MAX = 3
@@ -622,6 +675,94 @@ async def _rate_limit(r, user_id: int | str, endpoint: str, cooldown: int, limit
     await r.set(last_key, time.time(), ex=cooldown + 5)
 
 
+# Recognised ad-click params for the mobile lead-capture funnel (server.py /api/install-link,
+# /claim). Kept in one place since attribution is stored as a JSON blob, not discrete columns.
+_ATTR_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid")
+_ATTR_MAX_VALUE = 200
+_ATTR_COOKIE_MAX = 1000
+
+
+def _hash_link_token(raw: str) -> str:
+    """sha256 of a lead-capture link token, for indexable at-rest storage (Lead.token_hash).
+    Not bcrypt: bcrypt is salted and so isn't indexable — lookup would mean scanning every
+    unexpired lead. The token itself is 256 bits of CSPRNG entropy (secrets.token_urlsafe(32)),
+    so bcrypt's work factor (which defends low-entropy secrets against guessing) buys nothing."""
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _rotate_lead_token(db: Session, lead: Lead) -> str:
+    """Mints a fresh claim token and re-derives kind/TTL from whether that email has an
+    account right now — used by both /api/install-link's self-serve resend (_issue below)
+    and the admin bulk lead-announcement sender. Does NOT touch ip/ref_code/attribution/
+    interview_date — those describe an actual landing-page submission, and a bulk admin
+    resend isn't one. Caller commits.
+
+    /claim re-derives its behaviour from lead.kind/lead.user_id at click time, so a lead
+    whose email registered via some other path since capture is handled correctly with no
+    special-casing, as long as this sets them the same way /api/install-link does."""
+    user = db.query(User).filter(User.email == lead.email, User.is_active == True).first()  # noqa: E712
+    raw = secrets.token_urlsafe(32)
+    now = datetime.utcnow()
+    lead.token_hash    = _hash_link_token(raw)
+    lead.kind          = "existing" if user else "new"
+    lead.expires_at    = now + (LEAD_EXISTING_TTL if user else LEAD_NEW_TTL)
+    lead.requested_at  = now
+    lead.request_count = (lead.request_count or 0) + 1
+    lead.claimed_at    = None            # re-issuing invalidates the previous link
+    lead.claim_count   = 0
+    lead.user_id       = user.id if user else None
+    return raw
+
+
+def _attribution_from_query(request: Request) -> str:
+    """Packs recognised ad-click params into a compact urlencoded string for the ia_attr
+    cookie. Mirrors the `ref` cookie (see /r/{code} below): set server-side, httponly, read
+    back server-side at conversion, deleted once consumed. No JS involved, so nothing the
+    client can forge, and it survives navigating away from the landing page and back."""
+    qp = request.query_params
+    parts = {k: qp[k][:_ATTR_MAX_VALUE] for k in _ATTR_KEYS if qp.get(k)}
+    if not parts:
+        return ""
+    referer = request.headers.get("referer") or ""
+    if referer:
+        parts["r"] = referer[:_ATTR_MAX_VALUE]
+    parts["t"] = str(int(time.time()))
+    return urlencode(parts)[:_ATTR_COOKIE_MAX]
+
+
+def _attribution_json(cookie_value: Optional[str]) -> Optional[str]:
+    """Turns the packed ia_attr cookie value into the JSON blob stored on Lead.attribution.
+    Drops whole keys to fit the cap rather than slicing the serialised string — slicing
+    could truncate mid-object and persist invalid JSON, which SQLite's json_extract *raises*
+    on (rather than returning NULL), which would take the whole growth dashboard down with
+    it the first time an admin loads the attribution breakdown."""
+    if not cookie_value:
+        return None
+    try:
+        parts = {k: v[0] for k, v in parse_qs(cookie_value).items()}
+        blob = json.dumps(parts)
+        while len(blob) > _ATTR_COOKIE_MAX and parts:
+            parts.pop(next(reversed(parts)))
+            blob = json.dumps(parts)
+        return blob if parts else None
+    except Exception:
+        return None
+
+
+def _attribution_dict(blob: Optional[str]) -> dict:
+    """Row-level read of Lead.attribution — the Python-side twin of the json_valid() guard
+    used by the dashboard's aggregate attribution query. Tolerates any malformed blobs
+    written before the _attribution_json fix above, and a blob that parses to something
+    other than a dict."""
+    if not blob:
+        return {}
+    try:
+        parsed = json.loads(blob)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def _record_usage(db: Session, user_id: int, kind: str):
     """Persistent per-user, per-UTC-day counter for the admin usage page — separate from
     the short-lived Redis rate-limit keys, which expire after minutes."""
@@ -720,6 +861,17 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 
+class InstallLinkRequest(BaseModel):
+    email: str
+    interview_date: Optional[str] = None   # "YYYY-MM-DD" — optional, never fails the capture
+    hp_check: str = Field(default="", max_length=500)   # honeypot — a real submit always leaves this empty
+
+
+class FinishSignupRequest(BaseModel):
+    full_name: str = Field(max_length=200)
+    password: str
+
+
 class CaptureRequest(BaseModel):
     image: str        # base64 PNG, optionally prefixed with "data:image/png;base64,"
     complexity: int = Field(default=2, ge=1, le=3)
@@ -807,9 +959,10 @@ async def auth_register(
                       limit_msg="Too many signups from this connection — try again in a minute",
                       window_limit=25, window_msg="Too many signups from this connection — try again later")
     def _register():
+        email = body.email.strip().lower()
         if db.query(User).filter(User.username == body.username).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
-        if db.query(User).filter(User.email == body.email).first():
+        if db.query(User).filter(User.email == email).first():
             raise HTTPException(status_code=400, detail="Email already registered.")
         password_error = validate_password(body.password)
         if password_error:
@@ -817,7 +970,7 @@ async def auth_register(
 
         user = User(
             username=body.username,
-            email=body.email,
+            email=email,
             full_name=body.full_name,
             password_hash=hash_password(body.password),
             account_level=AccountLevel.trial,
@@ -933,6 +1086,7 @@ async def auth_google_callback(
 
     if not claims["email"]:
         return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    claims["email"] = claims["email"].strip().lower()
 
     def _resolve_user():
         user = db.query(User).filter(User.google_id == claims["sub"]).first()
@@ -1088,6 +1242,7 @@ async def auth_github_callback(
 
     if not claims["email"]:
         return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    claims["email"] = claims["email"].strip().lower()
 
     def _resolve_user():
         user = db.query(User).filter(User.github_id == claims["sub"]).first()
@@ -1205,7 +1360,7 @@ async def auth_forgot_password(body: ForgotPasswordRequest, request: Request, db
                       window_limit=30, window_seconds=300,
                       window_msg="Too many requests from this connection — try again in a few minutes")
     def _maybe_reset():
-        user = db.query(User).filter(User.email == body.email, User.is_active == True).first()
+        user = db.query(User).filter(User.email == body.email.strip().lower(), User.is_active == True).first()
         if user:
             user.reset_token = secrets.token_urlsafe(32)
             user.reset_token_expiry = datetime.utcnow() + timedelta(hours=1)
@@ -1240,8 +1395,278 @@ def auth_reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db
     user.password_hash = hash_password(body.new_password)
     user.reset_token = None
     user.reset_token_expiry = None
+    user.password_set = True  # covers a /claim account choosing "forgot password" instead
+                              # of /finish-signup — either path satisfies the same gate
     db.commit()
     track(user.id, "password_reset")
+    return {"status": "ok"}
+
+
+@app.post("/api/install-link")
+async def install_link(
+    body: InstallLinkRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    ref: Optional[str] = Cookie(default=None),
+    ia_attr: Optional[str] = Cookie(default=None),
+):
+    """Mobile lead-capture CTA (landing.html): emails a device-handoff link so a mobile ad
+    visitor can pick up setup on a laptop, where the Chrome extension can actually install.
+    This is not a login endpoint — most callers have no account yet. Enumeration-safe: the
+    response is byte-identical whether the email is brand new, already has an account, or
+    belongs to a suspended account — mirrors /auth/forgot-password above."""
+    r = request.app.state.redis
+    email = (body.email or "").strip().lower()
+
+    # IP-based rate limit first, before anything else — including the honeypot check below.
+    # A bot that fills every field (including hidden ones) doesn't get a free pass on
+    # request volume just because it also happens to trip the honeypot.
+    await _rate_limit(r, _client_ip(request), "install_link_ip", cooldown=0, limit=10,
+                      limit_msg="Too many requests from this connection — try again in a minute",
+                      window_limit=30, window_seconds=300,
+                      window_msg="Too many requests from this connection — try again in a few minutes")
+
+    # Honeypot: a hidden field no human ever fills in. Return the same success shape so a
+    # bot can't distinguish this from a real submission; never touch the DB or send mail.
+    # Deliberately checked BEFORE the email-based limiter below: nothing is ever sent on
+    # this path, so charging it against that target email's budget would only let an
+    # attacker grief a real person's ability to request a legitimate link later.
+    if body.hp_check.strip():
+        logger.info("[install-link] honeypot tripped from %s", _client_ip(request))
+        return {"status": "ok"}
+
+    if not _EMAIL_RE.match(email) or len(email) > 254:
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+
+    # Email-based: caps how many links one target inbox can be flooded with, regardless of
+    # how many IPs the requests come from. Same shape as /auth/forgot-password above.
+    await _rate_limit(r, email, "install_link_email", cooldown=30, limit=3,
+                      cooldown_msg="Please wait before requesting another email",
+                      limit_msg="Too many requests for this email — try again in a few minutes",
+                      window_limit=3, window_seconds=600,
+                      window_msg="Too many requests for this email — try again in a few minutes")
+
+    parsed_date = None
+    if body.interview_date:
+        try:
+            parsed_date = datetime.strptime(body.interview_date, "%Y-%m-%d").date()
+        except ValueError:
+            parsed_date = None  # optional field — never lose the lead over a bad date
+
+    client_ip = _client_ip(request)
+    attribution = _attribution_json(ia_attr)
+
+    def _issue():
+        now = datetime.utcnow()
+        lead = db.query(Lead).filter(Lead.email == email).first()
+        is_new_row = lead is None
+        if is_new_row:
+            lead = Lead(email=email, created_at=now)
+        raw = _rotate_lead_token(db, lead)
+        lead.ip = client_ip                  # unconditional, not first-touch — refreshed every submission
+        if parsed_date:
+            lead.interview_date = parsed_date
+        if ref and not lead.ref_code:
+            lead.ref_code = ref              # first touch
+        if attribution and not lead.attribution:
+            lead.attribution = attribution   # first touch
+        if is_new_row:
+            db.add(lead)
+        db.commit()
+
+        # Sent inside the same closure that committed the token — matches
+        # /auth/forgot-password above. Neither mailer function ever raises.
+        if lead.kind == "existing":
+            send_desktop_login_email(email, raw)
+        else:
+            send_install_link_email(email, raw)
+
+    await run_in_threadpool(_issue)
+    # Always ok — never reveal whether the email is registered
+    return {"status": "ok"}
+
+
+@app.get("/claim")
+async def claim_install_link(
+    request: Request,
+    token: str = "",
+    db: Session = Depends(get_db),
+    ref: Optional[str] = Cookie(default=None),
+):
+    """Device handoff: the desktop end of the mobile lead-capture flow. Deliberately has no
+    auth dependency — that's the point, don't add one. Creates the User row (this is the
+    moment email ownership is actually proven) and lands the user signed in on the
+    extension-install step. House style mirrors /mobile-login (see App routes below)."""
+
+    def _claim():
+        """Returns (user, outcome). outcome is 'created' | 'reclaimed' | 'login', or a
+        /login?error=<outcome> code on failure (user is None in that case)."""
+        if not token:
+            return None, "link_expired"
+        lead = db.query(Lead).filter(Lead.token_hash == _hash_link_token(token)).first()
+        now = datetime.utcnow()
+        if not lead or lead.expires_at < now:
+            return None, "link_expired"
+
+        # --- Variant B: the email already had a real account when the link was issued.
+        # Short-lived AND single-use — this grants access to a possibly-paying account.
+        if lead.kind == "existing":
+            if lead.claimed_at is not None:
+                return None, "link_expired"
+            user = db.query(User).filter(User.id == lead.user_id).first()
+            if not user or not user.is_active:
+                return None, "link_expired"
+            lead.claimed_at  = now
+            lead.claim_count = 1
+            user.last_login  = now
+            db.commit()
+            return user, "login"
+
+        # --- Variant A: brand-new lead. Long-lived and REUSABLE, so tapping the link on
+        # the phone first doesn't burn it and strand the user on the wrong device.
+        existing = db.query(User).filter(User.email == lead.email).first()
+        if existing and existing.id != (lead.user_id or -1):
+            # An account was created via some other path after this link was issued. A
+            # 14-day reusable URL is not an acceptable credential for it — make them sign in.
+            return None, "already_registered"
+
+        if lead.user_id:                       # already claimed once — just re-issue a session
+            user = db.query(User).filter(User.id == lead.user_id).first()
+            if not user or not user.is_active:
+                return None, "link_expired"
+            if lead.claim_count >= LEAD_MAX_CLAIMS:
+                return None, "link_expired"
+            lead.claim_count += 1
+            user.last_login = now
+            db.commit()
+            return user, "reclaimed"
+
+        # First claim → create the account. Mirrors the OAuth idiom exactly (see
+        # /auth/google/callback below): generated username, throwaway random password_hash
+        # nobody knows, email_verified=True (clicking a link sent to this address IS the
+        # proof), account_level=trial.
+        username = generate_unique_username(db, lead.email.split("@")[0])
+        user = User(
+            username=username,
+            email=lead.email,
+            full_name="",                 # collected at /finish-signup, not here — until then
+                                          # every render site guards with `full_name or
+                                          # username` / `or "there"`
+            password_hash=hash_password(secrets.token_urlsafe(32)),  # placeholder — nobody
+                                                                     # knows this; see password_set
+            account_level=AccountLevel.trial,
+            email_verified=True,
+            password_set=False,  # unlike every other signup path, /claim never collects a
+                                 # real password — /app gates on this and sends them to
+                                 # /finish-signup before they can proceed
+            interview_date=lead.interview_date,
+        )
+        db.add(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            # Lost a race with a concurrent claim of this same reusable link — e.g. opened
+            # on two devices at once, or a double-click. The other request already created
+            # the account; fall through to signing this request into it instead of a 500.
+            db.rollback()
+            user = db.query(User).filter(User.email == lead.email).first()
+            if not user:
+                raise
+            user.last_login = now
+            db.commit()
+            return user, "reclaimed"
+        db.refresh(user)
+
+        user.referral_code = generate_unique_referral_code(db)
+        ref_code = ref or lead.ref_code   # live cookie on this device wins; lead snapshot
+                                          # carries a phone-side referral across the device hop
+        if ref_code:
+            referrer = db.query(User).filter(User.referral_code == ref_code).first()
+            if referrer and referrer.id != user.id:
+                user.referred_by_id = referrer.id
+                db.add(Referral(referrer_id=referrer.id, referee_id=user.id))
+
+        lead.user_id     = user.id
+        lead.claimed_at  = now
+        lead.claim_count = 1
+        # Clamp the reuse window: 14 days of "anyone with this URL is signed in" is too long
+        # once it maps to a live account. 24h still covers "tapped it on my phone, opened it
+        # properly on the laptop that evening".
+        lead.expires_at  = min(lead.expires_at, now + LEAD_POST_CLAIM_TTL)
+        db.commit()
+        return user, "created"
+
+    user, outcome = await run_in_threadpool(_claim)
+
+    if user is None:
+        # Defence in depth: the token is in this URL regardless of outcome (a rejected
+        # already_registered token is still, in principle, a live credential), so this
+        # response shouldn't leak it via Referer any more than the success path does.
+        failure = RedirectResponse(f"/login?error={outcome}", status_code=303)
+        failure.headers["Referrer-Policy"] = "no-referrer"
+        return failure
+
+    if outcome == "created":
+        identify(user.id, user.email, user.full_name, user.account_level.value)
+        track(user.id, "signup", referred=bool(user.referred_by_id), method="install_link")
+    elif outcome == "login":
+        track(user.id, "login", method="install_link")
+    track(user.id, "install_link_claimed", outcome=outcome)
+
+    # Always /app: it's the resume-dispatcher every other signup path already lands on, and
+    # it now gates on password_set before anything else — so a new lead is sent to
+    # /finish-signup first, then (once that's done) on to /welcome same as a normal
+    # registration would be. An existing account just resumes wherever it already was.
+    response = RedirectResponse("/app", status_code=303)
+    response.set_cookie("session", create_token(user.id), httponly=True, samesite="lax",
+                        max_age=60 * 60 * 24 * 7)
+    # Defence in depth: the token is in this URL, so make sure nothing downstream sees it.
+    response.headers["Referrer-Policy"] = "no-referrer"
+    if ref:
+        response.delete_cookie("ref")
+    response.delete_cookie("ia_attr")
+    return response
+
+
+@app.get("/finish-signup")
+def finish_signup_page(request: Request, user: User = Depends(require_user)):
+    """The gap /claim leaves vs every other signup path: it proves email ownership but never
+    collects a password or name. /app (and /welcome, /welcome/next, /onboarding) redirect
+    here until this is done — see the password_set gate on each. Nothing to do once it's
+    set, so a bookmarked or replayed link just bounces on through."""
+    if user.password_set:
+        return RedirectResponse("/app")
+    return templates.TemplateResponse(request=request, name="finish_signup.html", context={
+        "email": user.email,
+    })
+
+
+@app.post("/api/finish-signup")
+def finish_signup(
+    body: FinishSignupRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Not a general-purpose "change my password" route — it never checks the current
+    # password, because a /claim account doesn't have one anyone knows yet. That's only
+    # safe to expose while password_set is still False; once it's True, this must refuse,
+    # otherwise anyone holding a valid session cookie (stolen, leaked, shared machine) could
+    # silently overwrite ANY user's password with none of the verification
+    # /api/settings/password requires.
+    if user.password_set:
+        raise HTTPException(status_code=403, detail="Already set up.")
+    full_name = body.full_name.strip()
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Full name is required.")
+    password_error = validate_password(body.password)
+    if password_error:
+        raise HTTPException(status_code=400, detail=password_error)
+    user.full_name = full_name
+    user.password_hash = hash_password(body.password)
+    user.password_set = True
+    db.commit()
+    track(user.id, "finish_signup_completed")
+    send_password_set_email(user.email)
     return {"status": "ok"}
 
 
@@ -1258,16 +1683,25 @@ def auth_logout():
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-def landing(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def landing(request: Request, user: Optional[User] = Depends(get_optional_user),
+            ia_attr: Optional[str] = Cookie(default=None)):
     template = "landing.html" if LANDING_PROD else "landing_prep.html"
     ctx = {"show_navbar": True, "show_landing_links": True}
-    return templates.TemplateResponse(request=request, name=template, context=ctx)
+    response = templates.TemplateResponse(request=request, name=template, context=ctx)
+    if not ia_attr:  # first touch wins — a later organic visit must not overwrite the ad click
+        packed = _attribution_from_query(request)
+        if packed:
+            response.set_cookie("ia_attr", packed, max_age=30 * 24 * 60 * 60,
+                                httponly=True, samesite="lax")
+    return response
 
 
 @app.get("/app")
 def index(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
+    if not user.password_set:
+        return RedirectResponse("/finish-signup")
     if user.account_level == AccountLevel.free:
         return RedirectResponse("/pricing")
     if user.account_level == AccountLevel.trial and not user.welcome_seen:
@@ -1287,6 +1721,8 @@ def index(request: Request, user: User = Depends(require_user)):
 def welcome_page(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
+    if not user.password_set:
+        return RedirectResponse("/finish-signup")
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
     track(user.id, "welcome_viewed")
@@ -1301,8 +1737,14 @@ def welcome_page(request: Request, user: User = Depends(require_user)):
 def welcome_next_page(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
+    if not user.password_set:
+        return RedirectResponse("/finish-signup")
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
+    if user.interview_date:
+        # Already answered — e.g. captured on the mobile lead form and carried onto this
+        # account at /claim. Asking again here would just be re-asking the same question.
+        return RedirectResponse("/onboarding")
     track(user.id, "welcome_next_viewed")
     return templates.TemplateResponse(request=request, name="welcome_next.html", context={
         "dev_build": DEV_BUILD,
@@ -1338,6 +1780,8 @@ def onboarding_page(
 ):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
+    if not user.password_set:
+        return RedirectResponse("/finish-signup")
     if user.account_level != AccountLevel.trial:
         return RedirectResponse("/app")
     if not user.welcome_seen:
@@ -1822,12 +2266,58 @@ def partner_admin(
         }
         for w, u in withdrawal_rows
     ]
+
+    # Referral activity + fraud watch — merged in from the old standalone /admin/referrals
+    # page. The user-facing product already treats referrals and partners as one flow
+    # (/referral redirects to /partner/dashboard); this brings the admin side in line rather
+    # than making an admin check two separate pages for one person's referral/partner picture.
+    Referrer = aliased(User)
+    Referee = aliased(User)
+    referral_rows = (
+        db.query(Referral, Referrer, Referee)
+        .join(Referrer, Referrer.id == Referral.referrer_id)
+        .join(Referee, Referee.id == Referral.referee_id)
+        .order_by(Referral.created_at.desc())
+        .limit(200)
+        .all()
+    )
+    referrals = [{
+        "referrer_email": referrer.email,
+        "referee_email": referee.email,
+        "status": ref.status.value,
+        "intro_credited": ref.intro_credited,
+        "sub_credited": ref.sub_credited,
+        "created_at": ref.created_at.strftime("%d %b %Y"),
+    } for ref, referrer, referee in referral_rows]
+
+    signup_counts = dict(db.query(Referral.referrer_id, func.count(Referral.id)).group_by(Referral.referrer_id).all())
+    paid_counts = dict(
+        db.query(Referral.referrer_id, func.count(Referral.id))
+        .filter(Referral.status == ReferralStatus.subscribed)
+        .group_by(Referral.referrer_id)
+        .all()
+    )
+    flagged_ids = [rid for rid, signups in signup_counts.items() if signups >= _REFERRAL_FLAG_MIN_SIGNUPS and paid_counts.get(rid, 0) == 0]
+    flagged_users = {u.id: u for u in db.query(User).filter(User.id.in_(flagged_ids)).all()} if flagged_ids else {}
+    flagged = sorted([{
+        "id": rid,
+        "email": flagged_users[rid].email,
+        "signups": signup_counts[rid],
+        "is_active": flagged_users[rid].is_active,
+        "is_paused": flagged_users[rid].account_flag == "paused",
+        "has_sub": bool(flagged_users[rid].stripe_sub_id),
+    } for rid in flagged_ids if rid in flagged_users], key=lambda f: f["signups"], reverse=True)
+
     return templates.TemplateResponse(request=request, name="partner_admin.html", context={
         "partners": rows,
         "withdrawals": withdrawals,
         "tier2_pct": PARTNER_TIER2_BPS // 100,
         "tier3_pct": PARTNER_TIER3_BPS // 100,
+        "referrals": referrals,
+        "flagged": flagged,
+        "flag_threshold": _REFERRAL_FLAG_MIN_SIGNUPS,
         "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
     })
 
 
@@ -1899,11 +2389,12 @@ async def admin_home(
         usage_today = db.query(
             func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
         ).filter(UsageDaily.date == now.date()).first()
+        unclaimed_leads = db.query(Lead).filter(Lead.claimed_at.is_(None)).count()
         return (db_check, total_users, new_7d, banned_count, pending_cancellations,
-                active_subs, flagged_referrers, active_announcements, usage_today)
+                active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads)
 
     (db_check, total_users, new_7d, banned_count, pending_cancellations,
-     active_subs, flagged_referrers, active_announcements, usage_today) = await run_in_threadpool(_load_counts)
+     active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads) = await run_in_threadpool(_load_counts)
 
     alerts = []
     if not redis_check["ok"]:
@@ -1917,7 +2408,7 @@ async def admin_home(
     if webhook_check["ok"] is False:
         alerts.append({"level": "caution", "text": f"No Stripe webhook received in a while — last one {webhook_check['detail']}", "href": "/admin/health"})
     if flagged_referrers:
-        alerts.append({"level": "caution", "text": f"{flagged_referrers} referrer(s) flagged for review (high signups, zero conversions)", "href": "/admin/referrals"})
+        alerts.append({"level": "caution", "text": f"{flagged_referrers} referrer(s) flagged for review (high signups, zero conversions)", "href": "/partner/admin"})
     if banned_count:
         alerts.append({"level": "notice", "text": f"{banned_count} user(s) currently banned", "href": "/admin/dashboard?segment=banned"})
     if pending_cancellations:
@@ -1940,15 +2431,15 @@ async def admin_home(
         {"title": "User lookup", "href": "/admin/users",
          "desc": "Search by email or username; warn, pause/resume billing, or ban/unban an account.",
          "stat": f"{total_users} total"},
+        {"title": "Leads", "href": "/admin/leads",
+         "desc": "Every email the mobile landing-page CTA captured, claimed or not — with ad attribution, and a CSV export for Google/Meta offline-conversion upload.",
+         "stat": f"{unclaimed_leads} unclaimed" if unclaimed_leads else "all claimed"},
         {"title": "API usage", "href": "/admin/usage",
          "desc": "Per-user capture + audio volume over a rolling window — spot abuse or runaway usage.",
          "stat": f"{usage_today[0] + usage_today[1]} today"},
-        {"title": "Referrals", "href": "/admin/referrals",
-         "desc": "Recent referral activity, plus referrers flagged for high signups with zero conversions.",
+        {"title": "Referrals & Partners", "href": "/partner/admin",
+         "desc": "Affiliate tier status and commission balances, plus referral activity and referrers flagged for high signups with zero conversions.",
          "stat": f"{flagged_referrers} flagged" if flagged_referrers else "none flagged"},
-        {"title": "Partners", "href": "/partner/admin",
-         "desc": "Affiliate tier status and commission balances (pending / available / lifetime) per partner.",
-         "stat": None},
         {"title": "Author page", "href": "/verify-author",
          "desc": "Internal author-only page, separately Basic-Auth gated.",
          "stat": None},
@@ -2046,6 +2537,176 @@ def admin_users(
     })
 
 
+# Same 200-row cap and `truncated` hint as the dashboard drilldown (_DASHBOARD_DRILLDOWN_LIMIT,
+# defined further down) — the only truncation idiom anywhere in this codebase (there's no
+# pagination anywhere). Not a direct reference: that constant isn't defined until later in
+# this file, and this route is defined earlier, next to /admin/users.
+_LEADS_LIMIT = 200
+
+_LEAD_FILTERS = {
+    "": "All leads",
+    "unclaimed": "Never claimed",
+    "claimed": "Claimed",
+    "unfinished": "Claimed, setup unfinished",
+    "new": "Kind: new lead",
+    "existing": "Kind: existing account",
+}
+
+
+def _lead_list_query(db: Session, q: str = "", status: str = ""):
+    """Shared by GET /admin/leads and its CSV export, so the download is exactly what's on
+    screen minus the 200-row display cap. Outer join (most leads have no account) — the
+    email search ORs across both sides, since a bare User.email predicate on an outer join
+    would silently drop every unjoined (unclaimed) row."""
+    query = db.query(Lead, User).outerjoin(User, User.id == Lead.user_id)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(or_(Lead.email.ilike(like), User.email.ilike(like)))
+    if status == "unclaimed":
+        query = query.filter(Lead.claimed_at.is_(None))
+    elif status == "claimed":
+        query = query.filter(Lead.claimed_at.isnot(None))
+    elif status == "unfinished":
+        query = query.filter(Lead.claimed_at.isnot(None), User.password_set == False)  # noqa: E712
+    elif status in ("new", "existing"):
+        query = query.filter(Lead.kind == status)
+    return query.order_by(Lead.created_at.desc())
+
+
+def _lead_table_entries(rows: list) -> list:
+    """Row shape for admin_leads.html. Attribution is parsed in Python (_attribution_dict)
+    rather than with several json_extract columns: it's at most 200 rows on screen, needs
+    several keys each, and the try/except is immune to the malformed blobs json_extract
+    raises on."""
+    now = datetime.utcnow()
+    entries = []
+    for lead, u in rows:
+        attr = _attribution_dict(lead.attribution)
+        entries.append({
+            "email": lead.email,
+            "kind": lead.kind,
+            "created_at": lead.created_at.strftime("%d %b %Y"),
+            "request_count": lead.request_count,
+            "claimed_at": lead.claimed_at.strftime("%d %b %Y") if lead.claimed_at else None,
+            "claim_count": lead.claim_count,
+            "expired": lead.expires_at < now,
+            "interview_date": lead.interview_date.strftime("%d %b %Y") if lead.interview_date else None,
+            "utm_source": attr.get("utm_source"),
+            "utm_campaign": attr.get("utm_campaign"),
+            "ref_code": lead.ref_code,
+            "user_email": u.email if u else None,
+            "user_level": u.account_level.value if u else None,
+            "user_unfinished": bool(u and not u.password_set),
+            "user_paid": bool(u and (u.intro_redeemed or u.sub_invoice_paid)),
+        })
+    return entries
+
+
+@app.get("/admin/leads")
+def admin_leads(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    q: str = "",
+    status: str = "",
+):
+    if status not in _LEAD_FILTERS:
+        status = ""
+    rows = _lead_list_query(db, q, status).limit(_LEADS_LIMIT + 1).all()
+    return templates.TemplateResponse(request=request, name="admin_leads.html", context={
+        "entries": _lead_table_entries(rows[:_LEADS_LIMIT]),
+        "truncated": len(rows) > _LEADS_LIMIT,
+        "limit": _LEADS_LIMIT,
+        "total": _lead_list_query(db, q, status).count(),
+        "q": q,
+        "status": status,
+        "filters": _LEAD_FILTERS,
+        "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
+    })
+
+
+# Column order suits Google Ads / Meta offline-conversion upload: those match a conversion
+# back to a click by gclid/fbclid plus a conversion time, so those lead the ad-relevant
+# block. Lead.ip is deliberately absent — it exists purely for abuse triage (and
+# _purge_stale_leads scrubs it at 30 days), so it has no business in a file that gets
+# downloaded to a laptop and mailed around.
+_LEAD_CSV_COLUMNS = [
+    "email", "captured_at", "kind", "request_count", "claimed_at", "claim_count",
+    "gclid", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+    "referer", "ref_code", "interview_date",
+    "user_email", "account_level", "password_set", "setup_complete", "ever_paid",
+]
+
+
+def _lead_csv_time(dt) -> str:
+    """'yyyy-MM-dd HH:mm:ss+00:00' — the format Google Ads' offline-conversion importer
+    accepts verbatim. Everything in this DB is naive UTC (datetime.utcnow throughout), so
+    the offset is a constant."""
+    return dt.strftime("%Y-%m-%d %H:%M:%S+00:00") if dt else ""
+
+
+@app.get("/admin/leads/export.csv")
+def admin_leads_export(
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    q: str = "",
+    status: str = "",
+):
+    """Downloadable version of /admin/leads, honouring the same q/status params — but with
+    no 200-row cap, since the whole point is feeding the full list back to the ad platforms.
+
+    Materialises with .all() before returning the response rather than lazily iterating the
+    query inside the generator: get_db's `finally: db.close()` fires when the response
+    object is returned, which for a StreamingResponse is *before* the body is consumed — a
+    lazy cursor would be reading from a closed session."""
+    if status not in _LEAD_FILTERS:
+        status = ""
+    rows = _lead_list_query(db, q, status).all()
+
+    def _rows():
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+
+        def _flush():
+            data = buf.getvalue()
+            buf.seek(0)
+            buf.truncate(0)
+            return data
+
+        writer.writerow(_LEAD_CSV_COLUMNS)
+        yield _flush()
+        for lead, u in rows:
+            a = _attribution_dict(lead.attribution)
+            writer.writerow([
+                lead.email,
+                _lead_csv_time(lead.created_at),
+                lead.kind,
+                lead.request_count,
+                _lead_csv_time(lead.claimed_at),
+                lead.claim_count,
+                a.get("gclid", ""), a.get("fbclid", ""),
+                a.get("utm_source", ""), a.get("utm_medium", ""), a.get("utm_campaign", ""),
+                a.get("utm_term", ""), a.get("utm_content", ""),
+                a.get("r", ""),                      # referer, as packed by _attribution_from_query
+                lead.ref_code or "",
+                lead.interview_date.isoformat() if lead.interview_date else "",
+                u.email if u else "",
+                u.account_level.value if u else "",
+                int(bool(u and u.password_set)) if u else "",
+                int(bool(u and u.setup_complete)) if u else "",
+                int(bool(u and (u.intro_redeemed or u.sub_invoice_paid))) if u else "",
+            ])
+            yield _flush()
+
+    stamp = datetime.utcnow().strftime("%Y%m%d-%H%M")
+    return StreamingResponse(_rows(), media_type="text/csv; charset=utf-8", headers={
+        "Content-Disposition": f'attachment; filename="interviewace-leads-{stamp}.csv"',
+        "Cache-Control": "no-store",
+        "X-Robots-Tag": "noindex, nofollow",
+    })
+
+
 # Referrers with several signups but zero paid conversions — worth a manual look for
 # Sybil/reciprocal-loop farming. Threshold is a starting point, not a hard rule.
 _REFERRAL_FLAG_MIN_SIGNUPS = 5
@@ -2065,55 +2726,13 @@ def _flagged_referrer_count(db: Session) -> int:
 
 
 @app.get("/admin/referrals")
-def admin_referrals(
-    request: Request,
-    db: Session = Depends(get_db),
-    _: None = Depends(_require_author),
-):
-    Referrer = aliased(User)
-    Referee = aliased(User)
-    rows = (
-        db.query(Referral, Referrer, Referee)
-        .join(Referrer, Referrer.id == Referral.referrer_id)
-        .join(Referee, Referee.id == Referral.referee_id)
-        .order_by(Referral.created_at.desc())
-        .limit(200)
-        .all()
-    )
-    referrals = [{
-        "referrer_email": referrer.email,
-        "referee_email": referee.email,
-        "status": ref.status.value,
-        "intro_credited": ref.intro_credited,
-        "sub_credited": ref.sub_credited,
-        "created_at": ref.created_at.strftime("%d %b %Y"),
-    } for ref, referrer, referee in rows]
-
-    signup_counts = dict(db.query(Referral.referrer_id, func.count(Referral.id)).group_by(Referral.referrer_id).all())
-    paid_counts = dict(
-        db.query(Referral.referrer_id, func.count(Referral.id))
-        .filter(Referral.status == ReferralStatus.subscribed)
-        .group_by(Referral.referrer_id)
-        .all()
-    )
-    flagged_ids = [rid for rid, signups in signup_counts.items() if signups >= _REFERRAL_FLAG_MIN_SIGNUPS and paid_counts.get(rid, 0) == 0]
-    flagged_users = {u.id: u for u in db.query(User).filter(User.id.in_(flagged_ids)).all()} if flagged_ids else {}
-    flagged = sorted([{
-        "id": rid,
-        "email": flagged_users[rid].email,
-        "signups": signup_counts[rid],
-        "is_active": flagged_users[rid].is_active,
-        "is_paused": flagged_users[rid].account_flag == "paused",
-        "has_sub": bool(flagged_users[rid].stripe_sub_id),
-    } for rid in flagged_ids if rid in flagged_users], key=lambda f: f["signups"], reverse=True)
-
-    return templates.TemplateResponse(request=request, name="admin_referrals.html", context={
-        "referrals": referrals,
-        "flagged": flagged,
-        "flag_threshold": _REFERRAL_FLAG_MIN_SIGNUPS,
-        "show_navbar": True,
-        "admin_msg": request.query_params.get("admin_msg"),
-    })
+def admin_referrals(request: Request):
+    """Referral activity and partner management are one admin page now (/partner/admin),
+    matching the user-facing side where /referral already redirects to /partner/dashboard.
+    This route just keeps old bookmarks/links working, forwarding any query string (e.g. an
+    admin_msg from an action just taken) so in-flight feedback still shows."""
+    qs = request.url.query
+    return RedirectResponse(f"/partner/admin?{qs}" if qs else "/partner/admin", status_code=302)
 
 
 # ---------------------------------------------------------------------------
@@ -2139,10 +2758,12 @@ _DASHBOARD_SEGMENTS = {
     "converted": "Converted (currently paid or unlimited)",
     "active_subs": "Active subscribers",
     "pending_cancellations": "Pending cancellations",
+    "lead_unfinished": "Mobile leads — claimed, setup unfinished",
+    "lead_trial": "Mobile leads — set up, still on trial",
 }
 
 
-def _dashboard_segment_filter(key: str):
+def _dashboard_segment_filter(db: Session, key: str):
     now = datetime.utcnow()
     if key == "total_users":
         return true()
@@ -2170,6 +2791,14 @@ def _dashboard_segment_filter(key: str):
         return and_(User.account_level == AccountLevel.unlimited, User.stripe_sub_id.isnot(None))
     if key == "pending_cancellations":
         return User.sub_cancel_at.isnot(None)
+    if key == "lead_unfinished":
+        return User.password_set == False  # noqa: E712
+    if key == "lead_trial":
+        return and_(
+            User.password_set == True,  # noqa: E712
+            User.account_level == AccountLevel.trial,
+            db.query(Lead.id).filter(Lead.user_id == User.id).exists(),
+        )
     return false()
 
 
@@ -2220,6 +2849,85 @@ def admin_dashboard(
         func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
     ).filter(UsageDaily.date >= since_30d.date()).first()
 
+    total_leads = db.query(Lead).count()
+    claimed_leads = db.query(Lead).filter(Lead.claimed_at.isnot(None)).count()
+    leads_7d = db.query(Lead).filter(Lead.created_at >= since_7d).count()
+    # Reuse the same filters the announcement segments and drilldown use, so the card counts
+    # and what clicking them shows can never drift apart.
+    leads_unfinished = db.query(User).filter(User.is_active == True, _dashboard_segment_filter(db, "lead_unfinished")).count()  # noqa: E712
+    leads_mobile_trial = db.query(User).filter(User.is_active == True, _dashboard_segment_filter(db, "lead_trial")).count()  # noqa: E712
+
+    # kind == "new" only, for both the attribution table below and the funnel further down:
+    # a kind == "existing" handoff link is a passwordless login for a customer we already
+    # had, not an ad-sourced conversion — counting it would inflate every source's numbers
+    # (and the funnel's paid stage) with people who were never actually acquired by that ad.
+    _new_lead = Lead.kind == "new"
+    _lead_claimed = case((Lead.claimed_at.isnot(None), 1), else_=0)
+    _lead_paid = case((or_(User.intro_redeemed == True, User.sub_invoice_paid == True), 1), else_=0)  # noqa: E712
+    _attr_source = func.json_extract(Lead.attribution, "$.utm_source")
+
+    # json_extract RAISES "malformed JSON" on a bad blob rather than returning NULL, so the
+    # attributed query must never reach a row that might be invalid — partition on
+    # json_valid() instead. json_valid(NULL) is 0, so NULL attribution lands in the second
+    # bucket, not neither — the partition is exhaustive.
+    attributed_rows = (
+        db.query(_attr_source, func.count(Lead.id), func.sum(_lead_claimed), func.sum(_lead_paid))
+        .outerjoin(User, User.id == Lead.user_id)
+        .filter(_new_lead, func.json_valid(Lead.attribution) == 1)
+        .group_by(_attr_source).all()
+    )
+    unattributed_row = (
+        db.query(func.count(Lead.id), func.sum(_lead_claimed), func.sum(_lead_paid))
+        .outerjoin(User, User.id == Lead.user_id)
+        .filter(_new_lead, func.json_valid(Lead.attribution) == 0)
+        .first()
+    )
+    _by_source = {}
+    for source, captured, claimed, paid in attributed_rows:
+        # A valid blob with no utm_source (gclid-only, referer-only, bare timestamp) is
+        # still "direct" as far as channel attribution goes — folded in, not dropped.
+        e = _by_source.setdefault(source or "direct", {"source": source or "direct", "captured": 0, "claimed": 0, "paid": 0})
+        e["captured"] += captured or 0
+        e["claimed"] += claimed or 0
+        e["paid"] += paid or 0
+    if unattributed_row and unattributed_row[0]:
+        e = _by_source.setdefault("direct", {"source": "direct", "captured": 0, "claimed": 0, "paid": 0})
+        e["captured"] += unattributed_row[0] or 0
+        e["claimed"] += unattributed_row[1] or 0
+        e["paid"] += unattributed_row[2] or 0
+    attribution_rows = sorted(_by_source.values(), key=lambda e: e["captured"], reverse=True)
+    for e in attribution_rows:
+        e["claim_rate"] = round(e["claimed"] / e["captured"] * 100, 1) if e["captured"] else 0
+        e["paid_rate"] = round(e["paid"] / e["captured"] * 100, 1) if e["captured"] else 0
+
+    # Restricted to kind == "new" for the same reason as the attribution table above: a
+    # kind == "existing" handoff link is a passwordless login for someone who was already a
+    # customer, so it would enter this funnel pre-converted at every stage.
+    _funnel_row = (
+        db.query(
+            func.count(Lead.id), func.sum(_lead_claimed),
+            func.sum(case((User.password_set == True, 1), else_=0)),   # noqa: E712
+            func.sum(case((User.setup_complete == True, 1), else_=0)), # noqa: E712
+            func.sum(_lead_paid),
+        )
+        .outerjoin(User, User.id == Lead.user_id)
+        .filter(_new_lead)
+        .first()
+    )
+    _funnel_captured = _funnel_row[0] or 0
+    funnel = [
+        {"label": "Email captured", "count": _funnel_captured, "href": "/admin/leads"},
+        {"label": "Link clicked", "count": _funnel_row[1] or 0, "href": "/admin/leads?status=claimed"},
+        {"label": "Password set", "count": _funnel_row[2] or 0, "href": "/admin/leads?status=unfinished"},
+        {"label": "Extension set up", "count": _funnel_row[3] or 0, "href": None},
+        {"label": "Paid", "count": _funnel_row[4] or 0, "href": None},
+    ]
+    _funnel_prev = None
+    for stage in funnel:
+        stage["pct"] = round(stage["count"] / _funnel_captured * 100, 1) if _funnel_captured else 0
+        stage["step_pct"] = round(stage["count"] / _funnel_prev * 100, 1) if _funnel_prev else None
+        _funnel_prev = stage["count"]
+
     total_referrals = db.query(Referral).count()
     subscribed_referrals = db.query(Referral).filter(Referral.status == ReferralStatus.subscribed).count()
     outstanding_referral_credit = db.query(func.coalesce(func.sum(User.referral_credit_pence), 0)).scalar()
@@ -2242,7 +2950,7 @@ def admin_dashboard(
 
     drilldown = None
     if segment in _DASHBOARD_SEGMENTS:
-        drill_query = db.query(User).filter(_dashboard_segment_filter(segment))
+        drill_query = db.query(User).filter(_dashboard_segment_filter(db, segment))
         if q:
             like = f"%{q}%"
             drill_query = drill_query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
@@ -2271,6 +2979,14 @@ def admin_dashboard(
         "sessions_30d": sessions_30d,
         "captures_7d": usage_7d[0], "audio_7d": usage_7d[1],
         "captures_30d": usage_30d[0], "audio_30d": usage_30d[1],
+        "total_leads": total_leads,
+        "claimed_leads": claimed_leads,
+        "leads_7d": leads_7d,
+        "lead_claim_rate": round(claimed_leads / total_leads * 100, 1) if total_leads else 0,
+        "leads_unfinished": leads_unfinished,
+        "leads_mobile_trial": leads_mobile_trial,
+        "attribution_rows": attribution_rows,
+        "funnel": funnel,
         "total_referrals": total_referrals,
         "subscribed_referrals": subscribed_referrals,
         "outstanding_referral_credit_pence": outstanding_referral_credit,
@@ -2358,15 +3074,34 @@ async def _sum_hourly_metric(r, prefix: str, hours: int = 24) -> int:
     return sum(int(v) for v in values if v)
 
 
+async def _clear_hourly_metric(r, prefix: str, hours: int = 24) -> None:
+    """Deletes every bucket _sum_hourly_metric would currently sum over, so the counter
+    reads 0 immediately instead of slowly decaying as old hours roll off over the next
+    24h — used by the health page's 'Clear errors' button."""
+    now = datetime.utcnow()
+    keys = [hourly_bucket_key(prefix, now - timedelta(hours=i)) for i in range(hours)]
+    try:
+        await r.delete(*keys)
+    except Exception:
+        pass
+
+
 _LOG_FILENAME = "test_app.log" if os.getenv("TESTING") == "1" else "app.log"
-_LOG_ENTRY_HEADER_RE = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} \[(\w+)\]")
+_LOG_ENTRY_HEADER_RE = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(\w+)\]")
+# Redis key for the 'Clear errors' cutoff — see admin_health_clear_errors() /
+# _recent_error_log_entries()'s `since` param. Plain string (not metrics.py) since it's
+# only ever read/written through server.py's async client, unlike the mailer.py counters.
+_ERRORS_CLEARED_AT_KEY = "health:errors_cleared_at"
 
 
-def _recent_error_log_entries(max_entries: int = 20) -> list:
+def _recent_error_log_entries(max_entries: int = 20, since: Optional[datetime] = None) -> list:
     """Tails app.log (written by the RotatingFileHandler set up in analytics.py) for the
     admin health page's 'Recent errors' section. Groups continuation lines (tracebacks)
     with the header line that started them — filtering line-by-line would strip a
-    traceback's body away from the ERROR line that explains what failed."""
+    traceback's body away from the ERROR line that explains what failed.
+
+    `since`, if given, drops any entry timestamped at or before it — how 'Clear errors'
+    resets what counts as new without touching the underlying log file."""
     log_path = os.path.join(DATA_DIR, _LOG_FILENAME)
     if not os.path.exists(log_path):
         return []
@@ -2376,17 +3111,27 @@ def _recent_error_log_entries(max_entries: int = 20) -> list:
     except Exception:
         return []
 
-    entries, current, current_level = [], [], None
+    entries, current, current_level, current_ts = [], [], None, None
+
+    def _flush():
+        if not current or current_level not in ("ERROR", "CRITICAL"):
+            return
+        if since is not None and current_ts is not None and current_ts < since:
+            return
+        entries.append("".join(current).rstrip())
+
     for line in lines:
         m = _LOG_ENTRY_HEADER_RE.match(line)
         if m:
-            if current and current_level in ("ERROR", "CRITICAL"):
-                entries.append("".join(current).rstrip())
-            current, current_level = [line], m.group(1)
+            _flush()
+            current, current_level = [line], m.group(2)
+            try:
+                current_ts = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                current_ts = None
         else:
             current.append(line)
-    if current and current_level in ("ERROR", "CRITICAL"):
-        entries.append("".join(current).rstrip())
+    _flush()
     return entries[-max_entries:]
 
 
@@ -2593,18 +3338,28 @@ async def admin_health(
         "rate_limits": await _rate_limit_headroom(r),
     }
     uptime_seconds = int((datetime.utcnow() - request.app.state.started_at).total_seconds())
+    errors_cleared_at_raw = await r.get(_ERRORS_CLEARED_AT_KEY)
+    errors_cleared_display = None
+    if errors_cleared_at_raw:
+        try:
+            age = (datetime.utcnow() - datetime.fromisoformat(errors_cleared_at_raw)).total_seconds()
+            errors_cleared_display = f"{_format_duration(max(0, int(age)))} ago" if age >= 60 else "just now"
+        except ValueError:
+            pass
     return templates.TemplateResponse(request=request, name="admin_health.html", context={
         "checks": checks,
         "metrics": metrics,
         "config_status": _config_status(),
         "app_version": APP_VERSION,
         "uptime_display": _format_duration(uptime_seconds),
+        "errors_cleared_display": errors_cleared_display,
         "show_navbar": True,
     })
 
 
 @app.get("/admin/health/logs")
-def admin_health_logs(
+async def admin_health_logs(
+    request: Request,
     max_entries: int = 20,
     _: None = Depends(_require_author),
 ):
@@ -2612,10 +3367,47 @@ def admin_health_logs(
     the Error rate row is clicked, rather than reading/parsing the log file on every plain
     page load (mirrors why the deep checks below are opt-in, not cost-driven here but the
     same 'skip it until someone actually wants it' logic)."""
+    cleared_at_raw = await request.app.state.redis.get(_ERRORS_CLEARED_AT_KEY)
+    since = None
+    if cleared_at_raw:
+        try:
+            # Log timestamps only have whole-second resolution; floor to match so an entry
+            # written the same second as the clear (before or after) still counts as new
+            # rather than being silently swallowed by a sub-second race.
+            since = datetime.fromisoformat(cleared_at_raw).replace(microsecond=0)
+        except ValueError:
+            since = None
     return {
-        "entries": list(reversed(_recent_error_log_entries(max_entries))),
+        "entries": list(reversed(_recent_error_log_entries(max_entries, since=since))),
         "log_file_path": os.path.join(DATA_DIR, _LOG_FILENAME),
     }
+
+
+@app.post("/admin/health/clear-errors")
+async def admin_health_clear_errors(
+    request: Request,
+    _: None = Depends(_require_author),
+):
+    """Zeroes the Resend-failure / 5xx counters and moves the 'Recent errors' cutoff to
+    now — so the health page only shows what's actually new since you last looked, without
+    touching app.log itself (still there for anyone who needs the full history)."""
+    r = request.app.state.redis
+    await _clear_hourly_metric(r, EMAIL_FAIL_PREFIX)
+    await _clear_hourly_metric(r, HTTP_5XX_PREFIX)
+    await r.set(_ERRORS_CLEARED_AT_KEY, datetime.utcnow().isoformat())
+    logger.info("[admin] health errors cleared")
+    return {"status": "ok"}
+
+
+class _TestErrorTrigger(Exception):
+    """Raised on purpose by /admin/health/trigger-test-error — lets you verify the 5xx
+    counter, the recent-errors log tail, and 'Clear errors' actually work end to end,
+    without waiting for a real bug."""
+
+
+@app.post("/admin/health/trigger-test-error")
+async def admin_health_trigger_test_error(_: None = Depends(_require_author)):
+    raise _TestErrorTrigger("Manually triggered from /admin/health — this 500 is expected, not a bug.")
 
 
 @app.get("/admin/health/deep/{name}")
@@ -2820,9 +3612,52 @@ _SEGMENTS = [
     ("lapsed_paid", "Lapsed — previously paid"),
     ("free_inactive", "Free — never started a trial"),
     ("never_paid", "Never paid (trial + free)"),
+    ("mobile_unfinished", "Mobile — claimed, never finished setup"),
+    ("mobile_trial", "Mobile — set up, still on trial"),
     ("individual", "Individual (single email)"),
 ]
 _SEGMENT_KEYS = {key for key, _label in _SEGMENTS}
+
+# Lead-shaped audiences: people who typed their email into the mobile CTA and never clicked
+# the link, so no User row exists for them. Deliberately a PARALLEL system rather than more
+# keys in _SEGMENTS — _segment_query hard-codes db.query(User) and ORs its conditions into
+# one de-duping query, which structurally cannot express a row set that isn't Users.
+#
+# Email-only, no exceptions. A lead has no session, so there is nothing to hang an in-app
+# banner off: _active_announcement_for takes a User, _template_globals only computes
+# active_announcement `if user`, the dismiss route Depends(get_current_user), and
+# AnnouncementDismissal.user_id is a non-nullable FK to users.id.
+#
+# And no email_verified equivalent to gate on — unlike a User, a lead's address was never
+# proven. That's fine: proving it is the entire point of the nudge. There is no verification
+# step to skip, only one that hasn't happened yet.
+_LEAD_SEGMENTS = [
+    ("leads_unclaimed", "Leads — never clicked their link"),
+    ("leads_unclaimed_30d", "Leads — never clicked, captured in the last 30 days"),
+]
+_LEAD_SEGMENT_KEYS = {key for key, _label in _LEAD_SEGMENTS}
+
+
+def _lead_segment_filter(segment: str):
+    if segment == "leads_unclaimed":
+        return and_(Lead.claimed_at.is_(None), Lead.user_id.is_(None))
+    if segment == "leads_unclaimed_30d":
+        return and_(Lead.claimed_at.is_(None), Lead.user_id.is_(None),
+                    Lead.created_at >= datetime.utcnow() - timedelta(days=30))
+    return false()
+
+
+def _lead_segment_query(db: Session, segment: str):
+    """Mirrors _segment_query's comma-joined-keys / OR / single-query-dedupe contract, over
+    Lead instead of User."""
+    keys = [k for k in segment.split(",") if k in _LEAD_SEGMENT_KEYS]
+    conditions = [_lead_segment_filter(k) for k in keys] or [false()]
+    # A lead can be unclaimed and still belong to a real account: they typed their email on
+    # the phone, never tapped the link, then registered normally on a laptop. /claim already
+    # refuses that token ("already_registered"), but by then we'd have emailed a signed-in
+    # customer a "you never finished signing up" nudge. Filter them out before the send.
+    has_user = db.query(User.id).filter(User.email == Lead.email).exists()
+    return db.query(Lead).filter(or_(*conditions)).filter(~has_user)
 
 
 def _segment_filter(db: Session, segment: str, target_email: Optional[str] = None):
@@ -2861,6 +3696,19 @@ def _segment_filter(db: Session, segment: str, target_email: Optional[str] = Non
         return and_(
             User.account_level.in_([AccountLevel.trial, AccountLevel.free]),
             User.intro_redeemed == False, User.sub_invoice_paid == False,  # noqa: E712
+        )
+    if segment == "mobile_unfinished":
+        # Not joined to Lead: password_set==False is written by exactly one path (/claim),
+        # so it already IS the mobile cohort — and the lead purge job deletes rows 180 days
+        # past expiry, which would silently drop long-stalled accounts from a Lead-joined version.
+        return User.password_set == False  # noqa: E712
+    if segment == "mobile_trial":
+        # Here the join is load-bearing: once password_set flips True, nothing else on User
+        # distinguishes a mobile-origin signup from a normal one.
+        return and_(
+            User.password_set == True,  # noqa: E712
+            User.account_level == AccountLevel.trial,
+            db.query(Lead.id).filter(Lead.user_id == User.id).exists(),
         )
     if segment == "individual":
         return (User.email == target_email) if target_email else false()
@@ -2903,6 +3751,42 @@ def _send_announcement_emails(announcement_id: int, subject: str, body: str, seg
         db.close()
 
 
+def _send_lead_announcement_emails(announcement_id: int, subject: str, body: str, segment: str) -> None:
+    """Lead-audience twin of _send_announcement_emails. Same threadpool-via-BackgroundTasks
+    + own-SessionLocal shape, but each recipient needs a freshly minted claim token, so this
+    writes as it goes.
+
+    Commits per lead rather than once at the end, deliberately: if the loop dies halfway,
+    every token already put in an inbox is already durable. A single commit at the end would
+    roll back the rotations for mails that were genuinely sent, leaving those links dead.
+
+    email_recipient_count here means "emails actually sent", not "recipients matched" as it
+    does on the User path — a lead whose rotation failed never received anything."""
+    db = SessionLocal()
+    sent = 0
+    try:
+        leads = _lead_segment_query(db, segment).all()
+        for lead in leads:
+            try:
+                raw = _rotate_lead_token(db, lead)
+                db.commit()
+            except Exception:
+                db.rollback()
+                logger.exception("[announcement] token rotation failed for lead id=%s", lead.id)
+                continue
+            send_lead_announcement_email(lead.email, subject, body, raw)
+            sent += 1
+            time.sleep(0.1)  # light throttle — respect Resend's per-second send cap
+        ann = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+        if ann:
+            ann.email_recipient_count = sent
+            db.commit()
+        logger.warning("[announcement] id=%s emailed %d/%d leads and rotated their claim tokens (segment=%s)",
+                       announcement_id, sent, len(leads), segment)
+    finally:
+        db.close()
+
+
 @app.get("/admin/announcements")
 def admin_announcements(
     request: Request,
@@ -2910,9 +3794,13 @@ def admin_announcements(
     _: None = Depends(_require_author),
 ):
     counts = {key: _segment_query(db, key).count() for key, _label in _SEGMENTS if key != "individual"}
+    counts.update({key: _lead_segment_query(db, key).count() for key, _label in _LEAD_SEGMENTS})
     history = db.query(Announcement).order_by(Announcement.created_at.desc()).limit(30).all()
     return templates.TemplateResponse(request=request, name="admin_announcements.html", context={
         "segments": _SEGMENTS,
+        "lead_segments": _LEAD_SEGMENTS,
+        "segment_labels": dict(_SEGMENTS + _LEAD_SEGMENTS),
+        "lead_segment_keys": sorted(_LEAD_SEGMENT_KEYS),
         "counts": counts,
         "history": history,
         "show_navbar": True,
@@ -2929,12 +3817,18 @@ def announcement_segment_count(
 ):
     """Live recipient count for the compose form — exact, not summed, since _segment_query
     ORs the selected segments together and a single query naturally dedupes anyone who
-    matches more than one."""
-    keys = [s for s in segment if s in _SEGMENT_KEYS]
-    if not keys:
+    matches more than one. Lead-shaped audiences use a separate query entirely (see
+    _lead_segment_query) — a mixed selection is rejected by the form's JS and, for real, by
+    POST /admin/announcements, so it's reported here rather than guessed at."""
+    user_keys = [s for s in segment if s in _SEGMENT_KEYS]
+    lead_keys = sorted({s for s in segment if s in _LEAD_SEGMENT_KEYS})
+    if user_keys and lead_keys:
+        return {"count": 0, "audience": "mixed"}
+    if lead_keys:
+        return {"count": _lead_segment_query(db, ",".join(lead_keys)).count(), "audience": "leads"}
+    if not user_keys:
         return {"count": 0}
-    count = _segment_query(db, ",".join(keys), target_email.strip() or None).count()
-    return {"count": count}
+    return {"count": _segment_query(db, ",".join(user_keys), target_email.strip() or None).count(), "audience": "users"}
 
 
 @app.post("/admin/announcements")
@@ -2949,8 +3843,16 @@ def create_announcement(
     target_email: str = Form(default=""),
 ):
     keys = sorted(set(segment))
-    if not keys or any(k not in _SEGMENT_KEYS for k in keys) or channel not in ("email", "in_app", "both"):
+    lead_keys = [k for k in keys if k in _LEAD_SEGMENT_KEYS]
+    user_keys = [k for k in keys if k in _SEGMENT_KEYS]
+    if not keys or len(lead_keys) + len(user_keys) != len(keys) or channel not in ("email", "in_app", "both"):
         raise HTTPException(status_code=400, detail="Invalid segment or channel")
+    if lead_keys and user_keys:
+        return _admin_redirect("/admin/announcements",
+            "Pick either account audiences or lead audiences, not both — a lead has no account, so the two can't share one send")
+    if lead_keys and channel != "email":
+        return _admin_redirect("/admin/announcements",
+            "Lead audiences are email-only — a lead has no session, so there's no in-app banner to show them")
     target_email = target_email.strip() or None
     if "individual" in keys and not target_email:
         return _admin_redirect("/admin/announcements", "Individual segment needs a target email")
@@ -2969,7 +3871,10 @@ def create_announcement(
     db.refresh(ann)
 
     if channel in ("email", "both"):
-        background_tasks.add_task(_send_announcement_emails, ann.id, ann.subject, ann.body, segment_str, target_email)
+        if lead_keys:
+            background_tasks.add_task(_send_lead_announcement_emails, ann.id, ann.subject, ann.body, segment_str)
+        else:
+            background_tasks.add_task(_send_announcement_emails, ann.id, ann.subject, ann.body, segment_str, target_email)
 
     logger.warning("[admin] announcement created id=%s segment=%s channel=%s", ann.id, segment_str, channel)
     return _admin_redirect("/admin/announcements", f"Announcement #{ann.id} created ({channel} → {segment_str})")
@@ -3555,6 +4460,7 @@ def change_password(
     if password_error:
         raise HTTPException(status_code=400, detail=password_error)
     user.password_hash = hash_password(body.new_password)
+    user.password_set = True
     db.commit()
     return {"status": "ok"}
 
@@ -3595,6 +4501,8 @@ async def account_delete_confirm(
         db.query(Referral).filter(Referral.referrer_id == user_id).delete()
         db.query(Referral).filter(Referral.referee_id == user_id).delete()
         db.query(User).filter(User.referred_by_id == user_id).update({"referred_by_id": None})
+        # Otherwise a deleted account leaves an orphaned Lead row (dangling user_id + PII).
+        db.query(Lead).filter(Lead.user_id == user_id).delete()
         db.delete(user)
         db.commit()
         return user_id

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Finish setting up — InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/login.css">{% endblock %}
+{% block content %}
+  <div class="auth-wrap">
+
+    <div class="auth-glow" aria-hidden="true"></div>
+
+    <a class="auth-brand" href="/">
+      <span class="auth-brand-dot"></span>InterviewAce
+    </a>
+
+    <div class="auth-card">
+      <div style="margin-bottom:24px;">
+        <h1 class="auth-heading">One last thing</h1>
+        <p class="auth-sub">You signed in with a one-time link to {{ email }}. Add your name and a password so you can always get back in — no email required next time.</p>
+      </div>
+
+      <form id="finish-form" class="auth-form" onsubmit="handleFinishSignup(event)">
+        <div class="field-group">
+          <label class="field-label" for="finish-name">Your name</label>
+          <input class="field-input" id="finish-name" type="text" name="full_name"
+            autocomplete="name" placeholder="John Smith" required>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="finish-password">Password</label>
+          <input class="field-input" id="finish-password" type="password" name="password"
+            autocomplete="new-password" placeholder="••••••••••">
+          <ul class="pw-requirements" id="pw-requirements">
+            <li data-rule="length">At least 8 characters</li>
+            <li data-rule="uppercase">One uppercase letter</li>
+            <li data-rule="lowercase">One lowercase letter</li>
+            <li data-rule="number">One number</li>
+            <li data-rule="symbol">One symbol (e.g. !?@#$%)</li>
+          </ul>
+          <p class="pw-all-good" id="pw-all-good">Great password!</p>
+        </div>
+        <div id="finish-error" class="auth-error"></div>
+        <button type="submit" class="auth-submit" id="finish-btn">Finish setting up</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const PW_RULES = {
+      length: p => p.length >= 8,
+      uppercase: p => /[A-Z]/.test(p),
+      lowercase: p => /[a-z]/.test(p),
+      number: p => /\d/.test(p),
+      symbol: p => /[^A-Za-z0-9]/.test(p),
+    };
+
+    document.getElementById('finish-password').addEventListener('input', (e) => {
+      const value = e.target.value;
+      const hasValue = value.length > 0;
+      const allMet = hasValue && Object.values(PW_RULES).every(check => check(value));
+      document.getElementById('pw-requirements').classList.toggle('visible', hasValue && !allMet);
+      document.getElementById('pw-all-good').classList.toggle('visible', allMet);
+      for (const [rule, check] of Object.entries(PW_RULES)) {
+        document.querySelector(`#pw-requirements li[data-rule="${rule}"]`)
+          .classList.toggle('met', check(value));
+      }
+    });
+
+    async function handleFinishSignup(e) {
+      e.preventDefault();
+      const btn = document.getElementById('finish-btn');
+      const errEl = document.getElementById('finish-error');
+      const password = document.getElementById('finish-password').value;
+      const fullName = document.getElementById('finish-name').value;
+
+      errEl.textContent = '';
+      if (!fullName.trim()) { errEl.textContent = 'Full name is required.'; return; }
+      if (!password) { errEl.textContent = 'Password is required.'; return; }
+      if (!Object.values(PW_RULES).every(check => check(password))) {
+        errEl.textContent = 'Password does not meet the requirements above.';
+        return;
+      }
+
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/finish-signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName, password: password }),
+        });
+        const json = await res.json();
+        if (!res.ok) {
+          errEl.textContent = json.detail || 'Something went wrong.';
+          btn.disabled = false;
+          return;
+        }
+        window.location.href = '/app';
+      } catch (err) {
+        errEl.textContent = 'Network error: ' + err.message;
+        btn.disabled = false;
+      }
+    }
+  </script>
+{% endblock %}

@@ -33,7 +33,7 @@
         {% if user %}
         <a class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
         {% else %}
-        <a class="ia-btn-primary ia-btn-hero" href="/login?register=1">Try free — no card</a>
+        <a class="ia-btn-primary ia-btn-hero ia-cta-desktop" href="/login?register=1">Try free — no card</a>
         {% endif %}
         <a class="ia-btn-ghost ia-btn-hero" href="#how">See how it works</a>
       </div>
@@ -42,6 +42,39 @@
         <span><span class="ia-check">✓</span> Streams in 3 seconds</span>
         <span><span class="ia-check">✓</span> Zero browser footprint</span>
       </div>
+
+      {% if not user %}
+      <!-- Small-screen CTA. Both CTAs are always rendered; CSS at 720px decides which shows
+           — this repo does device detection with media queries, never user-agent sniffing. -->
+      <form class="ia-lead" id="lead-form" novalidate>
+        <label class="ia-lead-label" for="lead-email">Setup needs a laptop — we'll email you the link</label>
+        <div class="ia-lead-row">
+          <input class="ia-lead-input" id="lead-email" name="email" type="email"
+                 inputmode="email" autocomplete="email" placeholder="you@email.com" required>
+          <button class="ia-lead-btn" id="lead-submit" type="submit">Email me the link</button>
+        </div>
+
+        <div class="ia-lead-date">
+          <span class="ia-lead-date-label">When's the interview? <span class="ia-lead-optional">(optional)</span></span>
+          <div class="ia-lead-pills" id="lead-pills">
+            <button type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
+            <button type="button" class="ia-lead-pill" data-choice="soon">This week</button>
+            <button type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
+            <button type="button" class="ia-lead-pill ia-lead-pill-muted" data-choice="unknown">Not sure yet</button>
+          </div>
+        </div>
+
+        <!-- honeypot: off-canvas, tab-skipped, hidden from assistive tech. Bots fill it; humans can't. -->
+        <input class="ia-hp" type="text" name="hp_check" id="lead-hp-check" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+        <p class="ia-lead-err" id="lead-error" role="alert"></p>
+        <a class="ia-lead-alt" href="/login?register=1">Already on a laptop? Create an account &rarr;</a>
+      </form>
+      <div class="ia-lead-done" id="lead-done" hidden>
+        <strong>Check your inbox.</strong>
+        <span>We've sent your link to <span id="lead-done-email"></span>. Open it on your laptop and you'll land already signed in.</span>
+      </div>
+      {% endif %}
     </div>
 
     <!-- Right: interactive cycling demo -->
@@ -195,6 +228,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
       <!-- Phone: floats in front of stage -->
       <div class="demo-phone-panel">
+        <!-- Mobile only (see .phone-toast CSS) — mirrors #phContextNote so the "referencing"
+             note doesn't eat into the already-tight phone screen on small viewports. -->
+        <div class="phone-toast" id="phToast"></div>
         <div class="phone-frame">
           <div class="phone-status-bar">
             <span>9:41</span>
@@ -264,7 +300,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                 <span class="phone-answer-dot"></span>
                 <span class="phone-answer-label">InterviewAce</span>
               </div>
-              <p class="phone-context-note" id="phContextNote" style="display:none;"></p>
+              <p class="phone-context-note" id="phContextNote"></p>
               <pre class="phone-prose" id="phProse"></pre>
               <div class="phone-flash" id="phFlash2"></div>
             </div>
@@ -669,12 +705,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   var VOICE_SETS = [
     { q: 'Tell me about a time you\ndisagreed with a teammate.',
       a: 'Situation: split on caching\napproach.\n\nAction: prototyped both,\nbenchmarked.\n\nResult: data settled it,\nno ego.',
-      note: '📎 Referencing the caching project from your resume' },
+      note: '📎 Referencing the caching project from your resume', noteShort: '📎 From your resume' },
     { q: 'Explain the difference between concurrency and parallelism.',
       a: 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound' },
     { q: 'How do ACME Corp’s values\nline up with how you work?',
       a: 'ACME’s stated value: "ship\nfast, learn faster."\n\nMatches how I work — I’d\nrather prototype and iterate\nthan over-plan upfront.\n\nSame instinct as the caching\nprototype from earlier — build,\nthen refine.',
-      note: '📎 Drawing from the ACME Corp notes you saved' },
+      note: '📎 Drawing from the ACME Corp notes you saved', noteShort: '📎 From your uploaded ACME notes' },
     { q: 'How many windows are there\nin New York City?',
       a: '~8M people, ~3M households.\nAvg 6 windows/home → 18M.\n\n+ offices, retail, transit\n≈ 25–30M windows total.\n\nShow the method, not\nthe number.' }
   ];
@@ -684,7 +720,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       a: 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.' },
     { q: 'Why do you want to\nwork here?',
       a: 'Product: ACME’s caching\nlayer fixes exactly what\nI hit last quarter.\n\nTeam: engineering culture\nmatches how you work.\n\nBe specific — skip the\ngeneric "great culture" line.',
-      note: '📎 Drawing from the job description you saved' },
+      note: '📎 Drawing from the job description you saved', noteShort: '📎 From your uploaded job description' },
     { q: 'How many piano tuners are\nthere in Chicago?',
       a: '~9M people, ~3M households.\n~2% own pianos → 60k pianos.\n\nTuned ~1x/yr, 4/day, 250\ndays/yr → 1 tuner per 1,000.\n\n≈ 60 piano tuners in Chicago.\n\nThe reasoning carries more\nweight than the final figure.' },
     { q: 'How would you handle a service\nthat suddenly gets 10x traffic?',
@@ -741,10 +777,19 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   }
 
   function showContextNote(set) {
-    var note = document.getElementById('phContextNote');
-    if (!note) return;
-    if (set.note) { note.textContent = set.note; note.style.display = ''; }
-    else { note.style.display = 'none'; }
+    // CSS (not JS) decides which element is actually shown: the inline note on
+    // desktop/tablet, the toast above the phone on mobile (see .phone-context-note.has-note
+    // / .phone-toast.has-note in landing.css). The toast gets a shorter version of the same
+    // note — it's a narrow bubble, not room for the full sentence.
+    [
+      [document.getElementById('phContextNote'), set.note],
+      [document.getElementById('phToast'), set.noteShort || set.note],
+    ].forEach(function(pair) {
+      var el = pair[0], text = pair[1];
+      if (!el) return;
+      if (text) { el.textContent = text; el.classList.add('has-note'); }
+      else { el.classList.remove('has-note'); }
+    });
   }
 
   function phoneShow(id) {
@@ -943,6 +988,81 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     } else {
       runScenario(0);
     }
+  }
+
+  /* ── Hero lead capture (small screens) ── */
+  var leadForm = document.getElementById('lead-form');
+  if (leadForm) {
+    var leadEmail   = document.getElementById('lead-email');
+    var leadSubmit  = document.getElementById('lead-submit');
+    var leadErr     = document.getElementById('lead-error');
+    var leadDone    = document.getElementById('lead-done');
+    var leadPills   = document.querySelectorAll('.ia-lead-pill');
+    var EMAIL_RE    = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; /* same check as login.html */
+    var _leadDate   = null; /* ISO "YYYY-MM-DD", or null — "Not sure yet" stores no date at all */
+
+    function addDays(n) {
+      var d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + n);
+      return d;
+    }
+    function toISO(d) {
+      var y = d.getFullYear(), m = String(d.getMonth() + 1), day = String(d.getDate());
+      if (m.length < 2) m = '0' + m;
+      if (day.length < 2) day = '0' + day;
+      return y + '-' + m + '-' + day;
+    }
+
+    leadPills.forEach(function (pill) {
+      pill.addEventListener('click', function () {
+        leadPills.forEach(function (p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        var choice = pill.getAttribute('data-choice');
+        if (choice === 'tomorrow') _leadDate = toISO(addDays(1));
+        else if (choice === 'soon') _leadDate = toISO(addDays(2));
+        else if (choice === 'next_week') _leadDate = toISO(addDays(7));
+        else _leadDate = null; /* unknown — never guess a date for someone who told us they don't have one */
+      });
+    });
+
+    leadForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var email = leadEmail.value.trim();
+      leadErr.textContent = '';
+      leadEmail.removeAttribute('aria-invalid');
+
+      if (!email) { leadErr.textContent = 'Email is required.'; leadEmail.setAttribute('aria-invalid', 'true'); return; }
+      if (!EMAIL_RE.test(email)) { leadErr.textContent = 'Enter a valid email address.'; leadEmail.setAttribute('aria-invalid', 'true'); return; }
+
+      leadSubmit.disabled = true;
+      fetch('/api/install-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email,
+          interview_date: _leadDate,
+          hp_check: document.getElementById('lead-hp-check').value
+        })
+      }).then(function (res) {
+        return res.json().then(function (json) { return { ok: res.ok, json: json }; });
+      }).then(function (r) {
+        if (!r.ok) {
+          leadErr.textContent = (r.json && r.json.detail) || 'Something went wrong.';
+          leadSubmit.disabled = false;
+          return;
+        }
+        document.getElementById('lead-done-email').textContent = email;
+        leadForm.style.display = 'none';
+        leadDone.hidden = false;
+        leadDone.classList.add('is-shown');
+        if (window.posthog) { posthog.capture('install_link_requested'); }
+      }).catch(function (err) {
+        leadErr.textContent = 'Network error: ' + err.message;
+        leadSubmit.disabled = false;
+        if (window.posthog) { posthog.capture('install_link_request_failed'); }
+      });
+    });
   }
 
   /* ── Scroll Reveal ── */

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Leads — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% block content %}
+  <main class="admin-main admin-main-wide">
+    <h1>Leads</h1>
+    <p class="ua-sub">Every email captured by the mobile landing-page CTA, claimed or not. {{ total }} match{{ "" if total == 1 else "es" }}.</p>
+    <form class="ua-search" method="get" action="/admin/leads">
+      <input type="text" name="q" value="{{ q }}" placeholder="Lead or account email" autocomplete="off">
+      <select name="status" onchange="this.form.submit()">
+        {% for key, label in filters.items() %}
+        <option value="{{ key }}"{% if key == status %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Search</button>
+      <a href="/admin/leads" class="ua-btn">Clear</a>
+      <a href="/admin/leads/export.csv?q={{ q | urlencode }}&status={{ status | urlencode }}" class="ua-btn ua-btn-notice">Download CSV</a>
+    </form>
+    {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
+    {% if truncated %}
+    <p class="ua-sub">Showing the first {{ limit }} matches — narrow with a search to see more precisely, or download the CSV for the full set.</p>
+    {% endif %}
+    {% if entries %}
+    <div class="ua-table-wrap">
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Kind</th>
+          <th>Captured</th>
+          <th>Requests</th>
+          <th>Claimed</th>
+          <th>Account</th>
+          <th>Source</th>
+          <th>Campaign</th>
+          <th>Interview date</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td>{{ e.email }}{% if e.expired %}<br><span class="ua-flagged">Link expired</span>{% endif %}</td>
+          <td>{{ e.kind }}</td>
+          <td>{{ e.created_at }}</td>
+          <td>{{ e.request_count }}</td>
+          <td>{{ e.claimed_at or "—" }}{% if e.claim_count > 1 %} <span style="color:var(--text-3,#888);">({{ e.claim_count }}&times;)</span>{% endif %}</td>
+          <td>
+            {% if e.user_email %}
+            <a href="/admin/users?q={{ e.user_email | urlencode }}">{{ e.user_level }}</a>
+            {% if e.user_unfinished %}<br><span class="ua-flagged">Setup unfinished</span>{% endif %}
+            {% if e.user_paid %}<br><span style="color:var(--accent,#7dc4f5);">Paid</span>{% endif %}
+            {% else %}
+            —
+            {% endif %}
+          </td>
+          <td>{{ e.utm_source or "—" }}</td>
+          <td>{{ e.utm_campaign or "—" }}</td>
+          <td>{{ e.interview_date or "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="ua-empty">No matching leads.</div>
+    {% endif %}
+  </main>
+{% endblock %}

@@ -46,6 +46,10 @@ main.admin-main-wide { max-width: 1800px; }
   color: var(--text-2, #aaa); cursor: pointer; font-size: 13px; font-weight: 600; font-family: inherit;
 }
 .ua-search button:hover { color: var(--text, #eee); background: rgba(255,255,255,.05); }
+.ua-search select {
+  padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line, #333);
+  background: none; color: var(--text, #eee); font-size: 13px; font-family: inherit; cursor: pointer;
+}
 
 /* ===== Growth dashboard ===== */
 .ad-layout { display: flex; align-items: flex-start; gap: 28px; }
@@ -91,6 +95,21 @@ main.admin-main-wide { max-width: 1800px; }
 .ad-trend { display: flex; align-items: flex-end; gap: 3px; height: 60px; margin-top: 6px; }
 .ad-trend-bar { flex: 1; background: var(--accent, #7dc4f5); border-radius: 2px 2px 0 0; min-height: 2px; opacity: .8; }
 .ad-trend-bar:hover { opacity: 1; }
+
+/* Funnel — horizontal bars. .ad-trend/.ad-trend-bar above is the *vertical* sparkline
+   idiom (flex:1 items growing upward inside a fixed 60px-tall row); a funnel needs the
+   opposite axis — fixed row height, width proportional to the count — so it can't reuse
+   them. Lives outside .ad-layout, so it isn't bound by .ad-main's fixed 460px. */
+.ad-funnel { display: flex; flex-direction: column; gap: 8px; max-width: 760px; }
+.ad-funnel-row { display: grid; grid-template-columns: 150px 1fr 150px; align-items: center; gap: 12px; text-decoration: none; }
+.ad-funnel-label { font-size: 12.5px; color: var(--text-2, #aaa); }
+.ad-funnel-track { background: rgba(255,255,255,.04); border-radius: 5px; height: 24px; overflow: hidden; }
+.ad-funnel-bar { height: 100%; background: var(--accent, #7dc4f5); opacity: .75; border-radius: 5px; min-width: 2px; }
+.ad-funnel-value { font-size: 12px; color: var(--text-3, #888); text-align: right; white-space: nowrap; }
+@media (max-width: 700px) {
+  .ad-funnel-row { grid-template-columns: 1fr; gap: 4px; }
+  .ad-funnel-value { text-align: left; }
+}
 
 /* ===== System health ===== */
 .hz-section { margin: 0 0 32px; }

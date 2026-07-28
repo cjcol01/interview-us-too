@@ -462,4 +462,55 @@ def register(test, skip, client):
         r = client.get("/partner/admin")
         assert r.status_code == 401
 
+    def test_admin_referrals_redirects_to_partner_admin():
+        """/admin/referrals and /partner/admin used to be two separate pages; the referral
+        activity page was merged into /partner/admin (mirroring /referral -> /partner/dashboard
+        on the user-facing side), so old links/bookmarks must keep working."""
+        r = client.get("/admin/referrals", follow_redirects=False)
+        assert r.status_code == 302
+        assert r.headers["location"] == "/partner/admin"
+
+    def test_admin_referrals_redirect_preserves_query_string():
+        r = client.get("/admin/referrals?admin_msg=done", follow_redirects=False)
+        assert r.status_code == 302
+        assert r.headers["location"] == "/partner/admin?admin_msg=done"
+
     test("/partner/admin requires HTTP Basic auth", test_admin_requires_basic_auth)
+    test("/admin/referrals redirects to /partner/admin",              test_admin_referrals_redirects_to_partner_admin)
+    test("/admin/referrals redirect preserves query string",          test_admin_referrals_redirect_preserves_query_string)
+
+    import config as _cfg
+    if _cfg.AUTHOR_PASSWORD:
+        def test_partner_admin_renders_referral_activity_and_flags():
+            init_db()
+            db = SessionLocal()
+            referrer = referee = flagged_referrer = None
+            flagged_referees = []
+            try:
+                referrer = make_user(db, AccountLevel.trial)
+                referee = make_user(db, AccountLevel.trial)
+                db.add(Referral(referrer_id=referrer.id, referee_id=referee.id, status=ReferralStatus.signed_up))
+                db.commit()
+
+                # 5+ signups, 0 paid conversions — trips the fraud-flag threshold.
+                flagged_referrer = make_user(db, AccountLevel.trial)
+                flagged_referees = [make_user(db, AccountLevel.trial) for _ in range(5)]
+                for fr in flagged_referees:
+                    db.add(Referral(referrer_id=flagged_referrer.id, referee_id=fr.id, status=ReferralStatus.signed_up))
+                db.commit()
+
+                r = client.get("/partner/admin", auth=("cjcol01", _cfg.AUTHOR_PASSWORD))
+                assert r.status_code == 200
+                assert "Referrals &amp; Partners" in r.text or "Referrals & Partners" in r.text
+                assert referrer.email in r.text
+                assert referee.email in r.text
+                assert flagged_referrer.email in r.text
+                # The flagged-referrer ban/warn/pause actions must return to this page now,
+                # not the old standalone /admin/referrals page.
+                assert 'value="/partner/admin"' in r.text
+            finally:
+                cleanup(db, referrer, referee, flagged_referrer, *flagged_referees)
+                db.close()
+        test("/partner/admin renders merged referral activity + flagged referrers", test_partner_admin_renders_referral_activity_and_flags)
+    else:
+        skip("/partner/admin renders merged referral activity + flagged referrers", "AUTHOR_PASSWORD not set")

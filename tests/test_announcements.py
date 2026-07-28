@@ -6,10 +6,13 @@ file exercises that shared definition directly, then checks the create/dismiss/d
 routes end-to-end. The in-app banner is DB-backed (see server._active_announcement_for),
 so we render an ordinary page (/faq) as different users and look for the banner text.
 """
+from datetime import datetime, timedelta
+from unittest.mock import patch
+
 from auth import create_token
 from database import SessionLocal
-from models import AccountLevel, Announcement, AnnouncementDismissal, InterviewSession, User
-from tests.helpers import cleanup, make_user
+from models import AccountLevel, Announcement, AnnouncementDismissal, InterviewSession, Lead, User
+from tests.helpers import cleanup, delete_leads, make_lead, make_user
 from tests.test_admin import _make_admin_cookie
 
 import server
@@ -278,6 +281,194 @@ def register(test, skip, client):
             cleanup(db, admin, u1, u2)
             db.close()
 
+    def test_lead_segment_query_unclaimed_vs_claimed():
+        db = SessionLocal()
+        lead_unclaimed = lead_claimed = u = None
+        try:
+            u = make_user(db, AccountLevel.trial)
+            lead_unclaimed = make_lead(db)
+            lead_claimed = make_lead(db, claimed=True, user=u)
+            ids = {lead.id for lead in server._lead_segment_query(db, "leads_unclaimed").all()}
+            assert lead_unclaimed.id in ids
+            assert lead_claimed.id not in ids
+        finally:
+            delete_leads(db, lead_unclaimed.email if lead_unclaimed else None, lead_claimed.email if lead_claimed else None)
+            cleanup(db, u)
+            db.close()
+
+    def test_lead_segment_query_excludes_lead_with_unrelated_account():
+        """A lead can be unclaimed and still belong to a real account — typed the email on
+        the phone, never tapped the link, registered normally on a laptop later. Must not be
+        offered a 'you never finished signing up' nudge."""
+        db = SessionLocal()
+        lead = u = None
+        try:
+            u = make_user(db, AccountLevel.trial)
+            lead = make_lead(db, email=u.email)  # unclaimed (no claimed_at/user_id), but this email now has an account
+            ids = {row.id for row in server._lead_segment_query(db, "leads_unclaimed").all()}
+            assert lead.id not in ids
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            cleanup(db, u)
+            db.close()
+
+    def test_lead_segment_query_30d_excludes_old_leads():
+        db = SessionLocal()
+        old_lead = recent_lead = None
+        try:
+            old_lead = make_lead(db, created_at=datetime.utcnow() - timedelta(days=60))
+            recent_lead = make_lead(db)
+            ids = {lead.id for lead in server._lead_segment_query(db, "leads_unclaimed_30d").all()}
+            assert old_lead.id not in ids
+            assert recent_lead.id in ids
+        finally:
+            delete_leads(db, old_lead.email if old_lead else None, recent_lead.email if recent_lead else None)
+            db.close()
+
+    def test_mixed_user_and_lead_segments_rejected():
+        db = SessionLocal()
+        admin = lead = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+            r = client.post("/admin/announcements", data={
+                "subject": "Mixed", "body": "test", "channel": "email",
+                "segment": ["leads_unclaimed", "trial"],
+            }, cookies={"session": admin_token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert "not both" in r.headers["location"] or "not+both" in r.headers["location"]
+            assert db.query(Announcement).filter(Announcement.subject == "Mixed").first() is None
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            cleanup(db, admin)
+            db.close()
+
+    def test_lead_segment_with_in_app_channel_rejected():
+        db = SessionLocal()
+        admin = lead = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+            r = client.post("/admin/announcements", data={
+                "subject": "Lead in-app", "body": "test", "channel": "in_app",
+                "segment": ["leads_unclaimed"],
+            }, cookies={"session": admin_token}, follow_redirects=False)
+            assert r.status_code == 303
+            assert "email-only" in r.headers["location"] or "email" in r.headers["location"]
+            assert db.query(Announcement).filter(Announcement.subject == "Lead in-app").first() is None
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            cleanup(db, admin)
+            db.close()
+
+    def test_lead_segment_email_channel_succeeds_and_rotates_token():
+        db = SessionLocal()
+        admin = lead = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+            old_hash = lead.token_hash
+
+            with patch("server.send_lead_announcement_email") as sent:
+                r = client.post("/admin/announcements", data={
+                    "subject": "Come finish setup",
+                    "body": "You started but never finished.",
+                    "channel": "email",
+                    "segment": ["leads_unclaimed"],
+                }, cookies={"session": admin_token}, follow_redirects=False)
+                assert r.status_code == 303
+                sent.assert_called_once()
+                called_email, called_subject, called_body, called_token = sent.call_args[0]
+                assert called_email == lead.email
+
+            ann = db.query(Announcement).filter(Announcement.subject == "Come finish setup").first()
+            assert ann is not None
+            assert ann.in_app_active is False
+            assert ann.email_recipient_count == 1
+
+            db.expire(lead)
+            db.refresh(lead)
+            assert lead.token_hash != old_hash
+            assert lead.token_hash == server._hash_link_token(called_token)
+            assert lead.request_count >= 1
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            cleanup(db, admin)
+            db.close()
+
+    def test_lead_announcement_never_shows_as_in_app_banner():
+        db = SessionLocal()
+        admin = lead = any_user = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+            any_user = make_user(db, AccountLevel.trial)
+            any_token = create_token(any_user.id)
+
+            with patch("server.send_lead_announcement_email"):
+                client.post("/admin/announcements", data={
+                    "subject": "Never a banner", "body": "test", "channel": "email",
+                    "segment": ["leads_unclaimed"],
+                }, cookies={"session": admin_token}, follow_redirects=False)
+
+            assert "Never a banner" not in client.get("/faq", cookies={"session": any_token}).text
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            _delete_announcements(db, "Never a banner")
+            cleanup(db, admin, any_user)
+            db.close()
+
+    def test_announcement_count_endpoint_lead_audience():
+        db = SessionLocal()
+        admin = lead = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+
+            r = client.get("/admin/announcements/count?segment=leads_unclaimed", cookies={"session": admin_token})
+            assert r.json()["audience"] == "leads"
+            assert r.json()["count"] >= 1
+
+            mixed = client.get("/admin/announcements/count?segment=leads_unclaimed&segment=trial",
+                                cookies={"session": admin_token})
+            assert mixed.json() == {"count": 0, "audience": "mixed"}
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            cleanup(db, admin)
+            db.close()
+
+    def test_announcements_page_renders_lead_segments_and_counts():
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            r = client.get("/admin/announcements", cookies={"session": admin_token})
+            assert "Leads — never clicked their link" in r.text
+        finally:
+            cleanup(db, admin)
+            db.close()
+
+    def test_history_renders_lead_segment_label_not_raw_key():
+        db = SessionLocal()
+        admin = lead = None
+        try:
+            admin, admin_token = _make_admin_cookie(db)
+            lead = make_lead(db)
+            with patch("server.send_lead_announcement_email"):
+                client.post("/admin/announcements", data={
+                    "subject": "History label check", "body": "test", "channel": "email",
+                    "segment": ["leads_unclaimed"],
+                }, cookies={"session": admin_token}, follow_redirects=False)
+
+            r = client.get("/admin/announcements", cookies={"session": admin_token})
+            assert "Leads — never clicked their link" in r.text
+            assert ">leads_unclaimed<" not in r.text
+        finally:
+            delete_leads(db, lead.email if lead else None)
+            _delete_announcements(db, "History label check")
+            cleanup(db, admin)
+            db.close()
+
     test("GET /admin/announcements requires auth",                       test_announcements_page_requires_auth)
     test("POST /admin/announcements requires auth",                      test_create_requires_auth)
     test("_segment_query: trial vs sessions membership",                 test_segment_query_trial_and_sessions)
@@ -290,3 +481,13 @@ def register(test, skip, client):
     test("Multi-segment targets the union of audiences",                 test_multi_segment_targets_union_of_audiences)
     test("Segment count endpoint dedupes the union",                     test_segment_count_endpoint_dedupes_union)
     test("Email channel records recipient count, skips unverified",      test_email_channel_records_recipient_count)
+    test("_lead_segment_query: unclaimed vs claimed",                     test_lead_segment_query_unclaimed_vs_claimed)
+    test("_lead_segment_query: excludes lead with unrelated account",     test_lead_segment_query_excludes_lead_with_unrelated_account)
+    test("_lead_segment_query: 30d variant excludes old leads",           test_lead_segment_query_30d_excludes_old_leads)
+    test("POST /admin/announcements: mixed user+lead segments rejected", test_mixed_user_and_lead_segments_rejected)
+    test("POST /admin/announcements: lead segment + in_app rejected",    test_lead_segment_with_in_app_channel_rejected)
+    test("POST /admin/announcements: lead segment + email rotates token", test_lead_segment_email_channel_succeeds_and_rotates_token)
+    test("Lead announcement never shows as an in-app banner",             test_lead_announcement_never_shows_as_in_app_banner)
+    test("GET /admin/announcements/count: lead audience + mixed",         test_announcement_count_endpoint_lead_audience)
+    test("GET /admin/announcements renders lead segments + counts",       test_announcements_page_renders_lead_segments_and_counts)
+    test("History renders lead segment label, not raw key",               test_history_renders_lead_segment_label_not_raw_key)

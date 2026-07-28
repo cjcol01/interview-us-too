@@ -151,10 +151,12 @@
       }
       const error = params.get('error');
       if (error) {
-        const msg = error === 'account_suspended'
-          ? 'This account has been suspended. Contact support if you think this is a mistake.'
-          : 'Sign-in failed — please try again.';
-        document.getElementById('login-error').textContent = msg;
+        const ERRORS = {
+          account_suspended:  'This account has been suspended. Contact support if you think this is a mistake.',
+          link_expired:       'That link has expired or has already been used. Request a new one from the homepage.',
+          already_registered: 'You already have an account with that email — sign in below.',
+        };
+        document.getElementById('login-error').textContent = ERRORS[error] || 'Sign-in failed — please try again.';
       }
     })();
 
