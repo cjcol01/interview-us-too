@@ -21,6 +21,7 @@
 - [ ] target salesman
 - [ ] add a next interview date in settings
 - [ ] simplify landing page
+- [ ] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
 
 ## Soon 
 - [ ] shorten landing page
