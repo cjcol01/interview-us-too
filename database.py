@@ -98,6 +98,8 @@ def init_db():
             ("reset_token",            "VARCHAR"),
             ("reset_token_expiry",     "DATETIME"),
             ("active_context_slot",    "INTEGER"),
+            ("cv_context",             "TEXT"),
+            ("behavioural_context",    "TEXT"),
             ("account_flag",           "VARCHAR"),
             ("account_flag_seen",      "BOOLEAN DEFAULT 1"),
             ("google_id",              "VARCHAR"),

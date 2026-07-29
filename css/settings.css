@@ -582,9 +582,49 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 .save-status {
   font-size: 12.5px;
   color: var(--text-3);
-  min-height: 18px;
   display: none;
-  margin-top: 6px;
+}
+.context-save-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+/* The upload button itself fills green left→right while summarising. The fill is
+   an absolutely-positioned layer behind the label; its width is driven by the
+   streamed char count in settings.html (setContextProgress). Scoped to this one
+   button so the global .settings-btn hover shadow isn't clipped. */
+.context-fill-btn { position: relative; overflow: hidden; }
+.context-fill-btn .btn-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 0;
+  background: var(--accent);
+  z-index: 0;              /* width is animated per-frame in JS (rAF), no CSS transition */
+}
+.context-fill-btn .btn-label { position: relative; z-index: 1; }
+/* Keep the button at full opacity (and true green) while it's disabled during
+   summarising — the default disabled dimming washed the fill colour out. It's a
+   standard (white) settings-btn, so the dark label reads fine over the green fill. */
+.context-fill-btn.ctx-summarising:disabled { opacity: 1; }
+
+/* Sub-sections within the single Interview-context card (CV / behavioural / company) */
+.context-divider {
+  height: 1px;
+  background: var(--line);
+  margin: 22px 0;
+}
+.context-sub-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin: 0 0 4px;
+}
+.context-sub-desc {
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin: 0 0 14px;
 }
 
 /* ── Account fields ── */
@@ -623,12 +663,35 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   resize: vertical;
   font-family: 'Hanken Grotesk', sans-serif;
   line-height: 1.5;
+  transition: min-height .2s ease;
 }
+/* Roomier box once there's enough content to be worth scrolling (see adjustContextHeight) */
+.field-textarea.expanded { min-height: 220px; }
 .context-count {
   font-size: 11.5px;
   color: var(--text-3);
   text-align: right;
   margin-top: 4px;
+}
+
+/* Context document upload */
+.context-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.settings-btn-secondary {
+  background: rgba(255,255,255,.05);
+  color: var(--text-1);
+  border: 1px solid var(--line-strong);
+  padding: 9px 15px;
+}
+[data-theme="light"] .settings-btn-secondary { background: rgba(20,20,18,.04); }
+.context-upload-hint {
+  font-size: 12px;
+  color: var(--text-3);
+  flex: 1 1 180px;
 }
 
 /* Context tabs */

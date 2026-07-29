@@ -138,59 +138,100 @@
         <section class="settings-section" id="context">
           <div class="section-hd">
             <h2 class="section-title">Interview context</h2>
-            <p class="section-sub">Save up to {{ max_contexts }} interview contexts — the company, role, tech stack, or anything else the AI should keep in mind. Only the one marked "Use for AI" below is appended to prompts.</p>
+            <p class="section-sub">Context the AI keeps in mind. Your CV and behavioural notes are always used; for companies, save up to {{ max_contexts }} and switch on the one you're interviewing with.</p>
           </div>
+
           <div class="settings-card">
-            <div class="context-tabs" id="context-tabs">
-              {% for ctx in contexts %}
-                <button
-                  type="button"
-                  class="context-tab{% if ctx.slot == 1 %} active{% endif %}"
-                  data-slot="{{ ctx.slot }}"
-                  onclick="selectContextSlot({{ ctx.slot }})"
-                >
-                  <span class="context-tab-label">{{ ctx.name if ctx.name else 'Slot ' ~ ctx.slot }}</span>
-                  <span class="context-tab-dot" style="display:{{ 'inline-block' if active_context_slot == ctx.slot else 'none' }};" title="Used for AI"></span>
+            <!-- CV — fixed, always on. The only section with document upload. -->
+            <div class="context-subsection">
+              <h3 class="context-sub-title">Your CV</h3>
+              <p class="context-sub-desc">Always sent to the AI. Upload a PDF/Word file to auto-summarise it, or type your own.</p>
+              <div class="context-upload-row">
+                <input type="file" id="cv-file-input" accept=".pdf,.docx" style="display:none;" onchange="ctxUpload(this, CTX_CFG.cv)">
+                <button type="button" class="settings-btn context-fill-btn" id="cv-upload-btn" onclick="document.getElementById('cv-file-input').click()">
+                  <span class="btn-fill" id="cv-upload-fill"></span>
+                  <span class="btn-label" id="cv-upload-label">Upload CV</span>
                 </button>
-              {% endfor %}
-            </div>
-
-            <div class="field-group">
-              <label class="field-label" for="context-name-input">Name</label>
-              <input
-                class="field-input"
-                id="context-name-input"
-                maxlength="{{ context_name_max_length }}"
-                placeholder="e.g. Acme Corp — backend role"
-              >
-            </div>
-
-            <div class="field-group" style="margin-top:10px;">
-              <textarea
-                class="field-input field-textarea"
-                id="context-text-input"
-                maxlength="{{ context_text_max_length }}"
-                placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Focus on system design trade-offs. 
-ACME's values are move fast and break things and ...
-A time i demonstrated leadership skills is when..."
-                oninput="document.getElementById('context-count').textContent = this.value.length + ' / {{ context_text_max_length }}'"
-              ></textarea>
-              <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>
-            </div>
-
-            <div class="card-row" style="border-top:none; padding-top:14px;">
-              <div class="card-row-left">
-                <div class="card-row-label">Use for AI</div>
-                <div class="card-row-desc">When on, this context is appended to every prompt sent to the AI. Only one context can be active at a time.</div>
+                <span class="context-upload-hint">PDF or Word (.docx) — summarised into the box for you to edit.</span>
               </div>
-              <label class="toggle-switch">
-                <input type="checkbox" id="context-active-toggle" onchange="onContextActiveToggle()">
-                <span class="toggle-track"></span>
-              </label>
+              <div class="field-group" style="margin-top:10px;">
+                <textarea class="field-input field-textarea" id="cv-text" maxlength="{{ cv_context_max_length }}"
+                  placeholder="Paste or upload your CV — roles, dates, tech stack, key achievements…"
+                  oninput="ctxOnInput('cv')">{{ cv_context }}</textarea>
+                <div id="cv-count" class="context-count">0 / {{ cv_context_max_length }}</div>
+              </div>
+              <div class="context-save-row">
+                <button class="settings-btn" onclick="saveFixed('cv')">Save</button>
+                <div id="cv-status" class="save-status"></div>
+              </div>
             </div>
 
-            <div id="context-status" class="save-status"></div>
-            <button class="settings-btn" onclick="saveContext()">Save</button>
+            <div class="context-divider"></div>
+
+            <!-- Behavioural — fixed, always on. Manual entry. -->
+            <div class="context-subsection">
+              <h3 class="context-sub-title">Behavioural &amp; prep notes</h3>
+              <p class="context-sub-desc">STAR stories, strengths, common-question prep — always sent to the AI.</p>
+              <div class="field-group">
+                <textarea class="field-input field-textarea" id="beh-text" maxlength="{{ behavioural_context_max_length }}"
+                  placeholder="e.g. A time I showed leadership… / how I handle conflict… / my key strengths and examples…"
+                  oninput="ctxOnInput('behavioural')">{{ behavioural_context }}</textarea>
+                <div id="beh-count" class="context-count">0 / {{ behavioural_context_max_length }}</div>
+              </div>
+              <div class="context-save-row">
+                <button class="settings-btn" onclick="saveFixed('behavioural')">Save</button>
+                <div id="beh-status" class="save-status"></div>
+              </div>
+            </div>
+
+            <div class="context-divider"></div>
+
+            <!-- Company & role — {{ max_contexts }} switchable slots, one active. Manual entry. -->
+            <div class="context-subsection">
+              <h3 class="context-sub-title">Company &amp; role</h3>
+              <p class="context-sub-desc">Save up to {{ max_contexts }} — the company, role, values, tech stack. Only the one marked “Use for AI” is sent.</p>
+              <div class="context-tabs" id="context-tabs">
+                {% for ctx in contexts %}
+                  <button
+                    type="button"
+                    class="context-tab{% if ctx.slot == 1 %} active{% endif %}"
+                    data-slot="{{ ctx.slot }}"
+                    onclick="selectContextSlot({{ ctx.slot }})"
+                  >
+                    <span class="context-tab-label">{{ ctx.name if ctx.name else 'Slot ' ~ ctx.slot }}</span>
+                    <span class="context-tab-dot" style="display:{{ 'inline-block' if active_context_slot == ctx.slot else 'none' }};" title="Used for AI"></span>
+                  </button>
+                {% endfor %}
+              </div>
+
+              <div class="field-group">
+                <label class="field-label" for="context-name-input">Name</label>
+                <input class="field-input" id="context-name-input" maxlength="{{ context_name_max_length }}" placeholder="e.g. Acme Corp — backend role">
+              </div>
+
+              <div class="field-group" style="margin-top:10px;">
+                <textarea class="field-input field-textarea" id="context-text-input" maxlength="{{ context_text_max_length }}"
+                  placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Their values are move fast… Focus on system-design trade-offs."
+                  oninput="ctxOnInput('company')"></textarea>
+                <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>
+              </div>
+
+              <div class="card-row" style="border-top:none; padding-top:14px;">
+                <div class="card-row-left">
+                  <div class="card-row-label">Use for AI</div>
+                  <div class="card-row-desc">When on, this company context is sent with every prompt. Only one company can be active at a time.</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="context-active-toggle" onchange="onContextActiveToggle()">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+
+              <div class="context-save-row">
+                <button class="settings-btn" onclick="saveContext()">Save</button>
+                <div id="context-status" class="save-status"></div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -980,10 +1021,19 @@ A time i demonstrated leadership skills is when..."
       }
     }
 
-    // ── Interview context ──────────────────────────────────────────
+    // ── Interview context (CV + behavioural fixed, company ×N) ──────
     const CONTEXTS = {{ contexts|tojson }};
     let activeContextSlot = {{ active_context_slot|tojson }};
     let currentContextSlot = 1;
+
+    // Per-section element map. Only CV has document upload; behavioural and company
+    // are manual text entry (they need just textId/countId/max for the char counter,
+    // plus statusId for saveFixed on behavioural).
+    const CTX_CFG = {
+      cv:          { section:'cv', textId:'cv-text', countId:'cv-count', btnId:'cv-upload-btn', fillId:'cv-upload-fill', labelId:'cv-upload-label', statusId:'cv-status', max: {{ cv_context_max_length }}, save: () => saveFixed('cv') },
+      behavioural: { section:'behavioural', textId:'beh-text', countId:'beh-count', statusId:'beh-status', max: {{ behavioural_context_max_length }} },
+      company:     { section:'company', textId:'context-text-input', countId:'context-count', max: {{ context_text_max_length }} },
+    };
 
     function renderContextTabs() {
       document.querySelectorAll('.context-tab').forEach(btn => {
@@ -996,14 +1046,176 @@ A time i demonstrated leadership skills is when..."
       });
     }
 
+    // Give a box more room once there's a meaningful amount of text.
+    function ctxAdjustHeight(textEl) {
+      textEl.classList.toggle('expanded', (textEl.value || '').length > 250);
+    }
+    function ctxOnInput(section) {
+      const cfg = CTX_CFG[section];
+      const textEl = document.getElementById(cfg.textId);
+      document.getElementById(cfg.countId).textContent = textEl.value.length + ' / ' + cfg.max;
+      ctxAdjustHeight(textEl);
+    }
+
     function selectContextSlot(slot) {
       currentContextSlot = slot;
       const ctx = CONTEXTS.find(c => c.slot === slot) || { name: '', text: '' };
       document.getElementById('context-name-input').value = ctx.name || '';
       document.getElementById('context-text-input').value = ctx.text || '';
-      document.getElementById('context-count').textContent = (ctx.text || '').length + ' / {{ context_text_max_length }}';
       document.getElementById('context-active-toggle').checked = activeContextSlot === slot;
+      ctxOnInput('company');
       renderContextTabs();
+    }
+
+    // Shared streaming upload (CV only, currently). The upload button fills solid
+    // green left→right; the fill is paced by both elapsed time and streamed chars
+    // (see the loop below), so it keeps moving through the dead window before any
+    // text arrives and never stalls.
+    async function ctxUpload(fileEl, cfg) {
+      const file = fileEl.files && fileEl.files[0];
+      if (!file) return;
+      const statusEl = document.getElementById(cfg.statusId);
+      const btn = document.getElementById(cfg.btnId);
+      const labelEl = document.getElementById(cfg.labelId);
+      const btnLabel = labelEl.textContent;
+      const textEl = document.getElementById(cfg.textId);
+      const countEl = document.getElementById(cfg.countId);
+      const nameEl = cfg.nameId ? document.getElementById(cfg.nameId) : null;
+      const fillEl = document.getElementById(cfg.fillId);
+      // The fill is driven by BOTH elapsed time and streamed chars:
+      //   progress = 1 - e^(-(elapsed/T + chars/K))
+      // The time term keeps the bar climbing during the dead window before any text
+      // arrives — network + file extraction + the model's time-to-first-token (~1–2s) —
+      // which is what made it look like it "hung". The char term accelerates it as the
+      // summary streams. Capped at 94% until the 'done' event snaps it to 100%.
+      const startT = performance.now();
+      const FILL_T_MS = 2000, FILL_K_CHARS = 500;
+      let chars = 0, complete = false, filling = true, shown = 0, raf = null;
+      const loop = () => {
+        const elapsed = performance.now() - startT;
+        const prog = 1 - Math.exp(-(elapsed / FILL_T_MS + chars / FILL_K_CHARS));
+        const eff = complete ? 1 : Math.max(0.05, Math.min(0.94, prog));
+        shown += (eff - shown) * 0.16;
+        if (Math.abs(eff - shown) < 0.002) shown = eff;
+        fillEl.style.width = (shown * 100).toFixed(2) + '%';
+        if (filling) raf = requestAnimationFrame(loop);
+      };
+
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = `Reading “${file.name}”…`;
+      btn.classList.add('ctx-summarising');       // keeps the fill at full opacity while disabled
+      btn.disabled = true;
+      labelEl.textContent = 'Summarising…';
+      raf = requestAnimationFrame(loop);
+
+      const finish = () => {
+        filling = false;
+        if (raf) cancelAnimationFrame(raf);
+        shown = 0;
+        fillEl.style.width = '0%';
+        btn.classList.remove('ctx-summarising');
+        btn.disabled = false;
+        labelEl.textContent = btnLabel;
+        fileEl.value = '';  // allow re-uploading the same file
+      };
+
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('section', cfg.section);
+        const resp = await fetch('/api/settings/context/extract', { method: 'POST', body: form });
+
+        // Validation failures (auth/size/type/no-text) come back before the stream
+        // starts, as an ordinary JSON error with a real status code.
+        if (!resp.ok) {
+          const json = await resp.json().catch(() => ({}));
+          statusEl.textContent = json.detail || 'Couldn’t process that file.';
+          statusEl.style.color = 'var(--danger)';
+          finish();
+          return;
+        }
+
+        statusEl.textContent = 'Summarising…';
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let result = null;
+        let errored = null;
+
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl;
+          while ((nl = buf.indexOf('\n')) >= 0) {
+            const line = buf.slice(0, nl).trim();
+            buf = buf.slice(nl + 1);
+            if (!line) continue;
+            let ev;
+            try { ev = JSON.parse(line); } catch { continue; }
+            if (ev.type === 'progress') {
+              chars = Math.max(chars, ev.chars);
+            } else if (ev.type === 'done') {
+              result = ev;
+            } else if (ev.type === 'error') {
+              errored = ev.detail || 'Couldn’t summarise that document.';
+            }
+          }
+        }
+
+        if (errored) {
+          statusEl.textContent = errored;
+          statusEl.style.color = 'var(--danger)';
+        } else if (result) {
+          complete = true;  // loop now eases the fill to a true 100%
+          textEl.value = result.text || '';
+          // Only fill the name if the user hasn't typed one (company only), so we never clobber their label.
+          if (nameEl && result.name && !nameEl.value.trim()) nameEl.value = result.name;
+          countEl.textContent = textEl.value.length + ' / ' + cfg.max;
+          ctxAdjustHeight(textEl);
+          // Auto-save and hold ~350ms for the fill to visibly complete — in parallel,
+          // so the end state isn't the save latency *plus* the hold.
+          labelEl.textContent = 'Saving…';
+          await Promise.all([cfg.save(), new Promise(r => setTimeout(r, 350))]);
+        } else {
+          statusEl.textContent = 'Couldn’t summarise that document.';
+          statusEl.style.color = 'var(--danger)';
+        }
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      } finally {
+        finish();
+      }
+    }
+
+    async function saveFixed(section) {
+      const cfg = CTX_CFG[section];
+      const statusEl = document.getElementById(cfg.statusId);
+      const textEl = document.getElementById(cfg.textId);
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/context/fixed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section, text: textEl.value }),
+        });
+        const json = await resp.json().catch(() => ({}));
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent)';
+        } else {
+          statusEl.textContent = json.detail || 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
     }
 
     async function saveContext() {
@@ -1025,10 +1237,10 @@ A time i demonstrated leadership skills is when..."
           if (!ctx) { ctx = { slot: currentContextSlot, name: '', text: '' }; CONTEXTS.push(ctx); }
           ctx.name = json.name;
           ctx.text = json.text;
-          if (!json.name && !json.text && activeContextSlot === currentContextSlot) {
-            activeContextSlot = null;
-            document.getElementById('context-active-toggle').checked = false;
-          }
+          // Server may have auto-activated this slot (first company saved) or cleared
+          // the active one (slot emptied). Mirror whatever it reports.
+          if (json.active_slot !== undefined) activeContextSlot = json.active_slot;
+          document.getElementById('context-active-toggle').checked = (activeContextSlot === currentContextSlot);
           renderContextTabs();
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
@@ -1065,6 +1277,8 @@ A time i demonstrated leadership skills is when..."
     }
 
     selectContextSlot(currentContextSlot);
+    ctxOnInput('cv');
+    ctxOnInput('behavioural');
 
     // ── Theme toggle ───────────────────────────────────────────────
     (function() {

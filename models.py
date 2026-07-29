@@ -71,7 +71,9 @@ class User(Base):
     partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active (active = upgraded to a %-commission tier)
     partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0/1 = implicit flat Tier 1 | 2 = 15% | 3 = 25%
     partner_tier_manual = Column(Boolean, default=False, nullable=False, server_default="0")  # admin-granted tier — sticky, never auto-downgraded
-    active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (if any) is sent to the AI
+    active_context_slot = Column(Integer, nullable=True)  # which InterviewContext.slot (company context) is sent to the AI
+    cv_context          = Column(Text, nullable=True)  # single fixed personal context: the candidate's CV/background
+    behavioural_context = Column(Text, nullable=True)  # single fixed personal context: STAR stories / behavioural prep
     account_flag        = Column(String, nullable=True)  # e.g. "paused" — set by admin actions, cleared once seen
     account_flag_seen   = Column(Boolean, default=True, nullable=False, server_default="1")
     interview_date         = Column(Date, nullable=True)  # user-supplied date of their real interview, for the day-before reminder email
