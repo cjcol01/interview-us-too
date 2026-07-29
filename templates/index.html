@@ -211,6 +211,12 @@
     <a href="/settings#billing" class="session-warn-link">Manage sessions &rarr;</a>
   </div>
 
+  <!-- No sessions remaining bar (paid users, 0 sessions left) -->
+  <div id="no-sessions-bar"{% if account_level == 'paid' and sessions_remaining == 0 %} class="visible"{% endif %}>
+    <span>No sessions remaining — top up to keep going</span>
+    <a href="/pricing" class="no-sessions-link">Top up &rarr;</a>
+  </div>
+
   <main>
     <div id="screenshot-wrap" class="mini" onclick="toggleImage()">
       <div id="placeholder">

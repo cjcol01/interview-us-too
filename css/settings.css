@@ -49,6 +49,10 @@
   margin: 0;
 }
 .session-notice strong { color: var(--text-1); }
+.session-notice--danger {
+  background: rgba(224,106,106,.07);
+  border-color: rgba(224,106,106,.25);
+}
 
 /* ── Page layout ── */
 .settings-wrap {
@@ -140,6 +144,26 @@
   background: rgba(255,255,255,.04);
   border: 1px solid var(--line-strong);
   color: var(--text-3);
+}
+.session-time-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent);
+}
+.session-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  animation: session-pulse 2s ease-in-out infinite;
+}
+@keyframes session-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .35; }
 }
 
 /* Nav buttons */

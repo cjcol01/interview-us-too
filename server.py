@@ -1903,7 +1903,12 @@ def auth_logout():
 def landing(request: Request, user: Optional[User] = Depends(get_optional_user),
             ia_attr: Optional[str] = Cookie(default=None)):
     template = "landing.html" if LANDING_PROD else "landing_prep.html"
-    ctx = {"show_navbar": True, "show_landing_links": True}
+    ctx = {
+        "show_navbar": True,
+        "show_landing_links": True,
+        "intro_redeemed": user.intro_redeemed if user else False,
+        "is_referred": user.referred_by_id is not None if user else False,
+    }
     response = templates.TemplateResponse(request=request, name=template, context=ctx)
     if not ia_attr:  # first touch wins — a later organic visit must not overwrite the ad click
         packed = _attribution_from_query(request)
@@ -4299,9 +4304,19 @@ async def settings_page(
             for i in range(1, MAX_CONTEXTS_PER_USER + 1)
         ]
         bal = _partner_balance(user, db)
-        return account_flag_notice, cancel_at, hk, contexts, bal
+        active_expires_at = None
+        if user.account_level == AccountLevel.paid:
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if active:
+                active_expires_at = active.expires_at.isoformat() + "Z"
+        return account_flag_notice, cancel_at, hk, contexts, bal, active_expires_at
 
-    account_flag_notice, cancel_at, hk, contexts, bal = await run_in_threadpool(_load_page_data)
+    account_flag_notice, cancel_at, hk, contexts, bal, active_session_expires_at = await run_in_threadpool(_load_page_data)
 
     return templates.TemplateResponse(request=request, name="settings.html", context={
         "full_name": user.full_name,
@@ -4342,6 +4357,7 @@ async def settings_page(
         "behavioural_context_max_length": BEHAVIOURAL_CONTEXT_MAX_LENGTH,
         "interview_date": user.interview_date.isoformat() if user.interview_date else "",
         "account_flag_notice": account_flag_notice,
+        "active_session_expires_at": active_session_expires_at,
         "show_navbar": True,
     })
 

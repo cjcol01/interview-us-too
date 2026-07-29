@@ -796,6 +796,23 @@ main {
   .hk-ref-key { margin-left: 0; flex-shrink: 0; }
 }
 
+/* ── No sessions remaining bar ── */
+#no-sessions-bar {
+  background: rgba(224,106,106,.07);
+  border-bottom: 1px solid rgba(224,106,106,.2);
+  padding: 8px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--danger);
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+#no-sessions-bar.visible { display: flex; }
+.no-sessions-link { color: var(--danger); text-decoration: none; font-size: 11px; white-space: nowrap; opacity: .85; }
+.no-sessions-link:hover { opacity: 1; }
+
 /* ── Session expiry warning bar ── */
 #session-warn-bar {
   background: rgba(251,191,36,.05);

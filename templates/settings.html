@@ -40,7 +40,13 @@
             {% if account_level == 'unlimited' %}
               <span class="plan-pill pill-unlimited">Unlimited</span>
             {% elif account_level == 'paid' %}
+              {% if active_session_expires_at %}
+              <div class="session-time-chip" id="sidebar-session-timer">
+                <span class="session-dot"></span><span class="session-time-label">…</span>
+              </div>
+              {% else %}
               <span class="plan-pill pill-paid">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}</span>
+              {% endif %}
             {% else %}
               <span class="plan-pill pill-free">{{ account_level|capitalize }}</span>
             {% endif %}
@@ -507,8 +513,22 @@
               {% endif %}
             {% elif account_level == 'paid' %}
               <div class="billing-status-row">
+                {% if active_session_expires_at %}
+                <span class="billing-status ok" id="billing-session-timer">In session · …</span>
+                {% elif sessions_remaining == 0 %}
+                <span class="billing-status danger">No sessions remaining</span>
+                {% else %}
                 <span class="billing-level">{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }} remaining</span>
+                {% endif %}
               </div>
+              {% if sessions_remaining == 0 and not active_session_expires_at %}
+              <div class="session-notice session-notice--danger">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.2">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <p>You have no sessions left. Top up to continue using InterviewAce in your next interview.</p>
+              </div>
+              {% endif %}
               <a class="action-link" href="/pricing">Top up sessions ›</a>
               <a class="action-link upgrade" href="/billing/checkout?plan=subscription">Upgrade to Unlimited ›</a>
             {% else %}
@@ -1469,5 +1489,39 @@
       }
     })();
   </script>
+
+  {% if active_session_expires_at %}
+  <script>
+    (function () {
+      const expiresAt = new Date({{ active_session_expires_at | tojson }});
+      const sidebarEl = document.getElementById('sidebar-session-timer');
+      const billingEl = document.getElementById('billing-session-timer');
+
+      function fmt(secs) {
+        const h = Math.floor(secs / 3600);
+        const m = Math.floor((secs % 3600) / 60);
+        const s = secs % 60;
+        if (h > 0) return h + 'h ' + m + 'm left';
+        if (m > 0) return m + 'm ' + s + 's left';
+        return s + 's left';
+      }
+
+      function tick() {
+        const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+        if (remaining <= 0) {
+          if (sidebarEl) sidebarEl.remove();
+          if (billingEl) billingEl.remove();
+          return;
+        }
+        const label = fmt(remaining);
+        if (sidebarEl) sidebarEl.querySelector('.session-time-label').textContent = label;
+        if (billingEl) billingEl.textContent = 'In session · ' + label;
+        setTimeout(tick, 1000);
+      }
+
+      tick();
+    })();
+  </script>
+  {% endif %}
 
 {% endblock %}

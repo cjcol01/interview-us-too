@@ -160,15 +160,34 @@ main {
 .plan-card.featured {
   border-color: var(--accent-line);
   background: linear-gradient(160deg, var(--accent-soft), var(--card));
+  box-shadow: 0 0 22px rgba(198,242,78,.1);
+}
+
+/* Breathing glow lives on the wrapper — no overflow:hidden, no hover-transform conflict.
+   Animating opacity (a composited property) instead of box-shadow avoids repaints. */
+.card-wrapper.has-label {
+  position: relative;
+}
+.card-wrapper.has-label::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 14px;
+  box-shadow: 0 0 42px rgba(198,242,78,.25);
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .plan-card.featured { animation: plan-glow 3.5s ease-in-out infinite; }
+  .card-wrapper.has-label::after { animation: plan-glow 3.5s ease-in-out infinite; }
 }
 @keyframes plan-glow {
-  0%, 100% { box-shadow: 0 0 22px rgba(198,242,78,.1); }
-  50%       { box-shadow: 0 0 40px rgba(198,242,78,.22); }
+  0%, 100% { opacity: 0; }
+  50%       { opacity: 1; }
 }
-@media (prefers-reduced-motion: reduce) { .plan-card.featured { box-shadow: 0 0 22px rgba(198,242,78,.1); } }
+@media (prefers-reduced-motion: reduce) {
+  .card-wrapper.has-label::after { opacity: .5; }
+}
 
 /* Intro deal — full width */
 .intro-deal {
@@ -310,14 +329,12 @@ main {
 }
 .cta-sub:hover { box-shadow: 0 12px 32px rgba(198,242,78,.3); }
 
-/* Sessions pack CTA — neutral outline */
+/* Sessions pack CTA — accent green */
 .cta-sessions {
-  background: transparent;
-  border: 1px solid var(--line-strong);
-  color: var(--text-2);
-  transition: border-color .15s, color .15s, transform .15s;
+  background: var(--accent);
+  color: var(--btn-text);
 }
-.cta-sessions:hover { border-color: var(--accent); color: var(--text-1); }
+.cta-sessions:hover { box-shadow: 0 12px 32px rgba(198,242,78,.3); }
 
 /* Intro CTA — strong accent */
 .cta-intro {

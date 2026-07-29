@@ -519,6 +519,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 </div>
 
 <!-- ===== PRICING ===== -->
+{% if account_level != 'unlimited' %}
 <section class="ia-section ia-section--panel" id="pricing">
   <div class="ia-container ia-container--pricing">
     <div class="ia-section-hd ia-section-hd--center" data-reveal>
@@ -527,22 +528,53 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     </div>
     <div class="ia-pricing">
 
-      <div class="ia-plan" data-reveal>
-        <div class="ia-plan-label">Sessions</div>
-        <div class="ia-plan-price">
-          <span class="ia-plan-amount">£2</span>
-          <span class="ia-plan-per">/ 1 session</span>
+      {% if account_level != 'paid' %}
+        {% if not intro_redeemed %}
+        <!-- Intro offer card — shown when user is eligible (first-time offer not yet used) -->
+        <div class="ia-plan" data-reveal>
+          <div class="ia-plan-label">First-time offer</div>
+          <div class="ia-plan-price">
+            <span class="ia-plan-amount">£2</span>
+            <span class="ia-plan-per">/ 1 session</span>
+          </div>
+          <div class="ia-plan-note">New member deal — one-time only</div>
+          <p class="ia-plan-desc">One-time purchase — no subscription, no renewal.</p>
+          <ul class="ia-plan-features">
+            <li><span class="ia-check">✓</span> 1 full 1.5-hour session</li>
+            <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
+            <li><span class="ia-check">✓</span> Instant replay</li>
+            <li><span class="ia-check">✓</span> Sessions never expire</li>
+          </ul>
+          {% if user %}
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions">{% if is_referred %}Claim free session{% else %}Claim deal — £2{% endif %}</a>
+          {% else %}
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?register=1">Claim £2 intro</a>
+          {% endif %}
         </div>
-        <div class="ia-plan-note">Intro offer — then £10 for 3</div>
-        <p class="ia-plan-desc">Buy sessions when you need them. No subscription.</p>
-        <ul class="ia-plan-features">
-          <li><span class="ia-check">✓</span> 1 full 1.5-hour session</li>
-          <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
-          <li><span class="ia-check">✓</span> Instant replay</li>
-          <li><span class="ia-check">✓</span> Sessions never expire</li>
-        </ul>
-        <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?register=1">Claim £2 intro</a>
-      </div>
+        {% else %}
+        <!-- Sessions pack card — shown when intro already redeemed -->
+        <div class="ia-plan" data-reveal>
+          <div class="ia-plan-label">Sessions pack</div>
+          <div class="ia-plan-price">
+            <span class="ia-plan-amount">£10</span>
+            <span class="ia-plan-per">/ 3 sessions</span>
+          </div>
+          <div class="ia-plan-note">Pay as you go — no subscription</div>
+          <p class="ia-plan-desc">Top up whenever you need. Sessions never expire.</p>
+          <ul class="ia-plan-features">
+            <li><span class="ia-check">✓</span> 3 full sessions</li>
+            <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
+            <li><span class="ia-check">✓</span> Instant replay</li>
+            <li><span class="ia-check">✓</span> Sessions never expire</li>
+          </ul>
+          {% if user %}
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions_pack">Get 3 sessions — £10</a>
+          {% else %}
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?next=/billing/checkout?plan=sessions_pack">Get 3 sessions — £10</a>
+          {% endif %}
+        </div>
+        {% endif %}
+      {% endif %}
 
       <div class="ia-plan ia-plan--featured" data-reveal>
         <div class="ia-plan-badge">Most popular</div>
@@ -559,13 +591,18 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <li><span class="ia-check">✓</span> Instant replay</li>
           <li><span class="ia-check">✓</span> Cancel anytime</li>
         </ul>
+        {% if user %}
+        <a class="ia-plan-cta ia-plan-cta--lime" href="/billing/checkout?plan=subscription">Start free week</a>
+        {% else %}
         <a class="ia-plan-cta ia-plan-cta--lime" href="/login?register=1">Start free week</a>
+        {% endif %}
       </div>
 
     </div>
-    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a>{% if not user or user.account_level.value != 'unlimited' %}<br>or<br>see our full <a href="/pricing">pricing page</a>{% endif %}</p>
+    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a><br>or<br>see our full <a href="/pricing">pricing page</a></p>
   </div>
 </section>
+{% endif %}
 
 <!-- ===== CLOSING CTA ===== -->
 <section class="ia-cta-section">
