@@ -123,7 +123,7 @@
           <li>Nothing open? Click the extension icon in your toolbar and press <strong>Grant mic permission</strong> in the popup.</li>
           <li>
             Already clicked <strong>Never allow</strong> once? It won't ask again until you clear it manually:
-            <span class="copy-chip" id="mic-settings-copy-chip" onclick="copyMicSettingsLink(this)" title="Click to copy — paste into a new tab's address bar">📋 Copy link to the extension's mic settings</span>
+            <span class="copy-chip" id="mic-settings-copy-chip" onclick="copyMicSettingsLink(this)" title="Click to copy — paste into a new tab's address bar">Copy link to the extension's mic settings<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
             then set Microphone to "Allow" on that page.
           </li>
           <li>Check System Settings → Sound and confirm the right input device is selected and isn't muted.</li>
@@ -312,10 +312,11 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Answers stream to your dashboard over a live connection; a flaky network, a backgrounded/throttled tab, or a temporary AI provider slowdown can each interrupt or delay it.</p>
+        <p class="issue-why">Answers stream to your dashboard over a live connection; a flaky network, a backgrounded/throttled tab, or a temporary AI provider slowdown can each interrupt or delay it. A larger prompt also just takes longer to process — filling all the <a href="/settings#context">interview context</a> boxes (CV, behavioural notes, company &amp; role) right up to their limit means more text is sent with every request, which can slow down how quickly answers start.</p>
         <ol class="issue-fix">
           <li>Check your own network connection first — the stream reconnects automatically but needs a stable link.</li>
           <li>Keep the dashboard tab in the foreground; background throttling in some browsers can pause the connection.</li>
+          <li>Trim your <a href="/settings#context">context boxes</a> to the essentials — shorter CV/behavioural/company notes mean less for the AI to read before it can start responding.</li>
           <li>Give it a few seconds — the system automatically fails over to a backup AI provider if the primary is slow or down.</li>
           <li>Still stuck after ~15 seconds? Refresh the dashboard tab — your session and history carry over.</li>
         </ol>
@@ -373,6 +374,13 @@
   // (it responded, but has no stored account token) are different problems
   // with different fixes — issue 4 vs issue 5 — so route the fix link (and
   // the inline Connect button, when logged in) to whichever actually applies.
+  //
+  // _extConnectHold: while true, skip hiding the connect button even if the check
+  // otherwise resolves to "ok". Without this, clicking Connect fires a ping that
+  // resolves almost instantly, which flips this straight to the `else` branch and
+  // hides the button — wiping out its "✓ Connected!" text before anyone can read
+  // it (see connectExtensionFromSupport).
+  let _extConnectHold = false;
   function _setExtFixState(subState) {
     const fixLink = document.getElementById('check-ext-fix');
     const connectBtn = document.getElementById('check-ext-connect');
@@ -380,7 +388,7 @@
       fixLink.href = '#issue-4';
       fixLink.onclick = () => { openIssue(4); return false; };
       fixLink.style.display = '';
-      if (connectBtn) connectBtn.style.display = 'none';
+      if (connectBtn && !_extConnectHold) connectBtn.style.display = 'none';
     } else if (subState === 'not-connected') {
       fixLink.href = '#issue-5';
       fixLink.onclick = () => { openIssue(5); return false; };
@@ -392,7 +400,7 @@
       }
     } else {
       fixLink.style.display = 'none';
-      if (connectBtn) connectBtn.style.display = 'none';
+      if (connectBtn && !_extConnectHold) connectBtn.style.display = 'none';
     }
   }
 
@@ -438,12 +446,21 @@
     btn.disabled = true;
     btn.textContent = 'Connecting…';
     const reset = () => { btn.disabled = false; btn.textContent = originalText; };
-    const timeout = setTimeout(reset, 2500);
+    const timeout = setTimeout(() => {
+      btn.textContent = 'Not detected — try again';
+      setTimeout(reset, 2200);
+    }, 2500);
     document.addEventListener('interview-ace:connected', () => {
       clearTimeout(timeout);
-      reset();
+      btn.textContent = '✓ Connected!';
+      _extConnectHold = true; // keep the button visible so the message above is readable
       _pongSeen = false;
       _retryDispatch('interview-ace:ping', () => _pongSeen);
+      setTimeout(() => {
+        _extConnectHold = false;
+        reset();
+        _updateExtCheck(); // now let the row hide the button if it's genuinely connected
+      }, 1500);
     }, { once: true });
     document.dispatchEvent(new CustomEvent('interview-ace:connect', {
       detail: { token: {{ api_token|tojson }}, serverUrl: window.location.origin }
@@ -565,8 +582,34 @@
   _retryDispatch('interview-ace:mic-settings-link', () => _micSettingsSeen);
 
   function copyMicSettingsLink(el) {
-    if (!_micSettingsUrl) return; // extension not detected yet, or not installed
-    copyChromeUrl(el, _micSettingsUrl);
+    if (_micSettingsUrl) { copyChromeUrl(el, _micSettingsUrl); return; }
+
+    // The one-shot retry at page load (above) can lose the race against content-script
+    // injection and never get a second chance — unlike ping/mic-check, nothing here re-fires
+    // it later (e.g. on visibilitychange), so a slow injection permanently strands
+    // _micSettingsUrl at null even though the extension is fully working by the time of a
+    // later click. The listener itself lives for the tab's lifetime, so try again right now
+    // before concluding the extension really isn't there.
+    const label = el.childNodes[0];
+    const original = label.textContent;
+    label.textContent = 'Checking…';
+    let answered = false;
+    const onResult = () => {
+      if (answered) return;
+      answered = true;
+      label.textContent = original;
+      copyChromeUrl(el, _micSettingsUrl);
+    };
+    document.addEventListener('interview-ace:mic-settings-link-result', onResult, { once: true });
+    _retryDispatch('interview-ace:mic-settings-link', () => answered);
+    setTimeout(() => {
+      if (answered) return;
+      answered = true;
+      document.removeEventListener('interview-ace:mic-settings-link-result', onResult);
+      label.textContent = 'Extension not detected — install it first';
+      el.classList.add('copy-chip-warn');
+      setTimeout(() => { label.textContent = original; el.classList.remove('copy-chip-warn'); }, 2200);
+    }, 1200);
   }
 
   // ── Filter bar ───────────────────────────────────────────────────────────

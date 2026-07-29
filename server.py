@@ -58,7 +58,7 @@ from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, B
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
-from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, ReferralStatus, ResponseStyle, UsageDaily, User, Withdrawal, WithdrawalStatus
+from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, ReferralStatus, ResponseStyle, SessionFeedback, UsageDaily, User, Withdrawal, WithdrawalStatus
 
 # --- startup profiling: log where boot time goes so slow environments (e.g. a WSL2
 # 9p-mounted repo) can be diagnosed straight from the logs. See STARTUP_PERF.md. ---
@@ -177,9 +177,18 @@ def _send_due_interview_reminders() -> int:
     by tests. Returns the number of reminders sent."""
     db = SessionLocal()
     try:
-        tomorrow = (datetime.utcnow() + timedelta(days=1)).date()
+        # Widened to a range (today..tomorrow) rather than an exact tomorrow == match: this
+        # loop only ticks every INTERVIEW_REMINDER_CHECK_SECONDS (6h), and a naive-UTC server
+        # compared against a browser's local <input type="date"> value means "tomorrow" can
+        # already read as "today" by the time this runs (e.g. a user east of UTC, or a tick
+        # that lands just after midnight UTC). An exact-match filter would then skip that
+        # user's reminder forever. The range stays idempotent via interview_reminder_sent.
+        now = datetime.utcnow()
+        today = now.date()
+        tomorrow = (now + timedelta(days=1)).date()
         due = db.query(User).filter(
-            User.interview_date == tomorrow,
+            User.interview_date >= today,
+            User.interview_date <= tomorrow,
             User.interview_reminder_sent == false(),
         ).all()
         for u in due:
@@ -465,6 +474,10 @@ class ResponseStyleRequest(BaseModel):
     style: ResponseStyle
 
 
+class InterviewDateRequest(BaseModel):
+    interview_date: str = ""
+
+
 MAX_CONTEXTS_PER_USER   = 5          # company context slots (InterviewContext), one active at a time
 CONTEXT_NAME_MAX_LENGTH = 60
 CONTEXT_TEXT_MAX_LENGTH = 1000        # per company slot
@@ -718,6 +731,7 @@ _CAPTURE_DEFAULTS = {"analysis": "", "timestamp": "", "capture_id": "0", "monito
 def _capture_key(uid: int) -> str:    return f"user:{uid}:capture"
 def _complexity_key(uid: int) -> str: return f"user:{uid}:complexity"
 def _events_channel(uid: int) -> str: return f"user:{uid}:events"
+def _ext_status_key(uid: int) -> str: return f"user:{uid}:ext_status"
 
 # Bounded rolling-window conversation history, shared across all three capture
 # endpoints (screenshot/text/audio). Named "history", not "context", to avoid
@@ -1917,6 +1931,8 @@ def index(request: Request, user: User = Depends(require_user)):
         "dev_build": DEV_BUILD,
         "replay_seconds": user.replay_seconds,
         "first_name": (user.full_name or "").split(" ")[0] or "there",
+        "user_id": user.id,
+        "interview_date": user.interview_date.isoformat() if user.interview_date else "",
     })
 
 
@@ -1975,6 +1991,80 @@ def save_interview_date(
     return {"status": "ok"}
 
 
+class SessionFeedbackRequest(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str = ""
+    next_interview_date: str = ""
+    # Client-reported context only (from the dashboard's own answer counter) — never used
+    # for gating or billing, purely so an admin reading feedback has "rated 2 after 3
+    # answers in 6 min" instead of a bare number.
+    answer_count: int | None = None
+    duration_seconds: int | None = None
+    session_type: str = ""  # real | practice | testing | '' (not provided)
+
+
+# Deliberately NOT tied to InterviewSession — that model is a billing meter (paid-only,
+# never created for unlimited accounts or audio-only capture), not an interview. The
+# dashboard decides for itself, from the SSE events it already receives, when a real
+# interview happened — see the answer counter in templates/index.html. This endpoint only
+# ever gets called from that one button's click handler, so — unlike /welcome/next's
+# interview-date step — there's no "already answered, redirect past it" concern here.
+_FEEDBACK_RESUBMIT_WINDOW_SECONDS = 60
+
+
+@app.post("/api/session/feedback")
+def submit_session_feedback(
+    body: SessionFeedbackRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    comment = _truncate(body.comment.strip(), 2000)
+
+    parsed_date = None
+    next_interview_date = (body.next_interview_date or "").strip()
+    if next_interview_date:
+        try:
+            parsed_date = datetime.strptime(next_interview_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date")
+        if parsed_date < datetime.utcnow().date():
+            raise HTTPException(status_code=400, detail="Date can't be in the past")
+
+    # Cheap double-submit guard (double-click, retried fetch): the button also disables
+    # itself client-side, and duplicate rows here are harmless, but skip the obvious case.
+    recent_cutoff = datetime.utcnow() - timedelta(seconds=_FEEDBACK_RESUBMIT_WINDOW_SECONDS)
+    already = db.query(SessionFeedback).filter(
+        SessionFeedback.user_id == user.id,
+        SessionFeedback.created_at >= recent_cutoff,
+    ).first()
+    if already:
+        return {"status": "already"}
+
+    session_type = (body.session_type or "").strip()[:32] or None
+    db.add(SessionFeedback(
+        user_id=user.id,
+        rating=body.rating,
+        comment=comment or None,
+        next_interview_date=parsed_date,
+        answer_count=body.answer_count,
+        duration_seconds=body.duration_seconds,
+        session_type=session_type,
+    ))
+
+    # Reuses the existing day-before reminder end to end (server.py _send_due_interview_reminders
+    # / mailer.send_interview_reminder_email) — same guard as /api/welcome/interview-date so
+    # re-saving an unchanged date doesn't re-arm an already-sent reminder, and a blank field
+    # never clobbers a date the user already gave elsewhere.
+    if parsed_date and parsed_date != user.interview_date:
+        user.interview_date = parsed_date
+        user.interview_reminder_sent = False
+
+    db.commit()
+    track(user.id, "session_feedback_submitted", rating=body.rating,
+          has_comment=bool(comment), has_date=bool(parsed_date))
+    return {"status": "ok"}
+
+
 @app.get("/onboarding")
 def onboarding_page(
     request: Request,
@@ -2011,6 +2101,14 @@ def verify_pending(request: Request, user: User = Depends(require_user)):
         return RedirectResponse("/app")
     return templates.TemplateResponse(request=request, name="verify_pending.html", context={
         "email": user.email,
+    })
+
+
+@app.get("/done")
+def interview_done_page(request: Request, type: str = "", user: User = Depends(require_user)):
+    return templates.TemplateResponse(request=request, name="done.html", context={
+        "session_type": type,
+        "show_navbar": True,
     })
 
 
@@ -2593,11 +2691,16 @@ async def admin_home(
             func.coalesce(func.sum(UsageDaily.capture_count), 0), func.coalesce(func.sum(UsageDaily.audio_count), 0)
         ).filter(UsageDaily.date == now.date()).first()
         unclaimed_leads = db.query(Lead).filter(Lead.claimed_at.is_(None)).count()
+        feedback_count, feedback_avg = db.query(
+            func.count(SessionFeedback.id), func.avg(SessionFeedback.rating)
+        ).first()
         return (db_check, total_users, new_7d, banned_count, pending_cancellations,
-                active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads)
+                active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads,
+                feedback_count, feedback_avg)
 
     (db_check, total_users, new_7d, banned_count, pending_cancellations,
-     active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads) = await run_in_threadpool(_load_counts)
+     active_subs, flagged_referrers, active_announcements, usage_today, unclaimed_leads,
+     feedback_count, feedback_avg) = await run_in_threadpool(_load_counts)
 
     alerts = []
     if not redis_check["ok"]:
@@ -2637,6 +2740,9 @@ async def admin_home(
         {"title": "Leads", "href": "/admin/leads",
          "desc": "Every email the mobile landing-page CTA captured, claimed or not — with ad attribution, and a CSV export for Google/Meta offline-conversion upload.",
          "stat": f"{unclaimed_leads} unclaimed" if unclaimed_leads else "all claimed"},
+        {"title": "Session feedback", "href": "/admin/feedback",
+         "desc": "Ratings and written feedback submitted after a real interview session, with the next-interview dates people gave.",
+         "stat": f"{feedback_avg:.1f}★ avg ({feedback_count})" if feedback_count else "none yet"},
         {"title": "API usage", "href": "/admin/usage",
          "desc": "Per-user capture + audio volume over a rolling window — spot abuse or runaway usage.",
          "stat": f"{usage_today[0] + usage_today[1]} today"},
@@ -2907,6 +3013,60 @@ def admin_leads_export(
         "Content-Disposition": f'attachment; filename="interviewace-leads-{stamp}.csv"',
         "Cache-Control": "no-store",
         "X-Robots-Tag": "noindex, nofollow",
+    })
+
+
+# Same 200-row cap/`truncated` idiom as /admin/leads (_LEADS_LIMIT above).
+_FEEDBACK_LIMIT = 200
+
+_FEEDBACK_RATING_FILTERS = {"": "All ratings", "1": "1★", "2": "2★", "3": "3★", "4": "4★", "5": "5★"}
+
+
+def _feedback_list_query(db: Session, q: str = "", rating: str = ""):
+    query = db.query(SessionFeedback, User).join(User, User.id == SessionFeedback.user_id)
+    if q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter(or_(User.email.ilike(like), User.username.ilike(like)))
+    if rating in ("1", "2", "3", "4", "5"):
+        query = query.filter(SessionFeedback.rating == int(rating))
+    return query.order_by(SessionFeedback.created_at.desc())
+
+
+@app.get("/admin/feedback")
+def admin_feedback(
+    request: Request,
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_author),
+    q: str = "",
+    rating: str = "",
+):
+    if rating not in _FEEDBACK_RATING_FILTERS:
+        rating = ""
+    rows = _feedback_list_query(db, q, rating).limit(_FEEDBACK_LIMIT + 1).all()
+    entries = [{
+        "email": u.email,
+        "username": u.username,
+        "account_level": u.account_level.value,
+        "rating": fb.rating,
+        "comment": fb.comment,
+        "next_interview_date": fb.next_interview_date.strftime("%d %b %Y") if fb.next_interview_date else None,
+        "answer_count": fb.answer_count,
+        "duration_minutes": round(fb.duration_seconds / 60) if fb.duration_seconds else None,
+        "created_at": fb.created_at.strftime("%d %b %Y %H:%M"),
+    } for fb, u in rows[:_FEEDBACK_LIMIT]]
+    count, avg = db.query(func.count(SessionFeedback.id), func.avg(SessionFeedback.rating)).first()
+    return templates.TemplateResponse(request=request, name="admin_feedback.html", context={
+        "entries": entries,
+        "truncated": len(rows) > _FEEDBACK_LIMIT,
+        "limit": _FEEDBACK_LIMIT,
+        "total": _feedback_list_query(db, q, rating).count(),
+        "avg_rating": round(avg, 1) if avg else None,
+        "overall_count": count,
+        "q": q,
+        "rating": rating,
+        "filters": _FEEDBACK_RATING_FILTERS,
+        "show_navbar": True,
+        "admin_msg": request.query_params.get("admin_msg"),
     })
 
 
@@ -4180,6 +4340,7 @@ async def settings_page(
         "behavioural_context": user.behavioural_context or "",
         "cv_context_max_length": CV_CONTEXT_MAX_LENGTH,
         "behavioural_context_max_length": BEHAVIOURAL_CONTEXT_MAX_LENGTH,
+        "interview_date": user.interview_date.isoformat() if user.interview_date else "",
         "account_flag_notice": account_flag_notice,
         "show_navbar": True,
     })
@@ -4299,6 +4460,27 @@ def trial_status(user: User = Depends(get_current_user), db: Session = Depends(g
     }
 
 
+@app.get("/api/session/status")
+def paid_session_status(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if user.account_level != AccountLevel.paid:
+        return {"is_paid": False}
+    now = datetime.utcnow()
+    session = db.query(InterviewSession).filter(
+        InterviewSession.user_id == user.id,
+        InterviewSession.expires_at > now,
+        InterviewSession.ended_at == None,  # noqa: E711
+    ).order_by(InterviewSession.started_at.desc()).first()
+    if not session:
+        return {"is_paid": True, "started": False, "seconds_remaining": 0}
+    remaining = max(0, (session.expires_at - now).total_seconds())
+    return {
+        "is_paid": True,
+        "started": True,
+        "seconds_remaining": int(remaining),
+        "expires_at": session.expires_at.isoformat(),
+    }
+
+
 @app.post("/api/capture")
 async def api_capture(body: CaptureRequest, request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     r = request.app.state.redis
@@ -4310,6 +4492,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     def _account_bookkeeping():
         _record_usage(db, user.id, "capture")
         created = False
+        session_expires_at = None
         if user.account_level == AccountLevel.paid:
             now = datetime.utcnow()
             active = db.query(InterviewSession).filter(
@@ -4324,12 +4507,18 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
                     raise HTTPException(status_code=403, detail="sessions_exhausted")
                 user.sessions_remaining -= 1
                 db.commit()
-            _, created = _get_or_create_session(db, user.id)
-        return created
+            session, created = _get_or_create_session(db, user.id)
+            if created:
+                session_expires_at = session.expires_at.isoformat()
+        return created, session_expires_at
 
-    created = await run_in_threadpool(_account_bookkeeping)
+    created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
     if created:
         await _clear_history(r, user.id)
+        await broadcast(r, user.id, "session_started", {
+            "expires_at": session_expires_at,
+            "seconds_remaining": int(SESSION_DURATION.total_seconds()),
+        })
 
     img_b64 = body.image
     if "," in img_b64:
@@ -4369,6 +4558,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
     def _account_bookkeeping():
         _record_usage(db, user.id, "capture")
         created = False
+        session_expires_at = None
         if user.account_level == AccountLevel.paid:
             now = datetime.utcnow()
             active = db.query(InterviewSession).filter(
@@ -4383,12 +4573,18 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
                     raise HTTPException(status_code=403, detail="sessions_exhausted")
                 user.sessions_remaining -= 1
                 db.commit()
-            _, created = _get_or_create_session(db, user.id)
-        return created
+            session, created = _get_or_create_session(db, user.id)
+            if created:
+                session_expires_at = session.expires_at.isoformat()
+        return created, session_expires_at
 
-    created = await run_in_threadpool(_account_bookkeeping)
+    created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
     if created:
         await _clear_history(r, user.id)
+        await broadcast(r, user.id, "session_started", {
+            "expires_at": session_expires_at,
+            "seconds_remaining": int(SESSION_DURATION.total_seconds()),
+        })
 
     await broadcast(r, user.id, "typing-working", {"text": body.text})
 
@@ -4563,6 +4759,24 @@ def save_response_style(data: ResponseStyleRequest, user: User = Depends(get_cur
     return {"status": "ok", "style": data.style.value}
 
 
+@app.post("/api/settings/interview-date")
+def save_settings_interview_date(data: InterviewDateRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    date_str = (data.interview_date or "").strip()
+    if date_str:
+        try:
+            parsed = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date")
+        if parsed != user.interview_date:
+            user.interview_date = parsed
+            user.interview_reminder_sent = False
+    else:
+        user.interview_date = None
+        user.interview_reminder_sent = False
+    db.commit()
+    return {"status": "ok"}
+
+
 @app.post("/api/settings/context")
 def save_context(data: ContextSaveRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     name = data.name.strip()
@@ -4689,6 +4903,30 @@ async def notify_enabled(request: Request, user: User = Depends(get_user_by_toke
         return {"status": "ok"}
     await broadcast(request.app.state.redis, user.id, "enabled", {})
     return {"status": "ok"}
+
+
+@app.post("/api/ext/status")
+async def post_ext_status(request: Request, user: User = Depends(get_user_by_token)):
+    body = await request.json()
+    r = request.app.state.redis
+    status = {
+        "ext":         bool(body.get("ext", False)),
+        "ext_enabled": bool(body.get("ext_enabled", False)),
+        "mic":         str(body.get("mic", "unknown")),
+        "replay":      str(body.get("replay", "idle")),
+    }
+    await r.set(_ext_status_key(user.id), json.dumps(status), ex=90)
+    await broadcast(r, user.id, "ext_status", status)
+    return {"status": "ok"}
+
+
+@app.get("/api/ext/status")
+async def get_ext_status(request: Request, user: User = Depends(get_current_user)):
+    r = request.app.state.redis
+    raw = await r.get(_ext_status_key(user.id))
+    if raw:
+        return json.loads(raw)
+    return {"ext": False, "ext_enabled": False, "mic": "unknown", "replay": "idle"}
 
 
 @app.post("/api/token/regenerate")

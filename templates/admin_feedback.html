@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Session feedback — InterviewAce{% endblock %}
+{% block head %}
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="stylesheet" href="/css/admin.css">
+{% endblock %}
+{% block content %}
+  <main class="admin-main admin-main-wide">
+    <h1>Session feedback</h1>
+    <p class="ua-sub">
+      Ratings and written feedback submitted after a real interview session.
+      {% if overall_count %}{{ avg_rating }}★ average across {{ overall_count }} submission{{ "" if overall_count == 1 else "s" }}.{% endif %}
+      {{ total }} match{{ "" if total == 1 else "es" }}.
+    </p>
+    <form class="ua-search" method="get" action="/admin/feedback">
+      <input type="text" name="q" value="{{ q }}" placeholder="Email or username" autocomplete="off">
+      <select name="rating" onchange="this.form.submit()">
+        {% for key, label in filters.items() %}
+        <option value="{{ key }}"{% if key == rating %} selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Search</button>
+      <a href="/admin/feedback" class="ua-btn">Clear</a>
+    </form>
+    {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
+    {% if truncated %}
+    <p class="ua-sub">Showing the first {{ limit }} matches — narrow with a search to see more precisely.</p>
+    {% endif %}
+    {% if entries %}
+    <div class="ua-table-wrap">
+    <table class="ua-table">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Type</th>
+          <th>Rating</th>
+          <th>Comment</th>
+          <th>Next interview</th>
+          <th>Session</th>
+          <th>Submitted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in entries %}
+        <tr>
+          <td><a href="/admin/users?q={{ e.email | urlencode }}">{{ e.email }}</a><br><span class="ua-flagged" style="color:var(--text-3,#888);">{{ e.account_level }}</span></td>
+          <td>{{ e.session_type or "—" }}</td>
+          <td>{{ e.rating }}★</td>
+          <td>{{ e.comment or "—" }}</td>
+          <td>{{ e.next_interview_date or "—" }}</td>
+          <td>{% if e.answer_count %}{{ e.answer_count }} answer{{ "" if e.answer_count == 1 else "s" }}{% endif %}{% if e.duration_minutes %} · {{ e.duration_minutes }}m{% endif %}{% if not e.answer_count and not e.duration_minutes %}—{% endif %}</td>
+          <td>{{ e.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="ua-empty">No feedback submitted yet.</div>
+    {% endif %}
+  </main>
+{% endblock %}

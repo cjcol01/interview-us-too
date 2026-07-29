@@ -748,39 +748,49 @@ a { color: inherit; text-decoration: none; }
 .ia-step-rule { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line-strong), transparent); }
 .ia-step h3 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; color: var(--text-1); margin-bottom: 10px; line-height: 1.3; }
 .ia-step p { font-size: 14.5px; color: var(--text-2); line-height: 1.65; }
-.ia-how-video { margin-top: 56px; }
+.ia-section--how { padding-top: 88px; padding-bottom: 88px; }
+.ia-section--how .ia-section-hd { margin-bottom: 44px; }
+
+.ia-steps { gap: 36px; margin-bottom: 56px; }
+
+.ia-step-note {
+  margin-top: 14px;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  color: var(--text-3);
+}
+.ia-step-note--accent { color: var(--accent); }
+
+.ia-how-proof {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
 .ia-video-wrap {
-  position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;
-  border-radius: 16px; border: 1px solid var(--line);
-  background: var(--card);
+  position: relative; aspect-ratio: 16 / 9;
+  border: 1px solid var(--line-strong); border-radius: 18px;
+  overflow: hidden; background: #0A0A0C;
 }
-.ia-video-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+.ia-video-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
-/* ===== FEATURES BENTO ===== */
-.ia-bento { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
-.ia-tile {
-  background: var(--card); border: 1px solid var(--line);
-  border-radius: 16px; padding: 22px; transition: border-color .25s;
+.ia-how-proof .ia-proof-col { display: flex; flex-direction: column; gap: 14px; }
+.ia-how-proof .ia-proof-card {
+  flex: 1;
+  background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+  padding: 22px 24px;
+  transition: border-color .2s;
 }
-.ia-tile:hover { border-color: var(--accent-line); }
-.ia-tile--wide { grid-column: span 1; }
+.ia-how-proof .ia-proof-card:hover { border-color: var(--line-strong); }
+.ia-how-proof .ia-proof-card--accent:hover { border-color: var(--accent-line); }
 
-.ia-tile-icon {
-  width: 40px; height: 40px; border-radius: 10px;
-  border: 1px solid var(--icon-line); background: var(--icon-bg);
-  display: flex; align-items: center; justify-content: center;
-  margin-bottom: 14px; color: var(--text-1);
+.ia-how-proof .ia-proof-hd { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
+.ia-how-proof .ia-proof-icon { display: flex; color: var(--text-1); }
+.ia-how-proof .ia-proof-card--accent .ia-proof-icon { color: var(--accent); }
+.ia-how-proof .ia-proof-hd h3 {
+  font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600;
+  color: var(--text-1); letter-spacing: -0.02em;
 }
-.ia-tile-icon--accent { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
-
-.ia-tile h3 { font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600; color: var(--text-1); margin-bottom: 7px; }
-.ia-tile p { font-size: 13.5px; color: var(--text-2); line-height: 1.6; max-width: 420px; }
-
-.ia-tile-badge {
-  display: inline-flex; align-items: center; gap: 7px; margin-top: 14px;
-  font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--accent);
-  border: 1px solid var(--accent-line); border-radius: 7px; padding: 6px 11px;
-}
+.ia-how-proof .ia-proof-card p { font-size: 13.5px; color: var(--text-2); line-height: 1.6; text-wrap: pretty; }
 
 /* ===== PRICING ===== */
 .ia-pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
@@ -867,9 +877,9 @@ a { color: inherit; text-decoration: none; }
   .ia-steps { grid-template-columns: 1fr; gap: 36px; }
   .ia-step-rule { display: none; }
   .ia-pricing { grid-template-columns: 1fr; max-width: 480px; }
-  /* Tablet and below: cut the "How it works", Features and Pricing sections — keep
+  /* Tablet and below: cut the "How it works" and Pricing sections — keep
      the mobile landing page focused on the hero + CTA instead of a long scroll. */
-  #how, #features, #pricing { display: none; }
+  #how, #pricing { display: none; }
   /* Its target (#how) is gone at this width — don't leave a dead link in the hero. */
   a.ia-btn-hero[href="#how"] { display: none; }
 }
@@ -892,9 +902,13 @@ a { color: inherit; text-decoration: none; }
   .ia-trust-row { margin-top: 18px; }
 }
 
+@media (max-width: 900px) {
+  .ia-section--how { padding-top: 72px; padding-bottom: 72px; }
+  .ia-how-proof { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 500px) {
   .ia-pain-grid { grid-template-columns: 1fr; }
-  .ia-bento { grid-template-columns: 1fr; }
   .ia-hero-btns { flex-direction: column; align-items: flex-start; }
   .ia-hero-demo { width: 100%; }
   /* Bigger than before (was 120x240) — freed up by moving the context note out to the

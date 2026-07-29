@@ -234,3 +234,23 @@ class Lead(Base):
     ref_code       = Column(String, nullable=True) # snapshot of the `ref` cookie at capture time — survives the device hop
     attribution    = Column(Text, nullable=True)   # JSON blob: utm_*, gclid, fbclid, referer, first-touch ts
     ip             = Column(String, nullable=True) # abuse triage only; scrubbed by the purge job
+
+
+class SessionFeedback(Base):
+    """One row per "how did your interview go?" submission, shown from a dashboard
+    button the user clicks once they've done real interview work (see the client-side
+    answer counter in templates/index.html). Deliberately NOT tied to InterviewSession —
+    that model is a billing meter (paid-only, never created for unlimited accounts, never
+    created by audio-only capture), not an interview. answer_count/duration_seconds are
+    client-reported and informational only — never used for gating or billing."""
+    __tablename__ = "session_feedback"
+
+    id                  = Column(Integer, primary_key=True, index=True)
+    user_id             = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    rating              = Column(Integer, nullable=False)  # 1..5
+    comment             = Column(Text, nullable=True)
+    next_interview_date = Column(Date, nullable=True)
+    answer_count        = Column(Integer, nullable=True)
+    duration_seconds    = Column(Integer, nullable=True)
+    session_type        = Column(String, nullable=True)   # real | practice | testing | '' (not provided)
+    created_at          = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

@@ -143,6 +143,7 @@ async function handleCapture() {
 async function handleToggle(senderTabId) {
   const { enabled } = await chrome.storage.local.get(['enabled']);
   const next = !enabled;
+  _extEnabled = next;
   await chrome.storage.local.set({ enabled: next });
   if (next) await notifyEnabled();
   if (senderTabId) {
@@ -190,6 +191,23 @@ let _audioActive = false;
 let _stopPending = false;
 let _offscreenReadyResolve = null;
 
+let _micState    = 'unknown';
+let _replayState = 'idle';
+let _extEnabled  = false;
+
+async function sendExtStatus() {
+  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  if (!server_url || !api_token) return;
+  await fetch(`${server_url}/api/ext/status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${api_token}`,
+    },
+    body: JSON.stringify({ ext: true, ext_enabled: _extEnabled, mic: _micState, replay: _replayState }),
+  }).catch(() => {});
+}
+
 // ---------------------------------------------------------------------------
 // Instant replay state
 // ---------------------------------------------------------------------------
@@ -211,11 +229,13 @@ function maybeCloseOffscreen() {
 }
 
 function broadcastReplayStatus(state, extra = {}) {
+  _replayState = state;
   const payload = { state, ...extra };
   // local is readable by content scripts; session is not — write both
   chrome.storage.local.set({ replay_status: payload }).catch(() => {});
   chrome.storage.session?.set({ replay_status: payload }).catch(() => {});
   chrome.runtime.sendMessage({ type: 'replay-status', ...payload }).catch(() => {});
+  sendExtStatus();
 }
 
 function handleStreamDeath() {
@@ -250,6 +270,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   } else if (msg.type === 'typing-submit') {
     handleTypingSubmit(msg.text);
   } else if (msg.type === 'audio-error') {
+    _micState = 'error';
     _audioActive = false;
     _stopPending = false;
     chrome.action.setBadgeText({ text: 'ERR' });
@@ -258,11 +279,14 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     chrome.storage.local.set({ mic_status: { state: 'error', message: msg.error } }).catch(() => {});
     if (msg.errorName === 'NotAllowedError') openGrantMicTab();
     maybeCloseOffscreen();
+    sendExtStatus();
   } else if (msg.type === 'check-mic-permission') {
     checkMicPermission();
   } else if (msg.type === 'mic-permission-result') {
+    _micState = msg.state;
     chrome.storage.local.set({ mic_status: { state: msg.state } }).catch(() => {});
     maybeCloseOffscreen();
+    sendExtStatus();
   } else if (msg.type === 'offscreen-ready') {
     _offscreenReadyResolve?.();
     _offscreenReadyResolve = null;
@@ -370,7 +394,9 @@ async function checkMicPermission() {
 }
 
 async function handleAudioData(base64, mimeType) {
+  _micState = 'granted';
   chrome.storage.local.set({ mic_status: { state: 'granted' } }).catch(() => {});
+  sendExtStatus();
   const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
   if (server_url && api_token) {
     const binary = atob(base64);
@@ -599,3 +625,12 @@ chrome.runtime.onInstalled.addListener(async ({ reason }) => {
 });
 
 fetchAccountLevel();
+
+// Broadcast initial ext status to the server so all connected devices (e.g. mobile)
+// see the correct dot states immediately on load, then keep it fresh via heartbeat.
+chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status }) => {
+  _extEnabled = !!enabled;
+  if (mic_status?.state) _micState = mic_status.state;
+  sendExtStatus();
+});
+setInterval(sendExtStatus, 30_000);

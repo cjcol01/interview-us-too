@@ -157,12 +157,11 @@
               <div class="field-group" style="margin-top:10px;">
                 <textarea class="field-input field-textarea" id="cv-text" maxlength="{{ cv_context_max_length }}"
                   placeholder="Paste or upload your CV — roles, dates, tech stack, key achievements…"
-                  oninput="ctxOnInput('cv')">{{ cv_context }}</textarea>
-                <div id="cv-count" class="context-count">0 / {{ cv_context_max_length }}</div>
-              </div>
-              <div class="context-save-row">
-                <button class="settings-btn" onclick="saveFixed('cv')">Save</button>
-                <div id="cv-status" class="save-status"></div>
+                  oninput="ctxOnInput('cv')" onblur="ctxFlush('cv')">{{ cv_context }}</textarea>
+                <div class="context-meta-row">
+                  <div id="cv-status" class="save-status"></div>
+                  <div id="cv-count" class="context-count">0 / {{ cv_context_max_length }}</div>
+                </div>
               </div>
             </div>
 
@@ -175,12 +174,11 @@
               <div class="field-group">
                 <textarea class="field-input field-textarea" id="beh-text" maxlength="{{ behavioural_context_max_length }}"
                   placeholder="e.g. A time I showed leadership… / how I handle conflict… / my key strengths and examples…"
-                  oninput="ctxOnInput('behavioural')">{{ behavioural_context }}</textarea>
-                <div id="beh-count" class="context-count">0 / {{ behavioural_context_max_length }}</div>
-              </div>
-              <div class="context-save-row">
-                <button class="settings-btn" onclick="saveFixed('behavioural')">Save</button>
-                <div id="beh-status" class="save-status"></div>
+                  oninput="ctxOnInput('behavioural')" onblur="ctxFlush('behavioural')">{{ behavioural_context }}</textarea>
+                <div class="context-meta-row">
+                  <div id="beh-status" class="save-status"></div>
+                  <div id="beh-count" class="context-count">0 / {{ behavioural_context_max_length }}</div>
+                </div>
               </div>
             </div>
 
@@ -206,14 +204,18 @@
 
               <div class="field-group">
                 <label class="field-label" for="context-name-input">Name</label>
-                <input class="field-input" id="context-name-input" maxlength="{{ context_name_max_length }}" placeholder="e.g. Acme Corp — backend role">
+                <input class="field-input" id="context-name-input" maxlength="{{ context_name_max_length }}" placeholder="e.g. Acme Corp — backend role"
+                  oninput="ctxOnInput('company')" onblur="ctxFlush('company')">
               </div>
 
               <div class="field-group" style="margin-top:10px;">
                 <textarea class="field-input field-textarea" id="context-text-input" maxlength="{{ context_text_max_length }}"
                   placeholder="e.g. Interviewing for a backend role at Acme Corp. They use Python and React. Their values are move fast… Focus on system-design trade-offs."
-                  oninput="ctxOnInput('company')"></textarea>
-                <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>
+                  oninput="ctxOnInput('company')" onblur="ctxFlush('company')"></textarea>
+                <div class="context-meta-row">
+                  <div id="context-status" class="save-status"></div>
+                  <div id="context-count" class="context-count">0 / {{ context_text_max_length }}</div>
+                </div>
               </div>
 
               <div class="card-row" style="border-top:none; padding-top:14px;">
@@ -226,11 +228,23 @@
                   <span class="toggle-track"></span>
                 </label>
               </div>
+            </div>
 
-              <div class="context-save-row">
-                <button class="settings-btn" onclick="saveContext()">Save</button>
-                <div id="context-status" class="save-status"></div>
+            <div class="context-divider"></div>
+
+            <!-- Next interview date — pill-based date picker, auto-save -->
+            <div class="context-subsection">
+              <h3 class="context-sub-title">Next interview date</h3>
+              <p class="context-sub-desc">Set a date and we'll send a reminder email the evening before.</p>
+              <div class="ctx-date-pills" id="ctx-date-pills">
+                <button type="button" class="ctx-date-pill" data-choice="tomorrow">Tomorrow</button>
+                <button type="button" class="ctx-date-pill" id="ctx-date-soon" data-choice="soon">…</button>
+                <button type="button" class="ctx-date-pill" id="ctx-date-next-week" data-choice="next_week">…</button>
+                <button type="button" class="ctx-date-pill" data-choice="custom">Pick a date</button>
+                <button type="button" class="ctx-date-pill ctx-date-pill-muted" data-choice="not_set">Not set</button>
               </div>
+              <input type="date" id="ctx-date-input" class="ctx-date-input" style="display:none;">
+              <div id="ctx-date-status" class="save-status"></div>
             </div>
           </div>
         </section>
@@ -1026,14 +1040,26 @@
     let activeContextSlot = {{ active_context_slot|tojson }};
     let currentContextSlot = 1;
 
-    // Per-section element map. Only CV has document upload; behavioural and company
-    // are manual text entry (they need just textId/countId/max for the char counter,
-    // plus statusId for saveFixed on behavioural).
+    // Per-section element map. Only CV has document upload; all three autosave via `save`.
     const CTX_CFG = {
       cv:          { section:'cv', textId:'cv-text', countId:'cv-count', btnId:'cv-upload-btn', fillId:'cv-upload-fill', labelId:'cv-upload-label', statusId:'cv-status', max: {{ cv_context_max_length }}, save: () => saveFixed('cv') },
-      behavioural: { section:'behavioural', textId:'beh-text', countId:'beh-count', statusId:'beh-status', max: {{ behavioural_context_max_length }} },
-      company:     { section:'company', textId:'context-text-input', countId:'context-count', max: {{ context_text_max_length }} },
+      behavioural: { section:'behavioural', textId:'beh-text', countId:'beh-count', statusId:'beh-status', max: {{ behavioural_context_max_length }}, save: () => saveFixed('behavioural') },
+      company:     { section:'company', textId:'context-text-input', countId:'context-count', statusId:'context-status', max: {{ context_text_max_length }}, save: () => saveContext() },
     };
+
+    // ── Autosave (debounced) — no Save button, so no dead space around one.
+    // Typing schedules a save ~900ms after the last keystroke; blur/tab-switch
+    // flushes immediately so nothing is lost if the user acts before the timer fires.
+    const _autosaveTimers = {};
+    function ctxScheduleSave(section) {
+      clearTimeout(_autosaveTimers[section]);
+      _autosaveTimers[section] = setTimeout(() => ctxFlush(section), 900);
+    }
+    function ctxFlush(section) {
+      clearTimeout(_autosaveTimers[section]);
+      _autosaveTimers[section] = null;
+      CTX_CFG[section].save();
+    }
 
     function renderContextTabs() {
       document.querySelectorAll('.context-tab').forEach(btn => {
@@ -1050,20 +1076,30 @@
     function ctxAdjustHeight(textEl) {
       textEl.classList.toggle('expanded', (textEl.value || '').length > 250);
     }
-    function ctxOnInput(section) {
+    // Updates the char-count/height chrome only — used both by real typing (ctxOnInput,
+    // which also schedules an autosave) and by programmatic loads like tab-switching,
+    // which shouldn't queue a save of content the user never touched.
+    function ctxUpdateMeta(section) {
       const cfg = CTX_CFG[section];
       const textEl = document.getElementById(cfg.textId);
       document.getElementById(cfg.countId).textContent = textEl.value.length + ' / ' + cfg.max;
       ctxAdjustHeight(textEl);
     }
+    function ctxOnInput(section) {
+      ctxUpdateMeta(section);
+      ctxScheduleSave(section);
+    }
 
     function selectContextSlot(slot) {
+      // Flush any pending autosave for the slot we're leaving before swapping its fields out.
+      // (Guarded so the initial load call — same slot — doesn't flush a nonexistent edit.)
+      if (slot !== currentContextSlot && _autosaveTimers.company) ctxFlush('company');
       currentContextSlot = slot;
       const ctx = CONTEXTS.find(c => c.slot === slot) || { name: '', text: '' };
       document.getElementById('context-name-input').value = ctx.name || '';
       document.getElementById('context-text-input').value = ctx.text || '';
       document.getElementById('context-active-toggle').checked = activeContextSlot === slot;
-      ctxOnInput('company');
+      ctxUpdateMeta('company');
       renderContextTabs();
     }
 
@@ -1277,8 +1313,8 @@
     }
 
     selectContextSlot(currentContextSlot);
-    ctxOnInput('cv');
-    ctxOnInput('behavioural');
+    ctxUpdateMeta('cv');
+    ctxUpdateMeta('behavioural');
 
     // ── Theme toggle ───────────────────────────────────────────────
     (function() {
@@ -1335,6 +1371,103 @@
     window.addEventListener('scroll', () => {
       if (_isAtBottom()) _setActiveNav(_sections[_sections.length - 1]);
     }, { passive: true });
+  </script>
+
+  <script>
+    // ── Next interview date (pill picker) ──────────────────────────
+    (function () {
+      const pills = document.querySelectorAll('.ctx-date-pill');
+      const customPill = document.querySelector('[data-choice="custom"]');
+      const notSetPill = document.querySelector('[data-choice="not_set"]');
+      const dateInput = document.getElementById('ctx-date-input');
+      let _selected = null;
+
+      function fmtShort(d) {
+        return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+      function addDays(n) {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() + n);
+        return d;
+      }
+      function toISO(d) {
+        const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+      function selectPill(pill) {
+        pills.forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+      }
+
+      document.getElementById('ctx-date-soon').textContent = fmtShort(addDays(2));
+      document.getElementById('ctx-date-next-week').textContent = fmtShort(addDays(7));
+
+      pills.forEach(pill => {
+        pill.addEventListener('click', () => {
+          const choice = pill.dataset.choice;
+          if (choice === 'custom') {
+            dateInput.style.display = '';
+            dateInput.min = toISO(addDays(0));
+            requestAnimationFrame(() => {
+              if (dateInput.showPicker) { try { dateInput.showPicker(); } catch {} }
+              dateInput.focus();
+            });
+            return;
+          }
+          dateInput.style.display = 'none';
+          if (choice === 'tomorrow') _selected = addDays(1);
+          else if (choice === 'soon') _selected = addDays(2);
+          else if (choice === 'next_week') _selected = addDays(7);
+          else _selected = null;
+          selectPill(pill);
+          saveDatePill();
+        });
+      });
+
+      dateInput.addEventListener('change', () => {
+        if (!dateInput.value) return;
+        _selected = new Date(dateInput.value + 'T00:00:00');
+        customPill.textContent = fmtShort(_selected);
+        selectPill(customPill);
+        saveDatePill();
+      });
+
+      const existing = {{ interview_date | tojson }};
+      if (existing) {
+        _selected = new Date(existing + 'T00:00:00');
+        dateInput.value = existing;
+        customPill.textContent = fmtShort(_selected);
+        selectPill(customPill);
+      } else {
+        selectPill(notSetPill);
+      }
+
+      async function saveDatePill() {
+        const statusEl = document.getElementById('ctx-date-status');
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--text-3)';
+        statusEl.textContent = 'Saving…';
+        try {
+          const resp = await fetch('/api/settings/interview-date', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interview_date: _selected ? toISO(_selected) : '' }),
+          });
+          if (resp.ok) {
+            statusEl.textContent = 'Saved.';
+            statusEl.style.color = 'var(--accent)';
+          } else {
+            statusEl.textContent = 'Failed to save.';
+            statusEl.style.color = 'var(--danger)';
+          }
+          setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+        } catch {
+          statusEl.textContent = 'Network error.';
+          statusEl.style.color = 'var(--danger)';
+        }
+      }
+    })();
   </script>
 
 {% endblock %}

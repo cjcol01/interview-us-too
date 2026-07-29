@@ -591,6 +591,18 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   margin-top: 16px;
 }
 
+/* Autosave status + char count share one line under each textarea — no separate
+   button row, so there's no dead space above/below a "Save" button. */
+.context-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.context-meta-row .context-count { margin-top: 0; }
+.context-meta-row .save-status { margin: 0; white-space: nowrap; }
+
 /* The upload button itself fills green left→right while summarising. The fill is
    an absolutely-positioned layer behind the label; its width is driven by the
    streamed char count in settings.html (setContextProgress). Scoped to this one
@@ -613,7 +625,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 .context-divider {
   height: 1px;
   background: var(--line);
-  margin: 22px 0;
+  margin: 16px 0;
 }
 .context-sub-title {
   font-size: 15px;
@@ -624,7 +636,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 .context-sub-desc {
   font-size: 12.5px;
   color: var(--text-3);
-  margin: 0 0 14px;
+  margin: 0 0 10px;
 }
 
 /* ── Account fields ── */
@@ -659,7 +671,7 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 .field-input:focus { border-color: var(--accent); }
 .field-input:disabled { color: var(--text-3); cursor: not-allowed; }
 .field-textarea {
-  min-height: 110px;
+  min-height: 92px;
   resize: vertical;
   font-family: 'Hanken Grotesk', sans-serif;
   line-height: 1.5;
@@ -837,3 +849,44 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   .billing-status-row { flex-wrap: wrap; }
   .card-row { gap: 12px; }
 }
+
+/* ── Next-interview date picker (pill row in Interview context) ── */
+.ctx-date-pills { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0 8px; }
+.ctx-date-pill {
+  background: var(--card);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-1);
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 9px 18px;
+  transition: border-color .15s, background .15s, color .15s, transform .1s, box-shadow .15s;
+}
+.ctx-date-pill:hover { border-color: var(--accent-line); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.22); }
+.ctx-date-pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--btn-text);
+  box-shadow: 0 4px 14px rgba(198,242,78,.2);
+}
+.ctx-date-pill-muted { color: var(--text-3); border-color: var(--line); font-weight: 500; margin-left: 4px; }
+.ctx-date-pill-muted:hover { color: var(--text-1); border-color: var(--line-strong); box-shadow: none; transform: none; }
+.ctx-date-pill-muted.active { background: rgba(255,255,255,.05); color: var(--text-1); border-color: var(--text-2); box-shadow: none; }
+.ctx-date-input {
+  display: block;
+  background: var(--card-inset);
+  border: 1.5px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 10px 14px;
+  color: var(--text-1);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color .15s;
+  color-scheme: dark;
+  margin: 4px 0 8px;
+}
+[data-theme="light"] .ctx-date-input { color-scheme: light; }
+.ctx-date-input:focus { border-color: var(--accent); }

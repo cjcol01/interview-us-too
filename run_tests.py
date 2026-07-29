@@ -191,6 +191,10 @@ with TestClient(app) as client:
     import tests.test_typing
     tests.test_typing.register(test, skip, client)
 
+    section("Session Feedback")
+    import tests.test_session_feedback
+    tests.test_session_feedback.register(test, skip, client)
+
     section("External APIs")
 
     def _test_claude():

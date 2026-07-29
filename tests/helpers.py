@@ -4,7 +4,7 @@ from pathlib import Path
 
 from auth import create_token, generate_unique_referral_code, hash_password
 from database import SessionLocal
-from models import AccountLevel, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, UsageDaily, User, Withdrawal
+from models import AccountLevel, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, SessionFeedback, UsageDaily, User, Withdrawal
 
 _AUDIO_FIXTURE = Path(__file__).parent / "fixtures" / "test_audio.wav"
 
@@ -60,6 +60,7 @@ def cleanup(db, *users):
         except Exception:
             pass
         db.query(InterviewSession).filter(InterviewSession.user_id == u.id).delete()
+        db.query(SessionFeedback).filter(SessionFeedback.user_id == u.id).delete()
         db.query(InterviewContext).filter(InterviewContext.user_id == u.id).delete()
         db.query(UsageDaily).filter(UsageDaily.user_id == u.id).delete()
         db.query(Referral).filter(

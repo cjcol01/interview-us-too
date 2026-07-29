@@ -156,6 +156,11 @@ let _typingActive = false;
 let _typingBuffer = '';
 let _passthrough = true;
 let _enabled = false;
+let _hotkeysSuppressed = false;
+
+document.addEventListener('interview-ace:suppress-hotkeys', (e) => {
+  _hotkeysSuppressed = !!e.detail?.suppress;
+});
 
 chrome.storage.local.get(['hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay', 'hotkey_typing', 'typing_passthrough', 'enabled'], (r) => {
   if (r.hotkey_capture) _hotkeys.capture = r.hotkey_capture;
@@ -212,6 +217,9 @@ document.addEventListener('keydown', (e) => {
   // Disabled: don't intercept anything else — let every other keystroke (including this
   // tab's own typing) reach the page untouched instead of being swallowed and dropped.
   if (!_enabled) return;
+
+  // Session-over modal open: block all capture hotkeys until dismissed.
+  if (_hotkeysSuppressed) return;
 
   // Typing-mode toggle — checked first so it always stops capture, even mid-typing.
   if (matchesHotkey(e, _hotkeys.typing)) {

@@ -9,7 +9,7 @@
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/java.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/cpp.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/typescript.min.js"></script>
-  <link rel="stylesheet" href="/css/index.css">
+  <link rel="stylesheet" href="/css/index.css?v={{ APP_VERSION }}">
   <link rel="stylesheet" href="/css/mock_interview.css">
 {% endblock %}
 {% block content %}
@@ -39,6 +39,130 @@
     </div>
   </div>
 
+  <!-- Session expired overlay (paid users) -->
+  <div id="session-over-overlay">
+    <div class="session-over-modal">
+      <div class="session-over-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <h2 class="session-over-title">Session time's up</h2>
+      <p class="session-over-sub">Your 1.5-hour session has ended. Start a new one to keep going, or head to settings.</p>
+      <div class="session-over-actions">
+        <button class="session-over-btn-primary" onclick="sessionOverStartNew()">Start new session</button>
+        <a href="/settings" class="session-over-btn-ghost">Settings →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Post-interview feedback. Opened from EXACTLY ONE place: the "Interview done" button's
+       click handler (fbOpen(), below). Never server-rendered open, never triggered by SSE,
+       never re-shown on a later page load — the whole point is that this can only ever
+       appear right after the user says they're done, not on some later visit. If you're
+       tempted to add a "show pending feedback on next login" path: don't — that's the exact
+       behaviour this was built to avoid. -->
+  <div id="feedback-overlay">
+    <div class="fb-modal">
+
+      <!-- Form state -->
+      <div class="fb-screen active" id="fb-form">
+
+        <!-- Header -->
+        <div class="fb-section fb-section-header">
+          <div class="fb-live-badge">
+            <span class="fb-live-dot"></span>
+            <span id="fb-live-text">Still live</span>
+          </div>
+          <h2 class="fb-heading">How did that go?</h2>
+          <p class="fb-sub">Your session keeps running — capturing again continues it.</p>
+          <button type="button" class="fb-close" onclick="fbSkip()" aria-label="Close">&#x2715;</button>
+        </div>
+
+        <!-- 01 · What was this? -->
+        <div class="fb-section">
+          <div class="fb-kicker"><span class="fb-kicker-num">01</span>&nbsp;&middot;&nbsp;What was this?</div>
+          <div class="fb-seg-tray" role="group" aria-label="Session type">
+            <button type="button" class="fb-seg-btn" data-type="real"     onclick="fbSetType('real')"     role="radio" aria-checked="false" aria-label="Real interview">Real interview</button>
+            <button type="button" class="fb-seg-btn" data-type="practice" onclick="fbSetType('practice')" role="radio" aria-checked="false" aria-label="Practice">Practice</button>
+            <button type="button" class="fb-seg-btn" data-type="testing"  onclick="fbSetType('testing')"  role="radio" aria-checked="false" aria-label="Just testing">Just testing</button>
+          </div>
+        </div>
+
+        <!-- 02 · How did it go? -->
+        <div class="fb-section">
+          <div class="fb-kicker"><span class="fb-kicker-num">02</span>&nbsp;&middot;&nbsp;How did it go?</div>
+          <div class="fb-star-row" id="fb-rating" role="radiogroup" aria-label="Rate this session"
+               onmouseleave="fbStarHoverClear()">
+            <button type="button" class="fb-star" data-val="1" onclick="fbSetRating(1)" onmouseenter="fbStarHover(1)" aria-label="1 out of 5">&#9733;</button>
+            <button type="button" class="fb-star" data-val="2" onclick="fbSetRating(2)" onmouseenter="fbStarHover(2)" aria-label="2 out of 5">&#9733;</button>
+            <button type="button" class="fb-star" data-val="3" onclick="fbSetRating(3)" onmouseenter="fbStarHover(3)" aria-label="3 out of 5">&#9733;</button>
+            <button type="button" class="fb-star" data-val="4" onclick="fbSetRating(4)" onmouseenter="fbStarHover(4)" aria-label="4 out of 5">&#9733;</button>
+            <button type="button" class="fb-star" data-val="5" onclick="fbSetRating(5)" onmouseenter="fbStarHover(5)" aria-label="5 out of 5">&#9733;</button>
+            <span class="fb-rating-label" id="fb-rating-label">&nbsp;</span>
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div class="fb-section">
+          <div class="fb-note-label">Note <span class="fb-optional-chip">OPTIONAL</span></div>
+          <textarea id="fb-comment" class="fb-textarea" maxlength="2000"
+                    placeholder="Anything that helped, or got in the way?"></textarea>
+        </div>
+
+        <!-- 03 · Next interview -->
+        <div class="fb-section">
+          <div class="fb-kicker"><span class="fb-kicker-num">03</span>&nbsp;&middot;&nbsp;Next interview</div>
+          <div class="fb-switch-row">
+            <label class="fb-switch" for="fb-remind-toggle">
+              <input type="checkbox" id="fb-remind-toggle" role="switch" aria-checked="false"
+                     onchange="fbToggleRemind(this.checked)">
+              <span class="fb-switch-pill"></span>
+            </label>
+            <span class="fb-switch-label">Email me a reminder the day before</span>
+          </div>
+          <div class="fb-remind-chips" id="fb-remind-chips" hidden>
+            <button type="button" class="fb-date-pill" data-choice="tomorrow"  onclick="fbDatePick('tomorrow')">Tomorrow</button>
+            <button type="button" class="fb-date-pill" id="fb-date-pill-soon"  data-choice="soon"      onclick="fbDatePick('soon')">This week</button>
+            <button type="button" class="fb-date-pill" id="fb-date-pill-week"  data-choice="next_week" onclick="fbDatePick('next_week')">Next week</button>
+            <button type="button" class="fb-date-pill" data-choice="custom"    onclick="fbDatePick('custom')">Pick a date</button>
+            <input type="date" id="fb-date" class="fb-date-input" style="display:none" onchange="fbDateCustomChange()" onfocus="if(this.showPicker)try{this.showPicker()}catch{}">
+          </div>
+          <div class="fb-remind-confirm" id="fb-remind-confirm"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="fb-footer">
+          <button type="button" class="fb-skip-ghost" onclick="fbSkip()">Skip for now</button>
+          <span class="fb-esc-hint">ESC</span>
+          <button type="button" class="fb-btn-primary" id="fb-submit" onclick="fbSubmit()">Send feedback</button>
+        </div>
+
+        <p class="fb-err" id="fb-err"></p>
+      </div>
+
+      <!-- Thanks state -->
+      <div class="fb-screen" id="fb-thanks">
+        <div class="fb-section fb-thanks-body">
+          <div class="fb-check-circle">
+            <svg viewBox="0 0 42 42" fill="none" aria-hidden="true">
+              <circle cx="21" cy="21" r="20" fill="var(--accent-soft)" stroke="var(--accent-line)" stroke-width="1.5"/>
+              <path class="fb-check-path" d="M13 21l6 6 10-12" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h2 id="fb-thanks-heading">Logged. Good luck out there.</h2>
+          <div class="fb-receipt" id="fb-receipt"></div>
+        </div>
+        <div class="fb-footer fb-footer-thanks">
+          <a href="/settings" class="fb-settings-link">Session settings</a>
+          <button type="button" class="fb-btn-primary" onclick="fbClose()">Back to monitor</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <div id="disabled-toast">
     <p>Interview assistant not started. Press <span id="disabled-toast-toggle"></span> to start, then <span id="disabled-toast-capture"></span> to capture.</p>
   </div>
@@ -54,9 +178,11 @@
 
   <header>
     <div class="header-left">
+      <button id="mobile-exit-btn" onclick="mobileExit()">Exit</button>
       <span id="monitor-badge"></span>
     </div>
     <div class="header-right">
+      <button id="interview-done-btn" style="display:none" onclick="interviewDone()">I'm done</button>
       <span id="replay-badge" style="display:none;font-size:0.72rem;display:none;align-items:center;gap:5px;"></span>
       <span id="status">connecting...</span>
       <a id="support-btn" href="/support" aria-label="Support">
@@ -77,6 +203,12 @@
   <div id="trial-bar">
     <span>Free trial &mdash; <strong id="trial-time"></strong> remaining</span>
     <a href="/trial-end" class="trial-bar-link">End trial &rarr;</a>
+  </div>
+
+  <!-- Session expiring warning bar (paid users, 10 min before session ends) -->
+  <div id="session-warn-bar">
+    <span>Session ends in 10 minutes</span>
+    <a href="/settings#billing" class="session-warn-link">Manage sessions &rarr;</a>
   </div>
 
   <main>
@@ -310,7 +442,7 @@
             applyCapture(data);
             statusEl.textContent = 'live';
             statusEl.className = 'live';
-            if (data.analysis) _pushHistory({ analysis: data.analysis, timestamp: data.timestamp, type: data.monitor || 'browser' });
+            if (data.analysis) { _pushHistory({ analysis: data.analysis, timestamp: data.timestamp, type: data.monitor || 'browser' }); _iaBump(); }
           } else if (data.type === 'settings') {
             applySettings(data);
           } else if (data.type === 'rate_limited') {
@@ -330,6 +462,12 @@
             toast.classList.remove('visible');
           } else if (data.type === 'trial_expired') {
             showTrialExpired();
+            _iaHideButton();
+          } else if (data.type === 'session_started') {
+            _paidWarnShown = false;
+            document.getElementById('session-over-overlay').classList.remove('visible');
+            document.getElementById('session-warn-bar').classList.remove('visible');
+            _setPaidSessionTimer(data.seconds_remaining);
           } else if (data.type === 'audio-working') {
             _streamBuffer = '';
             _historyIdx = 0;
@@ -355,7 +493,7 @@
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
-            if (data.analysis) _pushHistory({ analysis: data.analysis, transcription: data.transcription, timestamp: data.timestamp, type: 'audio' });
+            if (data.analysis) { _pushHistory({ analysis: data.analysis, transcription: data.transcription, timestamp: data.timestamp, type: 'audio' }); _iaBump(); }
           } else if (data.type === 'audio-error') {
             statusEl.textContent = 'live';
             statusEl.className = 'live';
@@ -387,7 +525,9 @@
             if (data.input) { transcTextEl.textContent = data.input; transcBoxEl.style.display = 'block'; }
             badgeEl.textContent = 'typed';
             badgeEl.className = 'typed';
-            if (data.analysis) _pushHistory({ analysis: data.analysis, transcription: data.input, timestamp: data.timestamp, type: 'typed' });
+            if (data.analysis) { _pushHistory({ analysis: data.analysis, transcription: data.input, timestamp: data.timestamp, type: 'typed' }); _iaBump(); }
+          } else if (data.type === 'ext_status') {
+            if (!_localExtConnected) _applyExtStatus(data);
           }
         } catch (err) { console.error('[sse handler]', data?.type, err); }
       };
@@ -494,6 +634,55 @@
       }
     }
 
+    // ── Paid session countdown ────────────────────────────────────────────────
+
+    let _paidSessionTick = null;
+    let _paidWarnShown = false;
+
+    function _setPaidSessionTimer(secondsRemaining) {
+      if (_paidSessionTick) { clearInterval(_paidSessionTick); _paidSessionTick = null; }
+      if (secondsRemaining <= 0) { showSessionOver(); return; }
+      _paidWarnShown = secondsRemaining <= 600;
+      if (_paidWarnShown) document.getElementById('session-warn-bar').classList.add('visible');
+      let secs = secondsRemaining;
+      _paidSessionTick = setInterval(() => {
+        secs--;
+        if (secs <= 600 && !_paidWarnShown) {
+          _paidWarnShown = true;
+          document.getElementById('session-warn-bar').classList.add('visible');
+        }
+        if (secs <= 0) {
+          clearInterval(_paidSessionTick);
+          _paidSessionTick = null;
+          showSessionOver();
+        }
+      }, 1000);
+    }
+
+    function showSessionOver() {
+      clearInterval(_paidSessionTick);
+      _paidSessionTick = null;
+      document.getElementById('session-warn-bar').classList.remove('visible');
+      document.getElementById('session-over-overlay').classList.add('visible');
+      _iaHideButton();
+      document.dispatchEvent(new CustomEvent('interview-ace:suppress-hotkeys', { detail: { suppress: true } }));
+    }
+
+    function sessionOverStartNew() {
+      document.getElementById('session-over-overlay').classList.remove('visible');
+      document.dispatchEvent(new CustomEvent('interview-ace:suppress-hotkeys', { detail: { suppress: false } }));
+    }
+
+    async function initPaidSession() {
+      try {
+        const resp = await fetch('/api/session/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (!data.is_paid || !data.started) return;
+        _setPaidSessionTimer(data.seconds_remaining);
+      } catch {}
+    }
+
     // ── Mock interview: Zoom-style practice call (config for static/js/mock_interview.js) ──
 
     window.MI_HOTKEYS = {
@@ -545,6 +734,7 @@
 
     connect();
     initTrial();
+    initPaidSession();
 
     // ── Instant replay badge ─────────────────────────────────────────────────
     const _replayBadge = document.getElementById('replay-badge');
@@ -581,12 +771,33 @@
       document.getElementById('hk-status-tip-' + name).textContent = text;
     }
 
+    function _clampTip(dot) {
+      const tip = dot.querySelector('.hk-status-tip');
+      const pad = 12;
+      tip.style.left = '';
+      tip.style.right = '';
+      const btnRect = dot.getBoundingClientRect();
+      const tipWidth = tip.offsetWidth;
+      const vw = window.innerWidth;
+      // Default: right-align tip with button right edge
+      let desiredLeft = btnRect.right - tipWidth;
+      const clampedLeft = Math.max(pad, Math.min(vw - pad - tipWidth, desiredLeft));
+      if (Math.round(clampedLeft) !== Math.round(desiredLeft)) {
+        tip.style.right = 'auto';
+        tip.style.left = (clampedLeft - btnRect.left) + 'px';
+      }
+      // Point arrow at button centre
+      const btnCX = btnRect.left + btnRect.width / 2;
+      const arrowLeft = Math.max(8, Math.min(tipWidth - 20, btnCX - clampedLeft - 6));
+      tip.style.setProperty('--tip-arrow-x', arrowLeft + 'px');
+    }
+
     document.querySelectorAll('.hk-status-dot').forEach((dot) => {
       dot.addEventListener('click', (e) => {
         e.stopPropagation();
         const wasOpen = dot.classList.contains('open');
         document.querySelectorAll('.hk-status-dot.open').forEach((d) => d.classList.remove('open'));
-        if (!wasOpen) dot.classList.add('open');
+        if (!wasOpen) { dot.classList.add('open'); _clampTip(dot); }
       });
     });
     document.addEventListener('click', () => {
@@ -601,6 +812,7 @@
     // times instead of a one-shot dispatch.
     let _pongSeen = false;
     let _micSeen = false;
+    let _localExtConnected = false;
     function _retryDispatch(eventName, isSeen) {
       let attempts = 0;
       document.dispatchEvent(new CustomEvent(eventName));
@@ -643,6 +855,7 @@
     }, 1500);
     document.addEventListener('interview-ace:pong', (e) => {
       _pongSeen = true;
+      _localExtConnected = true;
       clearTimeout(_extDotTimeout);
       _extLinked = !!(e.detail && e.detail.linked);
       _updateExtDot();
@@ -700,5 +913,409 @@
     }
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));
     _applyReplayDot(null);
+
+    // ── Remote ext status (cross-device: desktop ext → server → mobile dots) ──
+    // Only applies when no local extension is detected. The local extension's
+    // custom events always take priority over the server-broadcast state.
+    function _applyExtStatus(status) {
+      if (!status || !status.ext) return;
+      // A remote extension is active — cancel the "not detected" timeouts so
+      // they don't overwrite what we're about to set.
+      clearTimeout(_extDotTimeout);
+      clearTimeout(_micDotTimeout);
+      _pongSeen = true;
+
+      if (status.ext_enabled) {
+        _setDot('ext', 'ok', 'Extension connected on another device.');
+      } else {
+        _setDot('ext', 'warn', 'Extension connected on another device but switched off.');
+      }
+
+      if (status.mic === 'granted') {
+        _setDot('mic', 'ok', 'Microphone permission granted.');
+      } else if (status.mic === 'denied' || status.mic === 'error') {
+        _setDot('mic', 'bad', "Microphone isn’t available — check settings on the device running the extension.");
+      } else {
+        _setDot('mic', 'neutral', 'Microphone status unknown.');
+      }
+
+      if (status.replay === 'armed') {
+        _setDot('replay', 'ok', 'Instant replay is armed and ready.');
+      } else if (status.replay === 'arming') {
+        _setDot('replay', 'warn', 'Instant replay is arming…');
+      } else if (status.replay === 'error' || status.replay === 'stream-ended') {
+        _setDot('replay', 'bad', 'Instant replay lost its connection.');
+      } else {
+        _setDot('replay', 'warn', "Instant replay isn’t locked yet.");
+      }
+    }
+
+    // Fetch initial remote status on load so dots are correct before any SSE event arrives.
+    fetch('/api/ext/status')
+      .then(r => r.ok ? r.json() : null)
+      .then(status => { if (!_localExtConnected) _applyExtStatus(status); })
+      .catch(() => {});
+
+    // ── Interview done — answer counter + feedback modal ─────────────────────
+    // The counter is client-only (no billing, no sessions). Three events per
+    // completed answer: capture / audio-analysis / typing-analysis. State lives
+    // in localStorage so a mid-interview refresh doesn't reset the count.
+    //
+    // The modal can ONLY open from interviewDone() → fbOpen(). It never opens
+    // from SSE, from page load, or from any server-side redirect. If you're
+    // ever tempted to add a "show on next login if they left it open" path —
+    // don't. That path is exactly what was deliberately excluded.
+
+    const _IA_STORAGE_KEY = 'ia_interview_{{ user_id }}';
+    const IA_QUALIFY_N    = {{ 1 if dev_build else 3 }};
+    const IA_QUALIFY_SECS = {{ 0 if dev_build else 300 }};
+    const IA_IDLE_RESET   = 900;   // 15 min gap → treat as a fresh session
+
+    let _iaN       = 0;
+    let _iaFirstTs = 0;
+    let _iaLastTs  = 0;
+
+    const _iaDoneBtn    = document.getElementById('interview-done-btn');
+    const _mobileExitBtn = document.getElementById('mobile-exit-btn');
+
+    function _iaLoadState() {
+      try {
+        const raw = localStorage.getItem(_IA_STORAGE_KEY);
+        if (!raw) return;
+        const s = JSON.parse(raw);
+        const now = Date.now() / 1000;
+        if (s.lastTs && now - s.lastTs > IA_IDLE_RESET) {
+          localStorage.removeItem(_IA_STORAGE_KEY);
+          return;
+        }
+        _iaN       = s.n       || 0;
+        _iaFirstTs = s.firstTs || 0;
+        _iaLastTs  = s.lastTs  || 0;
+      } catch {}
+    }
+
+    function _iaSaveState() {
+      try {
+        localStorage.setItem(_IA_STORAGE_KEY, JSON.stringify({ n: _iaN, firstTs: _iaFirstTs, lastTs: _iaLastTs }));
+      } catch {}
+    }
+
+    function _iaClearState() {
+      _iaN = 0; _iaFirstTs = 0; _iaLastTs = 0;
+      try { localStorage.removeItem(_IA_STORAGE_KEY); } catch {}
+    }
+
+    function _iaCheckQualified() {
+      const qualified = _iaN >= IA_QUALIFY_N && (_iaLastTs - _iaFirstTs) >= IA_QUALIFY_SECS;
+      _iaDoneBtn.style.display = qualified ? '' : 'none';
+      if (_mobileExitBtn) {
+        _mobileExitBtn.textContent = qualified ? 'Done' : 'Exit';
+        _mobileExitBtn.classList.toggle('is-done', qualified);
+      }
+    }
+
+    function _iaHideButton() {
+      _iaDoneBtn.style.display = 'none';
+      if (_mobileExitBtn) {
+        _mobileExitBtn.textContent = 'Exit';
+        _mobileExitBtn.classList.remove('is-done');
+      }
+    }
+
+    function mobileExit() {
+      if (_mobileExitBtn && _mobileExitBtn.classList.contains('is-done')) {
+        interviewDone();
+      } else {
+        window.location.href = '/';
+      }
+    }
+
+    function _iaBump() {
+      const now = Date.now() / 1000;
+      if (_iaLastTs && now - _iaLastTs > IA_IDLE_RESET) {
+        _iaClearState();
+      }
+      _iaN++;
+      if (!_iaFirstTs) _iaFirstTs = now;
+      _iaLastTs = now;
+      _iaSaveState();
+      _iaCheckQualified();
+    }
+
+    function interviewDone() {
+      fbOpen('{{ interview_date }}');
+    }
+
+    // ── Feedback modal ───────────────────────────────────────────────────────
+
+    const _THANKS_SENT = {
+      real:     'Logged. Good luck out there.',
+      practice: 'Good work putting in the reps.',
+      testing:  'Good to know it all works.',
+    };
+
+    const _fbOverlay  = document.getElementById('feedback-overlay');
+    const _fbForm     = document.getElementById('fb-form');
+    const _fbThanks   = document.getElementById('fb-thanks');
+    const _fbSubmitEl = document.getElementById('fb-submit');
+    const _fbErrEl    = document.getElementById('fb-err');
+    const _fbLabelEl  = document.getElementById('fb-rating-label');
+
+    const _FB_LABELS = ['', 'Rough', 'Shaky', 'Fine', 'Solid', 'Nailed it'];
+    let _fbRating      = 0;
+    let _fbSessionType = '';
+    let _fbDateValue   = '';
+    let _fbRemind      = false;
+
+    function _fbAddDays(n) {
+      const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + n); return d;
+    }
+    function _fbToISO(d) {
+      return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    }
+    function _fbFmt(d) { return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }); }
+    function _fbSelectDatePill(choice) {
+      document.querySelectorAll('.fb-date-pill').forEach((p) => p.classList.toggle('active', p.dataset.choice === choice));
+    }
+    function _fbUpdateRemindConfirm() {
+      const el = document.getElementById('fb-remind-confirm');
+      if (!el) return;
+      if (_fbRemind && _fbDateValue) {
+        const d = new Date(_fbDateValue + 'T00:00:00');
+        el.textContent = 'Reminder ' + _fbFmt(d) + ', 9:00 local';
+        el.style.display = 'block';
+      } else {
+        el.textContent = '';
+        el.style.display = 'none';
+      }
+    }
+
+    function fbDatePick(choice) {
+      _fbSelectDatePill(choice);
+      const dateInput = document.getElementById('fb-date');
+      if (choice === 'tomorrow')       { _fbDateValue = _fbToISO(_fbAddDays(1)); dateInput.style.display = 'none'; }
+      else if (choice === 'soon')      { _fbDateValue = _fbToISO(_fbAddDays(2)); dateInput.style.display = 'none'; }
+      else if (choice === 'next_week') { _fbDateValue = _fbToISO(_fbAddDays(7)); dateInput.style.display = 'none'; }
+      else if (choice === 'custom') {
+        dateInput.style.display = 'block';
+        dateInput.min = _fbToISO(_fbAddDays(0));
+        requestAnimationFrame(() => {
+          if (dateInput.showPicker) { try { dateInput.showPicker(); } catch {} }
+          dateInput.focus();
+        });
+      }
+      _fbUpdateRemindConfirm();
+    }
+
+    function fbDateCustomChange() {
+      const dateInput = document.getElementById('fb-date');
+      if (!dateInput.value) return;
+      _fbDateValue = dateInput.value;
+      const cp = document.querySelector('.fb-date-pill[data-choice="custom"]');
+      if (cp) cp.textContent = _fbFmt(new Date(dateInput.value + 'T00:00:00'));
+      _fbSelectDatePill('custom');
+      _fbUpdateRemindConfirm();
+    }
+
+    function fbToggleRemind(on) {
+      _fbRemind = on;
+      const chips  = document.getElementById('fb-remind-chips');
+      const toggle = document.getElementById('fb-remind-toggle');
+      if (chips)  chips.hidden = !on;
+      if (toggle) toggle.setAttribute('aria-checked', on ? 'true' : 'false');
+      if (!on) { _fbDateValue = ''; _fbSelectDatePill(''); }
+      _fbUpdateRemindConfirm();
+    }
+
+    function fbSetType(type) {
+      _fbSessionType = type;
+      document.querySelectorAll('.fb-seg-btn').forEach((b) => {
+        const active = b.dataset.type === type;
+        b.classList.toggle('active', active);
+        b.setAttribute('aria-checked', active ? 'true' : 'false');
+      });
+    }
+
+    function fbStarHover(n) {
+      document.querySelectorAll('.fb-star').forEach((s) => {
+        s.classList.toggle('hover', parseInt(s.dataset.val) <= n);
+      });
+      if (_fbLabelEl) { _fbLabelEl.textContent = _FB_LABELS[n] || ' '; _fbLabelEl.classList.add('accent'); }
+    }
+
+    function fbStarHoverClear() {
+      document.querySelectorAll('.fb-star').forEach((s) => s.classList.remove('hover'));
+      if (_fbLabelEl) {
+        _fbLabelEl.textContent = _fbRating ? _FB_LABELS[_fbRating] : ' ';
+        _fbLabelEl.classList.toggle('accent', !!_fbRating);
+      }
+    }
+
+    function _applyFbRating(n) {
+      document.querySelectorAll('.fb-star').forEach((s) => {
+        s.classList.toggle('on', parseInt(s.dataset.val) <= n);
+        s.classList.remove('hover');
+      });
+      if (_fbLabelEl) {
+        _fbLabelEl.textContent = _FB_LABELS[n] || ' ';
+        _fbLabelEl.classList.toggle('accent', n > 0);
+      }
+    }
+
+    function fbSetRating(n) {
+      _fbRating = n;
+      _applyFbRating(n);
+    }
+
+    function _buildReceipt(sent) {
+      const lines = [];
+      if (sent && _fbRating) lines.push(_fbRating + '/5 on this session');
+      if (_fbRemind && _fbDateValue) {
+        lines.push('Reminder ' + _fbFmt(new Date(_fbDateValue + 'T00:00:00')) + ', 9:00 local');
+      }
+      const el = document.getElementById('fb-receipt');
+      if (el) el.innerHTML = lines.map(t =>
+        '<div class="fb-receipt-line"><span class="fb-receipt-check">&#10003;</span><span>' + t + '</span></div>'
+      ).join('');
+    }
+
+    function _updateThanksMsg(sent) {
+      const el = document.getElementById('fb-thanks-heading');
+      if (!el) return;
+      el.textContent = sent ? (_THANKS_SENT[_fbSessionType] || 'Logged. Good luck out there.') : 'No problem — back to it.';
+    }
+
+    function fbOpen(prefillDate) {
+      _fbRating = 0; _fbSessionType = ''; _fbDateValue = ''; _fbRemind = false;
+      document.getElementById('fb-comment').value = '';
+      if (_fbErrEl) _fbErrEl.textContent = '';
+      _applyFbRating(0);
+      document.querySelectorAll('.fb-seg-btn').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-checked', 'false'); });
+      document.querySelectorAll('.fb-date-pill').forEach((p) => p.classList.remove('active'));
+
+      const soonPill  = document.getElementById('fb-date-pill-soon');
+      const weekPill  = document.getElementById('fb-date-pill-week');
+      const toggle    = document.getElementById('fb-remind-toggle');
+      const chips     = document.getElementById('fb-remind-chips');
+      const confirm   = document.getElementById('fb-remind-confirm');
+      const dateInput = document.getElementById('fb-date');
+      if (soonPill) soonPill.textContent = _fbFmt(_fbAddDays(2));
+      if (weekPill) weekPill.textContent = _fbFmt(_fbAddDays(7));
+      if (toggle)   { toggle.checked = false; toggle.setAttribute('aria-checked', 'false'); }
+      if (chips)    chips.hidden = true;
+      if (confirm)  { confirm.textContent = ''; confirm.style.display = 'none'; }
+      if (dateInput) { dateInput.style.display = 'none'; dateInput.min = _fbToISO(_fbAddDays(0)); }
+
+      const today = _fbToISO(_fbAddDays(0));
+      const cp = document.querySelector('.fb-date-pill[data-choice="custom"]');
+      if (prefillDate && prefillDate >= today) {
+        _fbDateValue = prefillDate;
+        _fbRemind = true;
+        if (toggle)    { toggle.checked = true; toggle.setAttribute('aria-checked', 'true'); }
+        if (chips)     chips.hidden = false;
+        if (dateInput) { dateInput.value = prefillDate; dateInput.style.display = 'block'; }
+        if (cp) cp.textContent = _fbFmt(new Date(prefillDate + 'T00:00:00'));
+        _fbSelectDatePill('custom');
+        _fbUpdateRemindConfirm();
+      } else {
+        if (dateInput) dateInput.value = '';
+        if (cp) cp.textContent = 'Pick a date';
+      }
+
+      // Update live badge
+      const liveText = document.getElementById('fb-live-text');
+      if (liveText) {
+        const parts = ['Still live'];
+        if (_iaN > 0) parts.push(_iaN + ' capture' + (_iaN !== 1 ? 's' : ''));
+        if (_iaFirstTs && _iaLastTs) {
+          const durMin = Math.round((_iaLastTs - _iaFirstTs) / 60);
+          if (durMin > 0) parts.push(durMin + ' min');
+        }
+        liveText.textContent = parts.join(' · ');
+      }
+
+      _fbForm.classList.add('active');
+      _fbThanks.classList.remove('active');
+      _fbOverlay.classList.add('visible');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function fbClose() {
+      _fbOverlay.classList.remove('visible');
+      document.body.style.overflow = '';
+      _iaClearState();
+      _iaHideButton();
+    }
+
+    function fbSkip() {
+      if (_fbRating > 0) {
+        const durSecs = (_iaLastTs && _iaFirstTs) ? Math.round(_iaLastTs - _iaFirstTs) : null;
+        fetch('/api/session/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating:              _fbRating,
+            comment:             document.getElementById('fb-comment').value,
+            next_interview_date: _fbRemind ? _fbDateValue : '',
+            session_type:        _fbSessionType || '',
+            answer_count:        _iaN || null,
+            duration_seconds:    durSecs,
+          }),
+        }).catch(() => {});
+      }
+      _updateThanksMsg(false);
+      _buildReceipt(false);
+      _fbForm.classList.remove('active');
+      _fbThanks.classList.add('active');
+      _iaClearState();
+      _iaHideButton();
+    }
+
+    async function fbSubmit() {
+      if (_fbSubmitEl) _fbSubmitEl.disabled = true;
+      if (_fbErrEl) _fbErrEl.textContent = '';
+      const durSecs = (_iaLastTs && _iaFirstTs) ? Math.round(_iaLastTs - _iaFirstTs) : null;
+      try {
+        const resp = await fetch('/api/session/feedback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rating:              _fbRating,
+            comment:             document.getElementById('fb-comment').value,
+            next_interview_date: _fbRemind ? _fbDateValue : '',
+            session_type:        _fbSessionType || '',
+            answer_count:        _iaN || null,
+            duration_seconds:    durSecs,
+          }),
+        });
+        if (resp.ok) {
+          _updateThanksMsg(true);
+          _buildReceipt(true);
+          _fbForm.classList.remove('active');
+          _fbThanks.classList.add('active');
+          _iaClearState();
+          _iaHideButton();
+        } else {
+          const d = await resp.json().catch(() => ({}));
+          if (_fbErrEl) _fbErrEl.textContent = d.detail || 'Something went wrong — try again.';
+          if (_fbSubmitEl) _fbSubmitEl.disabled = false;
+        }
+      } catch {
+        if (_fbErrEl) _fbErrEl.textContent = 'Network error — try again.';
+        if (_fbSubmitEl) _fbSubmitEl.disabled = false;
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && _fbOverlay.classList.contains('visible')) {
+        if (_fbThanks.classList.contains('active')) fbClose();
+        else fbSkip();
+      }
+      if (e.key === 'Escape' && document.getElementById('session-over-overlay').classList.contains('visible')) sessionOverStartNew();
+    });
+
+    // Rehydrate on load
+    _iaLoadState();
+    _iaCheckQualified();
   </script>
 {% endblock %}

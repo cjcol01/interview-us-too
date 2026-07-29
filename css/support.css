@@ -414,6 +414,10 @@
 .copy-chip:hover { border-color: var(--accent); }
 .copy-chip svg { flex: none; opacity: .7; }
 .copy-chip.copied svg { opacity: 1; color: var(--accent); }
+/* Shown instead of "Copied!" when the extension hasn't answered — clicking should
+   never look like a no-op, even when there's nothing to copy yet. */
+.copy-chip.copy-chip-warn { border-color: var(--danger); color: var(--danger); }
+.copy-chip.copy-chip-warn svg { opacity: 1; color: var(--danger); }
 .issue-fix a, .issue-why a { color: var(--accent); text-decoration: none; }
 .issue-fix a:hover, .issue-why a:hover { opacity: .8; }
 

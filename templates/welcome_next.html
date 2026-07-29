@@ -25,7 +25,7 @@
           <button type="button" class="wn-pill" data-choice="custom">Pick a date</button>
           <button type="button" class="wn-pill wn-pill-muted" data-choice="unknown">Still looking</button>
         </div>
-        <input type="date" id="wn-date-input" class="wn-date-input" style="display:none;">
+        <input type="date" id="wn-date-input" class="wn-date-input" style="display:none;" onfocus="if(this.showPicker)try{this.showPicker()}catch{}">
 
         <div class="wn-done-row">
           <button class="wn-done-btn" id="wn-done-btn" onclick="wnDone()">Done — take me in</button>
@@ -90,8 +90,10 @@
           if (choice === 'custom') {
             dateInput.style.display = 'block';
             dateInput.min = toISO(addDays(0));
-            if (dateInput.showPicker) { try { dateInput.showPicker(); } catch {} }
-            dateInput.focus();
+            requestAnimationFrame(() => {
+              if (dateInput.showPicker) { try { dateInput.showPicker(); } catch {} }
+              dateInput.focus();
+            });
             return;
           }
           dateInput.style.display = 'none';

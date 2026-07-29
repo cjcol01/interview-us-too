@@ -60,7 +60,7 @@ def _add_missing_columns(conn, inspector, table, migrations):
 
 
 def init_db():
-    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, UsageDaily, User, Withdrawal  # noqa: F401 — ensures tables are registered
+    from models import Announcement, AnnouncementDismissal, IntroCardFingerprint, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, SessionFeedback, UsageDaily, User, Withdrawal  # noqa: F401 — ensures tables are registered
     from sqlalchemy import inspect, text
     Base.metadata.create_all(bind=engine)
     # add new columns to existing DBs without dropping data
@@ -116,6 +116,13 @@ def init_db():
         # do nothing on an existing DB, which create_all() alone would do.
         lead_migrations = []
         _add_missing_columns(conn, inspector, "leads", lead_migrations)
+        # session_feedback is brand-new — create_all() covers it in full. Kept here (empty)
+        # for the same reason as lead_migrations above: so the next column added to it
+        # doesn't silently no-op on an existing DB.
+        session_feedback_migrations = [
+            ("session_type", "VARCHAR"),
+        ]
+        _add_missing_columns(conn, inspector, "session_feedback", session_feedback_migrations)
         if welcome_seen_is_new:
             # anyone who'd already finished onboarding before this column existed has
             # necessarily already seen the welcome demo — don't replay it for them
@@ -132,6 +139,8 @@ def init_db():
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_created_at ON leads(created_at)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_user_id ON leads(user_id)"))
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_leads_claimed_at ON leads(claimed_at)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_session_feedback_user_id ON session_feedback(user_id)"))
+        conn.execute(text("CREATE INDEX IF NOT EXISTS ix_session_feedback_created_at ON session_feedback(created_at)"))
     # backfill referral codes for any existing users that don't have one
     db = SessionLocal()
     try:
