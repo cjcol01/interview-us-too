@@ -74,7 +74,11 @@ document.addEventListener('interview-ace:replay-relock', () => {
 // events. Unlike the 'toggled' message (sent only to whichever tab issued the toggle), this
 // covers every tab showing these pages regardless of where the extension was actually
 // toggled — hotkey, popup, or another tab entirely — since it's driven by storage.onChanged.
-if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/support')) {
+// /onboarding is in this list because its audio step shows live mic and instant-replay state
+// while the user grants permission and locks a tab — without it those pushes never reach the
+// page and the step can't tell whether anything worked.
+if (window.location.pathname.startsWith('/app') || window.location.pathname.startsWith('/support')
+    || window.location.pathname.startsWith('/onboarding')) {
   chrome.storage.local.get(['replay_status', 'mic_status', 'enabled'], ({ replay_status, mic_status, enabled }) => {
     if (replay_status) {
       document.dispatchEvent(new CustomEvent('interview-ace:replay-status', { detail: replay_status }));
@@ -120,6 +124,14 @@ document.addEventListener('interview-ace:ping', () => {
 
 document.addEventListener('interview-ace:mic-check', () => {
   chrome.runtime.sendMessage({ type: 'check-mic-permission' });
+}, { signal: ac.signal });
+
+// Distinct from mic-check, which only *queries* — the offscreen document is headless and can't
+// show a permission prompt, so asking for the permission means opening grant-mic.html as a real
+// tab. Until this existed the only way to reach that prompt was to fail a real capture, i.e. to
+// find out your mic was blocked by pressing the hotkey mid-interview.
+document.addEventListener('interview-ace:mic-grant', () => {
+  chrome.runtime.sendMessage({ type: 'open-mic-grant' });
 }, { signal: ac.signal });
 
 // The extension's mic permission lives at its own chrome-extension://<id> origin, which only

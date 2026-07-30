@@ -380,6 +380,179 @@ def register(test, skip, client):
         assert result["ok"] is True
         assert "200" in result["detail"]
 
+    # --- Chrome Web Store listing watch --------------------------------------
+    # _check_webstore reads Chrome's CRX update endpoint rather than the public listing
+    # page, because that page returns HTTP 200 even for an ID that never existed. These
+    # tests pin the three verdicts the alerts strip branches on: live / down / unknown.
+    _WEBSTORE_OK_XML = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<gupdate xmlns="http://www.google.com/update2/response" protocol="2.0">'
+        '<app appid="abc" status="ok"><updatecheck status="ok" version="2.4.0"/></app></gupdate>'
+    )
+    _WEBSTORE_GONE_XML = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<gupdate xmlns="http://www.google.com/update2/response" protocol="2.0">'
+        '<app appid="abc" status="error-unknownApplication"/></gupdate>'
+    )
+
+    class _FakeXmlResp:
+        def __init__(self, text):
+            self.text = text
+
+        def raise_for_status(self):
+            pass
+
+    def test_check_webstore_unconfigured_returns_neutral():
+        """No extension ID means there's no listing to watch — say so rather than making a
+        pointless request against an empty ID."""
+        from server import _check_webstore
+        with patch("server.WEBSTORE_EXTENSION_ID", ""):
+            result = _check_webstore()
+        assert result["ok"] is None
+        assert result["state"] == "unconfigured"
+
+    def test_check_webstore_published_reports_live_version():
+        from server import _check_webstore
+        with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32), \
+             patch("server.requests.get", return_value=_FakeXmlResp(_WEBSTORE_OK_XML)):
+            result = _check_webstore()
+        assert result["ok"] is True
+        assert result["state"] == "live"
+        assert "2.4.0" in result["detail"]
+
+    def test_check_webstore_taken_down_reports_down():
+        """The whole point of the check: error-unknownApplication means unpublished, removed
+        or taken down, and must come back as a hard failure."""
+        from server import _check_webstore
+        with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32), \
+             patch("server.requests.get", return_value=_FakeXmlResp(_WEBSTORE_GONE_XML)):
+            result = _check_webstore()
+        assert result["ok"] is False
+        assert result["state"] == "down"
+        assert "error-unknownApplication" in result["detail"]
+
+    def test_check_webstore_network_failure_is_unknown_not_down():
+        """A network blip must not read as a takedown — otherwise the /admin danger alert
+        cries wolf every time Google is briefly unreachable."""
+        from server import _check_webstore
+        with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32), \
+             patch("server.requests.get", side_effect=OSError("connection reset")):
+            result = _check_webstore()
+        assert result["state"] == "unknown"
+        assert result["ok"] is None
+
+    def test_webstore_version_drift_noted_but_not_a_failure():
+        """A store version behind the local manifest is normal mid-review, so it annotates
+        the row instead of failing it."""
+        from server import _check_webstore
+        with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32), \
+             patch("server._local_extension_version", return_value="9.9.9"), \
+             patch("server.requests.get", return_value=_FakeXmlResp(_WEBSTORE_OK_XML)):
+            result = _check_webstore()
+        assert result["ok"] is True
+        assert "9.9.9" in result["detail"]
+
+    # --- Takedown alert email (edge-triggered) --------------------------------
+    # Every test here drives _handle_webstore_transition directly and asserts on the mocked
+    # mailer, so no real email is ever sent even though the suite has a live Resend key.
+    def _drive_webstore_states(states):
+        """Feeds a sequence of states through the transition handler against a clean Redis,
+        returning the list of (detail, recovered) email calls it made."""
+        import asyncio
+        import server
+
+        async def _run():
+            r = server.app.state.redis
+            await r.delete(server._WEBSTORE_DOWN_STREAK_KEY, server._WEBSTORE_ALERTED_KEY)
+            with patch("server.send_webstore_alert_email") as mock_send:
+                for state in states:
+                    await server._handle_webstore_transition(r, {"state": state, "detail": state})
+                return mock_send.call_args_list
+
+        return asyncio.run(_run())
+
+    def test_single_down_reading_does_not_email():
+        """One 'down' is unconfirmed — Google having a bad moment must not fire an alarming
+        takedown email."""
+        calls = _drive_webstore_states(["down"])
+        assert calls == []
+
+    def test_two_consecutive_down_readings_email_once():
+        """Confirmed down alerts — and stays quiet on every subsequent tick of the same
+        outage rather than emailing every 30 minutes until it's fixed."""
+        calls = _drive_webstore_states(["down", "down", "down", "down"])
+        assert len(calls) == 1
+        assert calls[0].args[0] == "down"
+
+    def test_unknown_does_not_reset_the_down_streak():
+        """An unreachable-Google reading between two 'down' readings must not clear the
+        streak, or a flaky network could stop the alert from ever confirming."""
+        calls = _drive_webstore_states(["down", "unknown", "down"])
+        assert len(calls) == 1
+
+    def test_live_reading_clears_streak_without_emailing():
+        """Recovering before the alert ever fired means nothing to report."""
+        calls = _drive_webstore_states(["down", "live", "down"])
+        assert calls == []
+
+    def test_recovery_after_alert_sends_all_clear():
+        calls = _drive_webstore_states(["down", "down", "live"])
+        assert len(calls) == 2
+        assert calls[1].args[1] is True  # recovered=True
+
+    def test_deep_check_does_not_send_alert_email():
+        """Clicking the deep check refreshes the cache but must never email — you're already
+        looking at the result."""
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            down = {"ok": False, "state": "down", "detail": "gone", "latency_ms": 1.0}
+            with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32), \
+                 patch("server._check_webstore", return_value=down), \
+                 patch("server.send_webstore_alert_email") as mock_send:
+                r = client.get("/admin/health/deep/webstore", cookies={"session": token})
+                assert r.status_code == 200
+                assert mock_send.call_count == 0
+        finally:
+            cleanup(db, admin)
+            db.close()
+
+    def test_deep_webstore_endpoint_caches_verdict_for_admin_alerts():
+        """Clicking the deep check must also refresh the cached verdict, since /admin's
+        alerts strip only ever reads the cache (it makes no outbound calls)."""
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            down = {"ok": False, "state": "down", "detail": "listing unavailable", "latency_ms": 5.0}
+            # The ID has to be pinned for both calls: unset, the cached-status helper reports
+            # "unconfigured" and never looks at Redis at all.
+            with patch("server.WEBSTORE_EXTENSION_ID", "a" * 32):
+                with patch("server._check_webstore", return_value=down):
+                    r = client.get("/admin/health/deep/webstore", cookies={"session": token})
+                assert r.status_code == 200
+                assert r.json()["state"] == "down"
+                # Cache now populated, so /admin surfaces the danger alert with no network call.
+                r = client.get("/admin", cookies={"session": token})
+            assert r.status_code == 200
+            assert "Chrome Web Store listing is down" in r.text
+        finally:
+            cleanup(db, admin)
+            db.close()
+
+    def test_health_page_shows_webstore_row():
+        db = SessionLocal()
+        admin = None
+        try:
+            admin, token = _make_admin_cookie(db)
+            r = client.get("/admin/health", cookies={"session": token})
+            assert r.status_code == 200
+            assert "Chrome Web Store listing" in r.text
+        finally:
+            cleanup(db, admin)
+            db.close()
+
     def test_deep_check_routes_endpoint():
         db = SessionLocal()
         admin = None
@@ -423,5 +596,18 @@ def register(test, skip, client):
     test("GET /admin/health/deep/{name}: returns one check result", test_deep_check_endpoint_returns_one_result_per_provider)
     test("_check_sideload: disabled → unknown/neutral",            test_check_sideload_disabled_returns_unknown)
     test("_check_sideload: enabled → reports CDN + mirror status",  test_check_sideload_reports_cdn_and_mirror_status)
+    test("_check_webstore: no extension ID → neutral",             test_check_webstore_unconfigured_returns_neutral)
+    test("_check_webstore: published → live + version",            test_check_webstore_published_reports_live_version)
+    test("_check_webstore: taken down → hard failure",             test_check_webstore_taken_down_reports_down)
+    test("_check_webstore: network error → unknown, not down",     test_check_webstore_network_failure_is_unknown_not_down)
+    test("_check_webstore: version drift noted, not failed",       test_webstore_version_drift_noted_but_not_a_failure)
+    test("Webstore: one down reading does not email",              test_single_down_reading_does_not_email)
+    test("Webstore: confirmed down emails exactly once",           test_two_consecutive_down_readings_email_once)
+    test("Webstore: 'unknown' does not reset the down streak",     test_unknown_does_not_reset_the_down_streak)
+    test("Webstore: recovery before alert stays silent",           test_live_reading_clears_streak_without_emailing)
+    test("Webstore: recovery after alert sends all-clear",         test_recovery_after_alert_sends_all_clear)
+    test("Webstore: deep check never sends an alert email",        test_deep_check_does_not_send_alert_email)
+    test("Deep webstore check caches verdict → /admin alert",      test_deep_webstore_endpoint_caches_verdict_for_admin_alerts)
+    test("GET /admin/health: renders Web Store listing row",       test_health_page_shows_webstore_row)
     test("GET /admin/health/deep/routes: returns route list",      test_deep_check_routes_endpoint)
     test("GET /healthz: public liveness check",                    test_healthz_public_no_auth)

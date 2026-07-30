@@ -50,11 +50,18 @@ def _init():
 _init()
 
 
+# Both wrappers target the posthog 7.x SDK, which took distinct_id/properties out of the
+# positional signature and dropped Posthog.identify() entirely (set() is its replacement for
+# writing person properties). Passing them positionally — as these did before — raised on
+# *every* call, and the bare `except Exception: pass` below swallowed it, so all server-side
+# analytics silently went nowhere while looking healthy. requirements.txt now pins the major
+# version so that can't happen again on a fresh install.
 def identify(user_id: int, email: str, name: str, account_level: str) -> None:
     if _ph is None:
         return
     try:
-        _ph.identify(str(user_id), {"email": email, "name": name, "account_level": account_level})
+        _ph.set(distinct_id=str(user_id),
+                properties={"email": email, "name": name, "account_level": account_level})
     except Exception:
         pass
 
@@ -63,6 +70,6 @@ def track(user_id: int | None, event: str, **props) -> None:
     if _ph is None or user_id is None:
         return
     try:
-        _ph.capture(str(user_id), event, props or None)
+        _ph.capture(event, distinct_id=str(user_id), properties=props or None)
     except Exception:
         pass

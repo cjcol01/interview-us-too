@@ -20,9 +20,9 @@
   <div id="trial-start-overlay">
     <div class="trial-start-modal">
       <div style="font-size:2rem;margin-bottom:12px;">&#9200;</div>
-      <h2>Start your trial</h2>
-      <p class="ts-sub">Your 10-minute free trial hasn't started yet. When you're ready with a problem open on your other screen, tap below.</p>
-      <button id="ts-start-btn" onclick="tsConfirmStart()">Start 10-minute trial</button>
+      <h2>Start your test run</h2>
+      <p class="ts-sub">Your 10-minute test run hasn't started yet. When you're ready with a problem open on your other screen, tap below.</p>
+      <button id="ts-start-btn" onclick="tsConfirmStart()">Start 10-minute test run</button>
       <p class="ts-footer">No card required &nbsp;&middot;&nbsp; <a href="/auth/logout">sign out</a></p>
       <p class="ts-footer" style="margin-top:8px;"><a href="/onboarding">Haven't connected the extension on your computer? Go to setup &rarr;</a></p>
     </div>
@@ -32,8 +32,8 @@
   <div id="trial-overlay">
     <div class="trial-modal">
       <div class="modal-icon">&#9200;</div>
-      <h2>Trial ended</h2>
-      <p>Your 10-minute free trial has ended. See tips for using the full product, then decide if you want to continue.</p>
+      <h2>Test run ended</h2>
+      <p>Your 10-minute test run has ended. See tips for using the full product, then decide if you want to continue.</p>
       <a href="/trial-end" class="upgrade-btn">What's next &rarr;</a>
       <p class="modal-footer">or <a href="/auth/logout">sign out</a></p>
     </div>
@@ -201,8 +201,8 @@
 
   <!-- Trial countdown bar (shown for trial users only) -->
   <div id="trial-bar">
-    <span>Free trial &mdash; <strong id="trial-time"></strong> remaining</span>
-    <a href="/trial-end" class="trial-bar-link">End trial &rarr;</a>
+    <span>Test run &mdash; <strong id="trial-time"></strong> left</span>
+    <a href="/trial-end" class="trial-bar-link">End test run &rarr;</a>
   </div>
 
   <!-- Session expiring warning bar (paid users, 10 min before session ends) -->
@@ -561,7 +561,6 @@
     let _trialSecs = 0;
     let _trialTick = null;
     let _isTrial = false;
-    let _tutorialKey = 'ia_tutorial_v1';
 
     function showTrialExpired() {
       clearInterval(_trialTick);
@@ -605,9 +604,12 @@
         const data = await resp.json();
         if (!data.is_trial) return;
         _isTrial = true;
-        if (data.user_id) _tutorialKey = 'ia_tutorial_v1_' + data.user_id;
         if (!data.started) {
-          if (!localStorage.getItem(_tutorialKey)) {
+          // Server flag, not localStorage: this page is very often opened on the *second*
+          // device (that's what onboarding step 4 sends people here to do), where a
+          // per-device flag is always empty — which replayed the whole simulated call
+          // instead of the "Start 10-minute test run" button step 4 told them to tap.
+          if (!data.tutorial_seen) {
             openMockInterview(true);
           } else {
             document.getElementById('trial-start-overlay').classList.add('visible');
@@ -632,11 +634,11 @@
           if (d.started && !d.expired) _startCountdown(d.seconds_remaining);
         } else {
           btn.disabled = false;
-          btn.textContent = 'Start 10-minute trial';
+          btn.textContent = 'Start 10-minute test run';
         }
       } catch {
         btn.disabled = false;
-        btn.textContent = 'Start 10-minute trial';
+        btn.textContent = 'Start 10-minute test run';
       }
     }
 
@@ -699,9 +701,9 @@
       typing:  '{{ typing }}',
     };
     window.MI_FIRST_NAME = {{ first_name | tojson }};
-    window.MI_FIRST_RUN_CTA_LABEL = 'Start my trial →';
+    window.MI_FIRST_RUN_CTA_LABEL = 'Start my test run →';
     window.MI_ON_FIRST_RUN_FINISH = function () {
-      localStorage.setItem(_tutorialKey, '1');
+      fetch('/api/tutorial/seen', { method: 'POST' }).catch(() => {});
       if (_isTrial && !_trialTick) {
         document.getElementById('trial-start-overlay').classList.add('visible');
       } else if (_trialTick) {
@@ -952,7 +954,7 @@
       } else if (status.replay === 'error' || status.replay === 'stream-ended') {
         _setDot('replay', 'bad', 'Instant replay lost its connection.');
       } else {
-        _setDot('replay', 'warn', "Instant replay isn’t locked yet.");
+        _setDot('replay', 'warn', "Instant replay isn’t locked yet, open the extension to lock");
       }
     }
 

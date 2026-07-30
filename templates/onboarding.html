@@ -9,10 +9,10 @@
   <div id="warning-overlay">
     <div class="warning-modal">
       <div class="wm-icon">⚠️</div>
-      <h3>Trial is for practice only</h3>
-      <p>Your free trial lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
+      <h3>This is a test run, not an interview</h3>
+      <p>Your test run lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
       <div class="wm-actions">
-        <button id="wm-confirm" onclick="confirmStart()">Got it — start practice trial</button>
+        <button id="wm-confirm" onclick="confirmStart()">Got it — start test run</button>
         <button id="wm-cancel" onclick="closeWarning()">Cancel</button>
       </div>
     </div>
@@ -23,7 +23,7 @@
     <div class="warning-modal">
       <div class="wm-icon">🔌</div>
       <h3>Extension not detected</h3>
-      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio — it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your trial or interview until it is.</p>
+      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio — it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
       <div class="wm-actions">
         <button class="wm-confirm-btn" onclick="closeExtWarning()">Go connect it</button>
         <button class="wm-cancel-btn" onclick="continueWithoutExtension()">Continue anyway</button>
@@ -35,44 +35,71 @@
     <a class="ob-logo" href="/">
       <span class="ob-logo-dot"></span>InterviewAce
     </a>
-    <a href="/settings" class="ob-skip">Skip setup</a>
+    <a href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
   </header>
 
   <main class="ob-main">
     <div class="ob-intro">
       <h1>You're in. Let's get set up.</h1>
-      <p>A few quick steps, then your 10-minute trial begins. No card required.</p>
+      <p>A few quick steps, then your 10-minute test run begins. No card required.</p>
     </div>
 
     <!-- Step 1: Install -->
-    <div class="ob-step-card">
+    <div class="ob-step-card is-active" id="ob-step-1" data-step="1">
       <div class="ob-step-num">1</div>
       <div class="ob-step-body">
         <h2>Install the browser extension</h2>
-        <p>Adds a silent background listener to Chrome or Edge. It stays completely invisible during your interview.</p>
-        <a href="https://chrome.google.com/webstore/detail/interviewace/placeholder" target="_blank" class="ob-install-btn">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-            <polyline points="8 17 12 21 16 17"/>
-            <line x1="12" y1="12" x2="12" y2="21"/>
-            <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
-          </svg>
-          Add to Chrome
-        </a>
-        {% if sideload_enabled %}
-        <a href="/install-manual" class="ob-sideload-link">Web Store unavailable? Install manually instead →</a>
-        {% endif %}
+        <p class="ob-step-state" id="ob-state-1" hidden></p>
+        <div class="ob-step-inner">
+          <p>Adds a silent background listener to Chrome or Edge. It stays completely invisible during your interview.</p>
+          <a href="https://chrome.google.com/webstore/detail/interviewace/placeholder" target="_blank"
+             class="ob-install-btn" onclick="obInstallClicked()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <polyline points="8 17 12 21 16 17"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/>
+            </svg>
+            Add to Chrome
+          </a>
+          <p class="ob-await-return" id="ob-await-return" hidden>Waiting for you to come back from the Web Store…</p>
+          {% if sideload_enabled %}
+          <a href="/install-manual" class="ob-sideload-link">Web Store unavailable? Install manually instead →</a>
+          {% endif %}
+          <!-- Without this, anyone who already has the extension can't clear step 1 except by
+               reinstalling it — the trap version of progressive disclosure. -->
+          <button type="button" class="ob-step-alt" onclick="obComplete(1)">I've already installed it →</button>
+        </div>
       </div>
     </div>
 
     <!-- Step 2: Connect -->
-    <div class="ob-step-card">
+    <div class="ob-step-card is-locked" id="ob-step-2" data-step="2">
       <div class="ob-step-num">2</div>
       <div class="ob-step-body">
         <h2>Connect the extension to your account</h2>
+        <p class="ob-step-state" id="ob-state-2" hidden></p>
+        <div class="ob-step-inner">
 
+        <!-- Paced on purpose. The link itself is instant, but a card that flicks straight to
+             "connected" reads as a canned message rather than something that actually checked;
+             walking down the rail is how the user learns the extension and the account are now
+             two halves of one thing. Each stage waits on the real handshake, then holds long
+             enough to be read — it never reports success it hasn't had. -->
         <div id="connect-auto" class="ob-connect-auto">
-          <span class="ob-connect-auto-dot" id="connect-auto-dot"></span>
-          <span class="ob-connect-auto-msg" id="connect-auto-msg">Checking for the extension — this connects automatically, no action needed.</span>
+          <ol class="ob-connect-rail" id="connect-rail">
+            <li class="ob-cr-step" data-stage="find">
+              <span class="ob-cr-dot"></span>
+              <span class="ob-cr-label">Looking for the extension</span>
+            </li>
+            <li class="ob-cr-step" data-stage="link">
+              <span class="ob-cr-dot"></span>
+              <span class="ob-cr-label">Linking it to your account</span>
+            </li>
+            <li class="ob-cr-step" data-stage="ready">
+              <span class="ob-cr-dot"></span>
+              <span class="ob-cr-label">Ready to capture</span>
+            </li>
+          </ol>
         </div>
 
         <div id="connect-manual" class="ob-connect-manual" style="display:none;">
@@ -101,21 +128,85 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
     </div>
 
-    <!-- Step 3: Open a problem + feature overview -->
-    <div class="ob-step-card">
+    <!-- Step 3: Microphone.
+         The prompt can't be raised from this page, nor from the extension's offscreen document
+         (it's headless) — only from a real extension tab, which is what grant-mic.html is for.
+         Before this step existed, the first time anyone found out their mic was blocked was a
+         dead voice hotkey mid-interview. -->
+    <div class="ob-step-card is-locked" id="ob-step-3" data-step="3">
       <div class="ob-step-num">3</div>
       <div class="ob-step-body">
+        <h2>Allow microphone access</h2>
+        <p class="ob-step-state" id="ob-state-3" hidden></p>
+        <div class="ob-step-inner">
+          <p>Voice capture sends what you or your interviewer just said. Chrome asks once, in a
+             tab we open for you.</p>
+          <div class="ob-mic-state">
+            <span class="ob-mic-led" id="ob-mic-led"></span>
+            <span class="ob-mic-msg" id="ob-mic-msg">Checking microphone…</span>
+          </div>
+          <button type="button" class="ob-connect-btn" id="ob-mic-btn" onclick="obGrantMic()">Allow microphone access</button>
+          <p class="ob-manual-hint" id="ob-mic-denied-help" hidden>
+            Chrome is blocking it. Open the extension's site settings, set Microphone to Allow,
+            then come back here.
+            <button type="button" class="ob-copy-btn" id="ob-mic-settings-btn" onclick="obCopyMicSettings(this)">Copy settings link</button>
+          </p>
+          <button type="button" class="ob-step-alt" onclick="obComplete(3)">Skip for now →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Instant replay.
+         Not automatable from here: locking needs chrome.tabCapture.getMediaStreamId, which only
+         works on a tab the extension has been invoked on — the popup's activeTab grant. So this
+         teaches the gesture and verifies it live via replay-status. Practising on this tab or a
+         YouTube video is the point: it's the same three clicks they'll do on their meeting tab,
+         except a mistake here costs nothing. -->
+    <div class="ob-step-card is-locked" id="ob-step-4" data-step="4">
+      <div class="ob-step-num">4</div>
+      <div class="ob-step-body">
+        <h2>Arm instant replay <span class="ob-audio-opt">OPTIONAL</span></h2>
+        <p class="ob-step-state" id="ob-state-4" hidden></p>
+        <div class="ob-step-inner">
+          <p>Buffers the last {{ replay_seconds }} seconds of one tab's audio, so you can resend a
+             question you missed instead of asking them to repeat it. Practise it now — on this tab,
+             or a YouTube video if you want to hear it work.</p>
+          <ol class="ob-replay-howto">
+            <li>Switch to the tab you want to lock to. <strong>Take the meeting in your
+                browser</strong>, not the Zoom or Teams desktop app — a lock can only hear a tab.</li>
+            <li>Click the <strong>puzzle-piece icon</strong> in Chrome's toolbar, then
+                <strong>InterviewAce</strong>. Hit the pin to keep it in the toolbar.</li>
+            <li>Press <strong>Lock to tab</strong>.</li>
+          </ol>
+          <div class="ob-mic-state">
+            <span class="ob-mic-led" id="ob-replay-led"></span>
+            <span class="ob-mic-msg" id="ob-replay-msg">Not armed yet.</span>
+          </div>
+          <p class="ob-manual-hint">On the day, do the same on your meeting tab. A lock follows one
+             tab and drops when it closes.</p>
+          <button type="button" class="ob-step-alt" onclick="obComplete(4)">Skip for now →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Open a problem + feature overview -->
+    <div class="ob-step-card is-locked" id="ob-step-5" data-step="5">
+      <div class="ob-step-num">5</div>
+      <div class="ob-step-body">
         <h2>Open a coding challenge on your computer</h2>
+        <p class="ob-step-state" id="ob-state-5" hidden></p>
+        <div class="ob-step-inner">
         <p>Visit any of these platforms and open a practice problem as if it's a real interview.</p>
         <div class="ob-platform-links">
-          <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link">LeetCode</a>
-          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link">HackerRank</a>
-          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="ob-platform-link">Codility</a>
-          <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link">CodeWars</a>
-          <a href="https://codesignal.com/" target="_blank" class="ob-platform-link">CodeSignal</a>
+          <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">LeetCode</a>
+          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link" onclick="obComplete(5)">HackerRank</a>
+          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">Codility</a>
+          <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">CodeWars</a>
+          <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">CodeSignal</a>
         </div>
         <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
         <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
@@ -154,14 +245,20 @@
             document.getElementById('ob-key-toggle').innerHTML  = renderHotkey(hk.toggle);
           })();
         </script>
+        <!-- Same escape hatch as step 1: the platform links are the trigger, but plenty of
+             people already have a problem open in another tab. -->
+        <button type="button" class="ob-step-alt" onclick="obComplete(5)">I've already got one open →</button>
+        </div>
       </div>
     </div>
 
-    <!-- Step 4: Move to second device -->
-    <div class="ob-step-card">
-      <div class="ob-step-num">4</div>
+    <!-- Step 6: Move to second device -->
+    <div class="ob-step-card is-locked" id="ob-step-6" data-step="6">
+      <div class="ob-step-num">6</div>
       <div class="ob-step-body">
         <h2>Move to your phone, second device or monitor</h2>
+        <p class="ob-step-state" id="ob-state-6" hidden></p>
+        <div class="ob-step-inner">
         <p>That's where the AI answers will appear. Scan the code to open the app already signed in, or copy the URL.</p>
 
         <div class="ob-qr-wrap" id="qr-wrap">
@@ -172,7 +269,10 @@
           <p id="qr-hint" class="ob-qr-hint">Generating secure link…</p>
           <div id="qr-footer" class="ob-qr-footer" style="display:none;">
             <span id="qr-timer" class="ob-qr-timer"></span>
-            <button class="ob-qr-refresh-btn" onclick="initMobileLink()">↻ Refresh QR code</button>
+            <!-- Hidden until the link actually expires: while the countdown is still running
+                 the code on screen works, and offering "Refresh" next to it invites people to
+                 invalidate the QR they're in the middle of scanning. -->
+            <button id="qr-refresh-btn" class="ob-qr-refresh-btn" onclick="initMobileLink()" hidden>↻ Refresh QR code</button>
           </div>
         </div>
 
@@ -189,15 +289,34 @@
 
         <!-- After moved -->
         <div id="post-moved" class="ob-post-moved" style="display:none;">
-          <p class="ob-post-moved-ok">✓ On your phone, tap <strong>"Start 10-minute trial"</strong> to begin.</p>
+          <p class="ob-post-moved-ok">✓ On your phone, tap <strong>"Start 10-minute test run"</strong> to begin.</p>
           <p class="ob-post-moved-hint">Close this page and continue on your phone</p>
+        </div>
+
+        <!-- Outside both blocks on purpose, so it's offered at all times rather than only
+             after "I'm on my phone" — someone with no second device to hand shouldn't have to
+             claim they moved to one to find the option to stay here. Sits last so it reads as
+             the secondary choice under whichever of the two blocks above is showing. -->
+        <div class="ob-start-here-row">
           <button onclick="startTrial()" class="ob-start-here-btn">Or start here instead</button>
+        </div>
         </div>
       </div>
     </div>
   </main>
 
   <script>
+    // "Skip setup" has to clear the setup_complete gate, or it isn't a skip: /app bounces
+    // straight back here, and so does every route out of /settings, leaving no way off this
+    // page at all. The dashboard is self-recovering for a user who skipped — the Ext status
+    // LED shows red and the trial-start overlay carries a "go to setup →" link back here.
+    async function obSkipSetup(e) {
+      e.preventDefault();
+      try { await fetch('/api/setup/complete?skipped=true', { method: 'POST' }); } catch {}
+      window.location.href = '/app';
+      return false;
+    }
+
     // The content script injects at document_idle, which can run *after*
     // this inline script already executed once (it's part of the initial
     // HTML parse) — a single dispatch can fire before the extension's
@@ -214,24 +333,422 @@
       return timer;
     }
 
-    // ── Passive extension detection (for the "move to phone" warning,
-    // and for step 2's auto-connect card) ──────────────────────────────────
+    // ── Passive extension detection (for the "move to phone" warning, and to drive
+    // step 2's connect rail) ────────────────────────────────────────────────
     let _extensionConnected = false;
+    const _extWaiters = [];
     document.addEventListener('interview-ace:connected', () => {
       _extensionConnected = true;
-      const autoEl = document.getElementById('connect-auto');
-      autoEl.classList.add('ok');
-      document.getElementById('connect-auto-msg').textContent = 'Extension connected automatically — you\'re all set.';
-    }, { once: true });
+      // splice(0) both drains and empties, so a second event can't resolve anyone twice.
+      _extWaiters.splice(0).forEach((resolve) => resolve(true));
+    });
+
+    /* Resolves true as soon as the extension answers, false if it hasn't within `ms`.
+       Kept separate from the visual pacing below so the two never get confused: this is the
+       real handshake, that's the presentation of it. */
+    function waitForExtension(ms) {
+      if (_extensionConnected) return Promise.resolve(true);
+      return new Promise((resolve) => {
+        let settled = false;
+        const finish = (v) => { if (!settled) { settled = true; resolve(v); } };
+        _extWaiters.push(finish);
+        _retryConnectDispatch(() => _extensionConnected);
+        setTimeout(() => finish(_extensionConnected), ms);
+      });
+    }
+
+    // Probe on load too, not just when step 2 opens: someone revisiting this page with the
+    // extension already installed should be moved past steps 1 and 2 rather than asked to
+    // install what they've got. obSyncFromExtension() (below) acts on the result.
     _retryConnectDispatch(() => _extensionConnected);
 
-    // If the passive attempt hasn't succeeded shortly after the retries run
-    // out, stop waiting silently and show the manual connect card instead.
-    setTimeout(() => {
-      if (_extensionConnected) return;
-      document.getElementById('connect-auto').style.display = 'none';
-      document.getElementById('connect-manual').style.display = 'block';
-    }, 1600);
+    // ── Stepper ─────────────────────────────────────────────────────────────
+    // One step open at a time. Each step's completion is a real signal (came back from the
+    // Web Store, extension answered, a challenge got opened) rather than a bare "Next", so
+    // the page can't claim progress the user hasn't actually made. Every step also carries a
+    // manual "already done this" out, because an auto-detected gate you can't clear by hand
+    // is a trap for anyone who arrives already set up.
+    const OB_STATE_TEXT = {
+      1: 'Extension installed',
+      2: 'Connected to your account',
+      3: 'Microphone allowed',
+      4: 'Instant replay armed',
+      5: 'Challenge open',
+      6: 'Ready',
+    };
+    const OB_LAST_STEP = 6;
+    const OB_STORE_KEY = 'ia_ob_progress';
+
+    let _obOpen = 1;
+    let _obBooted = false;
+    const _obDone = new Set();
+    const _obRan = new Set();   // one-shot side effects per step (connect rail, QR)
+    const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    function obSave() {
+      try {
+        sessionStorage.setItem(OB_STORE_KEY, JSON.stringify({ done: [..._obDone], open: _obOpen }));
+      } catch {}
+    }
+
+    function obRestore() {
+      try {
+        const raw = sessionStorage.getItem(OB_STORE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        (saved.done || []).forEach((n) => _obDone.add(n));
+        _obOpen = saved.open || 1;
+      } catch {}
+    }
+
+    function obRender() {
+      for (let n = 1; n <= OB_LAST_STEP; n++) {
+        const card = document.getElementById('ob-step-' + n);
+        const state = document.getElementById('ob-state-' + n);
+        const done = _obDone.has(n);
+        // Locked means every earlier step is still outstanding — not merely "not open" — so
+        // reopening step 1 to re-read it doesn't re-lock everything after it.
+        const reachable = done || n === 1 || _obDone.has(n - 1);
+        card.classList.toggle('is-done', done);
+        card.classList.toggle('is-active', n === _obOpen);
+        card.classList.toggle('is-locked', !reachable && n !== _obOpen);
+        state.hidden = !done || n === _obOpen;
+        if (done) state.textContent = OB_STATE_TEXT[n];
+      }
+      obSave();
+    }
+
+    function obGoTo(n) {
+      _obOpen = Math.min(n, OB_LAST_STEP);
+      obRender();
+      // Side effects first, scrolling last: the step's actual work must not be contingent on
+      // a cosmetic call succeeding.
+      obEnter(_obOpen);
+      // Anything that was waiting for this step to come on screen runs now.
+      const pending = _obPendingOpen.get(_obOpen);
+      if (pending) { _obPendingOpen.delete(_obOpen); pending(); }
+      const card = document.getElementById('ob-step-' + _obOpen);
+      // 'nearest' rather than 'center': the newly opened card is usually already partly in
+      // view, and yanking it to the middle of the screen loses the user's place.
+      if (card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    /* Side effects that belong to opening a step, each fired at most once. */
+    function obEnter(n) {
+      if (_obRan.has(n)) return;
+      _obRan.add(n);
+      if (n === 2) runConnectSequence();
+      if (n === 3) obInitAudio();
+      // Deliberately not on page load: the mobile link lives for 5 minutes, and starting that
+      // clock while the user is still installing the extension guarantees they scan an expired
+      // code. It starts when the QR is actually on screen.
+      if (n === 6) initMobileLink();
+    }
+
+    // How long a step lingers on its success state before collapsing, and how long the body
+    // takes to fade once it does. Auto-detected steps (mic granted, replay armed) resolve in
+    // milliseconds, so without the hold the confirmation the user was waiting for is gone
+    // before they've registered it — the step just vanishes and they're left unsure it worked.
+    const OB_HOLD_MS     = 1500;
+    const OB_COLLAPSE_MS = 260;
+
+    /* Fades the open card's body out so it closes rather than disappearing. Deliberately a
+       fade-then-hide instead of an animated height: keeping display:none as the collapsed state
+       means finished steps stay out of the tab order and off screen readers, which a
+       max-height:0 trick would quietly break. */
+    async function obFadeOut(n) {
+      const card = document.getElementById('ob-step-' + n);
+      if (!card || !card.classList.contains('is-active')) return;
+      card.classList.add('is-collapsing');
+      await _sleep(OB_COLLAPSE_MS);
+      card.classList.remove('is-collapsing');
+    }
+
+    const _obCompleting = new Set();
+    const _obPendingOpen = new Map();
+
+    /* Defers work until step n is the one on screen. Status events don't wait their turn — the
+       mic can be granted from the popup, or land while the previous step is still fading — and
+       completing a step that was never open means the user never sees the thing they were waiting
+       to see confirmed. */
+    function obWhenOpen(n, fn) {
+      if (_obOpen === n) fn(); else _obPendingOpen.set(n, fn);
+    }
+
+    /* holdMs > 0 keeps the step open on its success state before collapsing. Callers reacting to
+       a real signal pass a hold; the manual "skip" buttons pass nothing, since there's no result
+       to admire and waiting would just feel unresponsive. */
+    async function obComplete(n, holdMs = 0) {
+      // A hold leaves a window in which the same step could be completed again — the user hits
+      // Skip while the success hold is running, or a second status event lands. Without this the
+      // step would advance twice and jump past the next one.
+      if (_obCompleting.has(n)) return;
+      _obCompleting.add(n);
+      _obDone.add(n);
+      // Render before the hold, not after: the card has to show its finished state *during* the
+      // pause. Skipping this left it displaying whatever it looked like beforehand for the whole
+      // hold, then snapping straight to collapsed.
+      obRender();
+      try {
+        // A hold is only worth anything while the card is visible.
+        if (holdMs && _obOpen === n) await _sleep(holdMs);
+        if (n >= _obOpen) {
+          await obFadeOut(n);
+          // Re-check: this function yields (for the hold and the fade), and something else can
+          // navigate while it's suspended — obSyncFromExtension jumping to step 3 because the
+          // extension answered early is the case that bit. Advancing regardless would drag the
+          // user back to an already-finished step with nothing left to run, stranding them.
+          if (_obOpen === n) obGoTo(n + 1);
+        }
+      } finally {
+        _obCompleting.delete(n);
+      }
+    }
+
+    // Re-opening is a read, not a reset — nothing gets un-done. Any step that isn't locked can
+    // be opened, not just finished ones: after reopening step 1 to re-read it, the steps ahead
+    // are unlocked-but-closed, and a card at full opacity that ignores clicks reads as broken.
+    function obReopen(n) {
+      if (n === _obOpen) return;
+      const reachable = _obDone.has(n) || n === 1 || _obDone.has(n - 1);
+      if (!reachable) return;
+      _obOpen = n;
+      obRender();
+      obEnter(n);
+    }
+
+    for (let n = 1; n <= OB_LAST_STEP; n++) {
+      document.getElementById('ob-step-' + n).addEventListener('click', (e) => {
+        // Only the collapsed summary is a reopen target; clicks on controls inside an open
+        // card must behave normally.
+        if (e.target.closest('.ob-step-inner')) return;
+        obReopen(n);
+      });
+    }
+
+    // ── Step 1: install ─────────────────────────────────────────────────────
+    // "Add to Chrome" opens a new tab, so returning focus here is the signal that they've
+    // been and dealt with it. One-shot: after it fires, coming back to this tab later
+    // shouldn't keep re-completing a step they've moved past.
+    let _awaitingInstallReturn = false;
+
+    function obInstallClicked() {
+      _awaitingInstallReturn = true;
+      document.getElementById('ob-await-return').hidden = false;
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || !_awaitingInstallReturn) return;
+      _awaitingInstallReturn = false;
+      document.getElementById('ob-await-return').hidden = true;
+      obComplete(1);
+    });
+
+    /* If the extension is already talking to us, steps 1 and 2 are facts, not questions. */
+    function obSyncFromExtension() {
+      if (!_extensionConnected) return;
+      // The load-time probe can answer before boot has restored saved progress. Acting now
+      // would render state that obRestore() then overwrites, so let boot make the call — it
+      // invokes this once itself, after restoring.
+      if (!_obBooted) return;
+      // Critically: stay out of the way of a sequence that's already running. The extension
+      // answers almost instantly, so without this the connected event lands mid-rail and slams
+      // it to all-green — throwing away the paced reveal that is the entire point of step 2.
+      // When the rail is running it owns both the rail and step 2's completion.
+      if (_connectSequenceActive) return;
+      const advance = !_obDone.has(1) || !_obDone.has(2);
+      _obDone.add(1);
+      _obDone.add(2);
+      _obRan.add(2);            // don't replay the rail for a connection that predates it
+      setConnectRail('find', 'ok');
+      setConnectRail('link', 'ok');
+      setConnectRail('ready', 'ok');
+      if (advance) obGoTo(3); else obRender();
+    }
+    document.addEventListener('interview-ace:connected', obSyncFromExtension);
+
+    // ── Step 2: the connect rail ────────────────────────────────────────────
+    function setConnectRail(stage, state) {
+      const el = document.querySelector(`.ob-cr-step[data-stage="${stage}"]`);
+      if (!el) return;
+      el.classList.remove('is-running', 'is-ok');
+      if (state === 'running') el.classList.add('is-running');
+      if (state === 'ok') el.classList.add('is-ok');
+    }
+
+    let _connectSequenceActive = false;
+
+    async function runConnectSequence() {
+      _connectSequenceActive = true;
+      setConnectRail('find', 'running');
+      // Hold each stage past the point it resolves — the handshake is near-instant, and the
+      // whole purpose of this step is that the user sees it happen.
+      const [found] = await Promise.all([waitForExtension(6000), _sleep(900)]);
+      if (!found) {
+        // Nothing found: fall back to the manual card exactly as before, and leave step 2
+        // open and incomplete rather than waving the user past a connection they don't have.
+        // Releasing the flag first hands the rail back, so a later manual connect can sync.
+        _connectSequenceActive = false;
+        document.getElementById('connect-auto').style.display = 'none';
+        document.getElementById('connect-manual').style.display = 'block';
+        return;
+      }
+      setConnectRail('find', 'ok');
+      setConnectRail('link', 'running');
+      await _sleep(950);
+      setConnectRail('link', 'ok');
+      setConnectRail('ready', 'running');
+      await _sleep(650);
+      setConnectRail('ready', 'ok');
+      await _sleep(450);
+      _connectSequenceActive = false;
+      obComplete(2);
+    }
+
+    // ── Step 3: audio ───────────────────────────────────────────────────────
+    // Mic permission lives at the extension's own chrome-extension:// origin, so nothing this
+    // page does can read or set it directly — it's all relayed through content.js. Nothing
+    // writes mic_status when the browser-level permission changes elsewhere either (granting it
+    // in another tab, revoking it from chrome://settings), so this re-queries on focus, the
+    // natural moment right after such a change. Same approach /app already uses for its LED.
+    let _micSeen = false;
+    let _micGranted = false;
+    let _awaitingMicReturn = false;
+
+    /* One-shot ring on a status LED at the moment it turns green. The hold gives the user time
+       to look; this gives them a reason to — the eye is drawn by the change, not the colour. */
+    function obConfirmLed(id) {
+      const led = document.getElementById(id);
+      if (!led) return;
+      led.classList.remove('confirm');
+      void led.offsetWidth;        // restart the animation if it's already been played once
+      led.classList.add('confirm');
+    }
+
+    function obSetMicUi(state, msg) {
+      const led = document.getElementById('ob-mic-led');
+      const btn = document.getElementById('ob-mic-btn');
+      led.className = 'ob-mic-led ' + state;
+      document.getElementById('ob-mic-msg').textContent = msg;
+      document.getElementById('ob-mic-denied-help').hidden = state !== 'bad';
+      btn.hidden = state === 'ok';
+    }
+
+    document.addEventListener('interview-ace:mic-status', (e) => {
+      _micSeen = true;
+      const state = (e.detail && e.detail.state) || 'prompt';
+      if (state === 'granted') {
+        obSetMicUi('ok', 'Microphone allowed.');
+        // Only advances once the extension is actually connected. content.js replays whatever
+        // mic_status is already in storage on page load, so without this guard a user who
+        // granted the mic in an earlier session would have step 3 auto-complete on arrival —
+        // jumping them past install and connect, which they may not have done on this machine.
+        if (!_micGranted && _obBooted && _obDone.has(2)) {
+          _micGranted = true;
+          // Waits for step 3 to actually be on screen before confirming and advancing: the mic
+          // can be granted before the user ever gets here, and a step completed off-screen shows
+          // them nothing.
+          obWhenOpen(3, () => {
+            obConfirmLed('ob-mic-led');
+            obComplete(3, OB_HOLD_MS);
+          });
+        }
+      } else if (state === 'denied') {
+        obSetMicUi('bad', 'Microphone blocked by Chrome.');
+      } else if (state === 'error') {
+        obSetMicUi('bad', "Microphone isn't working — check one is plugged in.");
+      } else {
+        obSetMicUi('warn', 'Not allowed yet.');
+      }
+    });
+
+    function obInitAudio() {
+      // Same injection race as the connect dispatch: content.js may not be listening yet.
+      obRetryDispatch('interview-ace:mic-check', () => _micSeen);
+      setTimeout(() => {
+        if (!_micSeen) obSetMicUi('warn', 'Waiting for the extension — connect it first.');
+      }, 2000);
+    }
+
+    /* Generic version of _retryConnectDispatch for events that carry no payload. */
+    function obRetryDispatch(name, isSeen) {
+      let attempts = 0;
+      document.dispatchEvent(new CustomEvent(name));
+      const timer = setInterval(() => {
+        if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
+        document.dispatchEvent(new CustomEvent(name));
+      }, 200);
+    }
+
+    function obGrantMic() {
+      _awaitingMicReturn = true;
+      const btn = document.getElementById('ob-mic-btn');
+      btn.disabled = true;
+      btn.textContent = 'Opening permission tab…';
+      // Opens grant-mic.html in a new tab. grant-mic.js reports straight back to the background
+      // worker on success, so this page usually updates before the user even returns.
+      document.dispatchEvent(new CustomEvent('interview-ace:mic-grant'));
+      setTimeout(() => { btn.disabled = false; btn.textContent = 'Allow microphone access'; }, 2500);
+    }
+
+    // Re-query on return, covering both the grant tab closing and a change made in
+    // chrome://settings. Shares the listener with step 1's Web Store return.
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      if (_awaitingMicReturn || _obDone.has(2)) {
+        _awaitingMicReturn = false;
+        _micSeen = false;
+        obRetryDispatch('interview-ace:mic-check', () => _micSeen);
+      }
+    });
+
+    function obCopyMicSettings(btn) {
+      // chrome:// URLs can't be navigated to from a page, and the extension id isn't readable
+      // from here — content.js hands the URL back so it can be pasted.
+      document.addEventListener('interview-ace:mic-settings-link-result', (e) => {
+        navigator.clipboard.writeText(e.detail.url).then(() => {
+          const orig = btn.textContent;
+          btn.textContent = 'Copied — paste in a new tab';
+          btn.classList.add('copied');
+          setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2200);
+        });
+      }, { once: true });
+      document.dispatchEvent(new CustomEvent('interview-ace:mic-settings-link'));
+    }
+
+    // Step 4 can't arm replay itself — that needs chrome.tabCapture on a tab the extension has
+    // been invoked on, i.e. the popup. So the page teaches the gesture and watches for the
+    // result, which is also the confirmation the user needs on the day.
+    let _replayArmedOnce = false;
+
+    document.addEventListener('interview-ace:replay-status', (e) => {
+      const state = (e.detail && e.detail.state) || 'idle';
+      const led = document.getElementById('ob-replay-led');
+      const msg = document.getElementById('ob-replay-msg');
+      const MAP = {
+        armed:           ['ok',   'Armed' + (e.detail.tabTitle ? ' on: ' + e.detail.tabTitle : '') + '.'],
+        arming:          ['warn', 'Arming…'],
+        error:           ['bad',  e.detail.errorMsg || 'Could not capture that tab — try locking again.'],
+        'stream-ended':  ['bad',  'Lock dropped — that tab closed or navigated away.'],
+        idle:            ['',     'Not armed yet.'],
+      };
+      const [cls, text] = MAP[state] || MAP.idle;
+      led.className = 'ob-mic-led ' + cls;
+      msg.textContent = text;
+      // Arming once is the whole lesson, so that completes the step. Same guard as the mic:
+      // content.js replays the stored status on page load, and a lock left over from an earlier
+      // session mustn't tick off a step the user hasn't reached. A later drop doesn't un-do it —
+      // they've proved they can do it, and the lock is expected to be redone on the day anyway.
+      if (state === 'armed' && !_replayArmedOnce && _obBooted && _obDone.has(3)) {
+        _replayArmedOnce = true;
+        // Longer hold than the mic: this line names the tab it locked onto, which is the bit
+        // worth reading — it's how you catch having locked the wrong tab.
+        obWhenOpen(4, () => {
+          obConfirmLed('ob-replay-led');
+          obComplete(4, OB_HOLD_MS + 400);
+        });
+      }
+    });
 
     function connectExtension() {
       const btn = document.getElementById('connect-btn');
@@ -310,7 +827,11 @@
       document.getElementById('qr-expired-overlay').style.display = 'none';
       document.getElementById('qr-hint').textContent = 'Generating secure link…';
       document.getElementById('qr-timer').textContent = '';
+      document.getElementById('qr-timer').classList.remove('expired');
       document.getElementById('qr-footer').style.display = 'none';
+      // This function is also the Refresh handler, so put the button back out of sight for
+      // the new link's countdown — otherwise it stays visible from the previous expiry.
+      document.getElementById('qr-refresh-btn').hidden = true;
 
       try {
         const resp = await fetch('/api/onboarding/mobile-link', { method: 'POST' });
@@ -340,6 +861,7 @@
             _mobileUrl = null;
             timerEl.textContent = 'Link expired — click Refresh to get a new one';
             timerEl.classList.add('expired');
+            document.getElementById('qr-refresh-btn').hidden = false;
             document.getElementById('qr-expired-overlay').style.display = 'flex';
           } else {
             timerEl.textContent = fmt(secs);
@@ -360,7 +882,15 @@
       });
     }
 
-    initMobileLink();
+    // ── Boot ────────────────────────────────────────────────────────────────
+    // Restore before first render so a trip out to /install-manual (a real navigation, not a
+    // new tab) comes back to the step the user was on rather than the top of the page.
+    obRestore();
+    _obBooted = true;
+    obRender();
+    obEnter(_obOpen);
+    // Covers the extension answering the load-time probe before we got here.
+    obSyncFromExtension();
 
     // ── Device flow ─────────────────────────────────────────────────────────
     async function _completeMove() {

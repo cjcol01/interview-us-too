@@ -321,6 +321,7 @@ let _miSelectedStyle = MI_DEFAULT_STYLE;
 let _miCurrentAnswerBeat = null; // the beat whose answer is currently on screen, if any
 let _miContinueTimer = null;     // the pending "wrap up this answer and move on" timer
 let _miStyleToastShown = false;  // only explain the switcher once per call
+let _miDemoToastShown = false;   // only explain the laptop/phone split once per call
 
 function miAnswerTextFor(beat) {
   if (_miSelectedStyle === MI_DEFAULT_STYLE) return beat.answer;
@@ -342,6 +343,22 @@ function miShowStyleToast() {
 
 function miDismissStyleToast() {
   document.getElementById('mi-style-toast').classList.remove('active');
+}
+
+// Mobile-only, once per call: the hotkey nudge that normally explains this is desktop-only
+// (it points across a gap the stacked layout doesn't have), so on a phone nothing otherwise
+// says that the real interaction is a keypress on your laptop and the phone is just where
+// the answer lands. Fires with the first phone pop-up; CSS keeps it hidden above 900px. No
+// timer and no dismiss on the phone dropping — it's the one explainer a phone visitor gets,
+// so it rides with the rail for the rest of the call and only clears on a replay.
+function miShowDemoToast() {
+  if (_miDemoToastShown) return;
+  _miDemoToastShown = true;
+  document.getElementById('mi-demo-toast').classList.add('active');
+}
+
+function miDismissDemoToast() {
+  document.getElementById('mi-demo-toast').classList.remove('active');
 }
 
 // The switcher is only meaningful while this answer is still the thing on screen being
@@ -499,6 +516,8 @@ function miResetCallState() {
   _miCurrentAnswerBeat = null;
   _miStyleToastShown = false;
   miDismissStyleToast();
+  _miDemoToastShown = false;
+  miDismissDemoToast();
   miSyncStylePills();
   document.getElementById('mi-style-switch').classList.remove('mi-style-locked');
 }
@@ -628,6 +647,7 @@ function miShowNeedHelp(beat) {
 
   btnEl.style.display = '';
   btnEl.textContent = 'Send to AI';
+  btnEl.classList.remove('mi-nh-jump');
   row.classList.remove('active');
   field.textContent = '';
   field.classList.remove('sent');
@@ -635,7 +655,13 @@ function miShowNeedHelp(beat) {
   miShowPhonePanel('mi-need-help');
   miShowHotkeyNudge(beat);
   // Let the phone sit at a peek for a beat first, then pop up to take focus.
-  miAfter(1000, () => miPhoneFocus(true));
+  miAfter(1000, () => {
+    miPhoneFocus(true);
+    miShowDemoToast();
+  });
+  // Shortly after that the button starts hopping — but only if this beat is still waiting
+  // on it, so a press inside that window doesn't leave it twitching.
+  miAfter(1500, () => { if (_miAwaitingBeat === beat) btnEl.classList.add('mi-nh-jump'); });
 }
 
 // Typing beat: pressing the hotkey (or the button) opens the typing box and autotypes the
@@ -725,6 +751,7 @@ function miTrigger(typedText) {
   const beat = _miAwaitingBeat;
   _miAwaitingBeat = null;
   miDismissHotkeyNudge();
+  document.getElementById('mi-nh-btn').classList.remove('mi-nh-jump');
 
   if (beat.hotkeyKey === 'typing') {
     miStartTyping(beat);
@@ -811,7 +838,9 @@ function miScheduleContinueAfterAnswer(beat) {
     miPhoneFocus(false);
     miAfter(600, () => {                 // let the drop animation settle first
       miSpeak(beat.youReply, 'you', () => {
-        miAfter(900, () => {
+        // 900ms of natural gap once the candidate's relay finishes streaming, plus a 750ms
+        // beat on top so the interviewer doesn't come in on the tail of their answer.
+        miAfter(1650, () => {
           const hasNext = _miIndex + 1 < MI_BEATS.length;
           if (hasNext) {
             miSpeak('Great — next question…', 'interviewer', () => miAfter(2100, miNextBeat));

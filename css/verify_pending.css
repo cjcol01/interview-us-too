@@ -51,7 +51,32 @@
   font-size: 14.5px;
   color: var(--text-2);
   line-height: 1.6;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
+}
+/* Live status line for the verify poll — reassures the user this tab is actually watching,
+   rather than looking like it's stalled while they go and click the link on their phone. */
+.vp-waiting {
+  font-size: 12.5px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text-3);
+  margin: 0 0 22px;
+}
+.vp-waiting::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  margin-right: 7px;
+  vertical-align: middle;
+  animation: vp-pulse 1.4s ease-in-out infinite;
+}
+.vp-waiting.ok { color: #5ecc6e; }
+.vp-waiting.ok::before { background: #5ecc6e; animation: none; }
+@keyframes vp-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .vp-waiting::before { animation: none; opacity: .7; }
 }
 .email {
   color: var(--accent);

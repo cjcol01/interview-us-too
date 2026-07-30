@@ -21,6 +21,11 @@ function requestMic() {
       deniedHelp.classList.add('hidden');
       statusEl.textContent = 'Permission granted — you can close this tab.';
       statusEl.className = 'status ok';
+      // Tell the background worker directly rather than leaving it to re-query later: this
+      // reuses the handler that keeps _micState, storage and the server's ext-status in step,
+      // and it means any open /onboarding or /app tab flips to "granted" while this tab is
+      // still on screen instead of only once it regains focus.
+      chrome.runtime.sendMessage({ type: 'mic-permission-result', state: 'granted' });
       setTimeout(() => window.close(), 1500);
     })
     .catch(e => {

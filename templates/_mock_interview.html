@@ -11,7 +11,7 @@
             <span class="mi-lobby-cam-off-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121M2 2l20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175m2.879-2.801A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg></span>
             <span class="mi-lobby-cam-off-text">Camera off — this walkthrough doesn't use your camera or mic</span>
           </div>
-          <div class="mi-lobby-cam-chip">You &middot; camera off</div>
+          <div class="mi-lobby-cam-chip">You &middot; Mic & camera off</div>
           <div class="mi-lobby-cam-ctrls">
             <span class="mi-ctrl-dot mi-ctrl-dot-off" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m3-12.66V5a3 3 0 0 0-5.68-1.33m7.63 13.28A7 7 0 0 1 5 12v-2m13.89 3.23A7 7 0 0 0 19 12v-2M2 2l20 20"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/></svg></span>
             <span class="mi-ctrl-dot mi-ctrl-dot-off" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121M2 2l20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175m2.879-2.801A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg></span>
@@ -127,6 +127,14 @@
       </div>
 
       <div class="mi-call-right">
+        <!-- Stacked-layout stand-in for .mi-hotkey-nudge, which is desktop-only. Lives inside
+             the phone rail so it always sits directly above the bezel whatever height that
+             ends up. Shown once, the first time the phone rises — see miShowDemoToast. -->
+        <div class="mi-demo-toast" id="mi-demo-toast">
+          <p>Normally you press a hotkey on your laptop and the answer appears only here. In the demo, tap <strong>Send to AI</strong>.</p>
+          <span class="mi-demo-toast-arrow" aria-hidden="true"></span>
+        </div>
+
         <div class="mi-phone">
           <div class="mi-phone-bezel">
             <div class="mi-phone-header">

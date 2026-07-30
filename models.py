@@ -49,6 +49,10 @@ class User(Base):
     reset_token_expiry = Column(DateTime, nullable=True)
     setup_complete     = Column(Boolean, default=False, nullable=False)
     welcome_seen       = Column(Boolean, default=False, nullable=False)
+    # Deliberately server-side, not localStorage: onboarding's whole point is to move the
+    # user to a second device, and a per-device flag means the phone replays the mock call
+    # instead of showing the "Start 10-minute trial" button step 4 promised them.
+    tutorial_seen      = Column(Boolean, default=False, nullable=False, server_default="0")
     sessions_remaining = Column(Integer, default=0, nullable=False, server_default="0")
     intro_redeemed     = Column(Boolean, default=False, nullable=False, server_default="0")
     intro_declined     = Column(Boolean, default=False, nullable=False, server_default="0")

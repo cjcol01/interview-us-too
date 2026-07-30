@@ -579,6 +579,15 @@
    hotkey nudge / answer is shown. Driven by miShowPhonePanel() toggling
    .mi-phone-focus. Desktop (>=900px) split layout is unaffected. */
 @media (max-width: 899px) {
+  .mi-call { --mi-peek: 74px; }
+  /* The stored phone peeks into a band reserved at the foot of the control bar, so the
+     buttons sit above it instead of behind it. The band is part of the bar itself, so the
+     colour around the peeking bezel is unchanged. Once the phone rises it covers the bar —
+     deliberately: the phone is the whole point at that moment, and it drops again after. */
+  .mi-controlbar {
+    height: auto;
+    padding: 12px 0 calc(12px + var(--mi-peek));
+  }
   .mi-call-right {
     position: absolute;
     left: 0; right: 0; bottom: 0;
@@ -586,7 +595,7 @@
     padding: 0 12px;
     background: transparent;
     pointer-events: none;                 /* peeking: let taps reach the call */
-    transform: translateY(calc(100% - 74px));   /* only the phone header peeks */
+    transform: translateY(calc(100% - var(--mi-peek)));   /* only the phone header peeks */
     transition: transform .45s cubic-bezier(.22, 1, .36, 1);
   }
   .mi-call-right.mi-phone-focus {
@@ -690,6 +699,17 @@
   transition: background .15s;
 }
 .mi-nh-btn:hover { background: rgba(198,242,78,0.12); }
+
+/* Nudges the eye once "Need help?" has been sitting there unpressed, for anyone who hasn't
+   spotted that the button is the thing to press. Cleared the moment it's used — see
+   miShowNeedHelp. The hop itself keeps the ~500ms of .mi-leave-jump, but sits in a 2.4s
+   cycle so there's a clear rest between bounces rather than a constant jitter. */
+.mi-nh-btn.mi-nh-jump { animation: mi-nh-jump 2.4s ease-in-out infinite; }
+@keyframes mi-nh-jump {
+  0%, 21%, 100% { transform: translateY(0); }
+  12% { transform: translateY(-7px); }
+}
+@media (prefers-reduced-motion: reduce) { .mi-nh-btn.mi-nh-jump { animation: none; } }
 
 .mi-typing-row { display: none; margin-top: 14px; }
 .mi-typing-row.active { display: block; animation: mi-pop .3s cubic-bezier(.2,.8,.2,1); }
@@ -926,6 +946,49 @@
 }
 .mi-done-actions .mi-btn-ghost:hover { color: #ECECEE; border-color: rgba(255,255,255,0.24); }
 @media (max-width: 480px) { .mi-done-actions { flex-direction: column-reverse; } .mi-done-actions .mi-btn-ghost { width: 100%; } }
+
+/* ================= Demo toast (small screens only) ================= */
+/* Counterpart to the desktop-only hotkey nudge below — same panel, border, shadow and pop,
+   just compact like .mi-style-toast and with the arrow turned to point down at the phone.
+   Sits above the bezel (bottom: 100% of the phone rail, so it tracks whatever height the
+   bezel settles at) and is free to overlap the call topbar on short viewports. Unlike the
+   other two it has no auto-dismiss — it stays up for the rest of the call. */
+.mi-demo-toast { display: none; }
+@media (max-width: 899px) {
+  .mi-demo-toast {
+    display: block;
+    position: absolute;
+    bottom: calc(100% + 9px);             /* clear of the bezel, room for the arrow */
+    left: 0; right: 0;
+    z-index: 30;
+    background: rgba(14,14,18,0.94);
+    border: 1px solid rgba(198,242,78,0.32);
+    border-radius: 12px;
+    padding: 10px 12px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    opacity: 0;
+    pointer-events: none;                 /* never in the way of the phone underneath */
+    transition: opacity .2s ease;
+  }
+  .mi-demo-toast.active { opacity: 1; animation: mi-pop .3s cubic-bezier(.2,.8,.2,1); }
+}
+.mi-demo-toast p { font-size: 12px; line-height: 1.45; color: #ECECEE; margin: 0; }
+.mi-demo-toast strong { color: #C6F24E; font-weight: 600; }
+/* Same square-with-two-borders trick as .mi-hotkey-nudge-arrow, rotated +90° so the corner
+   points down at the phone rather than sideways at the rail. */
+.mi-demo-toast-arrow {
+  position: absolute;
+  bottom: -7px; left: 50%;
+  width: 12px; height: 12px;
+  background: rgba(14,14,18,0.94);
+  border-right: 1px solid rgba(198,242,78,0.32);
+  border-bottom: 1px solid rgba(198,242,78,0.32);
+  transform: translateX(-50%) rotate(45deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mi-demo-toast { transition: none; }
+  .mi-demo-toast.active { animation: none; }
+}
 
 /* ================= Hotkey nudge (points at the phone) ================= */
 /* Desktop-only: it points across the gap at the fixed-width phone rail, which only exists

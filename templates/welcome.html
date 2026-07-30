@@ -20,12 +20,22 @@
       <h1>You're in, {{ first_name }}. Here's what it looks like.</h1>
       <p>A 60-second simulated interview call so you can see InterviewAce in action before you set anything up.</p>
     </div>
-    <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding">Skip the demo — go straight to setup →</a></p>
+    <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding" onclick="return wSkipDemo(event)">Skip the demo — go straight to setup →</a></p>
   </main>
 
   {% include "_mock_interview.html" %}
   <script src="/static/js/mock_interview.js"></script>
   <script>
+    // This link leaves the page without going through miClose(), so it has to record the
+    // demo as seen itself — otherwise "skip the demo" means the demo ambushes you on /app
+    // instead, which is the opposite of what the user just asked for.
+    async function wSkipDemo(e) {
+      e.preventDefault();
+      try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
+      window.location.href = '/onboarding';
+      return false;
+    }
+
     window.MI_HOTKEYS = {
       capture: '{{ capture }}',
       audio:   '{{ audio }}',
@@ -37,13 +47,11 @@
     window.MI_FIRST_RUN_CTA_LABEL = 'Start setup →';
     window.MI_SKIP_DONE_SCREEN = true;
     window.MI_ON_FIRST_RUN_FINISH = async function () {
-      // Mark the tutorial seen so index.html's initTrial() doesn't replay the
-      // simulated call again on first visit to /app after onboarding.
-      try {
-        const r = await fetch('/api/trial/status');
-        const d = await r.json();
-        if (d.user_id) localStorage.setItem('ia_tutorial_v1_' + d.user_id, '1');
-      } catch {}
+      // Mark the tutorial seen so index.html's initTrial() doesn't replay the simulated
+      // call on first visit to /app after onboarding. Server-side, not localStorage —
+      // onboarding step 4 sends the user to a *different device*, where a per-device flag
+      // is always empty.
+      try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
       window.location.href = '/welcome/next';
     };
     openMockInterview(true);

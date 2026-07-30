@@ -660,12 +660,45 @@ def register(test, skip, client):
             db.query(User).filter(User.username == uname).delete()
             db.commit(); db.close()
 
-    def test_verify_invalid_token_returns_400():
-        r = client.get("/verify?token=notarealtoken")
-        assert r.status_code == 400
+    def test_verify_spent_token_redirects_to_login():
+        # A spent token (double-click, or an email client prefetching the link) is by far the
+        # likeliest reason for a miss here, and it used to 400 with a bare error page. It now
+        # lands on /login with an explanation that holds whether the link was spent or bogus.
+        r = client.get("/verify?token=notarealtoken", follow_redirects=False)
+        assert r.status_code in (302, 303, 307), r.status_code
+        assert "/login?error=verify_link_used" in r.headers["location"], r.headers["location"]
+
+    def test_verify_valid_token_signs_the_clicking_device_in():
+        # The device holding the email is often not the one that signed up, so /verify has to
+        # issue a session itself — otherwise its destination bounces to a bare /login.
+        import secrets as sec
+        from auth import hash_password
+        db = SessionLocal()
+        tag = sec.token_hex(4)
+        uname = f"_verifycookie_{tag}"
+        verify_tok = sec.token_urlsafe(32)
+        try:
+            u = User(
+                username=uname, email=f"{uname}@test.internal",
+                full_name="V", password_hash=hash_password("pass12345"),
+                account_level=AccountLevel.trial,
+                verify_token=verify_tok,
+            )
+            db.add(u); db.commit()
+            r = client.get(f"/verify?token={verify_tok}", follow_redirects=False)
+            assert "session" in r.cookies, dict(r.cookies)
+            # And that session must actually work — a cookie that doesn't authenticate would
+            # land them right back on /login, which is the whole bug this closes.
+            status = client.get("/api/verify-status", cookies={"session": r.cookies["session"]})
+            assert status.status_code == 200, status.status_code
+            assert status.json()["verified"] is True, status.json()
+        finally:
+            db.query(User).filter(User.username == uname).delete()
+            db.commit(); db.close()
 
     test("GET /verify: valid token marks verified + redirects",  test_verify_valid_token_sets_verified_and_redirects)
-    test("GET /verify: invalid token → 400",                     test_verify_invalid_token_returns_400)
+    test("GET /verify: spent/invalid token → /login notice",     test_verify_spent_token_redirects_to_login)
+    test("GET /verify: signs in the device that clicked",        test_verify_valid_token_signs_the_clicking_device_in)
 
     # -- GET /app redirect logic ---------------------------------------------
 

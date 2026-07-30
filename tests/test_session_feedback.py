@@ -2,7 +2,7 @@
 
 Uses the custom harness (not pytest): export register(test, skip, client).
 """
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 from auth import create_token
@@ -14,6 +14,15 @@ from tests.test_admin import _make_admin_cookie
 
 def _cookie(user):
     return create_token(user.id)
+
+
+def _utc_today():
+    """The server validates and sweeps interview dates against datetime.utcnow().date(), so the
+    tests have to reckon from the same clock. Using date.today() here made "yesterday" and
+    "tomorrow" mean different days to the test and to the server whenever the machine's local
+    date was ahead of UTC — so these tests failed for the hour after local midnight in BST, and
+    would fail far more widely anywhere further east."""
+    return datetime.utcnow().date()
 
 
 def register(test, skip, client):
@@ -75,7 +84,7 @@ def register(test, skip, client):
         u = None
         try:
             u = make_user(db, AccountLevel.paid)
-            tomorrow = (date.today() + timedelta(days=1)).isoformat()
+            tomorrow = (_utc_today() + timedelta(days=1)).isoformat()
             r = client.post(
                 "/api/session/feedback",
                 json={"rating": 3, "next_interview_date": tomorrow},
@@ -95,7 +104,7 @@ def register(test, skip, client):
         u = None
         try:
             u = make_user(db, AccountLevel.paid)
-            tomorrow = date.today() + timedelta(days=1)
+            tomorrow = _utc_today() + timedelta(days=1)
             u.interview_date = tomorrow
             u.interview_reminder_sent = True
             db.commit()
@@ -117,7 +126,7 @@ def register(test, skip, client):
         u = None
         try:
             u = make_user(db, AccountLevel.paid)
-            yesterday = (date.today() - timedelta(days=1)).isoformat()
+            yesterday = (_utc_today() - timedelta(days=1)).isoformat()
             r = client.post(
                 "/api/session/feedback",
                 json={"rating": 2, "next_interview_date": yesterday},
@@ -134,7 +143,7 @@ def register(test, skip, client):
         u = None
         try:
             u = make_user(db, AccountLevel.paid)
-            u.interview_date = date.today() + timedelta(days=1)
+            u.interview_date = _utc_today() + timedelta(days=1)
             u.interview_reminder_sent = False
             db.commit()
             with patch("server.send_interview_reminder_email") as mock_send:
@@ -154,7 +163,7 @@ def register(test, skip, client):
         try:
             u = make_user(db, AccountLevel.paid)
             # Today's date should still be caught by the widened range check
-            u.interview_date = date.today()
+            u.interview_date = _utc_today()
             u.interview_reminder_sent = False
             db.commit()
             with patch("server.send_interview_reminder_email") as mock_send:

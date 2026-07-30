@@ -282,6 +282,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     sendExtStatus();
   } else if (msg.type === 'check-mic-permission') {
     checkMicPermission();
+  } else if (msg.type === 'open-mic-grant') {
+    openGrantMicTab();
   } else if (msg.type === 'mic-permission-result') {
     _micState = msg.state;
     chrome.storage.local.set({ mic_status: { state: msg.state } }).catch(() => {});

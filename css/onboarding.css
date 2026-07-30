@@ -142,30 +142,203 @@
 .ob-sideload-link:hover { opacity: .75; }
 
 /* ── Extension connect ── */
-.ob-connect-auto {
+/* ── Step states: one step open at a time ──
+   The numerals stay numerals in every state — this is a genuine sequence with real
+   dependencies, so a step's position is information worth keeping. What changes is weight:
+   solid accent for the step you're on, a quiet outline once it's behind you, flat grey while
+   it's still out of reach. */
+.ob-step-card { transition: opacity .3s ease, border-color .3s ease; }
+.ob-step-card .ob-step-inner { display: none; }
+.ob-step-card.is-active .ob-step-inner { display: block; }
+/* Must stay below the .is-active rule — identical specificity, so source order is what lets the
+   fade win. Still display:block here: the card only flips to display:none once the fade has run,
+   which keeps finished steps out of the tab order without making the close abrupt. */
+.ob-step-card.is-collapsing .ob-step-inner {
+  display: block;
+  opacity: 0;
+  transition: opacity .26s ease;
+}
+.ob-step-card.is-active { border-color: var(--accent-line); }
+.ob-step-card.is-locked { opacity: .42; }
+.ob-step-card.is-locked .ob-step-num { background: var(--line-strong); color: var(--text-3); }
+.ob-step-card.is-done:not(.is-active) { cursor: pointer; }
+.ob-step-card.is-done .ob-step-num {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+/* Collapsed result line. Beats specificity of `.ob-step-body p` so a closed card doesn't
+   carry that rule's trailing margin as dead space. */
+.ob-step-body p.ob-step-state {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 0;
+}
+.ob-step-body p.ob-step-state::before { content: '✓ '; }
+
+/* Manual "I've already done this" out on the auto-detected steps. */
+.ob-step-alt {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 12px;
+  color: var(--text-3);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color .15s;
+}
+.ob-step-alt:hover { color: var(--text-1); }
+.ob-step-alt:focus-visible,
+.ob-qr-refresh-btn:focus-visible,
+.ob-start-here-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.ob-step-body p.ob-await-return {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text-3);
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+/* ── Audio steps: microphone (3) and instant replay (4) ──
+   Separate cards because they're separate kinds of task: one is a permission this page can
+   trigger, the other is a gesture only the extension popup can perform. This tag rides inside
+   the replay step's <h2> so "optional" is read at the same moment as the heading — nobody
+   should think they're blocked on the step they can choose to skip. */
+.ob-audio-opt {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: .07em;
+  vertical-align: 2px;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  color: var(--text-3);
+  border: 1px solid var(--line-strong);
+}
+
+/* Shared live-state line for the mic and replay steps. */
+.ob-mic-state {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 2px 0;
+  gap: 9px;
+  margin: 10px 0;
 }
-.ob-connect-auto-dot {
+.ob-mic-led {
+  position: relative;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--text-3);
+  background: var(--line-strong);
   flex-shrink: 0;
-  animation: ob-connect-pulse 1.4s ease-in-out infinite;
+  transition: background .25s ease, box-shadow .25s ease;
 }
-.ob-connect-auto.ok .ob-connect-auto-dot {
+/* Single ring at the moment a check turns green. The hold gives the user time to look — this is
+   what makes them look, since a colour change alone is easy to miss on a glance-away. */
+.ob-mic-led.confirm::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: ob-led-ring .62s ease-out 1;
+}
+@keyframes ob-led-ring {
+  from { transform: scale(.5); opacity: .85; }
+  to   { transform: scale(2);  opacity: 0; }
+}
+.ob-mic-led.ok   { background: var(--accent); box-shadow: 0 0 6px rgba(198,242,78,.45); }
+.ob-mic-led.warn { background: #d8a13a; animation: ob-connect-pulse 1.4s ease-in-out infinite; }
+.ob-mic-led.bad  { background: var(--danger); }
+.ob-mic-msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+
+.ob-replay-howto {
+  margin: 8px 0 10px;
+  padding-left: 18px;
+}
+.ob-replay-howto li {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ob-mic-led.warn { animation: none; }
+  /* Drop the ring and the fade, but keep the hold — that's timing, not motion, and it's the
+     part that actually makes the confirmation readable. */
+  .ob-mic-led.confirm::after { animation: none; opacity: 0; }
+  .ob-step-card.is-collapsing .ob-step-inner { transition: none; }
+}
+
+/* ── Connect rail ──
+   The one place on this page worth a moment of choreography: it's where the extension and the
+   account stop being two separate things the user set up and become one working system. Dots
+   fill top to bottom and the hairline between them lights as each stage lands, so the link is
+   something you watch arrive rather than a line of text asserting it happened. */
+.ob-connect-auto { display: block; padding: 2px 0; }
+.ob-connect-rail { list-style: none; margin: 0; padding: 0; }
+.ob-cr-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 30px;
+}
+.ob-cr-step + .ob-cr-step::before {
+  content: '';
+  position: absolute;
+  left: 5px;              /* centre line of the 11px dot */
+  top: -10px;
+  width: 1px;
+  height: 20px;
+  background: var(--line-strong);
+  transition: background .45s ease;
+}
+/* Fills the connector below a stage that has landed. */
+.ob-cr-step.is-ok + .ob-cr-step::before { background: var(--accent-line); }
+.ob-cr-dot {
+  position: relative;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
+  flex-shrink: 0;
+  transition: border-color .25s ease, background .25s ease, box-shadow .25s ease;
+}
+.ob-cr-step.is-running .ob-cr-dot {
+  border-color: var(--accent);
+  animation: ob-connect-pulse 1.2s ease-in-out infinite;
+}
+.ob-cr-step.is-ok .ob-cr-dot {
+  border-color: var(--accent);
   background: var(--accent);
-  box-shadow: 0 0 6px rgba(198,242,78,.5);
+  box-shadow: 0 0 7px rgba(198,242,78,.45);
   animation: none;
 }
-.ob-connect-auto-msg { font-size: 13.5px; color: var(--text-2); }
-.ob-connect-auto.ok .ob-connect-auto-msg { color: var(--accent); font-weight: 600; }
+.ob-cr-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-3);
+  transition: color .25s ease;
+}
+.ob-cr-step.is-running .ob-cr-label { color: var(--text-2); }
+.ob-cr-step.is-ok .ob-cr-label { color: var(--accent); }
 @keyframes ob-connect-pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .ob-connect-auto-dot { animation: none; }
+  .ob-cr-step.is-running .ob-cr-dot { animation: none; opacity: .8; }
+  .ob-step-card { transition: none; }
 }
 
 .ob-connect-wrap { display: flex; flex-direction: column; gap: 8px; }
@@ -474,6 +647,14 @@ kbd {
   color: var(--text-3);
   line-height: 1.4;
 }
+/* Always-visible secondary option under the full-width "I'm on my phone" button, so it's
+   centred beneath it rather than left-aligned as it was when it lived inside the
+   post-moved flex column. */
+.ob-start-here-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
 .ob-start-here-btn {
   background: none;
   border: none;
@@ -482,7 +663,7 @@ kbd {
   font-family: 'Hanken Grotesk', sans-serif;
   font-size: 13px;
   padding: 0;
-  text-align: left;
+  text-align: center;
   text-decoration: underline;
   text-underline-offset: 2px;
   transition: color .15s;

@@ -119,6 +119,12 @@ SIDELOAD_ZIP_URL = os.getenv(
     "https://cdn.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interviewace-extension.zip",
 )
 
+# 32-char Chrome Web Store item ID of the published extension (the last path segment of its
+# listing URL). Set this once the extension is live and /admin/health will watch the listing
+# and flag a takedown/unpublish — see _check_webstore in server.py. Left unset, that check
+# reports "not configured" instead of guessing at an ID.
+WEBSTORE_EXTENSION_ID = os.getenv("WEBSTORE_EXTENSION_ID", "")
+
 # --- Dev-only settings: review/change before deploying to production -------
 # SKIP_EMAIL_VERIFICATION: when "1", new accounts are marked verified on signup
 # and no verification email is sent. Convenient for local dev; must be unset

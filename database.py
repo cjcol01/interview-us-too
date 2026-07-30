@@ -105,11 +105,13 @@ def init_db():
             ("google_id",              "VARCHAR"),
             ("github_id",              "VARCHAR"),
             ("welcome_seen",            "BOOLEAN DEFAULT 0"),
+            ("tutorial_seen",           "BOOLEAN DEFAULT 0"),
             ("interview_date",          "DATE"),
             ("interview_reminder_sent", "BOOLEAN DEFAULT 0"),
             ("password_set",            "BOOLEAN DEFAULT 1"),
         ]
         welcome_seen_is_new = "welcome_seen" not in existing
+        tutorial_seen_is_new = "tutorial_seen" not in existing
         _add_missing_columns(conn, inspector, "users", migrations)
         # leads has no columns yet needing an ALTER — create_all() covers a brand-new table
         # in full. Kept here (empty) so the next column added to `leads` doesn't silently
@@ -127,6 +129,12 @@ def init_db():
             # anyone who'd already finished onboarding before this column existed has
             # necessarily already seen the welcome demo — don't replay it for them
             conn.execute(text("UPDATE users SET welcome_seen = 1 WHERE setup_complete = 1"))
+        if tutorial_seen_is_new:
+            # Same reasoning one step further along: this flag used to live in per-device
+            # localStorage, which we can't read from here. welcome_seen is the closest
+            # server-side proxy — anyone past the welcome step has been shown the demo (or
+            # explicitly skipped it), so don't spring it on them again on their next visit.
+            conn.execute(text("UPDATE users SET tutorial_seen = 1 WHERE welcome_seen = 1"))
         # index=True on a model only applies via create_all() for brand-new tables — add it
         # explicitly here so existing (pre-change) databases pick it up too.
         conn.execute(text("CREATE INDEX IF NOT EXISTS ix_interview_sessions_user_id ON interview_sessions(user_id)"))

@@ -1,146 +1,246 @@
 /* ===== Trial End ===== */
+/* Layout matches the other app content pages (support.css): 960px column,
+   40/80 vertical rhythm, 28px section gap. */
 .te-main {
-  max-width: 620px;
+  flex: 1;
+  padding: 40px max(20px, 3vw) 80px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 56px max(28px,4vw) 90px;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 28px;
 }
 
-/* Hero */
+/* ── Hero ── */
+/* Grid rather than a flex row so the tick sits centred on the h1's own line at any
+   clamp size, while the kicker and sub keep the same left edge as the heading. */
 .te-hero {
-  text-align: center;
-  margin-bottom: 26px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 16px;
+  row-gap: 10px;
+  align-items: center;
+  padding: 8px 0 4px;
 }
+.te-kicker       { grid-area: 1 / 2; }
+.te-check-circle { grid-area: 2 / 1; }
+.te-hero h1      { grid-area: 2 / 2; }
+.te-sub          { grid-area: 3 / 2; }
 .te-check-circle {
-  width: 56px; height: 56px;
+  width: 48px; height: 48px;
   border-radius: 50%;
   border: 1px solid var(--accent-line);
   background: var(--accent-soft);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 22px;
+  flex-shrink: 0;
 }
-.te-heading {
-  font-family: 'Space Grotesk', sans-serif;
+.te-kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
   font-weight: 600;
-  font-size: 34px;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.te-hero h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(28px, 4.5vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text);
-  margin-bottom: 12px;
+  line-height: 1.15;
 }
 .te-sub {
-  font-size: 16px;
+  font-size: 15px;
   color: var(--text-2);
-  max-width: 440px;
-  margin: 0 auto;
+  max-width: 560px;
+  line-height: 1.6;
 }
 
-/* Cards */
+/* ── Account state strip ── */
+/* Accent dot + accent lead, echoing the "extension connected" row in Settings. */
+.te-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+.te-status strong { color: var(--accent); font-weight: 600; }
+.te-status a { color: var(--text-1); text-decoration: underline; text-underline-offset: 2px; }
+.te-status a:hover { color: var(--accent); }
+.te-status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: none;
+  margin-top: 7px;
+}
+
+/* ── Sections ── */
+.te-section { display: flex; flex-direction: column; gap: 12px; }
+.te-section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-3);
+}
+
+/* ── Cards ── */
 .te-card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 22px 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
-.te-card h2 {
+.te-card h3 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text);
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 .te-card p {
-  font-size: 13.5px;
+  font-size: 13px;
   color: var(--text-2);
-  line-height: 1.6;
-  margin-bottom: 6px;
+  line-height: 1.55;
+  margin-bottom: 8px;
 }
 .te-card p:last-child { margin-bottom: 0; }
 .te-card strong { color: var(--text-1); }
-.te-note { font-size: 12px; color: var(--text-3) !important; line-height: 1.55; }
+.te-note { font-size: 12px; color: var(--text-3) !important; line-height: 1.5; }
 
-/* Key bindings */
-.te-bindings { margin-top: 6px; }
-.te-keybind-list { display: flex; flex-direction: column; gap: 11px; margin-top: 4px; }
+/* The context ask is the one card that changes answer quality, so it gets the
+   featured-card treatment used on the pricing plans. */
+.te-card-primary {
+  border-color: var(--accent-line);
+  background: linear-gradient(160deg, var(--accent-soft), var(--card) 60%);
+}
+
+/* Same shape as the dashboard's "Edit hotkeys →" link (.hk-ref-edit). margin-top:auto
+   pins it to the bottom of the card so it stays level across a stretched row. */
+.te-card-link {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+  transition: opacity .15s, color .15s;
+}
+.te-card-link:hover { opacity: .75; }
+.te-card-link-muted { color: var(--text-3); }
+.te-card-link-muted:hover { color: var(--accent); opacity: 1; }
+
+/* Cards sit side by side on the wider column, one-up once that gets cramped.
+   No align-items:start — the grid stretches them to a matching height. */
+.te-tips {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+/* ── Key bindings ── */
+/* Rows mirror the Shortcuts rows in Settings (.hk-row) so the two pages read the same.
+   They live in their own wrapper so :last-child reliably picks the bottom row — with
+   the footnote as a sibling div, :last-of-type never matched and the last row kept a
+   divider that then doubled up with the footnote's border. */
 .te-keybind-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
 }
-.te-keybind-desc { font-size: 13.5px; color: var(--text-2); }
+.te-keybind-list .te-keybind-row:first-child { padding-top: 2px; }
+.te-keybind-list .te-keybind-row:last-child { padding-bottom: 2px; border-bottom: none; }
+.te-keybind-desc { font-size: 13.5px; color: var(--text-1); }
 .te-keybind-keys {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
 }
-kbd {
+.te-bindings-foot { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
+
+.te-main kbd {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11.5px;
-  color: var(--text-1);
+  color: var(--accent);
   background: var(--card-inset);
   border: 1px solid var(--line-strong);
-  border-bottom-width: 2px;
-  border-radius: 6px;
-  padding: 4px 10px;
+  border-radius: 7px;
+  padding: 5px 10px;
 }
 .te-sep { font-size: 11px; color: var(--text-3); }
 
-/* Upgrade */
+/* ── Upgrade ── */
 .te-upgrade {
   text-align: center;
-  background: linear-gradient(180deg, rgba(198,242,78,.06), var(--card) 50%);
+  background: linear-gradient(160deg, var(--accent-soft), var(--card) 60%);
   border: 1px solid var(--accent-line);
   border-radius: 18px;
-  padding: 36px 30px;
-  margin-top: 6px;
+  padding: 32px 28px;
 }
 .te-upgrade h2 {
   font-family: 'Space Grotesk', sans-serif;
   font-weight: 600;
-  font-size: 24px;
+  font-size: 22px;
   letter-spacing: -0.02em;
   color: var(--text);
   margin-bottom: 10px;
 }
 .te-upgrade p {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-2);
-  max-width: 420px;
-  margin: 0 auto 26px;
+  line-height: 1.6;
+  max-width: 460px;
+  margin: 0 auto 22px;
 }
 .te-upgrade-btn {
   display: inline-block;
   font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: 14.5px;
+  font-weight: 700;
   color: var(--btn-text);
   background: var(--accent);
-  padding: 14px 30px;
-  border-radius: 11px;
+  padding: 13px 28px;
+  border-radius: 10px;
   text-decoration: none;
   transition: transform .15s, box-shadow .15s;
 }
-.te-upgrade-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(198,242,78,.25); }
-.te-footer-links {
-  display: flex;
-  gap: 22px;
-  justify-content: center;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--text-3);
-}
-.te-footer-links a {
-  color: var(--text-3);
-  text-decoration: none;
-  transition: color .15s;
-}
-.te-footer-links a:hover { color: var(--text-1); }
+.te-upgrade-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(198,242,78,.3); }
+[data-theme="light"] .te-upgrade-btn:hover { box-shadow: 0 12px 32px rgba(63,98,18,.22); }
 
-@media (max-width: 540px) {
-  .te-main { padding: 36px 20px 60px; }
-  .te-heading { font-size: 26px; }
+.te-main .footer-note { margin-top: 0; }
+
+/* ── Responsive ── */
+@media (max-width: 780px) {
+  .te-tips { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .te-main { padding: 24px 16px 56px; gap: 24px; }
+  .te-hero { column-gap: 12px; }
+  .te-check-circle { width: 42px; height: 42px; }
+  .te-upgrade { padding: 28px 20px; }
+}
+@media (max-width: 480px) {
+  .te-card { padding: 16px; }
+  .te-keybind-row { flex-direction: column; align-items: flex-start; gap: 8px; }
 }

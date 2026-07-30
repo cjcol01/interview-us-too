@@ -1,74 +1,96 @@
 {% extends "base.html" %}
-{% block title %}Trial complete — InterviewAce{% endblock %}
+{% block title %}{% if trial_active %}What's next{% else %}Test run complete{% endif %} — InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/trial_end.css">{% endblock %}
 {% block content %}
   <main class="te-main">
 
     <!-- hero -->
-    <div class="te-hero">
+    <header class="te-hero">
+      <p class="te-kicker">Test run &middot; {% if trial_active %}{{ trial_minutes_left }} min remaining{% else %}session ended{% endif %}</p>
       <div class="te-check-circle">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)"
           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 6L9 17l-5-5"/>
         </svg>
       </div>
-      <h1 class="te-heading">Trial complete</h1>
-      <p class="te-sub">You've seen how it works. Before you decide what's next, here are a couple of things worth knowing.</p>
-    </div>
+      <h1>{% if trial_active %}What's next{% else %}Test run complete{% endif %}</h1>
+      <p class="te-sub">{% if trial_active %}A couple of things worth knowing before you use it for real.{% else %}You've seen how it works. Before you decide what's next, here are a couple of things worth knowing.{% endif %}</p>
+    </header>
+
+    <!-- account state — the extension behaves differently either side of expiry -->
+    <p class="te-status">
+      <span class="te-status-dot"></span>
+      <span>
+        {%- if trial_active %}
+        <strong>Your test run is still running.</strong> You've got {{ trial_minutes_left }} minute{{ 's' if trial_minutes_left != 1 }} left — <a href="/app">head back to the monitor</a> to keep using it.
+        {%- else %}
+        <strong>Your extension stays connected.</strong> It's still set up and ready for you to upgrade your account — nothing to reinstall. It just won't capture again until then.
+        {%- endif %}
+      </span>
+    </p>
 
     <!-- tip cards -->
-    <div class="te-tips">
-      <div class="te-card">
-        <h2>Pin the extension</h2>
-        <p>Click the puzzle piece icon in the top right of Chrome, find <strong>InterviewAce</strong>, and click the pin icon to keep it visible in your toolbar.</p>
-        <p class="te-note">You don't have to do this, but it lets you know at a glance whether it's running.</p>
+    <section class="te-section">
+      <h2 class="te-section-label">Before your real interview</h2>
+      <div class="te-tips">
+        <div class="te-card te-card-primary">
+          <h3>Add your context</h3>
+          <p>Your <strong>CV</strong>, <strong>behavioural notes</strong>, and the <strong>company and role</strong> you're going for.</p>
+          <p class="te-note">With them, answers use your real projects and numbers. Without them, you get textbook answers anyone could have given.</p>
+          <a class="te-card-link" href="/settings#context">Add your context →</a>
+        </div>
+        <div class="te-card">
+          <h3>Keep the monitor out of sight</h3>
+          <p>Open it on your <strong>phone or a second device</strong> — never the screen you're sharing.</p>
+          <p class="te-note">The extension captures from your computer; hints appear wherever you're logged in. Most people prop their phone just out of frame.</p>
+        </div>
       </div>
-      <div class="te-card">
-        <h2>Tune the response detail</h2>
-        <p>The <strong>+&thinsp;/&thinsp;−</strong> buttons on the monitor page control how detailed the AI's answers are — fewer dots for a quick nudge, more dots for a full walkthrough.</p>
-        <p class="te-note">Useful if the default responses feel too brief or too verbose for your style.</p>
-      </div>
-      <div class="te-card">
-        <h2>Keep the monitor off the interviewer's screen</h2>
-        <p>Open the monitor page on your <strong>phone or a second device</strong> — not on the same screen the interviewer can see. The extension captures from your main computer; the hints appear wherever you're logged in.</p>
-        <p class="te-note">Most people prop their phone out of frame or use a second monitor positioned behind the camera.</p>
-      </div>
-    </div>
+    </section>
 
     <!-- key bindings -->
-    <div class="te-card te-bindings">
-      <h2>Key bindings</h2>
-      <div class="te-keybind-list">
-        <div class="te-keybind-row">
-          <span class="te-keybind-desc">Capture screen &amp; analyse</span>
-          <span class="te-keybind-keys" id="kb-capture"></span>
+    <section class="te-section">
+      <h2 class="te-section-label">Key bindings</h2>
+      <div class="te-card te-bindings">
+        <div class="te-keybind-list">
+          <div class="te-keybind-row">
+            <span class="te-keybind-desc">Capture screen &amp; analyse</span>
+            <span class="te-keybind-keys" id="kb-capture"></span>
+          </div>
+          <div class="te-keybind-row">
+            <span class="te-keybind-desc">Record voice &amp; analyse</span>
+            <span class="te-keybind-keys" id="kb-audio"></span>
+          </div>
+          <div class="te-keybind-row">
+            <span class="te-keybind-desc">Instant replay (last few seconds)</span>
+            <span class="te-keybind-keys" id="kb-replay"></span>
+          </div>
+          <div class="te-keybind-row">
+            <span class="te-keybind-desc">Typing mode — type a question instead</span>
+            <span class="te-keybind-keys" id="kb-typing"></span>
+          </div>
+          <div class="te-keybind-row">
+            <span class="te-keybind-desc">Arm the extension</span>
+            <span class="te-keybind-keys" id="kb-toggle"></span>
+          </div>
         </div>
-        <div class="te-keybind-row">
-          <span class="te-keybind-desc">Record voice &amp; analyse</span>
-          <span class="te-keybind-keys" id="kb-audio"></span>
-        </div>
-        <div class="te-keybind-row">
-          <span class="te-keybind-desc">Instant replay (last few seconds)</span>
-          <span class="te-keybind-keys" id="kb-replay"></span>
-        </div>
-        <div class="te-keybind-row">
-          <span class="te-keybind-desc">Arm the extension</span>
-          <span class="te-keybind-keys" id="kb-toggle"></span>
+        <div class="te-bindings-foot">
+          <p class="te-note">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>. If a combo clashes with Zoom, Teams or Meet, the meeting app wins and nothing happens — record your own instead.</p>
+          <a class="te-card-link te-card-link-muted" href="/settings#shortcuts">Want to change your hotkeys? →</a>
         </div>
       </div>
-      <p class="te-note" style="margin-top:14px">On Mac, use <kbd>Cmd</kbd> in place of <kbd>Ctrl</kbd>.</p>
-    </div>
+    </section>
 
     <!-- upgrade CTA -->
-    <div class="te-upgrade">
+    <section class="te-upgrade">
       <h2>Ready to use it for real?</h2>
       <p>Upgrade to get full 1.5-hour sessions — long enough for any interview. Pay per session or go unlimited.</p>
       <a href="/pricing" class="te-upgrade-btn">See plans &amp; upgrade →</a>
-      <div class="te-footer-links">
-        <a href="/app">Back to monitor</a>
-        <a href="/auth/logout">Sign out</a>
-      </div>
-    </div>
+    </section>
+
+    <p class="footer-note">
+      Something not work the way you expected? <a href="/support">Run a system check</a>.<br>
+      <a href="/app">Back to monitor</a> &middot; <a href="/auth/logout">Sign out</a>
+    </p>
 
   </main>
 
@@ -78,6 +100,7 @@
         capture: '{{ hotkey_capture }}',
         audio:   '{{ hotkey_audio }}',
         replay:  '{{ hotkey_replay }}',
+        typing:  '{{ hotkey_typing }}',
         toggle:  '{{ hotkey_toggle }}',
       };
       const isMac = /Mac/.test(navigator.platform);
@@ -90,6 +113,7 @@
       document.getElementById('kb-capture').innerHTML = renderKeys(hk.capture);
       document.getElementById('kb-audio').innerHTML   = renderKeys(hk.audio);
       document.getElementById('kb-replay').innerHTML  = renderKeys(hk.replay);
+      document.getElementById('kb-typing').innerHTML  = renderKeys(hk.typing);
       document.getElementById('kb-toggle').innerHTML  = renderKeys(hk.toggle);
     })();
   </script>

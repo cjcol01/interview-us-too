@@ -22,7 +22,8 @@
 - [ ] add a next interview date in settings
 - [ ] simplify landing page
 - [ ] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
-
+- [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
+- [ ] copy buttons broken in support page (on mac)
 ## Soon 
 - [ ] shorten landing page
 - [ ] dark mode text can be hard to read

@@ -631,3 +631,48 @@ def send_account_deletion_email(user_email: str, reason: str, detail: str) -> No
     except Exception as e:
         logger.error("[email] failed to send account deletion notice: %s", e)
         record_email_failure()
+
+
+def send_webstore_alert_email(detail: str, recovered: bool = False) -> None:
+    """Operator alert (to NOTIFY_EMAIL, not a user) for the Chrome Web Store listing going
+    away or coming back — see _handle_webstore_transition in server.py, which sends this
+    edge-triggered, once per outage. A listing takedown blocks every new install, so this
+    can't wait for someone to happen to open /admin."""
+    logger.info("[webstore] alert email — recovered=%s detail=%s", recovered, detail)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    heading = "Chrome Web Store listing is back" if recovered else "Chrome Web Store listing is DOWN"
+    accent = "#4ade80" if recovered else "#f87171"
+    body = (
+        "The extension is published and installable again. No action needed."
+        if recovered else
+        "New users cannot install the extension. Check the Chrome Web Store developer "
+        "dashboard for a policy notice, and consider setting <strong>SIDELOAD_ENABLED=1</strong> "
+        "to serve the manual-install fallback page while this is unresolved."
+    )
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": NOTIFY_EMAIL,
+            "subject": f"[InterviewAce] {heading}",
+            "html": f"""
+            <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
+                        padding:32px;background:#0d0d0d;color:#e0e0e0;">
+              <h2 style="margin:0 0 16px;color:{accent};font-size:1.1rem;">{heading}</h2>
+              <p style="margin:0 0 20px;color:#ccc;font-size:0.9rem;line-height:1.6;">{body}</p>
+              <p style="margin:0 0 4px;color:#666;font-size:0.82rem;">Check detail</p>
+              <p style="margin:0;padding:12px;background:#1a1a2e;border-radius:8px;
+                        color:#ccc;font-size:0.85rem;line-height:1.6;">{detail}</p>
+              <p style="margin:24px 0 0;color:#555;font-size:0.78rem;line-height:1.6;
+                        border-top:1px solid #222;padding-top:16px;">
+                <a href="{BASE_URL}/admin/health" style="color:#888;">System health</a>
+              </p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send webstore alert: %s", e)
+        record_email_failure()

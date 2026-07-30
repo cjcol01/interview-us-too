@@ -17,8 +17,9 @@
       <p class="vp-body">
         We sent a verification link to
         <span class="email">{{ email }}</span>.
-        Click it to activate your account.
+        Click it to activate your account — on this device or your phone, either works.
       </p>
+      <p class="vp-waiting" id="vp-waiting">Waiting for you to click the link…</p>
       <div id="msg" class="msg"></div>
       <button id="resend-btn" class="vp-btn-resend" onclick="resend()">Resend verification email</button>
       <form method="post" action="/auth/logout" style="display:contents">
@@ -28,6 +29,46 @@
   </div>
 
   <script>
+    // People routinely open the email on their phone while this tab sits open on a laptop.
+    // Verification is an account-level fact, not a per-device one, so poll for it and move
+    // this device along too — otherwise it waits on "Check your email" forever, looking
+    // broken, while the account has actually been verified for several minutes.
+    (function pollVerified() {
+      let stopped = false;
+      let delay = 3000;
+      let timer = null;
+
+      async function check() {
+        if (stopped) return;
+        clearTimeout(timer);  // an on-demand check must not leave the scheduled one running too
+        try {
+          const res = await fetch('/api/verify-status');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.verified) {
+              stopped = true;
+              const el = document.getElementById('vp-waiting');
+              if (el) { el.textContent = 'Verified — taking you in…'; el.classList.add('ok'); }
+              window.location.href = '/app';
+              return;
+            }
+          }
+        } catch {}
+        // Ease off over time so a tab left open all day isn't hitting this every 3s, but stay
+        // responsive for the first minute or so when the click is actually likely.
+        delay = Math.min(delay * 1.25, 30000);
+        timer = setTimeout(check, delay);
+      }
+
+      timer = setTimeout(check, delay);
+
+      // Coming back to the tab is the strongest hint they just clicked the link elsewhere —
+      // check straight away rather than waiting out the current backoff.
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && !stopped) { delay = 3000; check(); }
+      });
+    })();
+
     async function resend() {
       const btn = document.getElementById('resend-btn');
       const msg = document.getElementById('msg');

@@ -23,6 +23,8 @@
       {{ check_row("Database", checks.database) }}
       {{ check_row("Disk", checks.disk) }}
       {{ check_row("Last Stripe webhook", checks.last_webhook) }}
+      {{ check_row("Chrome Web Store listing", checks.webstore) }}
+      <p class="ua-sub" style="margin:4px 0 0;">Listing state is polled in the background every 30 min, so this row is the last known verdict, not a live call — re-run it now with the deep check below. A takedown also emails you once, so you don't have to be watching this page.</p>
     </div>
 
     <div class="hz-section">
@@ -63,7 +65,7 @@
 
     <div class="hz-section">
       <h2>Deep checks</h2>
-      <p class="ua-sub" style="margin-top:0;">Real calls to Claude, OpenAI, Stripe, and live page routes — costs a little latency and quota, so these only run on request. Each result appears as soon as it comes back, rather than waiting for the slowest one.</p>
+      <p class="ua-sub" style="margin-top:0;">Real calls to Claude, OpenAI, Stripe, the Chrome Web Store, and live page routes — costs a little latency and quota, so these only run on request. Each result appears as soon as it comes back, rather than waiting for the slowest one.</p>
       <button type="button" class="ua-btn ua-btn-notice" id="hz-deep-btn" onclick="hzRunDeepChecks()">Run deep checks</button>
       <div id="hz-deep-results" style="margin-top:12px;"></div>
     </div>
@@ -94,7 +96,8 @@
                       ['hz-row-openai', 'OpenAI', 'openai'],
                       ['hz-row-deepgram', 'Deepgram (transcription fallback)', 'deepgram'],
                       ['hz-row-stripe', 'Stripe', 'stripe'],
-                      ['hz-row-sideload', 'Sideload CDN / mirror', 'sideload']];
+                      ['hz-row-sideload', 'Sideload CDN / mirror', 'sideload'],
+                      ['hz-row-webstore', 'Chrome Web Store listing', 'webstore']];
       container.innerHTML = checks.map(c => hzRowSkeleton(c[0])).join('') +
         '<p class="ua-sub" style="margin:16px 0 4px;">Page routes</p>' +
         '<div id="hz-routes-container"></div>';

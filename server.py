@@ -16,6 +16,7 @@ import secrets
 import shutil
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -54,8 +55,8 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email
+from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
+from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, ReferralStatus, ResponseStyle, SessionFeedback, UsageDaily, User, Withdrawal, WithdrawalStatus
@@ -145,6 +146,11 @@ SCREENSHOTS_DIR = Path("screenshots")
 
 INTERVIEW_REMINDER_CHECK_SECONDS = 6 * 3600
 LEAD_PURGE_CHECK_SECONDS = 24 * 3600
+# 30min: the CRX update endpoint is what every Chrome install in the world already polls
+# (roughly 5-hourly, per browser), so one request per half hour from one server is free.
+# The binding constraint on how fast a takedown reaches a human is the alert email below,
+# not this interval — but a dead install link costs signups every hour it's unnoticed.
+WEBSTORE_CHECK_SECONDS = 30 * 60
 LEAD_IP_SCRUB_DAYS  = 30   # ip/token_hash are only useful for abuse triage / claim
 LEAD_RETENTION_DAYS = 180  # full row deletion — data minimisation for the leads table
 
@@ -266,6 +272,22 @@ async def lifespan(app: FastAPI):
                     logger.exception("[lead-purge] loop iteration failed")
                 await asyncio.sleep(LEAD_PURGE_CHECK_SECONDS)
         app.state.lead_purge_task = asyncio.create_task(_lead_purge_loop())
+
+        # Polls the Chrome Web Store listing in the background so a takedown shows up on
+        # /admin without anyone having to click "Run deep checks" first. No-ops (one cheap
+        # branch per tick) until WEBSTORE_EXTENSION_ID is set.
+        async def _webstore_watch_loop():
+            while True:
+                if WEBSTORE_EXTENSION_ID:
+                    try:
+                        result = await _refresh_webstore_status(app.state.redis)
+                        if result["state"] == "down":
+                            logger.error("[webstore] listing unavailable — %s", result["detail"])
+                        await _handle_webstore_transition(app.state.redis, result)
+                    except Exception:
+                        logger.exception("[webstore] loop iteration failed")
+                await asyncio.sleep(WEBSTORE_CHECK_SECONDS)
+        app.state.webstore_watch_task = asyncio.create_task(_webstore_watch_loop())
     try:
         yield
     finally:
@@ -273,6 +295,8 @@ async def lifespan(app: FastAPI):
             app.state.interview_reminder_task.cancel()
         if getattr(app.state, "lead_purge_task", None):
             app.state.lead_purge_task.cancel()
+        if getattr(app.state, "webstore_watch_task", None):
+            app.state.webstore_watch_task.cancel()
         await app.state.redis.aclose()
 
 
@@ -1540,17 +1564,42 @@ async def resend_verification(request: Request, user: User = Depends(get_current
 
 
 @app.get("/verify")
-def verify_email(token: str, db: Session = Depends(get_db)):
+def verify_email(token: str, db: Session = Depends(get_db),
+                 current: Optional[User] = Depends(get_optional_user)):
+    """Signs the clicking device in, because that device very often isn't the one that signed
+    up — people register on a laptop and open their mail on a phone. Without a cookie here the
+    destination (/welcome, /app) just bounces to a bare /login and the user can't tell whether
+    verification worked. Treating "clicked a link we emailed to this address" as proof of
+    ownership is the same rule /claim already runs on; the token is 256 bits and single-use."""
     user = db.query(User).filter(User.verify_token == token).first()
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid or expired verification link.")
+        # No match is overwhelmingly a token that was already spent — a double-click, or an
+        # email client that prefetched the link before the human got to it — rather than a
+        # forged one. Neither deserves a raw 400: if this device is already signed in and
+        # verified it's a no-op, and otherwise /login can explain it. The two cases are
+        # indistinguishable from here (the token is gone either way), so the message there
+        # has to hold for both — see verify_link_used in login.html.
+        if current and current.email_verified:
+            return RedirectResponse("/app")
+        return RedirectResponse("/login?error=verify_link_used", status_code=303)
     user.email_verified = True
     user.verify_token = None
     db.commit()
     track(user.id, "email_verified", account_level=user.account_level.value)
-    if user.account_level == AccountLevel.trial:
-        return RedirectResponse("/welcome")
-    return RedirectResponse("/app")
+    dest = "/welcome" if user.account_level == AccountLevel.trial else "/app"
+    response = RedirectResponse(dest, status_code=303)
+    response.set_cookie("session", create_token(user.id), httponly=True, samesite="lax",
+                        max_age=60 * 60 * 24 * 7)
+    # The token is in this URL — don't leak it onward via Referer, same as /claim.
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
+@app.get("/api/verify-status")
+def verify_status(user: User = Depends(get_current_user)):
+    """Polled by /verify-pending so the tab that's sitting on "Check your email" notices when
+    the link gets clicked on another device, instead of waiting for a manual reload forever."""
+    return {"verified": user.email_verified}
 
 
 @app.get("/forgot-password")
@@ -2097,6 +2146,7 @@ def onboarding_page(
         "hotkey_replay":  hk["replay"],
         "hotkey_typing":  hk["typing"],
         "sideload_enabled": SIDELOAD_ENABLED,
+        "replay_seconds": user.replay_seconds,   # quoted in the audio step's replay explainer
     })
 
 
@@ -2109,22 +2159,32 @@ def verify_pending(request: Request, user: User = Depends(require_user)):
     })
 
 
-@app.get("/done")
-def interview_done_page(request: Request, type: str = "", user: User = Depends(require_user)):
-    return templates.TemplateResponse(request=request, name="done.html", context={
-        "session_type": type,
-        "show_navbar": True,
-    })
-
-
 @app.get("/trial-end")
-def trial_end(request: Request, user: User = Depends(require_user)):
+def trial_end(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     hk = _user_hotkeys(user)
+    # Two ways in: the expiry overlay's "What's next", and the countdown bar's "End
+    # trial" link — which is only a link, so the trial may well still be running. The
+    # page adjusts rather than telling someone with time left that they're finished.
+    trial_active = False
+    seconds_left = 0
+    if user.account_level == AccountLevel.trial:
+        now = datetime.utcnow()
+        session = db.query(InterviewSession).filter(
+            InterviewSession.user_id == user.id,
+            InterviewSession.expires_at > now,
+            InterviewSession.ended_at == None,  # noqa: E711
+        ).first()
+        if session:
+            trial_active = True
+            seconds_left = int((session.expires_at - now).total_seconds())
     return templates.TemplateResponse(request=request, name="trial_end.html", context={
+        "trial_active": trial_active,
+        "trial_minutes_left": -(-seconds_left // 60),  # ceil, so 30s left reads "1 min"
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
+        "hotkey_typing":  hk["typing"],
         "show_navbar": True,
     })
 
@@ -2678,6 +2738,7 @@ async def admin_home(
     redis_check = await _check_redis(r)
     webhook_check = await _last_webhook_status(r)
     disk_check = _check_disk()
+    webstore_check = await _cached_webstore_status(r)
     missing_config = [c["name"] for c in _config_status() if not c["configured"]]
 
     def _load_counts():
@@ -2714,6 +2775,10 @@ async def admin_home(
         alerts.append({"level": "danger", "text": f"Database check failed — {db_check['detail']}", "href": "/admin/health"})
     if disk_check["ok"] is False:
         alerts.append({"level": "danger", "text": f"Low disk space — {disk_check['detail']}", "href": "/admin/health"})
+    if webstore_check["state"] == "down":
+        # Highest-impact failure on this page: no new user can install the extension at all.
+        # /install-manual (SIDELOAD_ENABLED) is the stopgap if this ever fires.
+        alerts.append({"level": "danger", "text": f"Chrome Web Store listing is down — {webstore_check['detail']}", "href": "/admin/health"})
     if missing_config:
         alerts.append({"level": "caution", "text": f"{len(missing_config)} config value(s) missing: {', '.join(missing_config)}", "href": "/admin/health"})
     if webhook_check["ok"] is False:
@@ -2734,8 +2799,9 @@ async def admin_home(
          "desc": "Signups, conversion, active subs, MRR proxy, activity trends — click any card to drill into the matching users.",
          "stat": f"{total_users} users"},
         {"title": "System health", "href": "/admin/health",
-         "desc": "Redis, database, disk, config, last webhook, and on-demand live checks against Claude/OpenAI/Stripe.",
-         "stat": "issue found" if (not redis_check["ok"] or not db_check["ok"] or disk_check["ok"] is False) else "all clear"},
+         "desc": "Redis, database, disk, config, last webhook, Chrome Web Store listing, and on-demand live checks against Claude/OpenAI/Stripe.",
+         "stat": "issue found" if (not redis_check["ok"] or not db_check["ok"] or disk_check["ok"] is False
+                                   or webstore_check["state"] == "down") else "all clear"},
         {"title": "Announcements", "href": "/admin/announcements",
          "desc": "Email and/or in-app notify one or more audience segments, or a single person.",
          "stat": f"{active_announcements} live" if active_announcements else "none live"},
@@ -3665,6 +3731,143 @@ def _check_sideload() -> dict:
         return {"ok": False, "detail": str(e), "latency_ms": round((time.monotonic() - start) * 1000, 1)}
 
 
+# ---------------------------------------------------------------------------
+# Chrome Web Store listing watch — a takedown/unpublish kills every new install, so it's
+# worth knowing about within hours rather than whenever someone next tries to install.
+# ---------------------------------------------------------------------------
+
+_WEBSTORE_UPDATE_URL = "https://clients2.google.com/service/update2/crx"
+_WEBSTORE_STATUS_KEY = "health:webstore"
+_WEBSTORE_STATUS_TTL = 14 * 24 * 3600  # long enough that a restart doesn't lose the last verdict
+_WEBSTORE_DOWN_STREAK_KEY = "health:webstore:down_streak"
+_WEBSTORE_ALERTED_KEY = "health:webstore:alerted"
+# "Your extension has been taken down" is an alarming thing to receive, so it shouldn't rest
+# on a single odd response from Google — two consecutive readings must agree first.
+_WEBSTORE_DOWN_CONFIRMATIONS = 2
+
+
+def _local_extension_version() -> Optional[str]:
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "extension", "manifest.json")) as f:
+            return json.load(f).get("version")
+    except Exception:
+        return None
+
+
+def _check_webstore() -> dict:
+    """Is our published extension still live in the Chrome Web Store?
+
+    Asks the same CRX update endpoint Chrome itself polls, rather than fetching the public
+    listing page — that page answers HTTP 200 with a JS shell even for an extension ID that
+    has never existed (verified), so its status code carries no signal at all. The update
+    endpoint returns status="ok" plus the live version while the item is published, and
+    status="error-unknownApplication" once it's unpublished, removed, or taken down, which is
+    exactly the event we want to catch.
+
+    Also returns a "state" the caller can act on: transient network trouble reads as
+    "unknown", never "down", so a DNS blip can't masquerade as a takedown in the alerts strip.
+    """
+    start = time.monotonic()
+    if not WEBSTORE_EXTENSION_ID:
+        return {"ok": None, "state": "unconfigured", "latency_ms": None,
+                "detail": "WEBSTORE_EXTENSION_ID not set — no listing being watched"}
+    def _elapsed():
+        return round((time.monotonic() - start) * 1000, 1)
+    try:
+        resp = requests.get(
+            _WEBSTORE_UPDATE_URL,
+            params={"response": "updatecheck", "prodversion": "140.0", "acceptformat": "crx3",
+                    "x": f"id={WEBSTORE_EXTENSION_ID}&uc"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        # The response uses a default XML namespace, so match on the local tag name rather
+        # than hardcoding "{http://www.google.com/update2/response}app".
+        root = ET.fromstring(resp.text)
+        app_el = next((el for el in root.iter() if el.tag.rsplit("}", 1)[-1] == "app"), None)
+        status = (app_el.get("status") if app_el is not None else None) or "no status returned"
+    except Exception as e:
+        return {"ok": None, "state": "unknown", "latency_ms": _elapsed(),
+                "detail": f"check failed, listing state unknown — {e}"}
+
+    if status != "ok":
+        return {"ok": False, "state": "down", "latency_ms": _elapsed(),
+                "detail": f"listing unavailable — Chrome's update server says '{status}' "
+                          f"(unpublished, removed, or taken down)"}
+
+    update_el = next((el for el in app_el.iter() if el.tag.rsplit("}", 1)[-1] == "updatecheck"), None)
+    live_version = update_el.get("version") if update_el is not None else None
+    detail = f"published, v{live_version}" if live_version else "published"
+    local_version = _local_extension_version()
+    # Version drift is normal while a submission is in review, so it's a note rather than
+    # a failure — but it's the cheapest way to notice a build that never actually shipped.
+    if live_version and local_version and live_version != local_version:
+        detail += f" · local manifest is v{local_version}"
+    return {"ok": True, "state": "live", "latency_ms": _elapsed(), "detail": detail}
+
+
+async def _refresh_webstore_status(r) -> dict:
+    """Runs the check and caches the verdict so cheap, no-outbound-call pages (/admin and the
+    non-deep part of /admin/health) can show a takedown without waiting on Google."""
+    result = await asyncio.to_thread(_check_webstore)
+    try:
+        await r.set(_WEBSTORE_STATUS_KEY, json.dumps({**result, "checked_at": datetime.utcnow().isoformat()}),
+                    ex=_WEBSTORE_STATUS_TTL)
+    except Exception:
+        logger.exception("[webstore] caching status failed")
+    return result
+
+
+async def _handle_webstore_transition(r, result: dict) -> None:
+    """Emails the operator once per outage, edge-triggered on live→down and down→live.
+
+    Deliberately only called from the background watcher, not from the deep-check endpoint:
+    if you clicked the check yourself you're already looking at the answer, and a manual
+    click shouldn't be able to fire an alert email.
+
+    A "down" verdict needs _WEBSTORE_DOWN_CONFIRMATIONS consecutive readings before it
+    alerts. "unknown" (i.e. we couldn't reach Google) neither confirms nor clears an outage,
+    so it leaves the streak untouched rather than resetting it — otherwise alternating
+    timeout/down readings would never reach the confirmation threshold.
+    """
+    state = result.get("state")
+    if state not in ("down", "live"):
+        return
+    if state == "down":
+        streak = await r.incr(_WEBSTORE_DOWN_STREAK_KEY)
+        if streak >= _WEBSTORE_DOWN_CONFIRMATIONS and not await r.get(_WEBSTORE_ALERTED_KEY):
+            # Set the flag before sending so a send that throws can't loop into re-alerting
+            # every tick; the row on /admin/health carries the state regardless.
+            await r.set(_WEBSTORE_ALERTED_KEY, "1")
+            await asyncio.to_thread(send_webstore_alert_email, result.get("detail", ""))
+        return
+    if await r.get(_WEBSTORE_ALERTED_KEY):
+        await asyncio.to_thread(send_webstore_alert_email, result.get("detail", ""), True)
+    await r.delete(_WEBSTORE_DOWN_STREAK_KEY, _WEBSTORE_ALERTED_KEY)
+
+
+async def _cached_webstore_status(r) -> dict:
+    """Last verdict from the background poll, with its age — no network call."""
+    if not WEBSTORE_EXTENSION_ID:
+        return {"ok": None, "state": "unconfigured", "latency_ms": None,
+                "detail": "WEBSTORE_EXTENSION_ID not set — no listing being watched"}
+    try:
+        record = json.loads(await r.get(_WEBSTORE_STATUS_KEY) or "null")
+    except Exception:
+        record = None
+    if not record:
+        return {"ok": None, "state": "unknown", "latency_ms": None,
+                "detail": "not polled yet — run the deep check to look now"}
+    detail = record.get("detail", "")
+    try:
+        age = int((datetime.utcnow() - datetime.fromisoformat(record["checked_at"])).total_seconds())
+        detail += f" · checked {_format_duration(max(0, age))} ago" if age >= 60 else " · checked just now"
+    except (KeyError, TypeError, ValueError):
+        pass
+    return {"ok": record.get("ok"), "state": record.get("state", "unknown"),
+            "detail": detail, "latency_ms": None}
+
+
 _HEALTH_CHECK_ROUTES = ["/", "/login", "/pricing", "/faq", "/healthz"]
 
 
@@ -3695,6 +3898,7 @@ async def admin_health(
         "database": _check_database(db),
         "disk": _check_disk(),
         "last_webhook": await _last_webhook_status(r),
+        "webstore": await _cached_webstore_status(r),
     }
     resend_failures_24h = await _sum_hourly_metric(r, EMAIL_FAIL_PREFIX)
     http_5xx_24h = await _sum_hourly_metric(r, HTTP_5XX_PREFIX)
@@ -3781,6 +3985,7 @@ async def admin_health_trigger_test_error(_: None = Depends(_require_author)):
 @app.get("/admin/health/deep/{name}")
 async def admin_health_deep_check(
     name: str,
+    request: Request,
     _: None = Depends(_require_author),
 ):
     """One deep check per request — the page fires these in parallel and fills in each row
@@ -3799,6 +4004,10 @@ async def admin_health_deep_check(
         return await asyncio.to_thread(_check_stripe)
     if name == "sideload":
         return await asyncio.to_thread(_check_sideload)
+    if name == "webstore":
+        # Goes through the refresh helper so clicking "Run deep checks" also updates the
+        # cached verdict the /admin alerts strip reads.
+        return await _refresh_webstore_status(request.app.state.redis)
     raise HTTPException(status_code=404, detail="Unknown check")
 
 
@@ -4394,12 +4603,26 @@ async def change_complexity(direction: str, request: Request, user: User = Depen
 # ---------------------------------------------------------------------------
 
 @app.post("/api/setup/complete")
-def setup_complete(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def setup_complete(skipped: bool = False, user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
     user.setup_complete = True
     if not user.api_token:
         user.api_token = secrets.token_urlsafe(32)
     db.commit()
-    track(user.id, "onboarding_completed")
+    # Same flag either way — it's the /app gate, and a skipper still has to get past it — but
+    # kept apart in analytics so "Skip setup" doesn't inflate the completion funnel.
+    track(user.id, "onboarding_skipped" if skipped else "onboarding_completed")
+    return {"status": "ok"}
+
+
+@app.post("/api/tutorial/seen")
+def tutorial_seen(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Records that the user has been through the simulated-call demo. Called when the demo
+    closes — whether they watched it to the end or skipped out of it — from both /welcome and
+    the /app fallback. Idempotent; safe to fire on every close."""
+    if not user.tutorial_seen:
+        user.tutorial_seen = True
+        db.commit()
     return {"status": "ok"}
 
 
@@ -4418,7 +4641,22 @@ async def mobile_login(token: str, request: Request, db: Session = Depends(get_d
     if not user_id_str:
         return RedirectResponse("/login?error=link_expired", status_code=303)
     await r.delete(f"mobile_login:{token}")
-    user = await run_in_threadpool(lambda: db.query(User).filter(User.id == int(user_id_str)).first())
+    def _load_and_complete_setup():
+        user = db.query(User).filter(User.id == int(user_id_str)).first()
+        if not user:
+            return None
+        # Scanning the QR *is* completing step 4 — arriving here means the second device is
+        # in the user's hand, which is the only thing that step was ever asking for. Without
+        # this, /app's setup_complete gate bounces the phone straight back to /onboarding —
+        # i.e. it shows "install the browser extension" and a QR code telling you to move to
+        # your phone, on your phone. The desktop "I'm on my phone →" button still sets the
+        # same flag via /api/setup/complete, for users who press it before scanning.
+        if not user.setup_complete:
+            user.setup_complete = True
+            db.commit()
+        return user
+
+    user = await run_in_threadpool(_load_and_complete_setup)
     if not user:
         return RedirectResponse("/login?error=link_expired", status_code=303)
     jwt_token = create_token(user.id)
@@ -4464,7 +4702,8 @@ def trial_status(user: User = Depends(get_current_user), db: Session = Depends(g
         InterviewSession.ended_at == None,  # noqa: E711
     ).order_by(InterviewSession.started_at.desc()).first()
     if not session:
-        return {"is_trial": True, "started": False, "seconds_remaining": 0, "user_id": user.id}
+        return {"is_trial": True, "started": False, "seconds_remaining": 0, "user_id": user.id,
+                "tutorial_seen": user.tutorial_seen}
     now = datetime.utcnow()
     remaining = max(0, (session.expires_at - now).total_seconds())
     return {
@@ -4473,6 +4712,7 @@ def trial_status(user: User = Depends(get_current_user), db: Session = Depends(g
         "seconds_remaining": int(remaining),
         "expired": remaining == 0,
         "user_id": user.id,
+        "tutorial_seen": user.tutorial_seen,
     }
 
 
