@@ -914,7 +914,7 @@
         const page = status.tabTitle ? ` — locked to "${status.tabTitle}"` : '';
         _setDot('replay', 'ok', 'Instant replay is armed and ready' + page + '.');
       } else if (state === 'error' || state === 'stream-ended') {
-        _setDot('replay', 'bad', 'Instant replay lost its connection — click re-lock in the extension popup.');
+        _setDot('replay', 'warn', 'Instant replay lost its connection — click re-lock in the extension popup.');
       } else {
         _setDot('replay', 'warn', "Instant replay isn't locked to a tab yet — lock it to your meeting tab in the extension popup now so it's ready before your interview.");
       }
@@ -952,7 +952,7 @@
       } else if (status.replay === 'arming') {
         _setDot('replay', 'warn', 'Instant replay is arming…');
       } else if (status.replay === 'error' || status.replay === 'stream-ended') {
-        _setDot('replay', 'bad', 'Instant replay lost its connection.');
+        _setDot('replay', 'warn', 'Instant replay lost its connection.');
       } else {
         _setDot('replay', 'warn', "Instant replay isn’t locked yet, open the extension to lock");
       }

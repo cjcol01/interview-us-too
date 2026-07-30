@@ -11,19 +11,20 @@
 - [ ] settings mobile refresh
 - [ ] proper on call esque alerts for major server issues, one api (ais) going down, failures, api credit run out etc
 - [ ] make a reel get something free
-- [ ] improve status indicators
+- [x] improve status indicators
 - [ ] investigate cluely features and competitors + reviews
-- [ ] email me a link at login (for conversion from mobile)
+- [x] email me a link at login (for conversion from mobile)
 - [ ] interview date on sign up for follow up email.
 - [ ] setup check before real interview without starting session.
 - [ ] I got the job, referral system, pause instead of cancel
-- [ ] how'd the interview go question and feedback
+- [x] how'd the interview go question and feedback
 - [ ] target salesman
 - [ ] add a next interview date in settings
-- [ ] simplify landing page
-- [ ] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
+- [x] simplify landing page
+- [x] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] copy buttons broken in support page (on mac)
+
 ## Soon 
 - [ ] shorten landing page
 - [ ] dark mode text can be hard to read

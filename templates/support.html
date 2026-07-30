@@ -559,13 +559,30 @@
   // ── Copy chip for chrome:// URLs (Chrome blocks web pages from linking to
   // chrome:// URLs directly, so these are copy-to-clipboard instead of <a>) ─
   function copyChromeUrl(el, url) {
-    navigator.clipboard.writeText(url).then(() => {
-      const label = el.childNodes[0];
-      const original = label.textContent;
+    const label = el.childNodes[0];
+    const original = label.textContent;
+    const _show = () => {
       label.textContent = 'Copied!';
       el.classList.add('copied');
       setTimeout(() => { label.textContent = original; el.classList.remove('copied'); }, 1500);
-    });
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(_show).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { if (document.execCommand('copy')) _show(); } finally { document.body.removeChild(ta); }
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = url;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { if (document.execCommand('copy')) _show(); } finally { document.body.removeChild(ta); }
+    }
   }
 
   // Only the extension's own content script can look up its chrome-extension://<id> origin
