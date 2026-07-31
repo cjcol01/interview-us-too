@@ -306,6 +306,11 @@
   </main>
 
   <script>
+    // ?fresh=1 means the user just arrived from /install-manual and should see the full
+    // animated flow, not the instant-jump that obSyncFromExtension() would do. Defined at
+    // the very top so every function below can read it.
+    const _isFreshInstall = new URLSearchParams(location.search).get('fresh') === '1';
+
     // "Skip setup" has to clear the setup_complete gate, or it isn't a skip: /app bounces
     // straight back here, and so does every route out of /settings, leaving no way off this
     // page at all. The dashboard is self-recovering for a user who skipped — the Ext status
@@ -580,6 +585,9 @@
       // would render state that obRestore() then overwrites, so let boot make the call — it
       // invokes this once itself, after restoring.
       if (!_obBooted) return;
+      // Fresh-install path (?fresh=1): the animated setTimeout in boot owns steps 1 and 2.
+      // Stay out of the way until step 1 is actually done.
+      if (_isFreshInstall && !_obDone.has(1)) return;
       // Critically: stay out of the way of a sequence that's already running. The extension
       // answers almost instantly, so without this the connected event lands mid-rail and slams
       // it to all-green — throwing away the paced reveal that is the entire point of step 2.
@@ -986,12 +994,25 @@
     // ── Boot ────────────────────────────────────────────────────────────────
     // Restore before first render so a trip out to /install-manual (a real navigation, not a
     // new tab) comes back to the step the user was on rather than the top of the page.
+    // ?fresh=1 (set by /install-manual's "continue" link) means the user just sideloaded the
+    // extension and should see the full animated flow from step 1, not jump to a saved state.
+    if (_isFreshInstall) {
+      try { sessionStorage.removeItem(OB_STORE_KEY); } catch {}
+    }
     obRestore();
     _obBooted = true;
     obRender();
     obEnter(_obOpen);
-    // Covers the extension answering the load-time probe before we got here.
-    obSyncFromExtension();
+    if (_isFreshInstall) {
+      // Extension is already connected (the load-time probe fired before boot), but we want
+      // the animated flow rather than obSyncFromExtension()'s instant jump to step 3.
+      // Brief pause so step 1 is visible, then animate it completing, which opens step 2's
+      // connect rail — which resolves immediately since _extensionConnected is already true.
+      setTimeout(() => { if (!_obDone.has(1)) obComplete(1); }, 900);
+    } else {
+      // Covers the extension answering the load-time probe before we got here.
+      obSyncFromExtension();
+    }
 
     // ── Device flow ─────────────────────────────────────────────────────────
     async function _completeMove() {
