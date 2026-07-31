@@ -177,13 +177,13 @@
              or a YouTube video if you want to hear it work.</p>
           <ol class="ob-replay-howto">
             <li>Switch to the tab you want to lock to. <strong>Take the meeting in your
-                browser</strong>, not the Zoom or Teams desktop app — a lock can only hear a tab.</li>
+                browser</strong>, not the Zoom or Teams desktop app — a lock can only hear a single tab.</li>
             <li>Click the <strong>puzzle-piece icon</strong> in Chrome's toolbar, then
                 <strong>InterviewAce</strong>. Hit the pin to keep it in the toolbar.</li>
             <li>Press <strong>Lock to tab</strong>.</li>
           </ol>
           <div class="ob-mic-state">
-            <span class="ob-mic-led" id="ob-replay-led"></span>
+            <span class="ob-mic-led idle" id="ob-replay-led"></span>
             <span class="ob-mic-msg" id="ob-replay-msg">Not armed yet.</span>
           </div>
           <p class="ob-manual-hint">On the day, do the same on your meeting tab. A lock follows one
@@ -202,11 +202,11 @@
         <div class="ob-step-inner">
         <p>Visit any of these platforms and open a practice problem as if it's a real interview.</p>
         <div class="ob-platform-links">
-          <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">LeetCode</a>
-          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link" onclick="obComplete(5)">HackerRank</a>
-          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">Codility</a>
-          <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">CodeWars</a>
-          <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obComplete(5)">CodeSignal</a>
+          <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">LeetCode</a>
+          <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">HackerRank</a>
+          <a href="https://app.codility.com/demo/take-sample-test/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">Codility</a>
+          <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeWars</a>
+          <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeSignal</a>
         </div>
         <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
         <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
@@ -459,9 +459,11 @@
     async function obFadeOut(n) {
       const card = document.getElementById('ob-step-' + n);
       if (!card || !card.classList.contains('is-active')) return;
-      card.classList.add('is-collapsing');
+      card.classList.add('is-collapsing', 'is-completing');
       await _sleep(OB_COLLAPSE_MS);
       card.classList.remove('is-collapsing');
+      // Let the border flash finish (~520ms total) before cleaning up.
+      setTimeout(() => card.classList.remove('is-completing'), 280);
     }
 
     const _obCompleting = new Set();
@@ -534,14 +536,41 @@
 
     function obInstallClicked() {
       _awaitingInstallReturn = true;
-      document.getElementById('ob-await-return').hidden = false;
+      const msg = document.getElementById('ob-await-return');
+      msg.textContent = 'Waiting for you to come back from the Web Store…';
+      msg.classList.add('is-waiting');
+      msg.hidden = false;
     }
 
     document.addEventListener('visibilitychange', () => {
       if (document.hidden || !_awaitingInstallReturn) return;
       _awaitingInstallReturn = false;
-      document.getElementById('ob-await-return').hidden = true;
-      obComplete(1);
+      const msg = document.getElementById('ob-await-return');
+      msg.textContent = 'Checking for extension…';
+      msg.classList.remove('is-waiting');
+      msg.classList.add('is-checking');
+
+      let settled = false;
+      document.addEventListener('interview-ace:pong', function () {
+        if (settled) return;
+        settled = true;
+        msg.classList.remove('is-waiting', 'is-checking');
+        msg.hidden = true;
+        msg.textContent = 'Waiting for you to come back from the Web Store…';
+        obComplete(1);
+      }, { once: true });
+      document.dispatchEvent(new CustomEvent('interview-ace:ping'));
+
+      setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        msg.classList.remove('is-waiting', 'is-checking');
+        msg.textContent = 'Extension not detected — please install it, then come back.';
+        setTimeout(() => {
+          msg.hidden = true;
+          msg.textContent = 'Waiting for you to come back from the Web Store…';
+        }, 3000);
+      }, 1000);
     });
 
     /* If the extension is already talking to us, steps 1 and 2 are facts, not questions. */
@@ -614,6 +643,51 @@
     let _micSeen = false;
     let _micGranted = false;
     let _awaitingMicReturn = false;
+    let _extStale = false;
+
+    // Content script signals this when its extension context has been invalidated — normally
+    // caused by an extension update while this tab was open (Chrome doesn't auto-reinject).
+    // A page reload gives the tab a fresh content-script context.
+    document.addEventListener('interview-ace:ext-stale', () => {
+      _extStale = true;
+      obShowStaleReload();
+    }, { once: true });
+
+    function obShowStaleReload() {
+      document.getElementById('ob-mic-led').className = 'ob-mic-led warn';
+      document.getElementById('ob-mic-msg').textContent = 'Extension updated — reload this page to reconnect.';
+      document.getElementById('ob-mic-denied-help').hidden = true;
+      const btn = document.getElementById('ob-mic-btn');
+      btn.hidden = false;
+      btn.disabled = false;
+      btn.textContent = 'Reload page';
+      btn.onclick = () => location.reload();
+    }
+
+    // On every tab-return / window-focus, verify the extension is still alive.
+    // Only relevant once step 1 is done (extension should be present). Uses ping/pong
+    // from the page side so it catches disabled/uninstalled extension too, not just
+    // invalidated contexts (which content.js can't detect after re-injection).
+    let _checkExtAlivePending = false;
+    function _checkExtAlive() {
+      if (_extStale || _checkExtAlivePending || _awaitingInstallReturn) return;
+      _checkExtAlivePending = true;
+      let resolved = false;
+      document.addEventListener('interview-ace:pong', () => { resolved = true; }, { once: true });
+      document.dispatchEvent(new CustomEvent('interview-ace:ping'));
+      setTimeout(() => {
+        _checkExtAlivePending = false;
+        if (_extStale) return;
+        if (resolved && _obOpen === 1 && !_obDone.has(1)) {
+          obComplete(1);
+        } else if (!resolved && _obDone.has(1)) {
+          _extStale = true;
+          obShowStaleReload();
+        }
+      }, 800);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkExtAlive(); });
+    window.addEventListener('focus', _checkExtAlive);
 
     /* One-shot ring on a status LED at the moment it turns green. The hold gives the user time
        to look; this gives them a reason to — the eye is drawn by the change, not the colour. */
@@ -663,10 +737,26 @@
     });
 
     function obInitAudio() {
-      // Same injection race as the connect dispatch: content.js may not be listening yet.
-      obRetryDispatch('interview-ace:mic-check', () => _micSeen);
+      if (_extStale) { obShowStaleReload(); return; }
+      // Keep dispatching mic-check until we hear back. The MV3 background service worker
+      // can take a few seconds to wake from idle before it can answer check-mic-permission,
+      // so we retry for up to ~5s rather than the short window obRetryDispatch uses.
+      let _micAttempts = 0;
+      document.dispatchEvent(new CustomEvent('interview-ace:mic-check'));
+      const _micTimer = setInterval(() => {
+        if (_micSeen || ++_micAttempts >= 15) { clearInterval(_micTimer); return; }
+        document.dispatchEvent(new CustomEvent('interview-ace:mic-check'));
+      }, 200);
+      // Show a message if nothing has come back yet — but only blame the extension being
+      // absent if it genuinely isn't connected; if it is connected, we're just waiting on
+      // the service worker to wake up.
       setTimeout(() => {
-        if (!_micSeen) obSetMicUi('warn', 'Waiting for the extension — connect it first.');
+        if (_micSeen) return;
+        if (_extensionConnected) {
+          obSetMicUi('warn', 'Checking microphone…');
+        } else {
+          obSetMicUi('warn', 'Waiting for the extension — connect it first.');
+        }
       }, 2000);
     }
 
@@ -685,8 +775,6 @@
       const btn = document.getElementById('ob-mic-btn');
       btn.disabled = true;
       btn.textContent = 'Opening permission tab…';
-      // Opens grant-mic.html in a new tab. grant-mic.js reports straight back to the background
-      // worker on success, so this page usually updates before the user even returns.
       document.dispatchEvent(new CustomEvent('interview-ace:mic-grant'));
       setTimeout(() => { btn.disabled = false; btn.textContent = 'Allow microphone access'; }, 2500);
     }
@@ -730,7 +818,7 @@
         arming:          ['warn', 'Arming…'],
         error:           ['bad',  e.detail.errorMsg || 'Could not capture that tab — try locking again.'],
         'stream-ended':  ['bad',  'Lock dropped — that tab closed or navigated away.'],
-        idle:            ['',     'Not armed yet.'],
+        idle:            ['idle', 'Not armed yet.'],
       };
       const [cls, text] = MAP[state] || MAP.idle;
       led.className = 'ob-mic-led ' + cls;
@@ -749,6 +837,19 @@
         });
       }
     });
+
+    let _awaitingPlatformReturn = false;
+    function obPlatformClicked(el) {
+      el.classList.add('is-clicked');
+      _awaitingPlatformReturn = true;
+    }
+    function _completePlatform() {
+      if (!_awaitingPlatformReturn) return;
+      _awaitingPlatformReturn = false;
+      setTimeout(() => obComplete(5), 400);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) _completePlatform(); });
+    window.addEventListener('focus', _completePlatform);
 
     function connectExtension() {
       const btn = document.getElementById('connect-btn');

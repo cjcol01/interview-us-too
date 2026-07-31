@@ -122,11 +122,20 @@ async function forceEnable() {
 // up duplicates if the hotkey gets pressed more than once while still unresolved.
 async function openGrantMicTab() {
   const url = chrome.runtime.getURL('grant-mic.html');
-  const existing = await chrome.tabs.query({ url });
+  let existing = [];
+  try {
+    existing = await chrome.tabs.query({ url });
+  } catch {}
   if (existing.length) {
-    chrome.tabs.update(existing[0].id, { active: true });
+    const tab = existing[0];
+    chrome.tabs.update(tab.id, { active: true }).catch(() => {
+      chrome.tabs.create({ url }).catch(() => {});
+    });
+    if (tab.windowId) chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   } else {
-    chrome.tabs.create({ url });
+    chrome.tabs.create({ url }).catch((e) => {
+      console.error('[InterviewAce] openGrantMicTab: tabs.create failed', e);
+    });
   }
 }
 
@@ -378,7 +387,14 @@ async function handleAudioStop() {
 }
 
 // ── Passive mic-permission check (for the /app status dot) ─────────────────────
+let _micCheckInProgress = false;
 async function checkMicPermission() {
+  // The onboarding page retries this event several times while waiting for the service
+  // worker to wake up. Guard against concurrent calls so we don't try to create a second
+  // offscreen document (which throws) before the first one is ready.
+  if (_micCheckInProgress) return;
+  _micCheckInProgress = true;
+  try {
   const existing = await chrome.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT'],
     documentUrls: [chrome.runtime.getURL('offscreen.html')],
@@ -393,6 +409,9 @@ async function checkMicPermission() {
     await readyPromise;
   }
   chrome.runtime.sendMessage({ type: 'query-mic-permission' });
+  } finally {
+    _micCheckInProgress = false;
+  }
 }
 
 async function handleAudioData(base64, mimeType) {
@@ -614,6 +633,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const newOrigin = new URL(currentUrl).origin;
     if (_replayTabOrigin && newOrigin !== _replayTabOrigin) handleStreamDeath();
   } catch {}
+});
+
+// Storage-based trigger for opening the mic-grant tab from content scripts.
+// More reliable than sendMessage because storage writes always wake the service worker,
+// whereas sendMessage can be silently dropped during a sleep/wake transition.
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes._open_mic_grant_ts) openGrantMicTab();
 });
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {

@@ -64,6 +64,14 @@
 }
 .ob-intro p { font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
+/* Flash the card border when a step completes — plays as the inner content fades out. */
+@keyframes ob-card-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(198,242,78,.6); border-color: var(--accent); }
+  40%  { box-shadow: 0 0 0 8px rgba(198,242,78,.18); border-color: var(--accent); }
+  100% { box-shadow: none; border-color: var(--accent-line); }
+}
+.ob-step-card.is-completing { animation: ob-card-flash .52s ease-out forwards; }
+
 /* ── Step card ── */
 .ob-step-card {
   background: var(--card);
@@ -204,6 +212,17 @@
   margin-top: 10px;
   margin-bottom: 0;
 }
+/* Step 1: flash the wait/check text so it reads as live, not static. */
+@keyframes ob-await-flash {
+  0%, 100% { opacity: .45; }
+  50%       { opacity: 1; }
+}
+@keyframes ob-await-check {
+  0%, 100% { opacity: .6; color: var(--text-3); }
+  50%       { opacity: 1;  color: var(--accent); }
+}
+.ob-await-return.is-waiting  { animation: ob-await-flash 2s ease-in-out infinite; }
+.ob-await-return.is-checking { animation: ob-await-check 1s ease-in-out infinite; }
 
 /* ── Audio steps: microphone (3) and instant replay (4) ──
    Separate cards because they're separate kinds of task: one is a permission this page can
@@ -222,6 +241,38 @@
   white-space: nowrap;
   color: var(--text-3);
   border: 1px solid var(--line-strong);
+}
+
+/* Step 3: repeating ring pulse on the mic LED while permission is pending. Uses ::before so it
+   doesn't conflict with the one-shot success ring on ::after. */
+.ob-mic-led.warn::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid #d8a13a;
+  animation: ob-ring-pulse 2s ease-out infinite;
+}
+@keyframes ob-ring-pulse {
+  0%   { transform: scale(.5); opacity: .7; }
+  100% { transform: scale(3);  opacity: 0;  }
+}
+
+/* Step 4: slow breathing glow on the replay LED while not yet armed. */
+.ob-mic-led.idle { animation: ob-breath 3s ease-in-out infinite; }
+@keyframes ob-breath {
+  0%, 100% { opacity: .3; box-shadow: none; }
+  50%       { opacity: 1;  box-shadow: 0 0 9px rgba(255,255,255,.12); }
+}
+
+/* Step 5: brief accent flash on the platform link the user clicked. */
+@keyframes ob-platform-flash {
+  0%   { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); box-shadow: 0 0 12px rgba(198,242,78,.35); }
+  100% { background: var(--card-inset);  border-color: var(--line-strong); color: var(--text-2); box-shadow: none; }
+}
+.ob-platform-link.is-clicked {
+  animation: ob-platform-flash .55s ease-out forwards;
+  pointer-events: none;
 }
 
 /* Shared live-state line for the mic and replay steps. */
@@ -274,6 +325,12 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ob-mic-led.warn { animation: none; }
+  .ob-mic-led.warn::before { display: none; }
+  .ob-mic-led.idle { animation: none; opacity: .7; }
+  .ob-await-return.is-waiting,
+  .ob-await-return.is-checking { animation: none; }
+  .ob-platform-link.is-clicked { animation: none; background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .ob-step-card.is-completing { animation: none; }
   /* Drop the ring and the fade, but keep the hold — that's timing, not motion, and it's the
      part that actually makes the confirmation readable. */
   .ob-mic-led.confirm::after { animation: none; opacity: 0; }

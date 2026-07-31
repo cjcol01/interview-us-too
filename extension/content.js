@@ -1,8 +1,27 @@
-console.log('[InterviewAce] content.js loaded — build-check-2026-07-24-F');
+console.log('[InterviewAce] content.js loaded — build-check-2026-07-30');
 
 if (window._iaceAbort) window._iaceAbort.abort();
 const ac = new AbortController();
 window._iaceAbort = ac;
+
+// If the extension context has been invalidated (e.g. after an extension update while
+// this tab was open), every chrome.* call below would throw synchronously, meaning no
+// listeners would ever be registered and the page would silently stop working.
+// Signal the page first so it can show a "reload to reconnect" prompt, then abort.
+try {
+  void chrome.runtime.id;
+} catch {
+  document.dispatchEvent(new CustomEvent('interview-ace:ext-stale'));
+  throw new Error('[InterviewAce] Extension context invalidated — reload the page to reconnect.');
+}
+
+function _checkExtContext() {
+  try { void chrome.runtime.id; } catch {
+    document.dispatchEvent(new CustomEvent('interview-ace:ext-stale'));
+  }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkExtContext(); }, { signal: ac.signal });
+window.addEventListener('focus', _checkExtContext, { signal: ac.signal });
 
 function showDisabledToast() {
   if (!window.location.pathname.startsWith('/app')) return;
@@ -131,7 +150,7 @@ document.addEventListener('interview-ace:mic-check', () => {
 // tab. Until this existed the only way to reach that prompt was to fail a real capture, i.e. to
 // find out your mic was blocked by pressing the hotkey mid-interview.
 document.addEventListener('interview-ace:mic-grant', () => {
-  chrome.runtime.sendMessage({ type: 'open-mic-grant' });
+  chrome.storage.local.set({ _open_mic_grant_ts: Date.now() });
 }, { signal: ac.signal });
 
 // The extension's mic permission lives at its own chrome-extension://<id> origin, which only

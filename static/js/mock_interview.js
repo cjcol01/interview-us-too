@@ -160,7 +160,9 @@ function miSpeak(text, who, done) {
     liveText.textContent = '';
     miStreamText(liveText, text, () => {
       tile.classList.remove('speaking');
-      status.classList.remove('live');
+      // Keep 'live' until miResetTileUI on the next beat so the text stays
+      // visible through the pause and the interviewer's reply, not just for
+      // the instant the streaming finishes.
       if (done) done();
     });
     return;
