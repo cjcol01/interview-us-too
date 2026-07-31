@@ -23,7 +23,8 @@
 - [x] simplify landing page
 - [x] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
-- [ ] copy buttons broken in support page (on mac)
+- [x] copy buttons broken in support page (on mac)
+- [ ] center pricing info on landing when user is trial
 
 ## Soon 
 - [ ] shorten landing page
