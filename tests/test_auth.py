@@ -286,11 +286,63 @@ def register(test, skip, client=None):
                 db.commit()
             db.close()
 
+    def test_login_is_case_insensitive():
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from models import AccountLevel, User
+        init_db()
+        db = SessionLocal()
+        try:
+            db.add(User(
+                username="_Case_Login_Test", email="_case_login@test.internal",
+                full_name="Case", password_hash=hash_password("testpass123"),
+                account_level=AccountLevel.trial,
+            ))
+            db.commit()
+            # Stored mixed-case, logging in all-lowercase must still authenticate.
+            res = client.post("/auth/login", json={"username": "_case_login_test", "password": "testpass123"})
+            assert res.status_code == 200, res.status_code
+        finally:
+            u = db.query(User).filter(User.username == "_Case_Login_Test").first()
+            if u:
+                db.delete(u)
+                db.commit()
+            db.close()
+
+    def test_register_duplicate_username_case_insensitive():
+        from auth import hash_password
+        from database import SessionLocal, init_db
+        from models import AccountLevel, User
+        init_db()
+        db = SessionLocal()
+        try:
+            db.add(User(
+                username="_case_dup_test", email="_case_dup_existing@test.internal",
+                full_name="Dup", password_hash=hash_password("testpass123"),
+                account_level=AccountLevel.trial,
+            ))
+            db.commit()
+            # A case variant of an existing username must be rejected as taken.
+            res = client.post("/auth/register", json={
+                "full_name": "Dup Two", "username": "_CASE_DUP_TEST",
+                "email": "_case_dup_new@test.internal", "password": "testpass123",
+            })
+            assert res.status_code == 400, res.status_code
+        finally:
+            for filt in (User.username == "_case_dup_test", User.email == "_case_dup_new@test.internal"):
+                x = db.query(User).filter(filt).first()
+                if x:
+                    db.delete(x)
+                    db.commit()
+            db.close()
+
     test("Password hashing and verification",         test_password_hashing)
     test("JWT token creation and decode",             test_token_roundtrip)
     test("decode_user_id: garbage token -> None",     test_decode_user_id_garbage_returns_none)
     test("decode_user_id: expired token -> None",     test_decode_user_id_expired_returns_none)
     test("Login rejects inactive user (403)",         test_login_rejects_inactive_user)
+    test("Login is case-insensitive on username",     test_login_is_case_insensitive)
+    test("Register rejects case-variant duplicate",   test_register_duplicate_username_case_insensitive)
     test("Duplicate username rejected",               test_duplicate_username_rejected)
     test("Referral code generation — 10 unique",     test_referral_code_generation)
     test("Referral code is URL-safe",                 test_referral_code_is_url_safe)

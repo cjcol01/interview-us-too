@@ -9,7 +9,7 @@
         <div class="mi-lobby-cam">
           <div class="mi-lobby-cam-off">
             <span class="mi-lobby-cam-off-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121M2 2l20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175m2.879-2.801A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg></span>
-            <span class="mi-lobby-cam-off-text">Camera off — this walkthrough doesn't use your camera or mic</span>
+            <span class="mi-lobby-cam-off-text">Camera off - this walkthrough doesn't use your camera or mic</span>
           </div>
           <div class="mi-lobby-cam-chip">You &middot; Mic & camera off</div>
           <div class="mi-lobby-cam-ctrls">
@@ -20,10 +20,10 @@
         <div class="mi-lobby-panel">
           <div class="mi-kicker"><span class="mi-kicker-num">01</span> &middot; Practice interview</div>
           <h2>Ready to join{% if first_name %}, {{ first_name }}{% endif %}?</h2>
-          <p class="mi-gr-sub">A short simulated call — see exactly how InterviewAce works in a real interview. Nothing here is recorded, and it won't touch your trial time.</p>
+          <p class="mi-gr-sub">A short simulated call - see exactly how InterviewAce works in a real interview. Nothing here is recorded, and it won't touch your trial time.</p>
           <div class="mi-gr-checklist">
-            <div class="mi-gr-item"><span class="mi-gr-item-icon">🎬</span><span>This is a walkthrough, not a live call — no camera, microphone, or real interviewer involved.</span></div>
-            <div class="mi-gr-item"><span class="mi-gr-item-icon">📎</span><span>You can save your own context in Settings — company, role, or interview style — so real answers are tailored to you.</span></div>
+            <div class="mi-gr-item"><span class="mi-gr-item-icon">🎬</span><span>This is a walkthrough, not a live call - no camera, microphone, or real interviewer involved.</span></div>
+            <div class="mi-gr-item"><span class="mi-gr-item-icon">📎</span><span>You can save your own context in Settings - company, role, or interview style - so real answers are tailored to you.</span></div>
           </div>
           <button class="mi-btn-primary" onclick="miJoinCall()">Join call →</button>
           <button class="mi-btn-ghost" onclick="miClose()">Skip for now</button>
@@ -60,7 +60,7 @@
                 <span class="mi-screenshot-dot"></span><span class="mi-screenshot-dot2"></span><span class="mi-screenshot-dot3"></span>
                 <span class="mi-screenshot-url">leetcode.com/problems/two-sum</span>
               </div>
-              <img src="/static/demo_image.png" alt="Shared screen — LeetCode Two Sum problem" class="mi-screenshot-img">
+              <img src="/static/demo_image.png" alt="Shared screen - LeetCode Two Sum problem" class="mi-screenshot-img">
             </div>
             <div class="mi-tile-chip mi-tile-chip-interviewer" id="mi-interviewer-chip">
               <span class="mi-tile-chip-idle-label">Alex</span>
@@ -81,7 +81,7 @@
               <div class="mi-tile-chip mi-tile-chip-you">You</div>
             </div>
             <div class="mi-you-status" id="mi-you-status">
-              <div class="mi-you-hint" id="mi-you-hint">Your mic is live — speak when you're ready.</div>
+              <div class="mi-you-hint" id="mi-you-hint">Your mic is live - speak when you're ready.</div>
               <div class="mi-you-live" id="mi-you-live">
                 <div class="mi-you-live-label">
                   <span class="mi-you-live-dot"></span>You're speaking
@@ -110,7 +110,7 @@
       <div class="mi-leave-confirm" id="mi-leave-confirm">
         <div class="mi-leave-confirm-box">
           <p class="mi-leave-confirm-title">Leave the demo?</p>
-          <p class="mi-leave-confirm-body">You're partway through — sticking around shows you all four ways to get an answer before your real interview.</p>
+          <p class="mi-leave-confirm-body">You're partway through - sticking around shows you all four ways to get an answer before your real interview.</p>
           <div class="mi-leave-confirm-actions">
             <button class="mi-btn-ghost" onclick="miConfirmLeave()">Leave anyway</button>
             <button class="mi-btn-primary" onclick="miCancelLeave()">Stay</button>
@@ -146,7 +146,7 @@
 
               <div class="mi-phone-panel mi-phone-idle active" id="mi-phone-idle">
                 <div class="mi-phone-idle-label"><span class="mi-idle-dot"></span>Listening for your cue</div>
-                <p class="mi-phone-idle-sub">When you get stuck, press the hotkey — the answer only shows up here.</p>
+                <p class="mi-phone-idle-sub">When you get stuck, press the hotkey - the answer only shows up here.</p>
               </div>
 
               <div class="mi-phone-panel mi-need-help" id="mi-need-help">
@@ -207,7 +207,7 @@
           <span class="mi-done-check" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
           <div>
             <h3 class="mi-done-title">That's the whole loop{% if first_name %}, {{ first_name }}{% endif %}.</h3>
-            <p class="mi-done-sub">Four ways to get an answer — private, instant, and invisible to the interviewer.</p>
+            <p class="mi-done-sub">Four ways to get an answer - private, instant, and invisible to the interviewer.</p>
           </div>
         </div>
         <div class="mi-recap" id="mi-recap"></div>

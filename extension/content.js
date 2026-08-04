@@ -85,10 +85,6 @@ document.addEventListener('interview-ace:replay', (e) => {
   chrome.storage.local.set({ replay_enabled: enabled, replay_seconds: seconds });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:replay-relock', () => {
-  chrome.runtime.sendMessage({ type: 'replay-relock' });
-}, { signal: ac.signal });
-
 // On /app and /support: push replay + mic + enabled status changes into the page as custom
 // events. Unlike the 'toggled' message (sent only to whichever tab issued the toggle), this
 // covers every tab showing these pages regardless of where the extension was actually

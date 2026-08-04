@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Plans — InterviewAce{% endblock %}
+{% block title %}Plans - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/pricing.css">{% endblock %}
 {% block content %}
   <main>
@@ -20,7 +20,7 @@
         </div>
       </div>
       <p class="pitch-body">
-        Landing a job just one month earlier adds thousands in salary — before negotiation even begins. If InterviewAce gets you the offer over the next candidate, or helps you negotiate a stronger package, it pays for itself many times over.
+        Landing a job just one month earlier adds thousands in salary - before negotiation even begins. If InterviewAce gets you the offer over the next candidate, or helps you negotiate a stronger package, it pays for itself many times over.
       </p>
     </div>
 
@@ -38,7 +38,7 @@
               <span class="price-suffix">for 1 session</span>
             </div>
           </div>
-          <p class="plan-desc">One-time purchase — no subscription, no renewal, no card saved after checkout.</p>
+          <p class="plan-desc">One-time purchase - no subscription, no renewal, no card saved after checkout.</p>
           <div class="intro-features">
             <div class="feature"><span class="feature-icon"></span>1 full session (1.5 hours)</div>
             <div class="feature"><span class="feature-icon"></span>AI analysis on every capture</div>
@@ -46,10 +46,10 @@
         </div>
         <div class="intro-right">
           <a class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/login?next=/billing/checkout?plan=sessions' }}">
-            {% if is_referred %}Claim free session{% else %}Claim deal — £2{% endif %}
+            {% if is_referred %}Claim free session{% else %}Claim deal - £2{% endif %}
           </a>
           {% if is_referred %}
-          <p class="plan-fine credit-note">&#10003; Free first session with your referral — card required, £0 charged</p>
+          <p class="plan-fine credit-note">&#10003; Free first session with your referral - card required, £0 charged</p>
           {% else %}
           <p class="plan-fine">Single payment · No auto-renewal</p>
           {% endif %}
@@ -57,7 +57,7 @@
           {% set intro_applied = [referral_credit_pence, 200]|min %}
           {% set intro_over = referral_credit_pence - intro_applied %}
           {% if intro_over > 0 %}
-          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(intro_applied / 100) }} credit applied &mdash; £{{ "%.2f"|format(intro_over / 100) }} carried over</p>
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(intro_applied / 100) }} credit applied - £{{ "%.2f"|format(intro_over / 100) }} carried over</p>
           {% else %}
           <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(intro_applied / 100) }} credit applied at checkout</p>
           {% endif %}
@@ -101,22 +101,22 @@
           </div>
           <div class="feature">
             <span class="feature-icon"></span>
-            No card saved — one-time payment
+            No card saved - one-time payment
           </div>
         </div>
 
         <a class="plan-cta cta-sessions" href="{{ '/billing/checkout?plan=sessions_pack' if logged_in else '/login?next=/billing/checkout?plan=sessions_pack' }}">
-          Get 3 sessions — £10
+          Get 3 sessions - £10
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
         {% if is_referred and referral_discount_active %}
-        <p class="plan-fine credit-note">&#10003; £5 off applied at checkout — your referral reward</p>
+        <p class="plan-fine credit-note">&#10003; £5 off applied at checkout - your referral reward</p>
         {% endif %}
         {% if referral_credit_pence > 0 %}
         {% set pack_applied = [referral_credit_pence, 1000]|min %}
         {% set pack_over = referral_credit_pence - pack_applied %}
         {% if pack_over > 0 %}
-        <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied &mdash; £{{ "%.2f"|format(pack_over / 100) }} carried over</p>
+        <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied - £{{ "%.2f"|format(pack_over / 100) }} carried over</p>
         {% else %}
         <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(pack_applied / 100) }} credit applied at checkout</p>
         {% endif %}
@@ -160,7 +160,7 @@
             </div>
             <div class="feature">
               <span class="feature-icon"></span>
-              Cancel before 7 days — pay nothing
+              Cancel before 7 days - pay nothing
             </div>
           </div>
 
@@ -175,7 +175,7 @@
           {% set sub_applied = [referral_credit_pence, sub_price_pence]|min %}
           {% set sub_over = referral_credit_pence - sub_applied %}
           {% if sub_over > 0 %}
-          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(sub_applied / 100) }} credit applied to your first payment &mdash; £{{ "%.2f"|format(sub_over / 100) }} carried over</p>
+          <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(sub_applied / 100) }} credit applied to your first payment - £{{ "%.2f"|format(sub_over / 100) }} carried over</p>
           {% else %}
           <p class="plan-fine credit-note">&#10003; £{{ "%.2f"|format(sub_applied / 100) }} credit applied to your first payment</p>
           {% endif %}

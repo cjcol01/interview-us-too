@@ -6,6 +6,7 @@ import bcrypt as _bcrypt
 from fastapi import Cookie, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from config import SECRET_KEY
@@ -27,11 +28,13 @@ def generate_unique_username(db: Session, base: str) -> str:
     """Derives a free `username` from an email local-part (or any base string) — used
     for accounts created via Google sign-in, which don't collect a username up front."""
     slug = re.sub(r"[^a-z0-9_]", "", base.lower()) or "user"
-    if not db.query(User).filter(User.username == slug).first():
+    # Case-insensitive uniqueness: the slug is already lowercase, but an existing username
+    # differing only in case (e.g. "John") must still count as taken.
+    if not db.query(User).filter(func.lower(User.username) == slug).first():
         return slug
     for _ in range(20):
         candidate = f"{slug}{_secrets.randbelow(1_000_000)}"
-        if not db.query(User).filter(User.username == candidate).first():
+        if not db.query(User).filter(func.lower(User.username) == candidate).first():
             return candidate
     raise RuntimeError("Could not generate unique username")
 

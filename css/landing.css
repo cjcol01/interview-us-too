@@ -184,6 +184,9 @@ a { color: inherit; text-decoration: none; }
 }
 .ia-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--btn-shadow); }
 .ia-btn-hero { font-size: 15px; padding: 14px 26px; }
+/* Lime variant of the primary button — same shape, the pricing-card accent colour. */
+.ia-btn-lime { color: var(--accent-on); background: var(--accent-bg); }
+.ia-btn-lime:hover { box-shadow: 0 12px 32px var(--lime-cta-shadow); }
 
 .ia-btn-ghost {
   display: inline-block;
@@ -794,6 +797,8 @@ a { color: inherit; text-decoration: none; }
 
 /* ===== PRICING ===== */
 .ia-pricing { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: stretch; }
+/* When only one plan is shown (e.g. sessions user sees Unlimited only), center it instead of leaving it in the left column */
+.ia-plan:only-child { grid-column: 1 / -1; max-width: 480px; margin-left: auto; margin-right: auto; }
 .ia-plan {
   background: var(--card); border: 1px solid var(--line);
   border-radius: 18px; padding: 32px; display: flex; flex-direction: column;

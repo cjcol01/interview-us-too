@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Sign in — InterviewAce{% endblock %}
+{% block title %}Sign in - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/login.css">{% endblock %}
 {% block content %}
   <div class="auth-wrap">
@@ -30,7 +30,7 @@
       </div>
       <div id="auth-heading-register" style="display:none">
         <h1 class="auth-heading">Create your account</h1>
-        <p class="auth-sub">Start with a 10-minute trial — no card needed.</p>
+        <p class="auth-sub">Start with a 10-minute trial - no card needed.</p>
       </div>
 
       <!-- login form -->
@@ -42,8 +42,15 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="login-password">Password</label>
-          <input class="field-input" id="login-password" type="password" name="password"
-            autocomplete="current-password" placeholder="••••••••••">
+          <div class="pw-wrap">
+            <input class="field-input" id="login-password" type="password" name="password"
+              autocomplete="current-password" placeholder="••••••••••">
+            <button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false"
+              onclick="togglePw('login-password', this)">
+              <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
         </div>
         <div id="login-error" class="auth-error"></div>
         <button type="submit" class="auth-submit">Sign in</button>
@@ -87,8 +94,15 @@
         </div>
         <div class="field-group">
           <label class="field-label" for="reg-password">Password</label>
-          <input class="field-input" id="reg-password" type="password" name="password"
-            autocomplete="new-password" placeholder="••••••••••">
+          <div class="pw-wrap">
+            <input class="field-input" id="reg-password" type="password" name="password"
+              autocomplete="new-password" placeholder="••••••••••">
+            <button type="button" class="pw-toggle" aria-label="Show password" aria-pressed="false"
+              onclick="togglePw('reg-password', this)">
+              <svg class="pw-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
           <ul class="pw-requirements" id="pw-requirements">
             <li data-rule="length">At least 8 characters</li>
             <li data-rule="uppercase">One uppercase letter</li>
@@ -154,12 +168,22 @@
         const ERRORS = {
           account_suspended:  'This account has been suspended. Contact support if you think this is a mistake.',
           link_expired:       'That link has expired or has already been used. Request a new one from the homepage.',
-          verify_link_used:   'That verification link is no longer valid. If you have already verified, just sign in below — otherwise request a new link.',
-          already_registered: 'You already have an account with that email — sign in below.',
+          verify_link_used:   'That verification link is no longer valid. If you have already verified, just sign in below - otherwise request a new link.',
+          already_registered: 'You already have an account with that email - sign in below.',
         };
-        document.getElementById('login-error').textContent = ERRORS[error] || 'Sign-in failed — please try again.';
+        document.getElementById('login-error').textContent = ERRORS[error] || 'Sign-in failed - please try again.';
       }
     })();
+
+    // Show/hide password: flip the input type and swap the eye / eye-off icon.
+    function togglePw(id, btn) {
+      const input = document.getElementById(id);
+      const reveal = input.type === 'password';
+      input.type = reveal ? 'text' : 'password';
+      btn.classList.toggle('revealed', reveal);
+      btn.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+      btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+    }
 
     const PW_RULES = {
       length: p => p.length >= 8,

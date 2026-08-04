@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_admin_actions.html" as actions %}
-{% block title %}Referrals &amp; Partners — InterviewAce{% endblock %}
+{% block title %}Referrals &amp; Partners - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -76,7 +76,7 @@
 
     <div class="pa-grant-card">
       <h2>Grant a tier manually</h2>
-      <p class="pa-grant-sub">Overrides the automatic tier logic. Tier 2/3 granted here are sticky — never auto-downgraded.</p>
+      <p class="pa-grant-sub">Overrides the automatic tier logic. Tier 2/3 granted here are sticky - never auto-downgraded.</p>
       <form action="/partner/admin/tier" method="post" class="pa-grant-row">
         <input type="email" name="email" class="pa-grant-input" placeholder="partner@email.com" required>
         <select name="tier" class="pa-grant-select">
@@ -117,7 +117,7 @@
             <form action="/partner/admin/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-ok">Mark paid</button></form>
             <form action="/partner/admin/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-danger">Reject</button></form>
             {% else %}
-            &mdash;
+- 
             {% endif %}
           </td>
         </tr>
@@ -177,8 +177,8 @@
           <td>{{ r.referrer_email }}</td>
           <td>{{ r.referee_email }}</td>
           <td>{{ r.status }}</td>
-          <td>{{ "Yes" if r.intro_credited else "—" }}</td>
-          <td>{{ "Yes" if r.sub_credited else "—" }}</td>
+          <td>{{ "Yes" if r.intro_credited else " - " }}</td>
+          <td>{{ "Yes" if r.sub_credited else " - " }}</td>
           <td>{{ r.created_at }}</td>
         </tr>
         {% endfor %}

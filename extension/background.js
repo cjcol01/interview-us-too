@@ -224,12 +224,20 @@ async function sendExtStatus() {
 let _replayArmed     = false;
 let _replayTabId     = null;
 let _replayTabOrigin = null;
-let _lastReplayTabId = null;
 let _replayWindowSec = 10;
 const _replayPending = {};   // requestId → resolve fn
 
-// Clear any stale armed status from a previous SW lifetime
-chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
+// Clear any stale *armed* status from a previous SW lifetime — a lock never
+// survives an SW restart, so 'armed'/'arming' left in storage would be a lie.
+// But preserve terminal 'stream-ended'/'error' states: those drive the "replay
+// lost" warning that tells the user to re-lock from the extension popup.
+chrome.storage.local.get(['replay_status']).then(({ replay_status }) => {
+  const state = replay_status?.state;
+  if (state === 'stream-ended' || state === 'error') return;
+  chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
+}).catch(() => {
+  chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
+});
 
 function maybeCloseOffscreen() {
   if (!_replayArmed && !_audioActive) {
@@ -325,8 +333,6 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     maybeCloseOffscreen();
   } else if (msg.type === 'replay-stream-ended') {
     handleStreamDeath();
-  } else if (msg.type === 'replay-relock') {
-    handleReplayRelock();
   } else if (msg.type === 'sync-account') {
     fetchAccountLevel();
   }
@@ -498,7 +504,6 @@ async function handleTypingSubmit(text) {
 
 async function handleReplayLock(tabId, windowSec) {
   _replayTabId     = tabId;
-  _lastReplayTabId = tabId;
   _replayWindowSec = windowSec;
 
   // Remember origin so we can detect cross-origin navigation later
@@ -601,14 +606,6 @@ async function handleReplayTrigger(senderTabId) {
   } catch (e) {
     console.error('[replay] upload failed:', e.message);
   }
-}
-
-// ---------------------------------------------------------------------------
-
-async function handleReplayRelock() {
-  if (!_lastReplayTabId) return;
-  const { replay_seconds } = await chrome.storage.local.get(['replay_seconds']);
-  handleReplayLock(_lastReplayTabId, replay_seconds || _replayWindowSec);
 }
 
 // Hold the SW alive while the offscreen doc has an open port

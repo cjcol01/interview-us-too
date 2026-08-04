@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_admin_actions.html" as actions %}
-{% block title %}User Lookup — InterviewAce{% endblock %}
+{% block title %}User Lookup - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -35,7 +35,7 @@
           <td>{{ e.account_level }}</td>
           <td>{{ e.sessions_remaining }}</td>
           <td>{{ e.created_at }}</td>
-          <td>{{ e.referred_by or "—" }}</td>
+          <td>{{ e.referred_by or " - " }}</td>
           <td>{{ e.partner_status }}</td>
           <td>{{ actions.action_buttons(e, "/admin/users?q=" ~ q) }}</td>
         </tr>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}System Health — InterviewAce{% endblock %}
+{% block title %}System Health - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -24,7 +24,7 @@
       {{ check_row("Disk", checks.disk) }}
       {{ check_row("Last Stripe webhook", checks.last_webhook) }}
       {{ check_row("Chrome Web Store listing", checks.webstore) }}
-      <p class="ua-sub" style="margin:4px 0 0;">Listing state is polled in the background every 30 min, so this row is the last known verdict, not a live call — re-run it now with the deep check below. A takedown also emails you once, so you don't have to be watching this page.</p>
+      <p class="ua-sub" style="margin:4px 0 0;">Listing state is polled in the background every 30 min, so this row is the last known verdict, not a live call - re-run it now with the deep check below. A takedown also emails you once, so you don't have to be watching this page.</p>
     </div>
 
     <div class="hz-section">
@@ -65,7 +65,7 @@
 
     <div class="hz-section">
       <h2>Deep checks</h2>
-      <p class="ua-sub" style="margin-top:0;">Real calls to Claude, OpenAI, Stripe, the Chrome Web Store, and live page routes — costs a little latency and quota, so these only run on request. Each result appears as soon as it comes back, rather than waiting for the slowest one.</p>
+      <p class="ua-sub" style="margin-top:0;">Real calls to Claude, OpenAI, Stripe, the Chrome Web Store, and live page routes - costs a little latency and quota, so these only run on request. Each result appears as soon as it comes back, rather than waiting for the slowest one.</p>
       <button type="button" class="ua-btn ua-btn-notice" id="hz-deep-btn" onclick="hzRunDeepChecks()">Run deep checks</button>
       <div id="hz-deep-results" style="margin-top:12px;"></div>
     </div>
@@ -148,7 +148,7 @@
           }
           container.innerHTML =
             '<p class="ua-sub" style="margin:8px 0 4px;">Last ' + data.entries.length +
-            ' ERROR/CRITICAL entries (newest first) — <code>' + hzEscapeHtml(data.log_file_path) + '</code>, rotated at 5 MB.</p>' +
+            ' ERROR/CRITICAL entries (newest first) - <code>' + hzEscapeHtml(data.log_file_path) + '</code>, rotated at 5 MB.</p>' +
             data.entries.map(e =>
               '<pre class="hz-log-entry' + (e.includes('[CRITICAL]') ? ' hz-log-critical' : '') + '">' + hzEscapeHtml(e) + '</pre>'
             ).join('');
@@ -157,7 +157,7 @@
     }
 
     function hzClearErrors() {
-      if (!confirm('Clear the error counters and "recent errors" list? Nothing is deleted from app.log — this just resets what counts as new.')) return;
+      if (!confirm('Clear the error counters and "recent errors" list? Nothing is deleted from app.log - this just resets what counts as new.')) return;
       const btn = document.getElementById('hz-clear-errors-btn');
       btn.disabled = true;
       btn.textContent = 'Clearing…';
@@ -167,7 +167,7 @@
         .catch(() => {
           btn.disabled = false;
           btn.textContent = 'Clear errors';
-          alert('Failed to clear errors — try again.');
+          alert('Failed to clear errors - try again.');
         });
     }
 

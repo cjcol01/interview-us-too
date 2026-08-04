@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}InterviewAce — Your Silent Co-Pilot{% endblock %}
+{% block title %}InterviewAce - Your Silent Co-Pilot{% endblock %}
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
 {% block head %}
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,12 +28,12 @@
         Live interview answers, sent to your phone
       </div>
       <h1 class="ia-h1">Stop blanking.<br>Start <span class="ia-h1-accent">acing</span>.</h1>
-      <p class="ia-hero-sub">InterviewAce watches your screen or listens to your interviewer, then streams a working solution to your phone in seconds — before you've typed a line. You know the material; you just need it back the moment your mind goes blank.</p>
+      <p class="ia-hero-sub">InterviewAce watches your screen and listens to your interviewer, then streams a working solution to your phone in seconds. You know the material - you just need it back the moment your mind goes blank.</p>
       <div class="ia-hero-btns">
         {% if user %}
         <a class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
         {% else %}
-        <a class="ia-btn-primary ia-btn-hero ia-cta-desktop" href="/login?register=1">Try free — no card</a>
+        <a class="ia-btn-primary ia-btn-hero ia-btn-lime ia-cta-desktop" href="/login?register=1">Try free - no card</a>
         {% endif %}
         <a class="ia-btn-ghost ia-btn-hero" href="#how">See how it works</a>
       </div>
@@ -47,7 +47,7 @@
       <!-- Small-screen CTA. Both CTAs are always rendered; CSS at 720px decides which shows
            — this repo does device detection with media queries, never user-agent sniffing. -->
       <form class="ia-lead" id="lead-form" novalidate>
-        <label class="ia-lead-label" for="lead-email">Setup needs a laptop — we'll email you the link</label>
+        <label class="ia-lead-label" for="lead-email">Setup needs a laptop - we'll email you the link</label>
         <div class="ia-lead-row">
           <input class="ia-lead-input" id="lead-email" name="email" type="email"
                  inputmode="email" autocomplete="email" placeholder="you@email.com" required>
@@ -155,7 +155,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                     Capture
                   </div>
                   <kbd class="demo-hotkey">&#8997; Space</kbd>
-                  <span class="demo-intercepted" id="s0Intercepted">OS-intercepted — undetectable</span>
+                  <span class="demo-intercepted" id="s0Intercepted">OS-intercepted - undetectable</span>
                 </div>
               </div>
 
@@ -310,7 +310,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
       </div>
       </div>
-      <p class="ia-demo-caption">Preview only — see the full interactive walkthrough immediately after sign-up .</p>
+      <p class="ia-demo-caption">Preview only - see the full interactive walkthrough immediately after sign-up .</p>
     </div>
 
   </div>
@@ -349,12 +349,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       <div class="ia-pain-card" data-reveal>
         <div class="ia-card-num">01</div>
         <h3>Mind goes completely blank</h3>
-        <p>You've solved this exact problem before. But the moment someone's watching, every algorithm disappears. It's not a skill gap — it's pressure.</p>
+        <p>You've solved this exact problem before. But the moment someone's watching, every algorithm disappears. It's not a skill gap - it's pressure.</p>
       </div>
       <div class="ia-pain-card" data-reveal>
         <div class="ia-card-num">02</div>
         <h3>Weaker candidates interview better</h3>
-        <p>Technical ability and interview performance are almost entirely uncorrelated. The offer goes to whoever handles pressure best — not whoever engineers best.</p>
+        <p>Technical ability and interview performance are almost entirely uncorrelated. The offer goes to whoever handles pressure best - not whoever engineers best.</p>
       </div>
       <div class="ia-pain-card" data-reveal>
         <div class="ia-card-num">03</div>
@@ -381,7 +381,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <div class="ia-step-rule"></div>
         </div>
         <h3>Tap a hidden hotkey</h3>
-        <p>Tap to capture your screen instantly — intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI. Or replay the last 15 seconds of conversation.</p>
+        <p>Tap to capture your screen instantly - intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI. Or replay the last 15 seconds of conversation.</p>
         <div class="ia-step-note ia-step-note--accent">+ type your own question silently</div>
       </div>
       <div class="ia-step" data-reveal>
@@ -390,7 +390,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <div class="ia-step-rule"></div>
         </div>
         <h3>AI reads or listens</h3>
-        <p>Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first — same output, hands-free.</p>
+        <p>Claude reads the problem, detects the language, and generates a solution with complexity analysis. For voice, Whisper transcribes first - same output, hands-free.</p>
         <div class="ia-step-note">auto language detection</div>
       </div>
       <div class="ia-step" data-reveal>
@@ -399,7 +399,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <div class="ia-step-rule"></div>
         </div>
         <h3>Answer streams to your phone</h3>
-        <p>Results appear in seconds with syntax-highlighted code and explanation — never on your interview screen.</p>
+        <p>Results appear in seconds with syntax-highlighted code and explanation - nothing ever appears on your screen</p>
         <div class="ia-step-note">phone or second monitor</div>
       </div>
     </div>
@@ -408,7 +408,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       <div class="ia-video-wrap">
         <iframe
           src="https://www.youtube.com/embed/WhBbMlNWlnU"
-          title="InterviewAce — see it in action"
+          title="InterviewAce - see it in action"
           frameborder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowfullscreen>
@@ -423,7 +423,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             </span>
             <h3>Undetectable by design</h3>
           </div>
-          <p>No popups, no new windows, no clipboard access. Screen-shares and monitoring software see nothing unusual — nothing new ever appears on screen.</p>
+          <p>No popups, no new windows, no clipboard access. Screen-shares and monitoring software see nothing unusual - but nothing touches your screen share.</p>
         </div>
 
         <div class="ia-proof-card">
@@ -433,7 +433,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             </span>
             <h3>Readable at a glance</h3>
           </div>
-          <p>Syntax-highlighted code, complexity, and a short explanation — sized for a phone below the desk. Zoom, Teams, HireVue, Kira.</p>
+          <p>Syntax-highlighted code, complexity, and a short explanation - sized for a phone below the desk. Zoom, Teams, HireVue, Kira.</p>
         </div>
       </div>
     </div>
@@ -449,23 +449,23 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   <div class="ia-proof-track-wrap">
     <div class="ia-proof-track">
       {% set reviews = [
-        ("Marcus O.", "Frontend Developer",       "I freeze under pressure every time. Having an AI with me was the difference this time around.", 5),
-        ("Elena R.",  "Data Scientist",           "Instant replay got me through a question I had no idea about and gave me an answer basically", 5),
-        ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible on the screen share. Got an offer after months of getting stuck at the technical round.", 5),
+        ("Marcus O.", "Frontend Developer",       "I fully freeze under pressure every time. having an AI with me was the difference this time around.", 5),
+        ("Elena R.",  "Data Scientist",           "Instant replay got me through a question I had no idea about and gave me an answer straight away", 5),
+        ("Priya S.",  "Backend Engineer",         "The hints show up on my phone, completely invisible when im sharing my screen. I got an offer after months of getting stuck at the technical round.", 5),
         ("Tom K.",    "DevOps Engineer",          "Set up in five minutes and it just works during the actual call. No one on the interview had any idea it was running.", 5),
-        ("Sophie L.", "Product Engineer",         "Went in expecting to really lean on it. Just knowing it was there stopped me from freezing in the first place, used it maybe twice the whole interview process.", 5),
-        ("Aisha B.",  "New Grad, CS",             "First real interview loop of my life and I didn't blank once. Worth it for the confidence alone.", 5),
-        ("Ravi P.",   "Platform Engineer",        "Asked support if I could type my own question when a whiteboard photo was too messy to read. A typing hotkey showed up 2 days (days!) later", 5),
-        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and even though I knew most answers, it kept me structured instead of rambling", 5),
+        ("Sophie L.", "Product Engineer",         "Went in expecting to really lean on it but knowing it was there stopped me from freezing in the first place, used it maybe twice the whole interview process.", 5),
+        ("Aisha B.",  "New Grad, CS",             "First real interview loop of my life and I didn't get stuck once. Worth it for the confidence alone :)", 5),
+        ("Ravi P.",   "Platform Engineer",        "Asked support if I could type my own question when an online whiteboard photo was too messy to read. A typing hotkey showed up 2 days (days!) later", 5),
+        ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and even though I knew most answers, it gave me structured bullet points off my uploaded information that stopped me rambling", 5),
         ("Hannah W.", "Career Switcher",          "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen.", 5),
-        ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round. Nobody on the call noticed.", 5),
-        ("Chris N.",  "Full-Stack Engineer",      "The best interview prep tool I've tried. Feels like having a second brain with me.", 5),
-        ("Owen F.",   "Site Reliability Engineer", "Got an incident-response scenario question and it gave me exactly the structure I needed without sounding scripted.", 5),
-        ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is so good — dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
-        ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to glance at my phone instead of just winging it. Once started looking, it was a safety net.", 4),
+        ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round, nobody on the call noticed.", 5),
+        ("Chris N.",  "Full-Stack Engineer",      "The best interview prep tool I've tried, icl it did carry me a bit.", 5),
+        ("Owen F.",   "Site Reliability Engineer", "Got an incident response question and it gave me exactly the structure I needed without sounding scripted.", 5),
+        ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is so good - dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
+        ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to look at my phone instead of just winging it. Once I started looking, it was great", 4),
         ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window was longer than 15s for interviewers who can't stop yapping. Still got an offer (but not from the rambler :o).", 4),
-        ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it transcribed the question fast enough that I never felt like I was waiting.", 5),
-        ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That alone got me through two rounds I'd normally have tanked. Still didn't get the job lol.", 5),
+        ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it wrote out the question fast enough that I never felt like I was waiting.", 5),
+        ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That got me through two rounds I'd normally have f*****. Still didn't get the job lol.", 5),
         ("Callum D.", "Platform Engineer",        "Cancelled after landing the job and it took two clicks. I'd use it again for the next job hunt.", 5),
         ("Leo A.",    "Software Engineer",        "Scared the interviewer would clock me looking at my phone. leaned it against the laptop screen, from their side it just looks like I'm reading off my monitor.", 5),
         ("Priyanka V.", "Cloud Engineer",         "Was convinced someone would notice me looking away. Turns out if the phone sits right under the webcam, checking it looks exactly like reading your own screen.", 5),
@@ -473,13 +473,13 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was tough. This helped me until I caught up.", 5),
         ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is sick. Hands stay on the keyboard the whole time.", 5),
         ("Freya F.",  "Data Engineer",            "Used it for like 13 interviews across 6 different companies this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
-        ("Kenji M.",  "Staff Engineer",           "Even at my level the nerves hit. Discreet, fast, and it reads perfectly at a glance on a second monitor.", 5),
-        ("Diego M.",  "Backend Engineer",         "Knowing replay was there if I blanked made me so much calmer. Ended up barely using it — just knowing I could made such a difference", 5)
+        ("Kenji M.",  "Staff Engineer",           "Even at a senior level, the nerves hit. Why not use it? it's fast, and it reads perfectly at a glance on a second monitor.", 5),
+        ("Diego M.",  "Backend Engineer",         "Knowing replay was there if I blanked made me so much calmer. Ended up barely using it but just knowing I could made such a difference", 5)
       ] %}
       {% set picks = ["Freya F.", "Leo A.", "Chris N.", "Priya S."] %}
       {% set shipped = {
         "Ravi P.": "Great suggestion Ravi!. Glad we could ship it to you so quick!",
-        "Grace T.": "Done — Settings now has a replay length slider, 10 to 30 seconds.",
+        "Grace T.": "Done - Settings now has a replay length slider, 10 to 30 seconds.",
       } %}
       {% set short_extra = ["Isabel R.", "Ben C.", "Diego M.", "Priyanka V.", "Freya F.", "Sophie L.", "Leo A.", "Priya S."] %}
       {% for name, role, quote, rating in reviews + reviews %}
@@ -535,8 +535,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <span class="ia-plan-amount">£2</span>
             <span class="ia-plan-per">/ 1 session</span>
           </div>
-          <div class="ia-plan-note">New member deal — one-time only</div>
-          <p class="ia-plan-desc">One-time purchase — no subscription, no renewal.</p>
+          <div class="ia-plan-note">New member deal - one-time only</div>
+          <p class="ia-plan-desc">One-time purchase - no subscription, no renewal.</p>
           <ul class="ia-plan-features">
             <li><span class="ia-check">✓</span> 1 full 1.5-hour session</li>
             <li><span class="ia-check">✓</span> Screen &amp; voice capture</li>
@@ -544,7 +544,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li><span class="ia-check">✓</span> Sessions never expire</li>
           </ul>
           {% if user %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions">{% if is_referred %}Claim free session{% else %}Claim deal — £2{% endif %}</a>
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions">{% if is_referred %}Claim free session{% else %}Claim deal - £2{% endif %}</a>
           {% else %}
           <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?register=1">Claim £2 intro</a>
           {% endif %}
@@ -557,7 +557,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <span class="ia-plan-amount">£10</span>
             <span class="ia-plan-per">/ 3 sessions</span>
           </div>
-          <div class="ia-plan-note">Pay as you go — no subscription</div>
+          <div class="ia-plan-note">Pay as you go - no subscription</div>
           <p class="ia-plan-desc">Top up whenever you need. Sessions never expire.</p>
           <ul class="ia-plan-features">
             <li><span class="ia-check">✓</span> 3 full sessions</li>
@@ -566,9 +566,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li><span class="ia-check">✓</span> Sessions never expire</li>
           </ul>
           {% if user %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions_pack">Get 3 sessions — £10</a>
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
           {% else %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?next=/billing/checkout?plan=sessions_pack">Get 3 sessions — £10</a>
+          <a class="ia-plan-cta ia-plan-cta--ghost" href="/login?next=/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
           {% endif %}
         </div>
         {% endif %}
@@ -610,7 +610,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     {% if user %}
     <a class="ia-btn-primary ia-btn-cta" href="/app">Go to app</a>
     {% else %}
-    <a class="ia-btn-primary ia-btn-cta" href="/login?register=1">Try free — no card</a>
+    <a class="ia-btn-primary ia-btn-cta" href="/login?register=1">Try free - no card</a>
     {% endif %}
   </div>
 </section>
@@ -724,7 +724,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     { q: 'Explain the difference between concurrency and parallelism.',
       a: 'Concurrency: one core,\ntasks interleave (time-slice).\n\nParallelism: multiple cores,\ntrue simultaneous execution.\n\nConcurrency → I/O-bound\nParallelism → CPU-bound' },
     { q: 'How do ACME Corp’s values\nline up with how you work?',
-      a: 'ACME’s stated value: "ship\nfast, learn faster."\n\nMatches how I work — I’d\nrather prototype and iterate\nthan over-plan upfront.\n\nSame instinct as the caching\nprototype from earlier — build,\nthen refine.',
+      a: 'ACME’s stated value: "ship\nfast, learn faster."\n\nMatches how I work - I’d\nrather prototype and iterate\nthan over-plan upfront.\n\nSame instinct as the caching\nprototype from earlier - build,\nthen refine.',
       note: '📎 Drawing from the ACME Corp notes you saved', noteShort: '📎 From your uploaded ACME notes' },
     { q: 'How many windows are there\nin New York City?',
       a: '~8M people, ~3M households.\nAvg 6 windows/home → 18M.\n\n+ offices, retail, transit\n≈ 25–30M windows total.\n\nShow the method, not\nthe number.' }
@@ -732,9 +732,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
 
   var REPLAY_SETS = [
     { q: 'What are the time and space\ncomplexity tradeoffs here?',
-      a: 'Time: O(n) — one pass\nSpace: O(n) — hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.' },
+      a: 'Time: O(n) - one pass\nSpace: O(n) - hash map\n\nBrute force:\n  Time O(n²)\n  Space O(1)\n\nTrade space for time.' },
     { q: 'Why do you want to\nwork here?',
-      a: 'Product: ACME’s caching\nlayer fixes exactly what\nI hit last quarter.\n\nTeam: engineering culture\nmatches how you work.\n\nBe specific — skip the\ngeneric "great culture" line.',
+      a: 'Product: ACME’s caching\nlayer fixes exactly what\nI hit last quarter.\n\nTeam: engineering culture\nmatches how you work.\n\nBe specific - skip the\ngeneric "great culture" line.',
       note: '📎 Drawing from the job description you saved', noteShort: '📎 From your uploaded job description' },
     { q: 'How many piano tuners are\nthere in Chicago?',
       a: '~9M people, ~3M households.\n~2% own pianos → 60k pianos.\n\nTuned ~1x/yr, 4/day, 250\ndays/yr → 1 tuner per 1,000.\n\n≈ 60 piano tuners in Chicago.\n\nThe reasoning carries more\nweight than the final figure.' },

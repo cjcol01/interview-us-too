@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Payment — InterviewAce{% endblock %}
+{% block title %}Payment - InterviewAce{% endblock %}
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/billing_success.css">{% endblock %}
 {% block content %}
@@ -62,7 +62,7 @@
       card.classList.add('success');
       title.textContent = "You're all set!";
       if (level === 'unlimited') {
-        body.innerHTML = 'Your free week has started. <strong>Unlimited sessions</strong> — good luck out there.';
+        body.innerHTML = 'Your free week has started. <strong>Unlimited sessions</strong> - good luck out there.';
       } else {
         body.innerHTML = `<strong>${sessions} session${sessions !== 1 ? 's' : ''}</strong> added to your account. Each session lasts 1.5 hours.`;
       }
@@ -82,11 +82,11 @@
       iconWrap.classList.add('declined');
       card.classList.add('declined');
       title.textContent = 'Intro offer already used';
-      body.innerHTML = 'This card has already redeemed the intro offer on another account. Your payment has been <strong>fully refunded</strong> — nothing was charged.<br><br>You can still get sessions with the regular pack.';
+      body.innerHTML = 'This card has already redeemed the intro offer on another account. Your payment has been <strong>fully refunded</strong> - nothing was charged.<br><br>You can still get sessions with the regular pack.';
       const btn = document.createElement('a');
       btn.href = '/billing/checkout?plan=sessions_pack';
       btn.className = 'bs-btn';
-      btn.textContent = 'Get 3 sessions — £10';
+      btn.textContent = 'Get 3 sessions - £10';
       card.appendChild(btn);
       const back = document.createElement('a');
       back.href = '/pricing';
@@ -98,7 +98,7 @@
     function showTimeout() {
       spinner.remove();
       title.textContent = 'Still processing…';
-      body.innerHTML = 'This is taking longer than expected. Check your <strong>email from Stripe</strong> — if you were charged, your sessions will appear shortly. <a href="/settings" style="color:var(--accent)">Go to settings</a>.';
+      body.innerHTML = 'This is taking longer than expected. Check your <strong>email from Stripe</strong> - if you were charged, your sessions will appear shortly. <a href="/settings" style="color:var(--accent)">Go to settings</a>.';
     }
 
     poll();

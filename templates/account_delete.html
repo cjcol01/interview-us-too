@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Delete account — InterviewAce{% endblock %}
+{% block title %}Delete account - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/account_delete.css">{% endblock %}
 {% block content %}
 
@@ -21,12 +21,12 @@
     {% if has_active_sub %}
     <div class="warn-card">
       <span class="warn-icon">&#9888;</span>
-      <span class="warn-text">You have an <strong>active subscription</strong>. Deleting your account cancels it immediately — you'll lose access right away rather than at the end of your billing period. If you'd rather keep your remaining time, <a href="/billing/cancel">cancel your subscription</a> instead.</span>
+      <span class="warn-text">You have an <strong>active subscription</strong>. Deleting your account cancels it immediately - you'll lose access right away rather than at the end of your billing period. If you'd rather keep your remaining time, <a href="/billing/cancel">cancel your subscription</a> instead.</span>
     </div>
     {% elif sessions_remaining and sessions_remaining > 0 %}
     <div class="warn-card">
       <span class="warn-icon">&#9888;</span>
-      <span class="warn-text">You have <strong>{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}</strong> remaining. Deleting your account forfeits them — they can't be refunded or restored.</span>
+      <span class="warn-text">You have <strong>{{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}</strong> remaining. Deleting your account forfeits them - they can't be refunded or restored.</span>
     </div>
     {% endif %}
 
@@ -45,11 +45,11 @@
           </div>
           <div class="info-row">
             <span class="info-icon">&#128179;</span>
-            <span class="info-text">Billing records are kept by our payment processor (Stripe) as required by law for tax and accounting purposes — they're no longer linked to an active InterviewAce account.</span>
+            <span class="info-text">Billing records are kept by our payment processor (Stripe) as required by law for tax and accounting purposes - they're no longer linked to an active InterviewAce account.</span>
           </div>
           <div class="info-row">
             <span class="info-icon">&#9203;</span>
-            <span class="info-text">This happens immediately. There's no recovery window — you'd need to create a new account to come back.</span>
+            <span class="info-text">This happens immediately. There's no recovery window - you'd need to create a new account to come back.</span>
           </div>
         </div>
       </div>
@@ -57,7 +57,7 @@
 
     <!-- Reason (optional) -->
     <div class="card">
-      <div class="card-header">Before you go — why are you leaving? (optional)</div>
+      <div class="card-header">Before you go - why are you leaving? (optional)</div>
       <div class="radio-list" id="radio-list">
         <label class="radio-item" data-val="got_job">
           <input type="radio" name="reason" value="got_job">

@@ -142,7 +142,10 @@ templates.env.globals["POSTHOG_KEY"] = POSTHOG_API_KEY
 templates.env.globals["POSTHOG_HOST"] = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 templates.env.globals["APP_VERSION"] = APP_VERSION
 templates.env.globals["DEV_BUILD"] = DEV_BUILD
-SCREENSHOTS_DIR = Path("screenshots")
+# Screenshots are keyed by user id, and the test DB mints ids from 1 just like the real one —
+# so without a separate directory a test run overwrites real users' captures with its fixture.
+# Same TESTING split as test_users.db (database.py) and test_app.log.
+SCREENSHOTS_DIR = Path("test_screenshots" if os.getenv("TESTING") == "1" else "screenshots")
 
 INTERVIEW_REMINDER_CHECK_SECONDS = 6 * 3600
 LEAD_PURGE_CHECK_SECONDS = 24 * 3600
@@ -1166,7 +1169,9 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
                       window_limit=15, window_seconds=900,
                       window_msg="Too many attempts on this account — try again later")
     def _authenticate():
-        user = db.query(User).filter(User.username == body.username).first()
+        # Case-insensitive: usernames are matched/uniqued without regard to case, so "John"
+        # logs in as "john". func.lower (not ilike — usernames may contain '_', a LIKE wildcard).
+        user = db.query(User).filter(func.lower(User.username) == body.username.lower()).first()
         if not user or not verify_password(body.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid username or password.")
         if not user.is_active:
@@ -1201,7 +1206,7 @@ async def auth_register(
                       window_limit=25, window_msg="Too many signups from this connection — try again later")
     def _register():
         email = body.email.strip().lower()
-        if db.query(User).filter(User.username == body.username).first():
+        if db.query(User).filter(func.lower(User.username) == body.username.lower()).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
         if db.query(User).filter(User.email == email).first():
             raise HTTPException(status_code=400, detail="Email already registered.")
@@ -1967,6 +1972,29 @@ def landing(request: Request, user: Optional[User] = Depends(get_optional_user),
     return response
 
 
+def _compute_account_alert(user: User) -> Optional[dict]:
+    """Initial seed for the /app status-alert light — the single most relevant
+    account/entitlement problem, or None when nothing's wrong. The client-side
+    ALERT_CONFIG in index.html decides whether each `key` is actually surfaced,
+    so this can stay a pure snapshot of account state with no policy baked in."""
+    lvl = user.account_level
+    if lvl == AccountLevel.free:
+        return {"key": "no_plan", "severity": "bad",
+                "text": "No active plan — subscribe or buy a session to keep going."}
+    if lvl == AccountLevel.paid:
+        if user.sessions_remaining <= 0:
+            return {"key": "no_sessions", "severity": "bad",
+                    "text": "No sessions left — top up before your next interview."}
+        if user.sessions_remaining == 1:
+            return {"key": "low_sessions", "severity": "warn",
+                    "text": "Only 1 session left — top up soon so you don't run out mid-interview."}
+    if lvl == AccountLevel.unlimited and user.sub_cancel_at:
+        ends = user.sub_cancel_at.strftime("%d %b %Y").lstrip("0")
+        return {"key": "sub_cancelling", "severity": "warn",
+                "text": f"Your subscription ends {ends} — you keep unlimited access until then."}
+    return None
+
+
 @app.get("/app")
 def index(request: Request, user: User = Depends(require_user)):
     if not user.email_verified:
@@ -1987,6 +2015,7 @@ def index(request: Request, user: User = Depends(require_user)):
         "first_name": (user.full_name or "").split(" ")[0] or "there",
         "user_id": user.id,
         "interview_date": user.interview_date.isoformat() if user.interview_date else "",
+        "account_alert": _compute_account_alert(user),
     })
 
 
@@ -5212,7 +5241,7 @@ def update_account(
     if body.username and body.username != user.username:
         if not body.current_password or not verify_password(body.current_password, user.password_hash):
             raise HTTPException(status_code=400, detail="Current password is required to change your username.")
-        if db.query(User).filter(User.username == body.username, User.id != user.id).first():
+        if db.query(User).filter(func.lower(User.username) == body.username.lower(), User.id != user.id).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
         user.username = body.username
     if body.full_name is not None:

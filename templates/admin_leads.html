@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Leads — InterviewAce{% endblock %}
+{% block title %}Leads - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -21,7 +21,7 @@
     </form>
     {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
     {% if truncated %}
-    <p class="ua-sub">Showing the first {{ limit }} matches — narrow with a search to see more precisely, or download the CSV for the full set.</p>
+    <p class="ua-sub">Showing the first {{ limit }} matches - narrow with a search to see more precisely, or download the CSV for the full set.</p>
     {% endif %}
     {% if entries %}
     <div class="ua-table-wrap">
@@ -46,19 +46,19 @@
           <td>{{ e.kind }}</td>
           <td>{{ e.created_at }}</td>
           <td>{{ e.request_count }}</td>
-          <td>{{ e.claimed_at or "—" }}{% if e.claim_count > 1 %} <span style="color:var(--text-3,#888);">({{ e.claim_count }}&times;)</span>{% endif %}</td>
+          <td>{{ e.claimed_at or " - " }}{% if e.claim_count > 1 %} <span style="color:var(--text-3,#888);">({{ e.claim_count }}&times;)</span>{% endif %}</td>
           <td>
             {% if e.user_email %}
             <a href="/admin/users?q={{ e.user_email | urlencode }}">{{ e.user_level }}</a>
             {% if e.user_unfinished %}<br><span class="ua-flagged">Setup unfinished</span>{% endif %}
             {% if e.user_paid %}<br><span style="color:var(--accent,#7dc4f5);">Paid</span>{% endif %}
             {% else %}
-            —
+- 
             {% endif %}
           </td>
-          <td>{{ e.utm_source or "—" }}</td>
-          <td>{{ e.utm_campaign or "—" }}</td>
-          <td>{{ e.interview_date or "—" }}</td>
+          <td>{{ e.utm_source or " - " }}</td>
+          <td>{{ e.utm_campaign or " - " }}</td>
+          <td>{{ e.interview_date or " - " }}</td>
         </tr>
         {% endfor %}
       </tbody>

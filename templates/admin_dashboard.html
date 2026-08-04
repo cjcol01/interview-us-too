@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% import "_admin_actions.html" as actions %}
-{% block title %}Growth Dashboard — InterviewAce{% endblock %}
+{% block title %}Growth Dashboard - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -29,7 +29,7 @@
 {% block content %}
   <main class="admin-main admin-main-wide">
     <h1>Growth dashboard</h1>
-    <p class="ua-sub">DB-derived aggregates. MRR is a proxy (active subs &times; list price) — Stripe is the source of truth for actual billing. Click a card to list the matching users on the right.</p>
+    <p class="ua-sub">DB-derived aggregates. MRR is a proxy (active subs &times; list price) - Stripe is the source of truth for actual billing. Click a card to list the matching users on the right.</p>
 
     <div class="ad-layout">
       <div class="ad-main">
@@ -73,14 +73,14 @@
             {{ card("Captures + audio (30d)", captures_30d + audio_30d) }}
           </div>
           {% set max_signup = (signup_series | map(attribute='count') | max) %}
-          <p class="ua-sub" style="margin-top:24px;">Daily signups — last 30 days</p>
+          <p class="ua-sub" style="margin-top:24px;">Daily signups - last 30 days</p>
           <div class="ad-trend">
             {% for d in signup_series %}
             <div class="ad-trend-bar" style="height: {{ (d.count / max_signup * 100) if max_signup else 0 }}%;" title="{{ d.label }}: {{ d.count }}"></div>
             {% endfor %}
           </div>
           {% set max_session = (session_series | map(attribute='count') | max) %}
-          <p class="ua-sub" style="margin-top:24px;">Daily sessions started — last 30 days</p>
+          <p class="ua-sub" style="margin-top:24px;">Daily sessions started - last 30 days</p>
           <div class="ad-trend">
             {% for d in session_series %}
             <div class="ad-trend-bar" style="height: {{ (d.count / max_session * 100) if max_session else 0 }}%;" title="{{ d.label }}: {{ d.count }}"></div>
@@ -121,7 +121,7 @@
           <a href="/admin/dashboard" class="ua-btn">Clear</a>
         </form>
         {% if drilldown.truncated %}
-        <p class="ua-sub">Showing the first {{ drilldown.entries | length }} matches — narrow with a search to see more precisely.</p>
+        <p class="ua-sub">Showing the first {{ drilldown.entries | length }} matches - narrow with a search to see more precisely.</p>
         {% endif %}
         {% if drilldown.entries %}
         <div class="ad-side-table-wrap">
@@ -144,7 +144,7 @@
                 <td>{{ e.account_level }}</td>
                 <td>{{ e.sessions_remaining }}</td>
                 <td>{{ e.created_at }}</td>
-                <td>{{ e.referred_by or "—" }}</td>
+                <td>{{ e.referred_by or " - " }}</td>
                 <td>{{ e.partner_status }}</td>
                 <td>{{ actions.action_buttons(e, "/admin/dashboard?segment=" ~ drilldown.key ~ "&q=" ~ drilldown.q) }}</td>
               </tr>
@@ -178,8 +178,8 @@
     </div>
 
     <div class="ad-section">
-      <h2>Ad attribution — new leads by source</h2>
-      <p class="ua-sub">First-touch <code>utm_source</code> captured on the landing page. "direct" covers anything with no source recorded. Excludes handoff links sent to emails that already had an account — those are logins, not conversions.</p>
+      <h2>Ad attribution - new leads by source</h2>
+      <p class="ua-sub">First-touch <code>utm_source</code> captured on the landing page. "direct" covers anything with no source recorded. Excludes handoff links sent to emails that already had an account - those are logins, not conversions.</p>
       {% if attribution_rows %}
       <div class="ua-table-wrap">
         <table class="ua-table">

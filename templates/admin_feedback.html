@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Session feedback — InterviewAce{% endblock %}
+{% block title %}Session feedback - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
@@ -24,7 +24,7 @@
     </form>
     {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
     {% if truncated %}
-    <p class="ua-sub">Showing the first {{ limit }} matches — narrow with a search to see more precisely.</p>
+    <p class="ua-sub">Showing the first {{ limit }} matches - narrow with a search to see more precisely.</p>
     {% endif %}
     {% if entries %}
     <div class="ua-table-wrap">
@@ -44,11 +44,11 @@
         {% for e in entries %}
         <tr>
           <td><a href="/admin/users?q={{ e.email | urlencode }}">{{ e.email }}</a><br><span class="ua-flagged" style="color:var(--text-3,#888);">{{ e.account_level }}</span></td>
-          <td>{{ e.session_type or "—" }}</td>
+          <td>{{ e.session_type or " - " }}</td>
           <td>{{ e.rating }}★</td>
-          <td>{{ e.comment or "—" }}</td>
-          <td>{{ e.next_interview_date or "—" }}</td>
-          <td>{% if e.answer_count %}{{ e.answer_count }} answer{{ "" if e.answer_count == 1 else "s" }}{% endif %}{% if e.duration_minutes %} · {{ e.duration_minutes }}m{% endif %}{% if not e.answer_count and not e.duration_minutes %}—{% endif %}</td>
+          <td>{{ e.comment or " - " }}</td>
+          <td>{{ e.next_interview_date or " - " }}</td>
+          <td>{% if e.answer_count %}{{ e.answer_count }} answer{{ "" if e.answer_count == 1 else "s" }}{% endif %}{% if e.duration_minutes %} · {{ e.duration_minutes }}m{% endif %}{% if not e.answer_count and not e.duration_minutes %} - {% endif %}</td>
           <td>{{ e.created_at }}</td>
         </tr>
         {% endfor %}

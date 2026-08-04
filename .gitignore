@@ -9,5 +9,6 @@ last_screenshot.png
 users.db
 test_users.db
 /screenshots/
+/test_screenshots/
 loadtest/accounts.json
 loadtest/results/

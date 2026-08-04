@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Partner Dashboard — InterviewAce{% endblock %}
+{% block title %}Partner Dashboard - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/partner_dashboard.css">{% endblock %}
 {% block content %}
 
@@ -18,7 +18,7 @@
       <p>Send your link to a friend. When they upgrade to a paid plan, £{{ "%.0f"|format(flat_pence / 100) }} is credited toward your own subscription automatically. Reach {{ tier2_min_paid }} paying referrals to unlock recurring cash commission ({{ tier2_pct }}%).</p>
       {% else %}
       <h1>Tier {{ partner_tier }} partner<br><span>Earning {{ rate_pct }}% on every payment</span></h1>
-      <p>Commission accrues automatically whenever someone you referred pays — renewals included.</p>
+      <p>Commission accrues automatically whenever someone you referred pays - renewals included.</p>
       {% endif %}
     </div>
 
@@ -61,7 +61,7 @@
           More
         </button>
       </div>
-      <p class="link-card-note">Your friend gets a free first session{% if referral_discount_active %} and £5 off their first paid plan{% endif %} — no code needed, applied automatically at checkout.</p>
+      <p class="link-card-note">Your friend gets a free first session{% if referral_discount_active %} and £5 off their first paid plan{% endif %} - no code needed, applied automatically at checkout.</p>
     </div>
 
     {% if ref_success or is_referred or can_apply_referral %}
@@ -71,7 +71,7 @@
 
       {% if ref_success or is_referred %}
         <p class="already-referred">
-          {% if ref_success %}&#10003; Applied —{% else %}&#10003;{% endif %}
+          {% if ref_success %}&#10003; Applied - {% else %}&#10003;{% endif %}
           {% if referral_discount_active %}
             £5 off your first full payment will be applied automatically at checkout.
           {% else %}
@@ -111,7 +111,7 @@
     <div class="card credit-card">
       <div class="card-label">Credit earned</div>
       <div class="balance-amount">£{{ "%.2f" | format(referral_credit_pence / 100) }}</div>
-      <div class="balance-note">Applied automatically to your subscription at checkout — Reach Tier 2 to earn withdrawable cash instead.</div>
+      <div class="balance-note">Applied automatically to your subscription at checkout - Reach Tier 2 to earn withdrawable cash instead.</div>
     </div>
     {% else %}
     <!-- Balances -->
@@ -137,7 +137,7 @@
     <div class="card">
       <div class="card-label">Withdraw</div>
       {% if withdraw_success %}
-        <div class="feedback success" style="margin-bottom:12px;">&#10003; Withdrawal requested — we'll process your payout shortly.</div>
+        <div class="feedback success" style="margin-bottom:12px;">&#10003; Withdrawal requested - we'll process your payout shortly.</div>
       {% endif %}
       {% if withdraw_error %}
         <div class="feedback error" style="margin-bottom:12px;">{{ withdraw_error }}</div>
@@ -181,9 +181,9 @@
     <div class="card">
       <div class="card-label">Tier progress</div>
       {% if partner_tier >= 3 %}
-        <p class="progress-copy">You're a Tier 3 partner — the top rate. You earn {{ tier3_pct }}% on every payment your referrals make.</p>
+        <p class="progress-copy">You're a Tier 3 partner - the top rate. You earn {{ tier3_pct }}% on every payment your referrals make.</p>
       {% elif partner_tier >= 2 %}
-        <p class="progress-copy">You've reached Tier 2 — earning {{ tier2_pct }}% on every payment your referrals make. Tier 3 ({{ tier3_pct }}%) is granted to top partners on request.</p>
+        <p class="progress-copy">You've reached Tier 2 - earning {{ tier2_pct }}% on every payment your referrals make. Tier 3 ({{ tier3_pct }}%) is granted to top partners on request.</p>
       {% else %}
         <p class="progress-copy">{{ paid_count }} of {{ tier2_min_paid }} referrals have become full paying customers. Reach {{ tier2_min_paid }} to unlock Tier 2 ({{ tier2_pct }}% recurring commission, plus cash withdrawals).</p>
         <div class="progress-bar">
@@ -287,7 +287,7 @@
       const link = document.getElementById('ref-link').value;
       if (navigator.share) {
         navigator.share({
-          title: 'InterviewAce — Ace your interviews',
+          title: 'InterviewAce - Ace your interviews',
           text: 'Get £5 off your first full payment with this link:',
           url: link,
         });

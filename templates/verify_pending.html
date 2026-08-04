@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Verify your email — InterviewAce{% endblock %}
+{% block title %}Verify your email - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/verify_pending.css">{% endblock %}
 {% block content %}
   <div class="vp-wrap">
@@ -17,7 +17,7 @@
       <p class="vp-body">
         We sent a verification link to
         <span class="email">{{ email }}</span>.
-        Click it to activate your account — on this device or your phone, either works.
+        Click it to activate your account - on this device or your phone, either works.
       </p>
       <p class="vp-waiting" id="vp-waiting">Waiting for you to click the link…</p>
       <div id="msg" class="msg"></div>
@@ -48,7 +48,7 @@
             if (data.verified) {
               stopped = true;
               const el = document.getElementById('vp-waiting');
-              if (el) { el.textContent = 'Verified — taking you in…'; el.classList.add('ok'); }
+              if (el) { el.textContent = 'Verified - taking you in…'; el.classList.add('ok'); }
               window.location.href = '/app';
               return;
             }

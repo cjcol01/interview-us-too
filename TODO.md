@@ -1,30 +1,19 @@
 # TODO
 
+## immediately
+- [ ] welcome already done page can surface after demo call - unformatted and flashes up. looks bad
+
 ## Now
 
-- [x] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
-- [ ] after welcome, tell people they can change hotkeys at any time
-- [ ] investigate postgres
-- [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
 - [ ] add different prompts for different use cases (image, typing etc)
-- [ ] Paste this token into the extension popup along with your server URL
-- [ ] settings mobile refresh
-- [ ] proper on call esque alerts for major server issues, one api (ais) going down, failures, api credit run out etc
-- [ ] make a reel get something free
-- [x] improve status indicators
+- [ ] settings mobile refresh (nearly done, a bit wider then the phone)
 - [ ] investigate cluely features and competitors + reviews
-- [x] email me a link at login (for conversion from mobile)
-- [ ] interview date on sign up for follow up email.
 - [ ] setup check before real interview without starting session.
 - [ ] I got the job, referral system, pause instead of cancel
-- [x] how'd the interview go question and feedback
-- [ ] target salesman
-- [ ] add a next interview date in settings
-- [x] simplify landing page
-- [x] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
-- [x] copy buttons broken in support page (on mac)
-- [ ] center pricing info on landing when user is trial
+- [ ] light mode visual check (settings, cancel page navbar, text hard to read)
+- [ ] cancel page revamp, text and maybe some visual. ()
+- [ ] settings page, check horizontal dividing line on shortcuts/ spacing
 
 ## Soon 
 - [ ] shorten landing page
@@ -36,7 +25,11 @@
 - [ ] undetectability FAQ's try fhonest assessment
 - [ ] test job in github actions
 - [ ] auto top up sessions - toggle that rebuys 3 sessions when down to 1. Needs off-session card charging: current Stripe checkout never saves a reusable card (no `setup_future_usage`, no stored payment method). Would need checkout to save a card + an off-session PaymentIntent + SCA/decline handling; only works for purchases made after the change ships.
-
+- [ ] investigate postgres
+- [ ] proper on call esque alerts for major server issues, one api (ais) going down, failures, api credit run out etc
+- [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
+- [ ] make a reel get something free
+- [ ] target salesman
 
 
 ## Later
@@ -60,6 +53,9 @@
 
 ## Done
 
+- [x] center pricing info on landing when user is trial or sessions — pure CSS: `.ia-plan:only-child` in landing.css makes a lone pricing card span both grid columns and centre (max-width 480px, auto margins) instead of sitting in the left column. Both cards still show for trial (kept intentionally); only the single-card case (sessions user sees Unlimited only) is affected.
+- [x] add another status light on /app for anything stopping the product from working — new generic "Alert" light in the Ext/Mic/Replay row, hidden until there's a problem, hover/tap for detail, most-severe alert sets the LED colour. A central `ALERT_CONFIG` map in index.html toggles each alert on/off individually. Alerts: no_plan / no_sessions / low_sessions / sub_cancelling (on); session_ending / rate_limited / approaching_limit (off by default, since the first two already have their own bar/toast). Server seeds account state via `_compute_account_alert()`; live JS hooks cover session-ending, rate-limit, and nearing the per-window capture cap. `.hk-status-dot[hidden]` CSS added so the hidden attribute actually hides it.
+- [x] syntax highlighted code on /app — was doubly broken: (1) the page loaded highlight.js's CommonJS build (`highlight.js@11/lib/*`, `module.exports=…`) which never defines a browser `hljs` global, so every highlight call silently threw; (2) a `#analysis code { color: var(--danger) }` rule meant for inline code out-specified `.hljs` and painted block-code text red ("all red"). Fixes: switched to the browser bundle `@highlightjs/cdn-assets@11/highlight.min.js` (global hljs, ~40 langs), pinned marked to `@15`, scoped the red rule to `#analysis :not(pre) > code`, and replaced marked's removed `highlight` option with a post-parse `hljs.highlightElement` pass. Also added live highlighting during streaming (chunk handler re-highlights the growing buffer, throttled to one pass per animation frame).
 - [x] accidental session start warning for session users — Settings page (Shortcuts section) now shows an amber notice for `paid` account-level users explaining that pressing the capture hotkey with the extension on starts a session immediately (no confirmation popup), spending one of their remaining sessions
 - [x] improve admin page with billing state, error rate, resend failures, rate limit headroom, Sideload/CDN fallback reachability — new "Metrics" section on /admin/health: DB disk usage (main + WAL/SHM), billing summary (active subs / session users / low-session users / pending cancellations), resend email failures + HTTP 5xx error rate (rolling 24h Redis counters), per-endpoint rate-limit activity vs configured limits, and a new Sideload CDN/mirror reachability deep check. Backup time data skipped — no backup mechanism exists yet to report on (see OPS_PLAN.md)
 - [x] trial-end page navbar now uses the standard show_navbar layout (auth-state links) instead of its own custom header
@@ -100,3 +96,15 @@
 - [x] google login
 - [x] after create account, welcome message
 - [x] github sign in
+- [x] check mobile /welcome page. if phone takes up too much space, have it pop up when the phone is the focus and drop down half off page when its not
+- [x] simplify landing page
+- [x] upload cv and shorten to 2000 chars via haiku (is 2k the right limit?)
+- [x] copy buttons broken in support page (on mac)
+- [x] how'd the interview go question and feedback
+- [x] email me a link at login (for conversion from mobile)
+- [x] improve status indicators
+- [x] interview date on sign up for follow up email.
+- [x] add a next interview date in settings
+- [x] after welcome, tell people they can change hotkeys at any time
+- [x] de case sensitive username  
+- [x] show password button on login and create account so users can see what they typed.

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% import "_admin_actions.html" as actions %}
-{% block title %}Usage Admin — InterviewAce{% endblock %}
+{% block title %}Usage Admin - InterviewAce{% endblock %}
 {% block head %}
   <meta name="robots" content="noindex, nofollow">
   <link rel="stylesheet" href="/css/admin.css">
 {% endblock %}
 {% block content %}
   <main class="admin-main">
-    <h1>API usage — last {{ days }} days</h1>
+    <h1>API usage - last {{ days }} days</h1>
     <p class="ua-sub">Capture + audio calls per user. Sorted by total volume</p>
     {% if admin_msg %}<div class="ua-msg">{{ admin_msg }}</div>{% endif %}
     {% if entries %}

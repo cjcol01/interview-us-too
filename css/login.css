@@ -122,6 +122,25 @@
 .field-input::placeholder { color: var(--text-3); }
 .field-input:focus { border-color: var(--accent); }
 
+/* Show/hide password toggle */
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap .field-input { padding-right: 44px; }
+.pw-toggle {
+  position: absolute;
+  top: 0; bottom: 0; right: 0;
+  width: 42px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--text-3);
+  transition: color .15s;
+}
+.pw-toggle:hover { color: var(--text-1); }
+.pw-toggle:focus-visible { color: var(--accent); outline: none; }
+.pw-toggle svg { width: 18px; height: 18px; }
+.pw-toggle .pw-eye-off { display: none; }
+.pw-toggle.revealed .pw-eye { display: none; }
+.pw-toggle.revealed .pw-eye-off { display: block; }
+
 /* Password requirements checklist */
 .pw-requirements {
   list-style: none;

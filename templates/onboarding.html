@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Get started — InterviewAce{% endblock %}
+{% block title %}Get started - InterviewAce{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/css/onboarding.css">
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -10,9 +10,9 @@
     <div class="warning-modal">
       <div class="wm-icon">⚠️</div>
       <h3>This is a test run, not an interview</h3>
-      <p>Your test run lasts <strong>10 minutes</strong> — far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
+      <p>Your test run lasts <strong>10 minutes</strong> - far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
       <div class="wm-actions">
-        <button id="wm-confirm" onclick="confirmStart()">Got it — start test run</button>
+        <button id="wm-confirm" onclick="confirmStart()">Got it - start test run</button>
         <button id="wm-cancel" onclick="closeWarning()">Cancel</button>
       </div>
     </div>
@@ -23,7 +23,7 @@
     <div class="warning-modal">
       <div class="wm-icon">🔌</div>
       <h3>Extension not detected</h3>
-      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio — it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
+      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio - it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
       <div class="wm-actions">
         <button class="wm-confirm-btn" onclick="closeExtWarning()">Go connect it</button>
         <button class="wm-cancel-btn" onclick="continueWithoutExtension()">Continue anyway</button>
@@ -104,7 +104,7 @@
 
         <div id="connect-manual" class="ob-connect-manual" style="display:none;">
           <p>Open this page in the same browser where you installed the extension, then click below to link it manually.</p>
-          <p class="ob-manual-hint">Tip: pin it — click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
+          <p class="ob-manual-hint">Tip: pin it - click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
           <div class="ob-connect-wrap">
             <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
             <p id="connect-status" class="ob-connect-status"></p>
@@ -173,11 +173,11 @@
         <p class="ob-step-state" id="ob-state-4" hidden></p>
         <div class="ob-step-inner">
           <p>Buffers the last {{ replay_seconds }} seconds of one tab's audio, so you can resend a
-             question you missed instead of asking them to repeat it. Practise it now — on this tab,
+             question you missed instead of asking them to repeat it. Practise it now - on this tab,
              or a YouTube video if you want to hear it work.</p>
           <ol class="ob-replay-howto">
             <li>Switch to the tab you want to lock to. <strong>Take the meeting in your
-                browser</strong>, not the Zoom or Teams desktop app — a lock can only hear a single tab.</li>
+                browser</strong>, not the Zoom or Teams desktop app - a lock can only hear a single tab.</li>
             <li>Click the <strong>puzzle-piece icon</strong> in Chrome's toolbar, then
                 <strong>InterviewAce</strong>. Hit the pin to keep it in the toolbar.</li>
             <li>Press <strong>Lock to tab</strong>.</li>
@@ -208,24 +208,24 @@
           <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeWars</a>
           <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeSignal</a>
         </div>
-        <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> — capture screen &amp; analyse</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> — hold to record voice, release to send</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> — arm / disarm the extension</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> — trigger instant replay</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> — enter typing mode</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> - capture screen &amp; analyse</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> - hold to record voice, release to send</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> - arm / disarm the extension</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> - trigger instant replay</p>
+        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> - enter typing mode</p>
 
         <button class="ob-manual-toggle ob-advanced-toggle" onclick="toggleAdvanced()">Show details</button>
         <div id="advanced-section" class="ob-manual-section">
           <div class="ob-feature-callout">
-            <div class="ob-fc-title">🔁 Instant replay — lock to your tab first</div>
-            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis — no re-recording needed.</p>
+            <div class="ob-fc-title">🔁 Instant replay - lock to your tab first</div>
+            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis - no re-recording needed.</p>
           </div>
 
           <div class="ob-feature-callout">
             <div class="ob-fc-title">⌨️ Typing mode &amp; passthrough</div>
-            <p>Press the typing hotkey to enter typing mode — type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
+            <p>Press the typing hotkey to enter typing mode - type your question silently, then press it again or hit <kbd>Enter</kbd> to submit.</p>
             <div class="ob-passthrough-row">
-              <span class="ob-passthrough-label" id="passthrough-label"><strong>Passthrough mode</strong> — <span id="passthrough-desc">keystrokes also reach the page (useful in online IDEs)</span></span>
+              <span class="ob-passthrough-label" id="passthrough-label"><strong>Passthrough mode</strong> - <span id="passthrough-desc">keystrokes also reach the page (useful in online IDEs)</span></span>
               <button id="passthrough-btn" class="ob-toggle-pill active" onclick="togglePassthrough()">On</button>
             </div>
           </div>
@@ -570,7 +570,7 @@
         if (settled) return;
         settled = true;
         msg.classList.remove('is-waiting', 'is-checking');
-        msg.textContent = 'Extension not detected — please install it, then come back.';
+        msg.textContent = 'Extension not detected - please install it, then come back.';
         setTimeout(() => {
           msg.hidden = true;
           msg.textContent = 'Waiting for you to come back from the Web Store…';
@@ -663,7 +663,7 @@
 
     function obShowStaleReload() {
       document.getElementById('ob-mic-led').className = 'ob-mic-led warn';
-      document.getElementById('ob-mic-msg').textContent = 'Extension updated — reload this page to reconnect.';
+      document.getElementById('ob-mic-msg').textContent = 'Extension updated - reload this page to reconnect.';
       document.getElementById('ob-mic-denied-help').hidden = true;
       const btn = document.getElementById('ob-mic-btn');
       btn.hidden = false;
@@ -738,7 +738,7 @@
       } else if (state === 'denied') {
         obSetMicUi('bad', 'Microphone blocked by Chrome.');
       } else if (state === 'error') {
-        obSetMicUi('bad', "Microphone isn't working — check one is plugged in.");
+        obSetMicUi('bad', "Microphone isn't working - check one is plugged in.");
       } else {
         obSetMicUi('warn', 'Not allowed yet.');
       }
@@ -763,7 +763,7 @@
         if (_extensionConnected) {
           obSetMicUi('warn', 'Checking microphone…');
         } else {
-          obSetMicUi('warn', 'Waiting for the extension — connect it first.');
+          obSetMicUi('warn', 'Waiting for the extension - connect it first.');
         }
       }, 2000);
     }
@@ -804,7 +804,7 @@
       document.addEventListener('interview-ace:mic-settings-link-result', (e) => {
         navigator.clipboard.writeText(e.detail.url).then(() => {
           const orig = btn.textContent;
-          btn.textContent = 'Copied — paste in a new tab';
+          btn.textContent = 'Copied - paste in a new tab';
           btn.classList.add('copied');
           setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2200);
         });
@@ -824,8 +824,8 @@
       const MAP = {
         armed:           ['ok',   'Armed' + (e.detail.tabTitle ? ' on: ' + e.detail.tabTitle : '') + '.'],
         arming:          ['warn', 'Arming…'],
-        error:           ['bad',  e.detail.errorMsg || 'Could not capture that tab — try locking again.'],
-        'stream-ended':  ['bad',  'Lock dropped — that tab closed or navigated away.'],
+        error:           ['bad',  e.detail.errorMsg || 'Could not capture that tab - try locking again.'],
+        'stream-ended':  ['bad',  'Lock dropped - that tab closed or navigated away.'],
         idle:            ['idle', 'Not armed yet.'],
       };
       const [cls, text] = MAP[state] || MAP.idle;
@@ -872,7 +872,7 @@
         if (connected) return;
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
-        status.textContent = 'Extension not detected — use manual setup below.';
+        status.textContent = 'Extension not detected - use manual setup below.';
         status.className = 'ob-connect-status err';
         document.getElementById('manual-section').classList.add('open');
       }, 1800);
@@ -913,7 +913,7 @@
     function _applyPassthroughDesc() {
       document.getElementById('passthrough-desc').textContent = _passthrough
         ? 'keystrokes also reach the page (useful in online IDEs)'
-        : 'keystrokes are hidden — sent only to your phone';
+        : 'keystrokes are hidden - sent only to your phone';
     }
     function togglePassthrough() {
       _passthrough = !_passthrough;
@@ -968,7 +968,7 @@
           if (secs <= 0) {
             clearInterval(_qrTimerTick);
             _mobileUrl = null;
-            timerEl.textContent = 'Link expired — click Refresh to get a new one';
+            timerEl.textContent = 'Link expired - click Refresh to get a new one';
             timerEl.classList.add('expired');
             document.getElementById('qr-refresh-btn').hidden = false;
             document.getElementById('qr-expired-overlay').style.display = 'flex';

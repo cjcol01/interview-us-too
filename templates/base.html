@@ -15,7 +15,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/global.css">
-  <script>(function(){var t=localStorage.getItem('theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}());</script>
+  <!-- /app deliberately ignores the light theme: a screen that turns bright mid-interview lights
+       up your face on camera. 'appLight' is the explicit opt-out, set from Settings → Appearance.
+       Runs before paint so neither page ever flashes the wrong theme. -->
+  <script>(function(){
+    if(localStorage.getItem('theme')!=='light')return;
+    var isApp={{ 'true' if request and request.url.path == '/app' else 'false' }};
+    if(isApp&&localStorage.getItem('appLight')!=='1')return;
+    document.documentElement.setAttribute('data-theme','light');
+  }());</script>
   {% block head %}{% endblock %}
   {% if POSTHOG_KEY %}
   <script>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Before you go — InterviewAce{% endblock %}
+{% block title %}Before you go - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/cancel_confirm.css">{% endblock %}
 {% block content %}
 
@@ -42,7 +42,7 @@
     <div class="offer-card" id="offer-card">
       <div class="offer-label">A quick offer</div>
       <h2>Stay for 50% off next month</h2>
-      <p>Since you've been with us, we'd like to offer you half price on your next month. No commitment beyond that — cancel any time.</p>
+      <p>Since you've been with us, we'd like to offer you half price on your next month. No commitment beyond that - cancel any time.</p>
       <div class="offer-actions">
         <form method="POST" action="/billing/offer">
           <button type="submit" class="btn-claim">Claim offer</button>
@@ -58,7 +58,7 @@
     <div id="feedback-section" {% if not offer_eligible %}class="visible" style="display:flex;flex-direction:column;gap:14px;"{% endif %}>
 
       <div class="card">
-        <div class="card-header">Before you cancel — why are you leaving?</div>
+        <div class="card-header">Before you cancel - why are you leaving?</div>
         <div class="radio-list" id="radio-list">
           <label class="radio-item" data-val="got_job">
             <input type="radio" name="reason" value="got_job">
@@ -97,16 +97,16 @@
 
       <div id="ctx-too_expensive" class="ctx-panel ctx-expensive" hidden>
         {% if offer_eligible %}
-        <p>The <strong>50% offer above still stands</strong> — half price for next month, no commitment beyond that. Worth a look before you go.</p>
+        <p>The <strong>50% offer above still stands</strong> - half price for next month, no commitment beyond that. Worth a look before you go.</p>
         <button type="button" class="scroll-offer-btn" id="scroll-offer-btn">See the offer &#8593;</button>
         {% else %}
-        <p>If cost is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> — pay only when you actually have an interview, not on a monthly clock.</p>
+        <p>If cost is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> - pay only when you actually have an interview, not on a monthly clock.</p>
         <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
         {% endif %}
       </div>
 
       <div id="ctx-not_used_enough" class="ctx-panel ctx-sessions" hidden>
-        <p>If timing is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> — use them when you actually have an interview, not on a monthly clock.</p>
+        <p>If timing is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> - use them when you actually have an interview, not on a monthly clock.</p>
         <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
       </div>
 
@@ -123,15 +123,15 @@
           <div class="issue-item">
             <span class="issue-icon">&#9000;</span>
             <div>
-              <strong>Shortcuts not firing</strong>
-              <span>Capture &amp; analyse is <span id="shortcut-capture"></span>. Toggle on/off is <span id="shortcut-toggle-1"></span>. Another app may be claiming the same shortcut — try the popup buttons instead.</span>
+              <strong>Hotkeys not firing</strong>
+              <span>Capture &amp; analyse is <span id="shortcut-capture"></span>. Toggle on/off is <span id="shortcut-toggle-1"></span>. Another app may be claiming the same shortcut - try the popup buttons instead.</span>
             </div>
           </div>
           <div class="issue-item">
             <span class="issue-icon">&#128274;</span>
             <div>
               <strong>Not connected / signed out</strong>
-              <span>Open the extension popup and check it shows your account. If not, sign out and back in — the token may have expired.</span>
+              <span>Open the extension popup and check it shows your account. If not, sign out and back in - the token may have expired.</span>
             </div>
           </div>
           <div class="issue-item">
@@ -153,7 +153,7 @@
         <div class="dev-intro">
           <div class="dev-avatar">CJ</div>
           <div class="dev-bubble">
-            Hi, I'm CJ — I built InterviewAce. I check these messages <strong>every day</strong>. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the <strong>next 5 days</strong>.
+            Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the <strong>next 5 days</strong>.
           </div>
         </div>
         <textarea class="ctx-textarea" id="feature-text" placeholder="What were you looking for? (optional)"></textarea>
@@ -163,7 +163,7 @@
         <div class="dev-intro">
           <div class="dev-avatar">CJ</div>
           <div class="dev-bubble">
-            Hi, I'm CJ — I built InterviewAce. I check these messages <strong>every day</strong>. Feel free to share anything — I read every message.
+            Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. Feel free to share anything - I read every message.
           </div>
         </div>
         <textarea class="ctx-textarea" id="other-text" placeholder="Anything you'd like to share? (optional)"></textarea>

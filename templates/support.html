@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Support — InterviewAce{% endblock %}
+{% block title %}Support - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/support.css">{% endblock %}
 {% block content %}
 <main class="support-main">
@@ -117,20 +117,20 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Microphone access is granted once, through a real permission prompt — but the extension records in a hidden background process that can't show that prompt itself. If you already dismissed or denied it, it stays silent from then on instead of asking again.</p>
+        <p class="issue-why">Microphone access is granted once, through a real permission prompt - but the extension records in a hidden background process that can't show that prompt itself. If you already dismissed or denied it, it stays silent from then on instead of asking again.</p>
         <ol class="issue-fix">
-          <li>Press the voice hotkey once. If permission isn't granted yet, a plain "Meeting Microphone Access" tab now opens on its own — click <strong>Allow</strong> in the prompt there.</li>
+          <li>Press the voice hotkey once. If permission isn't granted yet, a plain "Meeting Microphone Access" tab now opens on its own - click <strong>Allow</strong> in the prompt there.</li>
           <li>Nothing open? Click the extension icon in your toolbar and press <strong>Grant mic permission</strong> in the popup.</li>
           <li>
             Already clicked <strong>Never allow</strong> once? It won't ask again until you clear it manually:
-            <span class="copy-chip" id="mic-settings-copy-chip" onclick="copyMicSettingsLink(this)" title="Click to copy — paste into a new tab's address bar">Copy link to the extension's mic settings<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+            <span class="copy-chip" id="mic-settings-copy-chip" onclick="copyMicSettingsLink(this)" title="Click to copy - paste into a new tab's address bar">Copy link to the extension's mic settings<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
             then set Microphone to "Allow" on that page.
           </li>
           <li>Check System Settings → Sound and confirm the right input device is selected and isn't muted.</li>
           <li>Close any other app that might be using the mic exclusively, then try the hotkey again.</li>
-          <li>Run the system check above — the Microphone row turns green once permission is granted.</li>
+          <li>Run the system check above - the Microphone row turns green once permission is granted.</li>
         </ol>
-        <div class="issue-note"><strong>Note:</strong> this is the extension's own permission, separate from any website's — it won't show up under a friendly name in Chrome's settings, which is why the link above goes straight to it instead of the generic microphone list.</div>
+        <div class="issue-note"><strong>Note:</strong> this is the extension's own permission, separate from any website's - it won't show up under a friendly name in Chrome's settings, which is why the link above goes straight to it instead of the generic microphone list.</div>
       </div>
     </div>
 
@@ -150,11 +150,11 @@
         <p class="issue-why">Instant replay only buffers audio from a tab you've explicitly locked in the extension popup. If nothing is locked, or the locked tab was closed or refreshed, there's no buffer for the hotkey to pull from. Check its still locked and wait up to 30 seconds.</p>
         <ol class="issue-fix">
           <li>Open the extension popup and lock it to your interview tab.</li>
-          <li>Leave that tab open and playing audio for a few seconds before pressing replay — the buffer needs time to fill.</li>
-          <li>If the dashboard badge shows "replay lost" or "replay error", click re-lock without leaving the page.</li>
-          <li>Refreshing or closing the locked tab clears the buffer — re-lock a tab if that happens mid-interview.</li>
+          <li>Leave that tab open and playing audio for a few seconds before pressing replay - the buffer needs time to fill.</li>
+          <li>If the dashboard badge shows "replay lost" or "replay error", re-lock from the extension popup on your computer (extension &rarr; Lock).</li>
+          <li>Refreshing or closing the locked tab clears the buffer - re-lock a tab if that happens mid-interview.</li>
         </ol>
-        <div class="issue-note"><strong>Note:</strong> the buffer only ever holds your configured window — adjust it under Settings → Capture &amp; replay.</div>
+        <div class="issue-note"><strong>Note:</strong> the buffer only ever holds your configured window - adjust it under Settings → Capture &amp; replay.</div>
       </div>
     </div>
 
@@ -173,7 +173,7 @@
       <div class="issue-body">
         <p class="issue-why">Managed or work Chrome profiles often block installs that aren't on an approved list, and Chrome frequently hides a newly installed extension behind the puzzle-piece icon instead of pinning it to the toolbar.</p>
         <ol class="issue-fix">
-          <li>Confirm you're using Chrome or another Chromium browser — Safari and Firefox aren't supported (yet!).</li>
+          <li>Confirm you're using Chrome or another Chromium browser - Safari and Firefox aren't supported (yet!).</li>
           <li>Click the puzzle-piece icon in the toolbar and pin InterviewAce so it's always visible.</li>
           <li>If a work laptop blocks the install, try a personal Chrome profile, or use the <a href="/install-manual">manual install</a> instead.</li>
         </ol>
@@ -188,17 +188,17 @@
             <span class="issue-title">Extension not detected</span>
             <span class="issue-pill">Extension</span>
           </span>
-          <span class="issue-symptom">The system check says "Not detected" — it never responds at all, even though it looks installed.</span>
+          <span class="issue-symptom">The system check says "Not detected" - it never responds at all, even though it looks installed.</span>
         </span>
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">This means the extension isn't responding on this tab at all — different from "not connected", where it responds fine but just isn't linked to your account yet. It's almost always a permission or setup issue, easy to fix below.</p>
+        <p class="issue-why">This means the extension isn't responding on this tab at all - different from "not connected", where it responds fine but just isn't linked to your account yet. It's almost always a permission or setup issue, easy to fix below.</p>
         <ol class="issue-fix">
-          <li>Open <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions')" title="Click to copy — paste into your address bar">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar) and confirm InterviewAce is toggled on, not just installed.</li>
-          <li>Click "Details" on the extension and check "Site access" — set it to "On all sites".</li>
+          <li>Open <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions')" title="Click to copy - paste into your address bar">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar) and confirm InterviewAce is toggled on, not just installed.</li>
+          <li>Click "Details" on the extension and check "Site access" - set it to "On all sites".</li>
           <li>If you're in an Incognito or Guest window, extensions don't run there unless "Allow in Incognito" is switched on for it.</li>
-          <li>Do a full reload of the tab — click the reload button in your browser's toolbar <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> (not just re-running the check below) — permission changes only apply to newly loaded tabs.</li>
+          <li>Do a full reload of the tab - click the reload button in your browser's toolbar <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> (not just re-running the check below) - permission changes only apply to newly loaded tabs.</li>
           <li>Run the system check above again.</li>
         </ol>
       </div>
@@ -212,7 +212,7 @@
             <span class="issue-title">Extension not connected</span>
             <span class="issue-pill">Extension</span>
           </span>
-          <span class="issue-symptom">The system check says "Not connected" — it responds fine, it just isn't linked to your account yet.</span>
+          <span class="issue-symptom">The system check says "Not connected" - it responds fine, it just isn't linked to your account yet.</span>
         </span>
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -224,7 +224,7 @@
         <ol class="issue-fix">
           <li>{% if user %}Click "Connect Extension" above, or{% else %}Click Connect Extension right in the system check above, or{% endif %} go to <a href="/settings#extension">Settings → Extension</a> and click it there.</li>
           <li>If that times out, expand "Not working? Try the manual token" on Settings and paste the token directly into the extension popup.</li>
-          <li>Reinstalling the extension clears its stored token — always reconnect afterward.</li>
+          <li>Reinstalling the extension clears its stored token - always reconnect afterward.</li>
           <li>Make sure you're connecting from the same browser profile the extension is installed in.</li>
         </ol>
       </div>
@@ -243,12 +243,12 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Your phone isn't paired separately — it's just the same dashboard, signed into the same account, open in a mobile browser. If the phone is signed out, backgrounded, or loses network, it stops receiving the live stream.</p>
+        <p class="issue-why">Your phone isn't paired separately - it's just the same dashboard, signed into the same account, open in a mobile browser. If the phone is signed out, backgrounded, or loses network, it stops receiving the live stream.</p>
         <ol class="issue-fix">
           <li>On your phone, open the same dashboard URL and confirm you're signed into the same account.</li>
-          <li>Keep the phone's browser tab in the foreground — backgrounding it can pause the live connection.</li>
+          <li>Keep the phone's browser tab in the foreground - backgrounding it can pause the live connection.</li>
           <li>Re-scan the QR code from onboarding, or open the dashboard link again, if the session looks stale.</li>
-          <li>Check your phone has a stable connection — try mobile data if Wi-Fi is flaky.</li>
+          <li>Check your phone has a stable connection - try mobile data if Wi-Fi is flaky.</li>
         </ol>
       </div>
     </div>
@@ -266,11 +266,11 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Some apps — DRM-protected video, certain native windows — render as black in any screen capture even though you can see them fine yourself. Sharing the wrong tab, or one that hasn't finished loading, produces the same result.</p>
+        <p class="issue-why">Some apps - DRM-protected video, certain native windows - render as black in any screen capture even though you can see them fine yourself. Sharing the wrong tab, or one that hasn't finished loading, produces the same result.</p>
         <ol class="issue-fix">
           <li>Make sure you're sharing the tab or window that actually has the question on it, not a blank new tab.</li>
           <li>Stop the current capture and re-select the correct tab, window, or screen.</li>
-          <li>If the source is DRM-protected content, it may never capture correctly — describe or paste the question instead.</li>
+          <li>If the source is DRM-protected content, it may never capture correctly - describe or paste the question instead.</li>
           <li>Give the page a second to finish rendering before pressing the capture hotkey.</li>
         </ol>
       </div>
@@ -284,17 +284,17 @@
             <span class="issue-title">Hotkeys not firing</span>
             <span class="issue-pill">Capture</span>
           </span>
-          <span class="issue-symptom">Pressing a hotkey does nothing — no toast, no capture, no request going out.</span>
+          <span class="issue-symptom">Pressing a hotkey does nothing - no toast, no capture, no request going out.</span>
         </span>
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
         <p class="issue-why">The extension only listens for hotkeys on pages where its content script has already loaded, and a custom key combo can silently collide with a shortcut the browser or OS already owns.</p>
         <ol class="issue-fix">
-          <li>Refresh the page after installing or updating the extension — it doesn't load into tabs that were already open.</li>
-          <li>Check <a href="/settings#shortcuts">Settings → Shortcuts</a> or the bottom of the <a href="/app#hotkey-reference">dashboard page</a> for the exact combo currently set, and try re-recording it in case of a conflict.</li>
+          <li>Refresh the page after installing or updating the extension - it doesn't load into tabs that were already open.</li>
+          <li>Check <a href="/settings#hotkeys">Settings → Hotkeys</a> or the bottom of the <a href="/app#hotkey-reference">dashboard page</a> for the exact combo currently set, and try re-recording it in case of a conflict.</li>
           <li>Avoid combos your browser or OS already owns.</li>
-          <li>Confirm the extension is toggled on — press the toggle hotkey or check the popup.</li>
+          <li>Confirm the extension is toggled on - press the toggle hotkey or check the popup.</li>
         </ol>
       </div>
     </div>
@@ -312,13 +312,13 @@
         <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="issue-body">
-        <p class="issue-why">Answers stream to your dashboard over a live connection; a flaky network, a backgrounded/throttled tab, or a temporary AI provider slowdown can each interrupt or delay it. A larger prompt also just takes longer to process — filling all the <a href="/settings#context">interview context</a> boxes (CV, behavioural notes, company &amp; role) right up to their limit means more text is sent with every request, which can slow down how quickly answers start.</p>
+        <p class="issue-why">Answers stream to your dashboard over a live connection; a flaky network, a backgrounded/throttled tab, or a temporary AI provider slowdown can each interrupt or delay it. A larger prompt also just takes longer to process - filling all the <a href="/settings#context">interview context</a> boxes (CV, behavioural notes, company &amp; role) right up to their limit means more text is sent with every request, which can slow down how quickly answers start.</p>
         <ol class="issue-fix">
-          <li>Check your own network connection first — the stream reconnects automatically but needs a stable link.</li>
+          <li>Check your own network connection first - the stream reconnects automatically but needs a stable link.</li>
           <li>Keep the dashboard tab in the foreground; background throttling in some browsers can pause the connection.</li>
-          <li>Trim your <a href="/settings#context">context boxes</a> to the essentials — shorter CV/behavioural/company notes mean less for the AI to read before it can start responding.</li>
-          <li>Give it a few seconds — the system automatically fails over to a backup AI provider if the primary is slow or down.</li>
-          <li>Still stuck after ~15 seconds? Refresh the dashboard tab — your session and history carry over.</li>
+          <li>Trim your <a href="/settings#context">context boxes</a> to the essentials - shorter CV/behavioural/company notes mean less for the AI to read before it can start responding.</li>
+          <li>Give it a few seconds - the system automatically fails over to a backup AI provider if the primary is slow or down.</li>
+          <li>Still stuck after ~15 seconds? Refresh the dashboard tab - your session and history carry over.</li>
         </ol>
       </div>
     </div>
@@ -447,7 +447,7 @@
     btn.textContent = 'Connecting…';
     const reset = () => { btn.disabled = false; btn.textContent = originalText; };
     const timeout = setTimeout(() => {
-      btn.textContent = 'Not detected — try again';
+      btn.textContent = 'Not detected - try again';
       setTimeout(reset, 2200);
     }, 2500);
     document.addEventListener('interview-ace:connected', () => {
@@ -472,9 +472,9 @@
     clearTimeout(_micTimeout);
     const state = e.detail && e.detail.state;
     if (state === 'granted') _setCheck('mic', 'ok', 'Granted · ready');
-    else if (state === 'denied') _setCheck('mic', 'bad', 'No signal — permission?');
-    else if (state === 'error') _setCheck('mic', 'bad', 'No signal — check device');
-    else _setCheck('mic', 'warn', 'Not granted yet — test it before your interview');
+    else if (state === 'denied') _setCheck('mic', 'bad', 'No signal - permission?');
+    else if (state === 'error') _setCheck('mic', 'bad', 'No signal - check device');
+    else _setCheck('mic', 'warn', 'Not granted yet - test it before your interview');
   });
 
   document.addEventListener('interview-ace:replay-status', (e) => {
@@ -486,7 +486,7 @@
     const state = _replayLast && _replayLast.state;
     if (state === 'armed') _setCheck('replay', 'ok', 'Armed · locked to tab');
     else if (state === 'error' || state === 'stream-ended') _setCheck('replay', 'bad', 'Buffer empty / off');
-    else _setCheck('replay', 'warn', 'Not locked to a tab — set it up before your interview');
+    else _setCheck('replay', 'warn', 'Not locked to a tab - set it up before your interview');
   }
 
   // The extension's content script injects at document_idle, which can run
@@ -623,7 +623,7 @@
       if (answered) return;
       answered = true;
       document.removeEventListener('interview-ace:mic-settings-link-result', onResult);
-      label.textContent = 'Extension not detected — install it first';
+      label.textContent = 'Extension not detected - install it first';
       el.classList.add('copy-chip-warn');
       setTimeout(() => { label.textContent = original; el.classList.remove('copy-chip-warn'); }, 2200);
     }, 1200);

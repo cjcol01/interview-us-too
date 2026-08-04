@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 {% block title %}InterviewAce{% endblock %}
 {% block head %}
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/javascript.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/java.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/cpp.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/typescript.min.js"></script>
+  <!-- marked pinned to a major (was unpinned → latest, a breakage risk). highlight.js MUST be the
+       @highlightjs/cdn-assets browser bundle: the plain highlight.js@11/lib/* files are CommonJS
+       (`module.exports=…`) and, loaded via <script>, never define a global `hljs`, so highlighting
+       silently throws. This bundle exposes window.hljs and ships the ~40 common languages. -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
   <link rel="stylesheet" href="/css/index.css?v={{ APP_VERSION }}">
   <link rel="stylesheet" href="/css/mock_interview.css">
 {% endblock %}
@@ -76,7 +75,7 @@
             <span id="fb-live-text">Still live</span>
           </div>
           <h2 class="fb-heading">How did that go?</h2>
-          <p class="fb-sub">Your session keeps running — capturing again continues it.</p>
+          <p class="fb-sub">Your session keeps running - capturing again continues it.</p>
           <button type="button" class="fb-close" onclick="fbSkip()" aria-label="Close">&#x2715;</button>
         </div>
 
@@ -85,7 +84,6 @@
           <div class="fb-kicker"><span class="fb-kicker-num">01</span>&nbsp;&middot;&nbsp;What was this?</div>
           <div class="fb-seg-tray" role="group" aria-label="Session type">
             <button type="button" class="fb-seg-btn" data-type="real"     onclick="fbSetType('real')"     role="radio" aria-checked="false" aria-label="Real interview">Real interview</button>
-            <button type="button" class="fb-seg-btn" data-type="practice" onclick="fbSetType('practice')" role="radio" aria-checked="false" aria-label="Practice">Practice</button>
             <button type="button" class="fb-seg-btn" data-type="testing"  onclick="fbSetType('testing')"  role="radio" aria-checked="false" aria-label="Just testing">Just testing</button>
           </div>
         </div>
@@ -108,21 +106,15 @@
         <div class="fb-section">
           <div class="fb-note-label">Note <span class="fb-optional-chip">OPTIONAL</span></div>
           <textarea id="fb-comment" class="fb-textarea" maxlength="2000"
-                    placeholder="Anything that helped, or got in the way?"></textarea>
+                    placeholder="Anything that helped, or got in the way?
+The team actively read these and work on issues found."></textarea>
         </div>
 
         <!-- 03 · Next interview -->
         <div class="fb-section">
           <div class="fb-kicker"><span class="fb-kicker-num">03</span>&nbsp;&middot;&nbsp;Next interview</div>
-          <div class="fb-switch-row">
-            <label class="fb-switch" for="fb-remind-toggle">
-              <input type="checkbox" id="fb-remind-toggle" role="switch" aria-checked="false"
-                     onchange="fbToggleRemind(this.checked)">
-              <span class="fb-switch-pill"></span>
-            </label>
-            <span class="fb-switch-label">Email me a reminder the day before</span>
-          </div>
-          <div class="fb-remind-chips" id="fb-remind-chips" hidden>
+          <p class="fb-remind-help">Got another lined up?<br>Set the date and we'll email a reminder the day before.</p>
+          <div class="fb-remind-chips" id="fb-remind-chips">
             <button type="button" class="fb-date-pill" data-choice="tomorrow"  onclick="fbDatePick('tomorrow')">Tomorrow</button>
             <button type="button" class="fb-date-pill" id="fb-date-pill-soon"  data-choice="soon"      onclick="fbDatePick('soon')">This week</button>
             <button type="button" class="fb-date-pill" id="fb-date-pill-week"  data-choice="next_week" onclick="fbDatePick('next_week')">Next week</button>
@@ -173,7 +165,7 @@
 
   <div id="hint-toast">
     <button id="hint-dismiss" onclick="document.getElementById('hint-toast').classList.remove('visible')">&times;</button>
-    <p>Try it — press <kbd id="hint-kbd">Ctrl+Shift+8</kbd> and say <strong>"what's an API?"</strong></p>
+    <p>Try it - press <kbd id="hint-kbd">Ctrl+Shift+8</kbd> and say <strong>"what's an API?"</strong></p>
   </div>
 
   <header>
@@ -201,7 +193,7 @@
 
   <!-- Trial countdown bar (shown for trial users only) -->
   <div id="trial-bar">
-    <span>Test run &mdash; <strong id="trial-time"></strong> left</span>
+    <span>Test run - <strong id="trial-time"></strong> left</span>
     <a href="/trial-end" class="trial-bar-link">End test run &rarr;</a>
   </div>
 
@@ -213,7 +205,7 @@
 
   <!-- No sessions remaining bar (paid users, 0 sessions left) -->
   <div id="no-sessions-bar"{% if account_level == 'paid' and sessions_remaining == 0 %} class="visible"{% endif %}>
-    <span>No sessions remaining — top up to keep going</span>
+    <span>No sessions remaining - top up to keep going</span>
     <a href="/pricing" class="no-sessions-link">Top up &rarr;</a>
   </div>
 
@@ -273,22 +265,29 @@
             <span class="hk-status-led neutral"></span>Replay
             <span class="hk-status-tip" id="hk-status-tip-replay">Checking instant replay…</span>
           </button>
+          <!-- Generic alert light — hidden until something needs attention (no sessions,
+               subscription ending, rate limited, etc). Hover/tap for detail. Which conditions
+               reach this light is controlled by ALERT_CONFIG in the script below. -->
+          <button type="button" class="hk-status-dot hk-status-dot--alert" id="hk-status-alert" aria-label="Account alert" hidden>
+            <span class="hk-status-led warn"></span>Alert
+            <span class="hk-status-tip" id="hk-status-tip-alert"></span>
+          </button>
         </div>
       </div>
       <div class="hk-ref-list">
         <div class="hk-ref-row">
           <span class="hk-ref-label">Screen capture</span>
-          <span class="hk-ref-desc">Tap — screenshot what's on screen</span>
+          <span class="hk-ref-desc">Tap - screenshot what's on screen</span>
           <span class="hk-ref-key" id="hkref-capture"></span>
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Voice capture</span>
-          <span class="hk-ref-desc">Hold — send yours or the interviewer's question</span>
+          <span class="hk-ref-desc">Hold - send yours or the interviewer's question</span>
           <span class="hk-ref-key" id="hkref-audio"></span>
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Instant replay</span>
-          <span class="hk-ref-desc">Tap — resend the last {{ replay_seconds }}s of audio</span>
+          <span class="hk-ref-desc">Tap - resend the last {{ replay_seconds }}s of audio</span>
           <span class="hk-ref-key" id="hkref-replay"></span>
         </div>
         <div class="hk-ref-row">
@@ -298,11 +297,11 @@
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Toggle on/off</span>
-          <span class="hk-ref-desc">Tap — arm or disarm every hotkey</span>
+          <span class="hk-ref-desc">Tap - arm or disarm every hotkey</span>
           <span class="hk-ref-key" id="hkref-toggle"></span>
         </div>
       </div>
-      <a href="/settings#shortcuts" class="hk-ref-edit">Edit hotkeys →</a>
+      <a href="/settings#hotkeys" class="hk-ref-edit">Edit hotkeys →</a>
     </div>
   </main>
 
@@ -349,6 +348,7 @@
       _historyIdx = next;
       const item = _history[_historyIdx];
       analysisEl.innerHTML  = item.analysis ? marked.parse(item.analysis) : '';
+      if (item.analysis) _highlightCode(analysisEl);
       analysisEl.className  = item.analysis ? '' : 'empty';
       tsEl.textContent      = item.timestamp ? 'captured at ' + item.timestamp : '';
       badgeEl.textContent   = item.type;
@@ -371,6 +371,7 @@
         phEl.style.display = 'none';
       }
       analysisEl.innerHTML = data.analysis ? marked.parse(data.analysis) : '';
+      if (data.analysis) _highlightCode(analysisEl);
       analysisEl.className = data.analysis ? '' : 'empty';
       if (data.analysis) clearBtnEl.classList.add('visible');
       tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
@@ -427,6 +428,7 @@
           const data = JSON.parse(e.data);
           console.debug('[sse]', data.type);
           if (data.type === 'working') {
+            _noteCapture();
             _streamBuffer = '';
             _historyIdx = 0;
             statusEl.textContent = 'analysing...';
@@ -443,6 +445,7 @@
             _streamBuffer += data.text;
             analysisEl.innerHTML = marked.parse(_streamBuffer);
             analysisEl.className = '';
+            _scheduleHighlight(analysisEl);
           } else if (data.type === 'capture') {
             _streamBuffer = '';
             applyCapture(data);
@@ -457,6 +460,9 @@
             toast.classList.add('visible');
             clearTimeout(toast._hide);
             toast._hide = setTimeout(() => toast.classList.remove('visible'), 5000);
+            setAlert('rate_limited', 'warn', data.message);
+            clearTimeout(_rateLimitAlertHide);
+            _rateLimitAlertHide = setTimeout(() => clearAlert('rate_limited'), 30000);
           } else if (data.type === 'disabled') {
             const toast = document.getElementById('disabled-toast');
             toast.classList.add('visible');
@@ -471,10 +477,12 @@
             _iaHideButton();
           } else if (data.type === 'session_started') {
             _paidWarnShown = false;
+            clearAlert('session_ending');
             document.getElementById('session-over-overlay').classList.remove('visible');
             document.getElementById('session-warn-bar').classList.remove('visible');
             _setPaidSessionTimer(data.seconds_remaining);
           } else if (data.type === 'audio-working') {
+            _noteCapture();
             _streamBuffer = '';
             _historyIdx = 0;
             statusEl.textContent = 'transcribing...';
@@ -494,6 +502,7 @@
             statusEl.textContent = 'live';
             statusEl.className = 'live';
             analysisEl.innerHTML = marked.parse(data.analysis || '');
+            if (data.analysis) _highlightCode(analysisEl);
             analysisEl.className = data.analysis ? '' : 'empty';
             if (data.analysis) clearBtnEl.classList.add('visible');
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
@@ -503,11 +512,12 @@
           } else if (data.type === 'audio-error') {
             statusEl.textContent = 'live';
             statusEl.className = 'live';
-            analysisEl.textContent = data.message || "Couldn't process that recording — try again.";
+            analysisEl.textContent = data.message || "Couldn't process that recording - try again.";
             analysisEl.className = '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
           } else if (data.type === 'typing-working') {
+            _noteCapture();
             _streamBuffer = '';
             _historyIdx = 0;
             statusEl.textContent = 'thinking...';
@@ -524,6 +534,7 @@
             statusEl.textContent = 'live';
             statusEl.className = 'live';
             analysisEl.innerHTML = marked.parse(data.analysis || '');
+            if (data.analysis) _highlightCode(analysisEl);
             analysisEl.className = data.analysis ? '' : 'empty';
             if (data.analysis) clearBtnEl.classList.add('visible');
             tsEl.textContent = data.timestamp ? 'captured at ' + data.timestamp : '';
@@ -547,14 +558,34 @@
     }
 
 
-    marked.setOptions({
-      highlight: (code, lang) => {
-        if (lang && hljs.getLanguage(lang)) {
-          return hljs.highlight(code, { language: lang }).value;
+    // marked dropped its `highlight` option in v5 (the CDN pulls v15+), so highlighting is a
+    // post-parse pass instead: highlight.js walks the rendered <pre><code> blocks. marked tags
+    // each with `language-xxx` (default langPrefix) which hljs uses to pick the grammar; unknown
+    // / unregistered languages fall back to auto-detection so they still colour instead of erroring.
+    function _highlightCode(container) {
+      container.querySelectorAll('pre code').forEach((block) => {
+        if (block.dataset.hlDone) return;                 // don't re-highlight (hljs warns + double-wraps)
+        const m = (block.className || '').match(/language-([\w-]+)/);
+        if (m && !hljs.getLanguage(m[1])) {               // language not in the core build → let hljs auto-detect
+          block.className = block.className.replace(/language-[\w-]+/, '').trim();
         }
-        return hljs.highlightAuto(code).value;
-      }
-    });
+        hljs.highlightElement(block);
+        block.dataset.hlDone = '1';
+      });
+    }
+
+    // Streaming re-highlight: marked replaces #analysis's innerHTML on every chunk (fresh <code>
+    // nodes each time, so the hlDone guard naturally resets), which would mean highlighting the
+    // whole buffer per token. Coalesce to at most one pass per animation frame instead — an open
+    // ``` fence already renders as a code block, so it colours live and settles as more arrives.
+    let _highlightRaf = 0;
+    function _scheduleHighlight(el) {
+      if (_highlightRaf) return;
+      _highlightRaf = requestAnimationFrame(() => {
+        _highlightRaf = 0;
+        _highlightCode(el);
+      });
+    }
 
     // ── Trial countdown & start ──────────────────────────────────────────────
 
@@ -651,13 +682,17 @@
       if (_paidSessionTick) { clearInterval(_paidSessionTick); _paidSessionTick = null; }
       if (secondsRemaining <= 0) { showSessionOver(); return; }
       _paidWarnShown = secondsRemaining <= 600;
-      if (_paidWarnShown) document.getElementById('session-warn-bar').classList.add('visible');
+      if (_paidWarnShown) {
+        document.getElementById('session-warn-bar').classList.add('visible');
+        setAlert('session_ending', 'warn', 'Your session ends in under 10 minutes.');
+      }
       let secs = secondsRemaining;
       _paidSessionTick = setInterval(() => {
         secs--;
         if (secs <= 600 && !_paidWarnShown) {
           _paidWarnShown = true;
           document.getElementById('session-warn-bar').classList.add('visible');
+          setAlert('session_ending', 'warn', 'Your session ends in under 10 minutes.');
         }
         if (secs <= 0) {
           clearInterval(_paidSessionTick);
@@ -670,6 +705,7 @@
     function showSessionOver() {
       clearInterval(_paidSessionTick);
       _paidSessionTick = null;
+      clearAlert('session_ending');
       document.getElementById('session-warn-bar').classList.remove('visible');
       document.getElementById('session-over-overlay').classList.add('visible');
       _iaHideButton();
@@ -760,17 +796,75 @@
       } else if (status.state === 'stream-ended') {
         _replayBadge.innerHTML =
           '<span class="rb-err">replay lost</span>' +
-          '<button class="rb-relock" onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))">re-lock</button>';
+          '<span class="rb-hint">re-lock via extensiono</span>';
       } else if (status.state === 'error') {
         _replayBadge.innerHTML =
           '<span class="rb-err">replay error</span>' +
-          '<button class="rb-relock" onclick="document.dispatchEvent(new CustomEvent(\'interview-ace:replay-relock\'))">re-lock</button>';
+          '<span class="rb-hint">re-lock via extension</span>';
       } else {
         _replayBadge.style.display = 'none';
       }
     }
 
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayStatus(e.detail));
+
+    // ── Generic alert light (hk-status-alert) ────────────────────────────────
+    // One catch-all status light that stays hidden until something needs attention,
+    // then shows the most severe active alert (hover/tap for detail). Flip `enabled`
+    // per key to control how much surfaces HERE versus the dedicated bars/toasts.
+    // The three that already have their own bar/toast default off to avoid repetition.
+    const ALERT_CONFIG = {
+      no_plan:           { enabled: true  },  // free / downgraded mid-use — hard block
+      no_sessions:       { enabled: true  },  // sessions user, 0 left
+      low_sessions:      { enabled: true  },  // sessions user, 1 left
+      sub_cancelling:    { enabled: true  },  // subscriber, subscription set to cancel
+      session_ending:    { enabled: false },  // <10 min left — also shown by the session-warn bar
+      rate_limited:      { enabled: false },  // hit a rate limit — also shown by the rate-limit toast
+      approaching_limit: { enabled: false },  // sending captures fast, nearing the per-window cap
+    };
+    const _ALERT_RANK = { bad: 3, warn: 2, ok: 1 };
+    const _activeAlerts = new Map();  // key -> { severity, text }
+    const _alertDot = document.getElementById('hk-status-alert');
+    let _rateLimitAlertHide = null;   // auto-clear timer for the transient rate-limit alert
+
+    function setAlert(key, severity, text) {
+      const cfg = ALERT_CONFIG[key];
+      if (!cfg || !cfg.enabled) return;   // disabled alerts never reach the light
+      _activeAlerts.set(key, { severity, text });
+      _renderAlerts();
+    }
+    function clearAlert(key) {
+      if (_activeAlerts.delete(key)) _renderAlerts();
+    }
+    function _renderAlerts() {
+      const vals = [..._activeAlerts.values()];
+      if (!vals.length) { _alertDot.hidden = true; _alertDot.classList.remove('open'); return; }
+      let top = vals[0].severity;
+      for (const v of vals) if (_ALERT_RANK[v.severity] > _ALERT_RANK[top]) top = v.severity;
+      _alertDot.querySelector('.hk-status-led').className = 'hk-status-led ' + top;
+      document.getElementById('hk-status-tip-alert').textContent = vals.map(v => v.text).join(' • ');
+      _alertDot.hidden = false;
+    }
+
+    // Seed from the server's snapshot of account state (null when nothing's wrong).
+    const _accountAlert = {{ account_alert | tojson }};
+    if (_accountAlert) setAlert(_accountAlert.key, _accountAlert.severity, _accountAlert.text);
+
+    // Nearing the per-window capture cap — client-side rolling count of AI requests
+    // (screen / voice / typing all funnel through the same 'working' SSE events below).
+    const _APPROACH_WINDOW_MS = 300000;  // 5 min, matches the capture window limit
+    const _APPROACH_THRESHOLD = 12;      // warn a few short of the 15/5min cap
+    const _captureTimes = [];
+    function _noteCapture() {
+      const now = performance.now();
+      _captureTimes.push(now);
+      while (_captureTimes.length && now - _captureTimes[0] > _APPROACH_WINDOW_MS) _captureTimes.shift();
+      if (_captureTimes.length >= _APPROACH_THRESHOLD) {
+        setAlert('approaching_limit', 'warn', "You're sending captures fast - ease off slightly to avoid hitting the rate limit.");
+      } else {
+        clearAlert('approaching_limit');
+      }
+    }
 
     // ── Status dots (extension / mic / instant replay) ──────────────────────
     function _setDot(name, state, text) {
@@ -844,11 +938,11 @@
     function _updateExtDot() {
       if (_extLinked === null) return;
       if (!_extLinked) {
-        _setDot('ext', 'bad', 'Extension installed but not connected — connect it in Settings → Extension.');
+        _setDot('ext', 'bad', 'Extension installed but not connected - connect it in Settings → Extension.');
         _setSupportBounce(true);
       } else if (_extEnabled === false) {
         const toggleKey = (window.MI_HOTKEYS || {}).toggle || 'the toggle hotkey';
-        _setDot('ext', 'warn', 'Extension connected but switched off — press ' + toggleKey + ' to turn it back on.');
+        _setDot('ext', 'warn', 'Extension connected but switched off - press ' + toggleKey + ' to turn it back on.');
         _setSupportBounce(true);
       } else {
         _setDot('ext', 'ok', 'Extension connected and linked to your account.');
@@ -858,7 +952,7 @@
 
     const _extDotTimeout = setTimeout(() => {
       if (_pongSeen) return;
-      _setDot('ext', 'bad', 'Extension not detected — install it from the Chrome Web Store, then connect it in Settings → Extension.');
+      _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
       _setSupportBounce(true);
     }, 1500);
     document.addEventListener('interview-ace:pong', (e) => {
@@ -878,7 +972,7 @@
     // Mic: passive permission check, requested fresh on load.
     const _micDotTimeout = setTimeout(() => {
       if (_micSeen) return;
-      _setDot('mic', 'neutral', 'Microphone status unknown — install and connect the extension to check.');
+      _setDot('mic', 'neutral', 'Microphone status unknown - install and connect the extension to check.');
     }, 1500);
     document.addEventListener('interview-ace:mic-status', (e) => {
       _micSeen = true;
@@ -887,11 +981,11 @@
       if (state === 'granted') {
         _setDot('mic', 'ok', 'Microphone permission granted.');
       } else if (state === 'denied') {
-        _setDot('mic', 'bad', "Microphone permission blocked — allow it for InterviewAce in your browser's site settings, then reload this page.");
+        _setDot('mic', 'bad', "Microphone permission blocked - allow it for InterviewAce in your browser's site settings, then reload this page.");
       } else if (state === 'error') {
-        _setDot('mic', 'bad', 'Microphone isn’t working — check that a microphone is connected and permission is allowed, then try again.');
+        _setDot('mic', 'bad', 'Microphone isn’t working - check that a microphone is connected and permission is allowed, then try again.');
       } else {
-        _setDot('mic', 'warn', 'Microphone permission not granted yet — press and hold the voice-capture hotkey now to grant it before your interview.');
+        _setDot('mic', 'warn', 'Microphone permission not granted yet - press and hold the voice-capture hotkey now to grant it before your interview.');
       }
     });
     _retryDispatch('interview-ace:mic-check', () => _micSeen);
@@ -911,12 +1005,12 @@
     function _applyReplayDot(status) {
       const state = status && status.state;
       if (state === 'armed') {
-        const page = status.tabTitle ? ` — locked to "${status.tabTitle}"` : '';
+        const page = status.tabTitle ? ` - locked to "${status.tabTitle}"` : '';
         _setDot('replay', 'ok', 'Instant replay is armed and ready' + page + '.');
       } else if (state === 'error' || state === 'stream-ended') {
-        _setDot('replay', 'warn', 'Instant replay lost its connection — click re-lock in the extension popup.');
+        _setDot('replay', 'warn', 'Instant replay lost its connection - click re-lock in the extension popup.');
       } else {
-        _setDot('replay', 'warn', "Instant replay isn't locked to a tab yet — lock it to your meeting tab in the extension popup now so it's ready before your interview.");
+        _setDot('replay', 'warn', "Instant replay isn't locked to a tab yet - lock it to your meeting tab in the extension popup now so it's ready before your interview.");
       }
     }
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));
@@ -942,7 +1036,7 @@
       if (status.mic === 'granted') {
         _setDot('mic', 'ok', 'Microphone permission granted.');
       } else if (status.mic === 'denied' || status.mic === 'error') {
-        _setDot('mic', 'bad', "Microphone isn’t available — check settings on the device running the extension.");
+        _setDot('mic', 'bad', "Microphone isn’t available - check settings on the device running the extension.");
       } else {
         _setDot('mic', 'neutral', 'Microphone status unknown.');
       }
@@ -1051,15 +1145,14 @@
     }
 
     function interviewDone() {
-      fbOpen('{{ interview_date }}');
+      fbOpen();
     }
 
     // ── Feedback modal ───────────────────────────────────────────────────────
 
     const _THANKS_SENT = {
-      real:     'Logged. Good luck out there.',
-      practice: 'Good work putting in the reps.',
-      testing:  'Good to know it all works.',
+      real:    'Logged. Good luck out there.',
+      testing: 'Good to know it all works.',
     };
 
     const _fbOverlay  = document.getElementById('feedback-overlay');
@@ -1112,6 +1205,9 @@
           dateInput.focus();
         });
       }
+      // A date is now selected (except 'custom' before a value is entered),
+      // so it'll be submitted as the next-interview date.
+      _fbRemind = !!_fbDateValue;
       _fbUpdateRemindConfirm();
     }
 
@@ -1119,19 +1215,10 @@
       const dateInput = document.getElementById('fb-date');
       if (!dateInput.value) return;
       _fbDateValue = dateInput.value;
+      _fbRemind = true;
       const cp = document.querySelector('.fb-date-pill[data-choice="custom"]');
       if (cp) cp.textContent = _fbFmt(new Date(dateInput.value + 'T00:00:00'));
       _fbSelectDatePill('custom');
-      _fbUpdateRemindConfirm();
-    }
-
-    function fbToggleRemind(on) {
-      _fbRemind = on;
-      const chips  = document.getElementById('fb-remind-chips');
-      const toggle = document.getElementById('fb-remind-toggle');
-      if (chips)  chips.hidden = !on;
-      if (toggle) toggle.setAttribute('aria-checked', on ? 'true' : 'false');
-      if (!on) { _fbDateValue = ''; _fbSelectDatePill(''); }
       _fbUpdateRemindConfirm();
     }
 
@@ -1190,45 +1277,42 @@
     function _updateThanksMsg(sent) {
       const el = document.getElementById('fb-thanks-heading');
       if (!el) return;
-      el.textContent = sent ? (_THANKS_SENT[_fbSessionType] || 'Logged. Good luck out there.') : 'No problem — back to it.';
+      el.textContent = sent ? (_THANKS_SENT[_fbSessionType] || 'Logged. Good luck out there.') : 'No problem - back to it.';
     }
 
-    function fbOpen(prefillDate) {
+    // Prefill "what was this?" from how much they actually used the session:
+    // a long session or lots of captures reads as a real interview; a short one
+    // or only a few captures reads as just testing. Anything in between is left
+    // blank for the user to choose. Real wins ties so a long-but-quiet session
+    // (e.g. 20 min, few captures) still reads as a real interview.
+    function _fbPrefillType() {
+      const durMin = (_iaFirstTs && _iaLastTs) ? (_iaLastTs - _iaFirstTs) / 60 : 0;
+      const n = _iaN || 0;
+      if (durMin > 15 || n > 10)     fbSetType('real');
+      else if (durMin < 5 || n < 5)  fbSetType('testing');
+    }
+
+    function fbOpen() {
       _fbRating = 0; _fbSessionType = ''; _fbDateValue = ''; _fbRemind = false;
       document.getElementById('fb-comment').value = '';
       if (_fbErrEl) _fbErrEl.textContent = '';
       _applyFbRating(0);
       document.querySelectorAll('.fb-seg-btn').forEach((b) => { b.classList.remove('active'); b.setAttribute('aria-checked', 'false'); });
-      document.querySelectorAll('.fb-date-pill').forEach((p) => p.classList.remove('active'));
 
+      _fbPrefillType();
+
+      // Reset the next-interview date picker
+      document.querySelectorAll('.fb-date-pill').forEach((p) => p.classList.remove('active'));
       const soonPill  = document.getElementById('fb-date-pill-soon');
       const weekPill  = document.getElementById('fb-date-pill-week');
-      const toggle    = document.getElementById('fb-remind-toggle');
-      const chips     = document.getElementById('fb-remind-chips');
       const confirm   = document.getElementById('fb-remind-confirm');
       const dateInput = document.getElementById('fb-date');
+      const customPill = document.querySelector('.fb-date-pill[data-choice="custom"]');
       if (soonPill) soonPill.textContent = _fbFmt(_fbAddDays(2));
       if (weekPill) weekPill.textContent = _fbFmt(_fbAddDays(7));
-      if (toggle)   { toggle.checked = false; toggle.setAttribute('aria-checked', 'false'); }
-      if (chips)    chips.hidden = true;
       if (confirm)  { confirm.textContent = ''; confirm.style.display = 'none'; }
-      if (dateInput) { dateInput.style.display = 'none'; dateInput.min = _fbToISO(_fbAddDays(0)); }
-
-      const today = _fbToISO(_fbAddDays(0));
-      const cp = document.querySelector('.fb-date-pill[data-choice="custom"]');
-      if (prefillDate && prefillDate >= today) {
-        _fbDateValue = prefillDate;
-        _fbRemind = true;
-        if (toggle)    { toggle.checked = true; toggle.setAttribute('aria-checked', 'true'); }
-        if (chips)     chips.hidden = false;
-        if (dateInput) { dateInput.value = prefillDate; dateInput.style.display = 'block'; }
-        if (cp) cp.textContent = _fbFmt(new Date(prefillDate + 'T00:00:00'));
-        _fbSelectDatePill('custom');
-        _fbUpdateRemindConfirm();
-      } else {
-        if (dateInput) dateInput.value = '';
-        if (cp) cp.textContent = 'Pick a date';
-      }
+      if (dateInput) { dateInput.value = ''; dateInput.style.display = 'none'; dateInput.min = _fbToISO(_fbAddDays(0)); }
+      if (customPill) customPill.textContent = 'Pick a date';
 
       // Update live badge
       const liveText = document.getElementById('fb-live-text');
@@ -1305,11 +1389,11 @@
           _iaHideButton();
         } else {
           const d = await resp.json().catch(() => ({}));
-          if (_fbErrEl) _fbErrEl.textContent = d.detail || 'Something went wrong — try again.';
+          if (_fbErrEl) _fbErrEl.textContent = d.detail || 'Something went wrong - try again.';
           if (_fbSubmitEl) _fbSubmitEl.disabled = false;
         }
       } catch {
-        if (_fbErrEl) _fbErrEl.textContent = 'Network error — try again.';
+        if (_fbErrEl) _fbErrEl.textContent = 'Network error - try again.';
         if (_fbSubmitEl) _fbSubmitEl.disabled = false;
       }
     }

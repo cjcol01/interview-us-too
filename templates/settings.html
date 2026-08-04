@@ -1,11 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Settings — InterviewAce{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/settings.css">{% endblock %}
+{% block title %}Settings - InterviewAce{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/settings.css">
+  <!-- highlight.js for the live response preview's code block. Same @highlightjs/cdn-assets
+       bundle as the /app page (exposes window.hljs + ~40 common languages incl. python). -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>{% endblock %}
 {% block content %}
 
   {% if account_flag_notice == 'paused' %}
   <div class="account-flag-banner">
-    Your subscription was paused by an admin — your plan has been downgraded and you won't be billed further while paused. Contact support if you think this is a mistake.
+    Your subscription was paused by an admin - your plan has been downgraded and you won't be billed further while paused. Contact support if you think this is a mistake.
   </div>
   {% elif account_flag_notice == 'resumed' %}
   <div class="account-flag-banner account-flag-banner-ok">
@@ -15,7 +19,7 @@
 
   {% if offer_claimed %}
   <div class="offer-claimed-banner" id="offer-claimed-banner">
-    ✓ 50% off applied to your next month — enjoy!
+    ✓ 50% off applied to your next month - enjoy!
   </div>
   <script>
     setTimeout(() => {
@@ -59,7 +63,7 @@
           <button class="sidebar-nav-btn"         data-section="context"    onclick="sidebarScroll('context')">Interview context</button>
           <button class="sidebar-nav-btn"         data-section="appearance" onclick="sidebarScroll('appearance')">Appearance</button>
           <button class="sidebar-nav-btn"         data-section="capture"    onclick="sidebarScroll('capture')">Capture &amp; replay</button>
-          <button class="sidebar-nav-btn"         data-section="shortcuts"  onclick="sidebarScroll('shortcuts')">Shortcuts</button>
+          <button class="sidebar-nav-btn"         data-section="hotkeys"  onclick="sidebarScroll('hotkeys')">Hotkeys</button>
           <button class="sidebar-nav-btn"         data-section="extension"  onclick="sidebarScroll('extension')">Extension</button>
           <button class="sidebar-nav-btn"         data-section="account"    onclick="sidebarScroll('account')">Account</button>
           <button class="sidebar-nav-btn"         data-section="billing"    onclick="sidebarScroll('billing')">Billing &amp; referral</button>
@@ -158,11 +162,11 @@
                   <span class="btn-fill" id="cv-upload-fill"></span>
                   <span class="btn-label" id="cv-upload-label">Upload CV</span>
                 </button>
-                <span class="context-upload-hint">PDF or Word (.docx) — summarised into the box for you to edit.</span>
+                <span class="context-upload-hint">PDF or Word (.docx) - summarised into the box for you to edit.</span>
               </div>
               <div class="field-group" style="margin-top:10px;">
                 <textarea class="field-input field-textarea" id="cv-text" maxlength="{{ cv_context_max_length }}"
-                  placeholder="Paste or upload your CV — roles, dates, tech stack, key achievements…"
+                  placeholder="Paste or upload your CV - roles, dates, tech stack, key achievements…"
                   oninput="ctxOnInput('cv')" onblur="ctxFlush('cv')">{{ cv_context }}</textarea>
                 <div class="context-meta-row">
                   <div id="cv-status" class="save-status"></div>
@@ -176,7 +180,7 @@
             <!-- Behavioural — fixed, always on. Manual entry. -->
             <div class="context-subsection">
               <h3 class="context-sub-title">Behavioural &amp; prep notes</h3>
-              <p class="context-sub-desc">STAR stories, strengths, common-question prep — always sent to the AI.</p>
+              <p class="context-sub-desc">STAR stories, strengths, common-question prep - always sent to the AI.</p>
               <div class="field-group">
                 <textarea class="field-input field-textarea" id="beh-text" maxlength="{{ behavioural_context_max_length }}"
                   placeholder="e.g. A time I showed leadership… / how I handle conflict… / my key strengths and examples…"
@@ -193,7 +197,7 @@
             <!-- Company & role — {{ max_contexts }} switchable slots, one active. Manual entry. -->
             <div class="context-subsection">
               <h3 class="context-sub-title">Company &amp; role</h3>
-              <p class="context-sub-desc">Save up to {{ max_contexts }} — the company, role, values, tech stack. Only the one marked “Use for AI” is sent.</p>
+              <p class="context-sub-desc">Save up to {{ max_contexts }} - the company, role, values, tech stack. Only the one marked “Use for AI” is sent.</p>
               <div class="context-tabs" id="context-tabs">
                 {% for ctx in contexts %}
                   <button
@@ -210,7 +214,7 @@
 
               <div class="field-group">
                 <label class="field-label" for="context-name-input">Name</label>
-                <input class="field-input" id="context-name-input" maxlength="{{ context_name_max_length }}" placeholder="e.g. Acme Corp — backend role"
+                <input class="field-input" id="context-name-input" maxlength="{{ context_name_max_length }}" placeholder="e.g. Acme Corp - backend role"
                   oninput="ctxOnInput('company')" onblur="ctxFlush('company')">
               </div>
 
@@ -224,7 +228,7 @@
                 </div>
               </div>
 
-              <div class="card-row" style="border-top:none; padding-top:14px;">
+              <div class="card-row" style="border-top:none; margin-top:0; padding-top:14px;">
                 <div class="card-row-left">
                   <div class="card-row-label">Use for AI</div>
                   <div class="card-row-desc">When on, this company context is sent with every prompt. Only one company can be active at a time.</div>
@@ -272,6 +276,24 @@
                 <span class="toggle-track"></span>
               </label>
             </div>
+            <!-- Only shown while light mode is on, since that's the only time the app page
+                 differs. Carries both states: the explanation + opt-out, and once overridden,
+                 the status + the way back. -->
+            <div class="card-row" id="app-light-row" hidden>
+              <div class="card-row-left">
+                <div class="card-row-label" id="app-light-label">App page stays dark</div>
+                <div class="card-row-desc" id="app-light-note">
+                  Light mode applies everywhere except the app page - a screen that turns bright
+                  mid-interview lights up your face, and that shows on camera.<br>
+                  <span class="app-light-aside">(Yes, we really do think about your privacy.)</span>
+                </div>
+                <div class="card-row-desc" id="app-light-note-override" hidden>
+                  The app page is overridden to light mode.
+                  <span class="app-light-aside">(Dark is still the safer choice on camera.)</span>
+                </div>
+              </div>
+              <a class="app-light-link" href="#" id="app-light-action" onclick="toggleAppLight(); return false;">Use light mode anyway</a>
+            </div>
           </div>
         </section>
 
@@ -302,7 +324,7 @@
                 <span id="replay-seconds-label" class="slider-label">{{ [replay_seconds, 10] | max }}s</span>
               </div>
             </div>
-            <div id="replay-status" class="save-status" style="padding:0 0 4px;"></div>
+            <div id="replay-status" class="save-status"></div>
           </div>
 
           <!-- Passthrough toggle -->
@@ -310,22 +332,22 @@
             <div class="card-row">
               <div class="card-row-left">
                 <div class="card-row-label">Typing passthrough</div>
-                <div class="card-row-desc">Press the typing hotkey to start capturing what you type, press again to send it. <strong>On</strong> — your typing also appears in the page. <strong>Off</strong> — your typing is hidden and sent only to your phone.</div>
+                <div class="card-row-desc">Press the typing hotkey to start capturing what you type, press again to send it. <strong>On</strong> - your typing also appears in the page. <strong>Off</strong> - your typing is hidden and sent only to your phone.</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="passthrough-toggle" {% if typing_passthrough %}checked{% endif %} onchange="savePassthrough()">
                 <span class="toggle-track"></span>
               </label>
             </div>
-            <div id="passthrough-status" class="save-status" style="padding:0 0 4px;"></div>
+            <div id="passthrough-status" class="save-status"></div>
           </div>
 
         </section>
 
         <!-- ─── 3. Shortcuts ─────────────────────────────────────── -->
-        <section class="settings-section" id="shortcuts">
+        <section class="settings-section" id="hotkeys">
           <div class="section-hd">
-            <h2 class="section-title">Shortcuts</h2>
+            <h2 class="section-title">Hotkeys</h2>
           </div>
 
           {% if account_level == 'paid' %}
@@ -334,7 +356,7 @@
               <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
               <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
             </svg>
-            <p><strong>Heads up:</strong> because InterviewAce stays discreet, there's no "start a session?" popup. If the extension is on and you press the screen capture hotkey, it starts a session immediately — spending one of your {{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}. Toggle the extension off between interviews to avoid using one by accident.</p>
+            <p><strong>Heads up:</strong> because InterviewAce stays discreet, there's no "start a session?" popup. If the extension is on and you press the screen capture hotkey, it starts a session immediately - spending one of your {{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}. Toggle the extension off between interviews to avoid using one by accident.</p>
           </div>
           {% endif %}
 
@@ -389,7 +411,6 @@
                 <button class="hotkey-reset" onclick="resetHotkey('typing')">reset</button>
               </div>
             </div>
-            <div id="hk-status" class="save-status" style="padding:8px 0 0;"></div>
           </div>
         </section>
 
@@ -482,8 +503,8 @@
 
           <!-- Delete account -->
           <div class="settings-card">
-            <div class="card-row-label" style="margin-bottom:6px;">Delete account</div>
-            <p class="card-row-desc" style="margin-bottom:10px;">Permanently erase your account and personal data. This cannot be undone.</p>
+            <div class="card-row-label">Delete account</div>
+            <p class="card-row-desc">Permanently erase your account and personal data. This cannot be undone.</p>
             <a class="action-link danger" href="/account/delete">Delete my account ›</a>
           </div>
         </section>
@@ -557,7 +578,7 @@
             <div class="card-row-label" style="margin-bottom:8px;">Have a referral code?</div>
             {% if ref_success or is_referred %}
               <p class="ref-applied-msg">
-                {% if ref_success %}✓ Applied —{% else %}✓{% endif %}
+                {% if ref_success %}✓ Applied - {% else %}✓{% endif %}
                 {% if referral_discount_active %}£5 off your first full payment at checkout.{% else %}Referral applied.{% endif %}
               </p>
             {% else %}
@@ -587,9 +608,9 @@
   <script>
     // ── Complexity ─────────────────────────────────────────────────
     const _complexityDescs = {
-      1: 'Concise hint — naive approach, simple readable code, brief explanation.',
-      2: 'Full solution — clean code with a clear walkthrough.',
-      3: 'Optimal — best time/space complexity, production-quality code, trade-offs covered.',
+      1: 'Concise hint - naive approach, simple readable code, brief explanation.',
+      2: 'Full solution - clean code with a clear walkthrough.',
+      3: 'Optimal - best time/space complexity, production-quality code, trade-offs covered.',
     };
     const _complexityNames = { 1: 'Concise', 2: 'Balanced', 3: 'Optimal' };
     let _complexity = {{ complexity }};
@@ -667,7 +688,7 @@
     const _previewContent = {
       1: {
         bullets: ['Use a hash map', 'Store complement at each step', 'Return indices when match found'],
-        summary: 'One-pass hash map — O(n) time, O(n) space.',
+        summary: 'One-pass hash map - O(n) time, O(n) space.',
         oneLiner: 'Hash map storing num→index, return match on lookup.',
         prose: 'Try a hash map. For each number, check if its complement is already stored. If yes, return the indices.',
         code: `def two_sum(nums, target):
@@ -680,7 +701,7 @@
       },
       2: {
         bullets: ['Create empty hash map: {value → index}', 'For each number, compute complement = target − num', 'If complement in map → return [map[complement], i]', 'Else store num → i'],
-        summary: 'Single-pass hash map — O(n) time, O(n) space — returns first valid pair.',
+        summary: 'Single-pass hash map - O(n) time, O(n) space - returns first valid pair.',
         oneLiner: 'One-pass hash map: check complement existence before storing; return indices on hit.',
         prose: 'Use a hash map to find the complement in one pass. For each element, check if target − num exists in the map. If it does, return both indices. Otherwise store the element.',
         code: `def two_sum(nums: list[int], target: int) -> list[int]:
@@ -694,12 +715,12 @@
         tags: ['O(n) time', 'O(n) space', 'Hash map'],
       },
       3: {
-        bullets: ['Brute force: O(n²) nested loops — works but too slow for n=10⁴', 'Optimal: O(n) one-pass hash map', 'Key insight: track complement, not the element itself', 'Edge case: same element twice → valid only if index differs'],
+        bullets: ['Brute force: O(n²) nested loops - works but too slow for n=10⁴', 'Optimal: O(n) one-pass hash map', 'Key insight: track complement, not the element itself', 'Edge case: same element twice → valid only if index differs'],
         summary: 'One-pass hash map is optimal: O(n) time, O(n) space. Brute-force O(n²) also accepted but slow.',
         oneLiner: 'Hash map (complement → index) beats O(n²) brute force; handles duplicates via distinct indices.',
-        prose: 'Brute force checks every pair in O(n²) — unacceptable at scale. The optimal approach is a one-pass hash map: store each seen number mapped to its index, then for each new number check if its complement is already stored. This gives O(n) time and O(n) space with a single scan.',
+        prose: 'Brute force checks every pair in O(n²) - unacceptable at scale. The optimal approach is a one-pass hash map: store each seen number mapped to its index, then for each new number check if its complement is already stored. This gives O(n) time and O(n) space with a single scan.',
         code: `def two_sum(nums: list[int], target: int) -> list[int]:
-    # O(n) time, O(n) space — optimal
+    # O(n) time, O(n) space - optimal
     seen: dict[int, int] = {}
     for i, num in enumerate(nums):
         complement = target - num
@@ -720,21 +741,28 @@
       // Tags
       tagsEl.innerHTML = c.tags.map(t => `<span class="preview-tag">${t}</span>`).join('');
 
-      // Body based on style
-      let lines = [];
+      // Body based on style — bullets render as a real list, everything else as prose lines
+      let textHtml;
       if (_style === 'bullets') {
-        lines = c.bullets;
-      } else if (_style === 'summary') {
-        lines = [c.summary];
-      } else if (_style === 'one_liner') {
-        lines = [c.oneLiner];
+        textHtml = `<ul class="preview-bullets">${c.bullets.map(b => `<li>${b}</li>`).join('')}</ul>`;
       } else {
-        lines = [c.prose];
+        const line = _style === 'summary' ? c.summary
+                   : _style === 'one_liner' ? c.oneLiner
+                   : c.prose;
+        textHtml = `<p class="preview-line">${line}</p>`;
       }
 
-      const textHtml = lines.map(l => `<p class="preview-line">${l}</p>`).join('');
-      const codeHtml = `<pre class="preview-code"><code>${c.code}</code></pre>`;
+      const codeHtml = `<pre class="preview-code"><code class="language-python">${_escapeHtml(c.code)}</code></pre>`;
       bodyEl.innerHTML = textHtml + (_style !== 'one_liner' ? codeHtml : '');
+
+      // Syntax-highlight the code block (github-dark theme, same as the /app page)
+      if (window.hljs) {
+        bodyEl.querySelectorAll('pre code').forEach((block) => hljs.highlightElement(block));
+      }
+    }
+
+    function _escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     _updatePreview();
   </script>
@@ -861,11 +889,17 @@
       saveHotkeys();
     }, true);
 
+    // The status line is optional markup — the save must still go through without it.
+    function hkStatus(text, color) {
+      const el = document.getElementById('hk-status');
+      if (!el) return;
+      el.style.display = 'block';
+      el.style.color = color;
+      el.textContent = text;
+    }
+
     async function saveHotkeys() {
-      const statusEl = document.getElementById('hk-status');
-      statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--text-3)';
-      statusEl.textContent = 'Saving…';
+      hkStatus('Saving…', 'var(--text-3)');
       try {
         const resp = await fetch('/api/settings/hotkeys', {
           method: 'POST',
@@ -874,16 +908,16 @@
         });
         if (resp.ok) {
           document.dispatchEvent(new CustomEvent('interview-ace:hotkeys', { detail: _hotkeys }));
-          statusEl.textContent = 'Saved — active in all open tabs.';
-          statusEl.style.color = 'var(--accent)';
+          hkStatus('Saved - active in all open tabs.', 'var(--accent)');
         } else {
-          statusEl.textContent = 'Failed to save.';
-          statusEl.style.color = 'var(--danger)';
+          hkStatus('Failed to save.', 'var(--danger)');
         }
-        setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+        setTimeout(() => {
+          const el = document.getElementById('hk-status');
+          if (el) el.style.display = 'none';
+        }, 3000);
       } catch {
-        statusEl.textContent = 'Network error.';
-        statusEl.style.color = 'var(--danger)';
+        hkStatus('Network error.', 'var(--danger)');
       }
     }
   </script>
@@ -940,7 +974,7 @@
         if (connected) return;
         btn.disabled = false;
         btn.textContent = 'Connect Extension';
-        status.textContent = 'Extension not detected — try the manual token below.';
+        status.textContent = 'Extension not detected - try the manual token below.';
         status.style.color = 'var(--danger)';
         document.getElementById('fallback-details').open = true;
       }, 1800);
@@ -1339,6 +1373,7 @@
     // ── Theme toggle ───────────────────────────────────────────────
     (function() {
       document.getElementById('theme-toggle').checked = localStorage.getItem('theme') === 'light';
+      syncAppLightRow();
     })();
 
     function onThemeToggle() {
@@ -1349,11 +1384,39 @@
       } else {
         document.documentElement.removeAttribute('data-theme');
         localStorage.setItem('theme', 'dark');
+        // Going back to dark clears the app-page light override — a later
+        // return to light mode starts locked-dark again and must be re-opted-in.
+        localStorage.removeItem('appLight');
       }
+      syncAppLightRow();
+    }
+
+    // ── App-page dark lock ─────────────────────────────────────────
+    // base.html reads 'appLight' before paint to decide whether /app honours the light theme.
+    function toggleAppLight() {
+      if (localStorage.getItem('appLight') === '1') {
+        localStorage.removeItem('appLight');
+      } else {
+        localStorage.setItem('appLight', '1');
+      }
+      syncAppLightRow();
+    }
+
+    // Only meaningful while the light theme is on — in dark mode the override changes nothing,
+    // so the whole row would be a dangling control.
+    function syncAppLightRow() {
+      var light = localStorage.getItem('theme') === 'light';
+      document.getElementById('app-light-row').hidden = !light;
+      if (!light) return;
+      var over = localStorage.getItem('appLight') === '1';
+      document.getElementById('app-light-label').textContent = over ? 'App page overridden' : 'App page stays dark';
+      document.getElementById('app-light-note').hidden = over;
+      document.getElementById('app-light-note-override').hidden = !over;
+      document.getElementById('app-light-action').textContent = over ? 'Reset to dark' : 'Use light mode anyway';
     }
 
     // ── Scrollspy ──────────────────────────────────────────────────
-    const _sections = ['response', 'context', 'appearance', 'capture', 'shortcuts', 'extension', 'account', 'billing'];
+    const _sections = ['response', 'context', 'appearance', 'capture', 'hotkeys', 'extension', 'account', 'billing'];
 
     function sidebarScroll(id) {
       const el = document.getElementById(id);

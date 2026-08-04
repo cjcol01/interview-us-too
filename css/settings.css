@@ -239,14 +239,22 @@
 .settings-card:last-child { margin-bottom: 0; }
 
 /* Card row */
+/* Rows own their *top* spacing only. A bottom padding here would stack with the card's own
+   20px and push the last row's gap out to 32px — which is why trailing rows kept needing
+   one-off inline overrides. With top-only spacing the card padding always defines the bottom
+   edge, even when a hidden .save-status trails the last row. */
 .card-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 4px 0 12px;
 }
-.card-row:not(:first-child) { padding-top: 12px; border-top: 1px solid var(--line); }
+.card-row:not(:first-child) { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.card-row + .save-status { margin-top: 10px; }
+/* The UA `[hidden]{display:none}` loses to `.card-row{display:flex}` on equal specificity, so
+   the `hidden` attribute alone can't hide a card-row (e.g. the light-only "App page stays dark"
+   row would leak into dark mode). This restores it. */
+.card-row[hidden] { display: none; }
 .card-row-left { flex: 1; }
 .card-row-label {
   font-family: 'Hanken Grotesk', sans-serif;
@@ -355,7 +363,7 @@
 /* ── Live preview card ── */
 .response-preview { position: sticky; top: 88px; }
 .preview-card {
-  background: var(--code-bg);
+  background: var(--card);
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   overflow: hidden;
@@ -401,19 +409,36 @@
 }
 .preview-code {
   margin: 0;
-  background: var(--card-inset);
   border-radius: 8px;
-  padding: 10px 12px;
   overflow-x: auto;
   border: 1px solid var(--line);
 }
+/* Only layout here — highlight.js's github-dark theme owns the code background and
+   token colours (its .hljs rule). A `color` on this element would out-specify hljs
+   and flatten every untokenised char to one colour, so we deliberately omit it. */
 .preview-code code {
+  display: block;
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
-  color: var(--text-2);
   line-height: 1.55;
+  padding: 10px 12px;
+  border-radius: 8px;
   white-space: pre;
 }
+
+/* Bullet-points response style */
+.preview-bullets {
+  margin: 0;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+.preview-bullets li {
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+.preview-bullets li + li { margin-top: 6px; }
+.preview-bullets li::marker { color: var(--accent); }
 
 /* ── Slider ── */
 .slider-group { display: flex; align-items: center; gap: 8px; }
@@ -779,13 +804,27 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   font-size: 13.5px;
   color: var(--text-2);
   text-decoration: none;
-  padding: 6px 0;
+  margin-top: 14px;
+  padding: 12px 0 0;
   border-top: 1px solid var(--line);
   transition: color .15s;
 }
+/* Stacked links keep the same rhythm — the divider sits midway between the two labels. */
+.action-link + .action-link { margin-top: 12px; }
 .action-link:hover { color: var(--text-1); }
 .action-link.upgrade { color: var(--accent); }
 .action-link.danger  { color: var(--danger); }
+
+/* ── App-page dark lock ── */
+.app-light-aside { color: var(--text-3); }
+.app-light-link {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: 13px;
+  color: var(--danger);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 /* Referral promo */
 .referral-promo-card {
