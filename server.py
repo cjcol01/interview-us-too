@@ -5339,10 +5339,18 @@ def billing_checkout(user: User = Depends(get_current_user), db: Session = Depen
 
 @app.get("/billing/cancel")
 def billing_cancel(request: Request, user: User = Depends(get_current_user)):
+    # Session packs are one-off payments — there's no recurring charge to stop, so there's
+    # nothing for this page to do. Settings says as much in the billing card instead.
+    # Unlimited without a Stripe sub (comped/admin accounts) still gets the page.
+    if user.account_level != AccountLevel.unlimited and not user.stripe_sub_id:
+        return RedirectResponse("/settings#billing", status_code=303)
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={
         "hotkey_capture": hk["capture"],
+        "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
+        "hotkey_replay":  hk["replay"],
+        "hotkey_typing":  hk["typing"],
         "offer_eligible": user.sub_invoice_paid and not user.retention_offer_claimed,
     })
 

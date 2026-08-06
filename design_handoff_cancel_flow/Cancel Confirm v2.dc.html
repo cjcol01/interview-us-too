@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    a{color:#ECECEE;text-decoration:none}
+    a:hover{color:#C6F24E}
+    [data-ia] ::selection{background:rgba(198,242,78,0.30);color:#1A1A18}
+    [data-ia] textarea::placeholder{color:#67676F}
+    html,body,[data-ia],[data-ia] *{overflow-anchor:none}
+    @keyframes ia-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  </style>
+</helmet>
+<div data-ia="1" data-screen-label="Cancel confirm" style="min-height:100vh;background:#0A0A0C;color:#ECECEE;font-family:'Hanken Grotesk',system-ui,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased">
+
+  <canvas ref="{{ canvasRef }}" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60"></canvas>
+
+  <header style="display:flex;align-items:center;gap:14px;padding:18px max(28px,4vw);border-bottom:1px solid rgba(255,255,255,0.07)">
+    <a href="Settings.dc.html" title="Back to settings" style="width:32px;height:32px;border-radius:8px;border:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:center;color:#9C9CA6;transition:border-color .15s,color .15s" style-hover="border-color:rgba(255,255,255,0.16);color:#ECECEE">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+    </a>
+    <span style="display:flex;align-items:center;gap:9px;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:17px;letter-spacing:-0.02em;color:#F4F4F6"><span style="width:9px;height:9px;border-radius:2px;background:#C6F24E;box-shadow:0 0 8px #C6F24E"></span>InterviewAce</span>
+  </header>
+
+  <main style="max-width:600px;margin:0 auto;padding:56px max(28px,4vw) 96px;display:flex;flex-direction:column;gap:16px">
+
+    <div style="margin-bottom:14px">
+      <h1 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:34px;line-height:1.12;letter-spacing:-0.03em;color:#F4F4F6;margin-bottom:10px">Before you go</h1>
+      <p style="font-size:16px;color:#9C9CA6;max-width:44ch;text-wrap:pretty">We're sorry to see you leave. Here's what happens when you cancel.</p>
+    </div>
+
+    <div style="background:#111114;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 26px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#67676F;margin-bottom:18px">What happens when you cancel</div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C6F24E;padding-top:3px;flex-shrink:0">01</span>
+          <span style="font-size:14.5px;color:#9C9CA6;text-wrap:pretty">Your subscription will remain <strong style="color:#ECECEE;font-weight:600">active until the end of your current billing period</strong>. Nothing changes right away.</span>
+        </div>
+        <div style="height:1px;background:rgba(255,255,255,0.07)"></div>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#C6F24E;padding-top:3px;flex-shrink:0">02</span>
+          <span style="font-size:14.5px;color:#9C9CA6;text-wrap:pretty">Any unused sessions will remain in your account.</span>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ showOffer }}" hint-placeholder-val="{{ true }}">
+      <div ref="{{ offerRef }}" data-offer-card="1" style="background:rgba(198,242,78,0.045);border:1px solid rgba(198,242,78,0.28);border-radius:18px;padding:30px 32px;box-shadow:{{ offerGlow }};transition:box-shadow .4s ease">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#C6F24E;margin-bottom:14px">A quick offer</div>
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:26px;line-height:1.2;letter-spacing:-0.03em;color:#F4F4F6;margin-bottom:10px">Stay for 50% off next month</h2>
+        <p style="font-size:14.5px;color:#9C9CA6;max-width:48ch;margin-bottom:24px;text-wrap:pretty">Since you've been with us, we'd like to offer you half price on your next month. No commitment beyond that — cancel any time.</p>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px">
+          <button style="font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:600;color:#0A0A0C;background:#C6F24E;border:none;padding:12px 22px;border-radius:10px;cursor:pointer;transition:transform .15s,box-shadow .15s" style-hover="transform:translateY(-2px);box-shadow:0 6px 18px rgba(198,242,78,0.16)">Claim offer</button>
+          <button onClick="{{ declineOffer }}" style="font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;font-weight:500;color:#67676F;background:none;border:none;cursor:pointer;transition:color .15s" style-hover="color:#ECECEE">No thanks, continue cancelling</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showRecall }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;background:#0C0C0F;border:1px solid rgba(198,242,78,0.28);border-radius:12px;padding:13px 16px">
+        <span style="width:7px;height:7px;border-radius:50%;background:#C6F24E;flex-shrink:0"></span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#67676F">Offer still available</span>
+        <span style="font-size:13.5px;color:#9C9CA6">50% off next month</span>
+        <button onClick="{{ reopenOffer }}" style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#0A0A0C;background:#C6F24E;border:none;border-radius:8px;padding:7px 13px;cursor:pointer;transition:transform .15s" style-hover="transform:translateY(-1px)">View</button>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ showFeedback }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:16px;animation:ia-in .25s ease">
+
+        <div style="background:#111114;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 26px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#67676F;margin-bottom:18px">Before you cancel — why are you leaving?</div>
+          <div role="radiogroup" style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ reasons }}" as="r" hint-placeholder-count="6">
+              <button onClick="{{ r.pick }}" role="radio" aria-checked="{{ r.checked }}" style="display:flex;align-items:center;gap:12px;text-align:left;font-family:'Hanken Grotesk',sans-serif;font-size:14.5px;font-weight:500;color:{{ r.textColor }};background:{{ r.bg }};border:1px solid {{ r.border }};border-radius:10px;padding:13px 16px;cursor:pointer;transition:border-color .15s,background .15s,color .15s">
+                <span style="width:16px;height:16px;border-radius:50%;border:1.5px solid {{ r.dotBorder }};flex-shrink:0;position:relative"><span style="position:absolute;inset:3px;border-radius:50%;background:{{ r.dotFill }}"></span></span>
+                {{ r.label }}
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ isGotJob }}" hint-placeholder-val="{{ false }}">
+          <div style="background:rgba(198,242,78,0.045);border:1px solid rgba(198,242,78,0.28);border-radius:16px;padding:26px;animation:ia-in .2s ease">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#C6F24E;margin-bottom:12px">Congratulations</div>
+            <p style="font-family:'Space Grotesk',sans-serif;font-weight:500;font-size:19px;line-height:1.35;letter-spacing:-0.02em;color:#F4F4F6;margin-bottom:20px;text-wrap:pretty">That's literally the whole point of this. Good luck in the new role.</p>
+            <a href="https://www.trustpilot.com/review/interviewace.example" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:#0A0A0C;background:#C6F24E;border-radius:9px;padding:10px 18px;transition:transform .15s,box-shadow .15s" style-hover="transform:translateY(-1px);box-shadow:0 6px 18px rgba(198,242,78,0.16);color:#0A0A0C">Leave us a review on Trustpilot<span style="color:#0A0A0C">↗</span></a>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isExpensiveWithOffer }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#0C0C0F;border:1px solid rgba(198,242,78,0.28);border-radius:16px;padding:24px 26px;animation:ia-in .2s ease">
+            <p style="font-size:14.5px;color:#9C9CA6;margin-bottom:16px;text-wrap:pretty">The <strong style="color:#ECECEE;font-weight:600">50% offer above still stands</strong> — half price for next month, no commitment beyond that. Worth a look before you go.</p>
+            <button onClick="{{ reopenOffer }}" style="font-family:'Hanken Grotesk',sans-serif;font-size:13.5px;font-weight:600;color:#0A0A0C;background:#C6F24E;border:none;border-radius:9px;padding:10px 18px;cursor:pointer;transition:transform .15s" style-hover="transform:translateY(-1px)">See the offer</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isPacksPitch }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#0C0C0F;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 26px;animation:ia-in .2s ease">
+            <p style="font-size:14.5px;color:#9C9CA6;margin-bottom:16px;text-wrap:pretty">{{ packsIntro }} <strong style="color:#ECECEE;font-weight:600">session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong style="color:#ECECEE;font-weight:600">never expires</strong> — {{ packsTail }}</p>
+            <a href="Pricing.dc.html" style="display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;color:#0A0A0C;background:#C6F24E;border-radius:9px;padding:10px 18px;transition:transform .15s,box-shadow .15s" style-hover="transform:translateY(-1px);box-shadow:0 6px 18px rgba(198,242,78,0.16);color:#0A0A0C">See session packs<span style="color:#0A0A0C">→</span></a>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isIssues }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#0C0C0F;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 26px;animation:ia-in .2s ease">
+            <p style="font-size:14.5px;color:#9C9CA6;margin-bottom:18px">Sorry to hear that. A few things that catch people out:</p>
+
+            <div style="display:grid;gap:1px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.07);border-radius:12px;overflow:hidden">
+              <div style="background:#0A0A0C;padding:15px 17px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#ECECEE;margin-bottom:6px">Extension not pinned</div>
+                <div style="font-size:13.5px;color:#9C9CA6;text-wrap:pretty">Click the puzzle piece in Chrome's toolbar, find <em style="color:#ECECEE;font-style:normal">Interview Assistant</em> and pin it. The icon going green means it's active.</div>
+                <div style="margin-top:14px;max-width:330px;background:#0C0C0F;border:1px solid rgba(255,255,255,0.09);border-radius:10px;overflow:hidden">
+                  <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-bottom:1px solid rgba(255,255,255,0.07)">
+                    <div style="flex:1;height:22px;border-radius:6px;background:#0A0A0C;border:1px solid rgba(255,255,255,0.07);display:flex;align-items:center;padding:0 9px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.1em;color:#54545C">leetcode.com</div>
+                    <div style="width:22px;height:22px;border-radius:6px;border:1px solid rgba(198,242,78,0.45);background:rgba(198,242,78,0.08);display:grid;grid-template-columns:4px 4px;gap:2px;align-content:center;justify-content:center">
+                      <span style="width:4px;height:4px;background:#C6F24E"></span><span style="width:4px;height:4px;background:#C6F24E"></span>
+                      <span style="width:4px;height:4px;background:#C6F24E"></span><span style="width:4px;height:4px;background:#C6F24E"></span>
+                    </div>
+                    <div style="width:22px;height:22px;border-radius:6px;background:#C6F24E;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:#0A0A0C">IA</div>
+                  </div>
+                  <div style="padding:9px 9px 10px">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.16em;text-transform:uppercase;color:#54545C;padding:0 2px 7px">Extensions</div>
+                    <div style="display:flex;align-items:center;gap:9px;padding:7px 8px;border-radius:7px;background:rgba(198,242,78,0.06);border:1px solid rgba(198,242,78,0.28)">
+                      <span style="width:18px;height:18px;border-radius:5px;background:#C6F24E;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:600;color:#0A0A0C;flex-shrink:0">IA</span>
+                      <span style="flex:1;font-size:12px;color:#ECECEE">Interview Assistant</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="#C6F24E" stroke="#C6F24E" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"></path><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z"></path></svg>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:9px;padding:7px 8px;opacity:0.35">
+                      <span style="width:18px;height:18px;border-radius:5px;background:rgba(255,255,255,0.10);flex-shrink:0"></span>
+                      <span style="flex:1;height:8px;max-width:96px;border-radius:980px;background:rgba(255,255,255,0.08)"></span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#67676F" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"></path><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z"></path></svg>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;color:#54545C">
+                  <span style="width:5px;height:5px;border-radius:50%;background:#C6F24E"></span>Pinned &amp; active
+                </div>
+              </div>
+              <div style="background:#0A0A0C;padding:15px 17px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#ECECEE;margin-bottom:6px">Hotkeys not firing</div>
+                <div style="font-size:13.5px;color:#9C9CA6;text-wrap:pretty">Capture &amp; analyse is <kbd style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#ECECEE;border:1px solid rgba(255,255,255,0.14);border-bottom-width:2px;border-radius:4px;padding:1px 5px">Ctrl+Shift+7</kbd>. Toggle on/off is <kbd style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#ECECEE;border:1px solid rgba(255,255,255,0.14);border-bottom-width:2px;border-radius:4px;padding:1px 5px">Ctrl+Shift+9</kbd>. Another app may be claiming the same shortcut — try the popup buttons instead.</div>
+              </div>
+              <div style="background:#0A0A0C;padding:15px 17px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#ECECEE;margin-bottom:6px">Not connected / signed out</div>
+                <div style="font-size:13.5px;color:#9C9CA6;text-wrap:pretty">Open the extension popup and check it shows your account. If not, sign out and back in — the token may have expired.</div>
+              </div>
+              <div style="background:#0A0A0C;padding:15px 17px">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#ECECEE;margin-bottom:6px">Overlay not showing</div>
+                <div style="font-size:13.5px;color:#9C9CA6;text-wrap:pretty">The overlay only appears after a capture. Toggle off then on again with <kbd style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#ECECEE;border:1px solid rgba(255,255,255,0.14);border-bottom-width:2px;border-radius:4px;padding:1px 5px">Ctrl+Shift+9</kbd> if it seems stuck.</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:14px;align-items:flex-start;margin-top:20px">
+              <div style="width:36px;height:36px;border-radius:9px;background:rgba(198,242,78,0.06);border:1px solid rgba(198,242,78,0.28);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;color:#C6F24E;flex-shrink:0">CJ</div>
+              <div style="font-size:13.5px;color:#9C9CA6;padding-top:2px;text-wrap:pretty"><span style="color:#ECECEE">If none of that helps, I want to know.</span> Hi, I'm CJ, I built InterviewAce. I check these messages every day. Tell me what happened and I'll look into it within 1 day.</div>
+            </div>
+            <textarea onInput="{{ onDetail }}" placeholder="What went wrong? (optional)" style="width:100%;margin-top:14px;min-height:92px;resize:vertical;font-family:'Hanken Grotesk',sans-serif;font-size:14px;line-height:1.6;color:#ECECEE;background:#0A0A0C;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;outline:none;transition:border-color .15s" style-focus="border-color:rgba(198,242,78,0.28)"></textarea>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isDevNote }}" hint-placeholder-val="{{ false }}">
+          <div style="background:#0C0C0F;border:1px solid rgba(255,255,255,0.07);border-radius:16px;padding:24px 26px;animation:ia-in .2s ease">
+            <div style="display:flex;gap:14px;align-items:flex-start">
+              <div style="width:36px;height:36px;border-radius:9px;background:rgba(198,242,78,0.06);border:1px solid rgba(198,242,78,0.28);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:0.06em;color:#C6F24E;flex-shrink:0">CJ</div>
+              <div style="font-size:13.5px;color:#9C9CA6;padding-top:2px;text-wrap:pretty">{{ devNote }}</div>
+            </div>
+            <textarea onInput="{{ onDetail }}" placeholder="{{ devPlaceholder }}" style="width:100%;margin-top:14px;min-height:92px;resize:vertical;font-family:'Hanken Grotesk',sans-serif;font-size:14px;line-height:1.6;color:#ECECEE;background:#0A0A0C;border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;outline:none;transition:border-color .15s" style-focus="border-color:rgba(198,242,78,0.28)"></textarea>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.07)">
+          <button style="font-family:'Hanken Grotesk',sans-serif;font-size:15px;font-weight:600;color:#0A0A0C;background:#C6F24E;border:none;padding:14px;border-radius:11px;cursor:pointer;transition:transform .15s,box-shadow .15s" style-hover="transform:translateY(-2px);box-shadow:0 6px 20px rgba(198,242,78,0.18)">{{ keepLabel }}</button>
+          <button disabled="{{ cancelDisabled }}" style="font-family:'Hanken Grotesk',sans-serif;font-size:14px;font-weight:600;color:{{ cancelColor }};background:none;border:1px solid {{ cancelBorder }};padding:13px;border-radius:11px;cursor:{{ cancelCursor }};transition:border-color .15s,color .15s">Cancel subscription</button>
+          <sc-if value="{{ cancelDisabled }}" hint-placeholder-val="{{ true }}">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;letter-spacing:0.14em;text-transform:uppercase;color:#67676F;text-align:center">Select a reason above to continue</div>
+          </sc-if>
+        </div>
+
+      </div>
+    </sc-if>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:680,&quot;height&quot;:960},&quot;offerEligible&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Flow&quot;},&quot;previewReason&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;none&quot;,&quot;got_job&quot;,&quot;too_expensive&quot;,&quot;not_used_enough&quot;,&quot;had_issues&quot;,&quot;missing_feature&quot;,&quot;other&quot;],&quot;default&quot;:&quot;none&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Flow&quot;},&quot;confetti&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Flow&quot;}}">
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.canvasRef = React.createRef();
+    this.offerRef = React.createRef();
+    this.state = { phase: null, reason: null, hasText: false, offerOpen: null };
+  }
+
+  effPhase() {
+    if (this.state.phase) return this.state.phase;
+    return this.props.offerEligible === false ? 'feedback' : 'offer';
+  }
+
+  pick(v) {
+    this.setState({ reason: v, hasText: false });
+    if (v === 'got_job' && this.props.confetti !== false && !this.fired) {
+      this.fired = true;
+      this.launchConfetti();
+    }
+  }
+
+  launchConfetti() {
+    const canvas = this.canvasRef.current;
+    if (!canvas || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    const COLORS = ['#C6F24E', '#ECECEE', '#9C9CA6', '#A8CF3E', '#F4F4F6'];
+    const parts = Array.from({ length: 90 }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * -h * 0.5,
+      w: 4 + Math.random() * 5,
+      h: 8 + Math.random() * 7,
+      color: COLORS[Math.floor(Math.random() * COLORS.length)],
+      vx: (Math.random() - 0.5) * 2.4,
+      vy: 1.6 + Math.random() * 3.4,
+      angle: Math.random() * Math.PI * 2,
+      spin: (Math.random() - 0.5) * 0.18,
+      opacity: 1
+    }));
+    const start = performance.now();
+    const draw = (now) => {
+      const elapsed = now - start;
+      ctx.clearRect(0, 0, w, h);
+      let alive = false;
+      for (const p of parts) {
+        p.x += p.vx; p.y += p.vy; p.angle += p.spin; p.vy += 0.07;
+        if (elapsed > 1600) p.opacity = Math.max(0, p.opacity - 0.014);
+        if (p.y < h + 20 && p.opacity > 0) alive = true;
+        ctx.save();
+        ctx.globalAlpha = p.opacity;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+      if (alive) requestAnimationFrame(draw); else ctx.clearRect(0, 0, w, h);
+    };
+    requestAnimationFrame(draw);
+  }
+
+  scrollToOffer(tries) {
+    const n = tries || 0;
+    const el = this.offerRef.current || document.querySelector('[data-offer-card]');
+    const rect = el && el.getBoundingClientRect();
+    if (!rect || rect.height < 20) {
+      if (n < 20) requestAnimationFrame(() => this.scrollToOffer(n + 1));
+      return;
+    }
+    const target = Math.max(0, rect.top + window.scrollY - 28);
+    window.scrollTo({ top: target, behavior: 'smooth' });
+    setTimeout(() => {
+      if (Math.abs(window.scrollY - target) > 40) window.scrollTo({ top: target, behavior: 'smooth' });
+    }, 180);
+  }
+
+  renderVals() {
+    const st = this.state;
+    const phase = this.effPhase();
+    const offerEligible = this.props.offerEligible !== false;
+    const preview = this.props.previewReason;
+    const reason = st.reason || (preview && preview !== 'none' ? preview : null);
+    const defs = [
+      ['got_job', 'I got the job!'],
+      ['too_expensive', 'Too expensive'],
+      ['not_used_enough', "Didn't use it enough"],
+      ['had_issues', 'It was buggy / I had issues'],
+      ['missing_feature', 'Missing a feature I need'],
+      ['other', 'Other']
+    ];
+    const notes = {
+      missing_feature: "Hi, I'm CJ — I built InterviewAce. I check these messages every day. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the next 5 days.",
+      other: "Hi, I'm CJ — I built InterviewAce. I check these messages every day. Feel free to share anything — I read every message."
+    };
+    const placeholders = {
+      missing_feature: 'What were you looking for? (optional)',
+      other: "Anything you'd like to share? (optional)"
+    };
+    const has = reason != null;
+    const offerOpen = st.offerOpen === null ? phase === 'offer' : st.offerOpen;
+    const packs = reason === 'too_expensive'
+      ? ['If cost is the issue,', 'pay only when you actually have an interview, not on a monthly clock.']
+      : ['If timing is the issue,', 'use them when you actually have an interview, not on a monthly clock.'];
+
+    return {
+      canvasRef: this.canvasRef,
+      showOffer: offerEligible && offerOpen,
+      showRecall: offerEligible && !offerOpen && phase === 'feedback',
+      showFeedback: phase === 'feedback',
+      declineOffer: () => this.setState({ phase: 'feedback', offerOpen: false }),
+      offerRef: this.offerRef,
+      offerGlow: st.flash ? '0 0 0 3px rgba(198,242,78,0.22)' : '0 0 0 0 rgba(198,242,78,0)',
+      reopenOffer: () => {
+        this.setState({ offerOpen: true, flash: true });
+        this.scrollToOffer();
+        setTimeout(() => this.setState({ flash: false }), 1100);
+      },
+      reasons: defs.map(([v, label]) => {
+        const sel = reason === v;
+        return {
+          label, checked: sel ? 'true' : 'false',
+          pick: () => this.pick(v),
+          textColor: sel ? '#F4F4F6' : '#9C9CA6',
+          bg: sel ? 'rgba(198,242,78,0.06)' : '#0A0A0C',
+          border: sel ? 'rgba(198,242,78,0.28)' : 'rgba(255,255,255,0.07)',
+          dotBorder: sel ? '#C6F24E' : 'rgba(255,255,255,0.25)',
+          dotFill: sel ? '#C6F24E' : 'transparent'
+        };
+      }),
+      isGotJob: reason === 'got_job',
+      isExpensiveWithOffer: reason === 'too_expensive' && offerEligible,
+      isPacksPitch: reason === 'not_used_enough' || (reason === 'too_expensive' && !offerEligible),
+      packsIntro: packs[0],
+      packsTail: packs[1],
+      isIssues: reason === 'had_issues',
+      isDevNote: reason === 'missing_feature' || reason === 'other',
+      devNote: notes[reason] || '',
+      devPlaceholder: placeholders[reason] || '',
+      onDetail: (e) => {
+        const t = e.target.value.trim().length > 0;
+        if (t !== st.hasText) this.setState({ hasText: t });
+      },
+      keepLabel: st.hasText ? 'Keep my subscription and send developer message' : 'Keep my subscription',
+      cancelDisabled: !has,
+      cancelColor: has ? '#E06A6A' : '#54545C',
+      cancelBorder: has ? 'rgba(224,106,106,0.35)' : 'rgba(255,255,255,0.07)',
+      cancelCursor: has ? 'pointer' : 'not-allowed'
+    };
+  }
+}
+</script>
+</body>
+</html>

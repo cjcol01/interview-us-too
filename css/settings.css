@@ -213,6 +213,11 @@
   display: flex;
   flex-direction: column;
   gap: 36px;
+  /* Grid items default to min-width:auto, so this column's intrinsic min-content
+     (the live-preview card in "How answers appear") could inflate the single-column
+     `1fr` track wider than the viewport on mobile, causing a slight horizontal scroll.
+     min-width:0 lets it shrink to the track instead. Same reason on the two rules below. */
+  min-width: 0;
 }
 
 /* Section shell */
@@ -277,7 +282,7 @@
   gap: 20px;
   align-items: start;
 }
-.response-controls { display: flex; flex-direction: column; gap: 20px; }
+.response-controls { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
 
 /* Ctrl groups */
 .ctrl-group { display: flex; flex-direction: column; gap: 10px; }
@@ -361,7 +366,7 @@
 }
 
 /* ── Live preview card ── */
-.response-preview { position: sticky; top: 88px; }
+.response-preview { position: sticky; top: 88px; min-width: 0; }
 .preview-card {
   background: var(--card);
   border: 1px solid var(--line-strong);
@@ -770,7 +775,11 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
   padding: 6px 14px;
   transition: border-color .15s, color .15s, background .15s;
   white-space: nowrap;
+  /* Slot names can run to 80 chars; without a cap a long name overflows the page
+     horizontally on mobile. Cap the tab to its row and let the label ellipsis. */
+  max-width: 100%;
 }
+.context-tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .context-tab:hover { border-color: var(--accent); color: var(--text-1); }
 .context-tab.active {
   background: var(--accent-soft);

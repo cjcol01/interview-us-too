@@ -4,23 +4,24 @@ import subprocess
 
 load_dotenv()
 
-# Bump these manually for major/minor releases; the patch number is the
-# commit count, so it advances automatically on every push to main.
+# Bump these manually for major/minor releases; the patch number is the commit
+# count less VERSION_PATCH_OFFSET, so it advances automatically on every push to main.
 APP_VERSION_MAJOR = 0
-APP_VERSION_MINOR = 3
+APP_VERSION_MINOR = 4
+VERSION_PATCH_OFFSET = 100
 
-def _commit_count() -> str:
+def _commit_count() -> int:
     try:
-        return subprocess.check_output(
+        return int(subprocess.check_output(
             ["git", "rev-list", "--count", "HEAD"],
             cwd=os.path.dirname(os.path.abspath(__file__)),
             text=True,
             stderr=subprocess.DEVNULL,
-        ).strip()
+        ).strip())
     except Exception:
-        return "0"
+        return 0
 
-APP_VERSION = f"{APP_VERSION_MAJOR}.{APP_VERSION_MINOR}.{_commit_count()}"
+APP_VERSION = f"{APP_VERSION_MAJOR}.{APP_VERSION_MINOR}.{max(_commit_count() - VERSION_PATCH_OFFSET, 0)}"
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")

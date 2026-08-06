@@ -606,11 +606,23 @@ def register_http(test, skip, client):
         assert r.status_code in (302, 307, 401, 403)
 
     def test_cancel_page_accessible():
+        # Unlimited with no Stripe sub (comped/admin account) still reaches the page.
         from models import AccountLevel
         token, uname = make_cookie(AccountLevel.unlimited)
         try:
             r = client.get("/billing/cancel", cookies={"session": token})
             assert r.status_code == 200
+        finally:
+            delete_by_name(uname)
+
+    def test_cancel_page_redirects_without_subscription():
+        # Session-pack buyers have no recurring charge to stop — the page would be a lie.
+        from models import AccountLevel
+        token, uname = make_cookie(AccountLevel.paid)
+        try:
+            r = client.get("/billing/cancel", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/settings" in r.headers.get("location", "")
         finally:
             delete_by_name(uname)
 
@@ -839,6 +851,7 @@ def register_http(test, skip, client):
 
     test("GET /billing/cancel requires auth",                 test_cancel_requires_auth)
     test("GET /billing/cancel accessible when authed",        test_cancel_page_accessible)
+    test("GET /billing/cancel: no sub → /settings",          test_cancel_page_redirects_without_subscription)
     test("POST /billing/cancel/confirm requires auth",        test_cancel_confirm_requires_auth)
     test("POST /billing/cancel/confirm: no sub → 400",       test_cancel_confirm_no_subscription_returns_400)
     test("POST /billing/cancel/confirm success flow",         test_cancel_confirm_success)

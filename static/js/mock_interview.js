@@ -907,10 +907,14 @@ function miFinish() {
   _miCallLive = false;
   if (_miIsFirstRun && window.MI_SKIP_DONE_SCREEN) {
     // /welcome's first run skips the recap card and hands off straight to
-    // MI_ON_FIRST_RUN_FINISH via miClose() — see welcome.html. The /app fallback
+    // MI_ON_FIRST_RUN_FINISH — see welcome.html. Deliberately does NOT go through
+    // miClose(): the callback navigates to /welcome/next, and leaving the demo
+    // overlay up keeps it covering the bare /welcome intro until the new page
+    // paints, otherwise that intro flashes up during navigation. The /app fallback
     // replay (first visit without having gone through /welcome) doesn't set this
     // flag, so it still gets the recap card as before.
-    miClose();
+    _miIsFirstRun = false;
+    if (window.MI_ON_FIRST_RUN_FINISH) window.MI_ON_FIRST_RUN_FINISH();
     return;
   }
   miShowScreen('mi-done');

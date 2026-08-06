@@ -1,19 +1,18 @@
 # TODO
 
 ## immediately
-- [ ] welcome already done page can surface after demo call - unformatted and flashes up. looks bad
+- [ ] settings mobile refresh (nearly done, a bit wider then the phone)
+
+
 
 ## Now
-
-- [ ] add different prompts for different use cases (image, typing etc)
-- [ ] settings mobile refresh (nearly done, a bit wider then the phone)
-- [ ] investigate cluely features and competitors + reviews
 - [ ] setup check before real interview without starting session.
 - [ ] I got the job, referral system, pause instead of cancel
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] light mode visual check (settings, cancel page navbar, text hard to read)
 - [ ] cancel page revamp, text and maybe some visual. ()
 - [ ] settings page, check horizontal dividing line on shortcuts/ spacing
+- [ ] exit button on mobile takes to landing, probably should take to settings
 
 ## Soon 
 - [ ] shorten landing page
@@ -30,6 +29,7 @@
 - [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
 - [ ] make a reel get something free
 - [ ] target salesman
+- [ ] investigate cluely features and competitors + reviews
 
 
 ## Later
@@ -108,3 +108,4 @@
 - [x] after welcome, tell people they can change hotkeys at any time
 - [x] de case sensitive username  
 - [x] show password button on login and create account so users can see what they typed.
+- [x] welcome already done page can surface after demo call - unformatted and flashes up. looks bad

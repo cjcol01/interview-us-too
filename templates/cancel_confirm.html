@@ -7,7 +7,7 @@
 
   <header>
     <a class="back-btn" href="/settings" aria-label="Back to settings">
-      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
     </a>
     <span class="logo">InterviewAce</span>
   </header>
@@ -22,17 +22,10 @@
 
     <!-- What happens -->
     <div class="card">
-      <div class="card-header">What happens when you cancel</div>
-      <div class="card-body">
-        <div class="info-list">
-          <div class="info-row">
-            <span class="info-icon">&#128197;</span>
-            <span class="info-text">Your subscription will remain <strong>active until the end of your current billing period</strong>. Nothing changes right away.</span>
-          </div>
-          <div class="info-row">
-            <span class="info-icon">&#8987;</span>
-            <span class="info-text">Any unused sessions will remain in your account.</span>
-          </div>
+      <div class="card-kicker">What happens when you cancel</div>
+      <div class="info-list">
+        <div class="info-row">
+          <span class="info-text">Your subscription will remain <strong>active until the end of your current billing period</strong>. Nothing changes right away.</span>
         </div>
       </div>
     </div>
@@ -40,7 +33,7 @@
     <!-- Offer -->
     {% if offer_eligible %}
     <div class="offer-card" id="offer-card">
-      <div class="offer-label">A quick offer</div>
+      <div class="offer-kicker">A quick offer</div>
       <h2>Stay for 50% off next month</h2>
       <p>Since you've been with us, we'd like to offer you half price on your next month. No commitment beyond that - cancel any time.</p>
       <div class="offer-actions">
@@ -50,16 +43,24 @@
         <button type="button" class="btn-no-thanks" id="no-thanks-btn">No thanks, continue cancelling</button>
       </div>
     </div>
-    {% else %}
-    <div id="offer-card" hidden></div>
+
+    <!-- Recall bar (replaces the offer card once declined) -->
+    <div class="recall-bar" id="recall-bar" hidden>
+      <span class="recall-dot"></span>
+      <span class="recall-kicker">Offer still available</span>
+      <span class="recall-text">50% off next month</span>
+      <form method="POST" action="/billing/offer" class="recall-form">
+        <button type="submit" class="btn-recall">Claim</button>
+      </form>
+    </div>
     {% endif %}
 
     <!-- Feedback + cancel (revealed after "No thanks") -->
-    <div id="feedback-section" {% if not offer_eligible %}class="visible" style="display:flex;flex-direction:column;gap:14px;"{% endif %}>
+    <div id="feedback-section"{% if not offer_eligible %} class="visible"{% endif %}>
 
       <div class="card">
-        <div class="card-header">Before you cancel - why are you leaving?</div>
-        <div class="radio-list" id="radio-list">
+        <div class="card-kicker">Before you cancel - why are you leaving?</div>
+        <div class="radio-list" id="radio-list" role="radiogroup" aria-label="Reason for leaving">
           <label class="radio-item" data-val="got_job">
             <input type="radio" name="reason" value="got_job">
             <span>I got the job!</span>
@@ -90,99 +91,137 @@
       <!-- Context panels (one shown at a time) -->
 
       <div id="ctx-got_job" class="ctx-panel ctx-got-job" hidden>
-        <span class="congrats-emoji">&#127881;</span>
-        <p>Congratulations! That's literally the whole point of this.<br>Good luck in the new role.</p>
-        <a class="btn-coffee" href="https://www.trustpilot.com/review/interviewace.example" target="_blank" rel="noopener">&#11088; Leave us a review on Trustpilot</a>
+        <div class="ctx-kicker">Congratulations</div>
+        <p class="ctx-lead">That's literally the whole point of this. Good luck in the new role.</p>
+        <a class="btn-ctx" href="https://www.trustpilot.com/review/interviewace.example" target="_blank" rel="noopener">Leave us a review on Trustpilot <span aria-hidden="true">&#8599;</span></a>
       </div>
 
-      <div id="ctx-too_expensive" class="ctx-panel ctx-expensive" hidden>
+      <div id="ctx-too_expensive" class="ctx-panel{% if offer_eligible %} ctx-accent-line{% endif %}" hidden>
         {% if offer_eligible %}
         <p>The <strong>50% offer above still stands</strong> - half price for next month, no commitment beyond that. Worth a look before you go.</p>
-        <button type="button" class="scroll-offer-btn" id="scroll-offer-btn">See the offer &#8593;</button>
+        <form method="POST" action="/billing/offer">
+          <button type="submit" class="btn-ctx">Claim 50% off next month</button>
+        </form>
+        <div class="ctx-or"><span>or</span></div>
+        <p>If a monthly plan isn't the right shape, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> - pay only when you actually have an interview, not on a monthly clock.</p>
+        <a class="btn-ctx btn-ctx-ghost" href="/pricing">See session packs <span aria-hidden="true">&rarr;</span></a>
         {% else %}
         <p>If cost is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> - pay only when you actually have an interview, not on a monthly clock.</p>
-        <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
+        <a class="btn-ctx" href="/pricing">See session packs <span aria-hidden="true">&rarr;</span></a>
         {% endif %}
       </div>
 
-      <div id="ctx-not_used_enough" class="ctx-panel ctx-sessions" hidden>
+      <div id="ctx-not_used_enough" class="ctx-panel" hidden>
         <p>If timing is the issue, <strong>session packs might suit you better</strong>. Each session lasts 1.5 hours and <strong>never expires</strong> - use them when you actually have an interview, not on a monthly clock.</p>
-        <a class="btn btn-primary" href="/pricing" style="margin-top:12px;font-size:0.82rem;padding:8px 16px;">See session packs &rarr;</a>
+        <a class="btn-ctx" href="/pricing">See session packs <span aria-hidden="true">&rarr;</span></a>
       </div>
 
-      <div id="ctx-had_issues" class="ctx-panel ctx-issues" hidden>
-        <p style="margin-bottom:12px;">Sorry to hear that. A few things that catch people out:</p>
+      <div id="ctx-had_issues" class="ctx-panel" hidden>
+        <p class="ctx-intro">Sorry to hear that. A few things that catch people out:</p>
         <div class="issue-list">
+
           <div class="issue-item">
-            <span class="issue-icon">&#128204;</span>
-            <div>
-              <strong>Extension not pinned</strong>
-              <span>Click the puzzle piece in Chrome's toolbar, find <em>Interview Assistant</em> and pin it. The icon going green means it's active.</span>
+            <div class="issue-title">Extension not pinned</div>
+            <div class="issue-body">Click the puzzle piece in Chrome's toolbar, find <em>Interview Assistant</em> and pin it. The icon going green means it's active.</div>
+            <div class="chrome-mock">
+              <div class="chrome-bar">
+                <div class="chrome-url">leetcode.com</div>
+                <div class="chrome-puzzle"><span></span><span></span><span></span><span></span></div>
+                <div class="chrome-badge">IA</div>
+              </div>
+              <div class="chrome-body">
+                <div class="chrome-body-label">Extensions</div>
+                <div class="chrome-row chrome-row-active">
+                  <span class="chrome-tile">IA</span>
+                  <span class="chrome-name">Interview Assistant</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z"/></svg>
+                </div>
+                <div class="chrome-row chrome-row-dim">
+                  <span class="chrome-tile chrome-tile-blank"></span>
+                  <span class="chrome-bar-blank"></span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6z"/></svg>
+                </div>
+              </div>
             </div>
+            <div class="chrome-caption"><span class="chrome-caption-dot"></span>Pinned &amp; active</div>
           </div>
+
           <div class="issue-item">
-            <span class="issue-icon">&#9000;</span>
-            <div>
-              <strong>Hotkeys not firing</strong>
-              <span>Capture &amp; analyse is <span id="shortcut-capture"></span>. Toggle on/off is <span id="shortcut-toggle-1"></span>. Another app may be claiming the same shortcut - try the popup buttons instead.</span>
+            <div class="issue-title">Hotkeys not firing</div>
+            <div class="issue-body">Hotkeys only work while the extension is armed. Open the popup and tap the arm button until it reads <strong>ON</strong>, or press <span data-hotkey="{{ hotkey_toggle }}"></span>.</div>
+            <div class="arm-mock">
+              <span class="arm-mock-dot"></span>
+              <span class="arm-mock-copy">
+                <span class="arm-mock-title">Assistant on</span>
+                <span class="arm-mock-sub">TAP TO DISARM</span>
+              </span>
+              <span class="arm-mock-state">ON</span>
             </div>
+            <details class="hk-details">
+              <summary>Your hotkeys<span class="hk-arrow" aria-hidden="true">&#8250;</span></summary>
+              <div class="hk-table">
+                <div class="hk-line"><span class="hk-name">Screen capture</span><span data-hotkey="{{ hotkey_capture }}"></span></div>
+                <div class="hk-line"><span class="hk-name">Voice capture</span><span data-hotkey="{{ hotkey_audio }}"></span></div>
+                <div class="hk-line"><span class="hk-name">Toggle on/off</span><span data-hotkey="{{ hotkey_toggle }}"></span></div>
+                <div class="hk-line"><span class="hk-name">Instant replay</span><span data-hotkey="{{ hotkey_replay }}"></span></div>
+                <div class="hk-line"><span class="hk-name">Typing mode</span><span data-hotkey="{{ hotkey_typing }}"></span></div>
+              </div>
+            </details>
+            <div class="issue-body issue-note">Another app may be claiming the same shortcut - try the popup buttons instead, or rebind it in <a href="/settings#hotkeys">Settings</a>.</div>
           </div>
+
           <div class="issue-item">
-            <span class="issue-icon">&#128274;</span>
-            <div>
-              <strong>Not connected / signed out</strong>
-              <span>Open the extension popup and check it shows your account. If not, sign out and back in - the token may have expired.</span>
-            </div>
+            <div class="issue-title">Not connected / signed out</div>
+            <div class="issue-body">Open the extension popup and check it shows your account. If not, sign out and back in - the token may have expired. If that still doesn't work, remove the extension from Chrome and install it again - a fresh install re-links your account.</div>
           </div>
-          <div class="issue-item">
-            <span class="issue-icon">&#128065;</span>
-            <div>
-              <strong>Overlay not showing</strong>
-              <span>The overlay only appears after a capture. Toggle off then on again with <span id="shortcut-toggle-2"></span> if it seems stuck.</span>
-            </div>
-          </div>
+
         </div>
-        <div class="dev-intro" style="margin-top:14px;margin-bottom:0;">
+        <div class="dev-note">
           <div class="dev-avatar">CJ</div>
-          <div class="dev-bubble">If none of that helps, I want to know. <br> Hi, I'm CJ, I built InterviewAce. I check these messages every day. Tell me what happened and I'll look into it within 1 day.</div>
+          <div class="dev-text"><strong>If none of that helps, I want to know.</strong> Hi, I'm CJ, I built InterviewAce. I check these messages every day. Tell me what happened and I'll look into it within 1 day.</div>
         </div>
-        <textarea class="ctx-textarea" id="issues-text" placeholder="What went wrong? (optional)" style="margin-top:8px;"></textarea>
+        <textarea class="ctx-textarea" id="issues-text" placeholder="What went wrong? (optional)"></textarea>
+        <div class="ctx-support">Need a back-and-forth instead? <a href="/support">Open a support ticket</a>.</div>
       </div>
 
       <div id="ctx-missing_feature" class="ctx-panel" hidden>
-        <div class="dev-intro">
+        <div class="dev-note">
           <div class="dev-avatar">CJ</div>
-          <div class="dev-bubble">
-            Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the <strong>next 5 days</strong>.
-          </div>
+          <div class="dev-text">Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the <strong>next 5 days</strong>.</div>
         </div>
         <textarea class="ctx-textarea" id="feature-text" placeholder="What were you looking for? (optional)"></textarea>
       </div>
 
       <div id="ctx-other" class="ctx-panel" hidden>
-        <div class="dev-intro">
+        <div class="dev-note">
           <div class="dev-avatar">CJ</div>
-          <div class="dev-bubble">
-            Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. Feel free to share anything - I read every message.
-          </div>
+          <div class="dev-text">Hi, I'm CJ - I built InterviewAce. I check these messages <strong>every day</strong>. Feel free to share anything - I read every message.</div>
         </div>
         <textarea class="ctx-textarea" id="other-text" placeholder="Anything you'd like to share? (optional)"></textarea>
       </div>
 
-      <!-- Cancel form -->
-      <form method="POST" action="/billing/cancel/confirm" class="cancel-actions" id="cancel-form">
-        <input type="hidden" name="reason" id="hidden-reason">
-        <input type="hidden" name="detail" id="hidden-detail">
-        <button type="submit" class="btn-cancel" id="cancel-btn" disabled>Cancel</button>
-      </form>
+      <!-- Action footer -->
+      <div class="action-footer">
+        <!-- Keep (also captures feedback) -->
+        <form method="POST" action="/billing/feedback" id="keep-form">
+          <input type="hidden" name="reason" id="keep-reason">
+          <input type="hidden" name="detail" id="keep-detail">
+          <button type="submit" class="btn-keep" id="keep-btn">Keep my subscription</button>
+        </form>
 
-      <!-- Keep form (also captures feedback) -->
-      <form method="POST" action="/billing/feedback" id="keep-form">
-        <input type="hidden" name="reason" id="keep-reason">
-        <input type="hidden" name="detail" id="keep-detail">
-        <button type="submit" class="btn-back" id="keep-btn">Keep my subscription</button>
-      </form>
+        <form method="POST" action="/billing/cancel/confirm" id="cancel-form">
+          <input type="hidden" name="reason" id="hidden-reason">
+          <input type="hidden" name="detail" id="hidden-detail">
+          <button type="submit" class="btn-cancel" id="cancel-btn" disabled>Cancel subscription</button>
+        </form>
 
+        <div class="cancel-hint" id="cancel-hint">Select a reason above to continue</div>
+      </div>
+
+    </div>
+
+    <div class="page-support">
+      Still stuck? <a href="/support">Talk to support</a> - we'll come back to you.
     </div>
 
   </main>
@@ -191,26 +230,24 @@
     /* ── Hotkeys ── */
     (function () {
       const isMac = /Mac/.test(navigator.platform);
-      function renderHotkey(hotkey) {
-        return hotkey.split('+').map(p => `<kbd>${isMac && p === 'Ctrl' ? 'Cmd' : p}</kbd>`).join('+');
-      }
-      const capture = '{{ hotkey_capture }}';
-      const toggle  = '{{ hotkey_toggle }}';
-      document.getElementById('shortcut-capture').innerHTML  = renderHotkey(capture);
-      document.getElementById('shortcut-toggle-1').innerHTML = renderHotkey(toggle);
-      document.getElementById('shortcut-toggle-2').innerHTML = renderHotkey(toggle);
+      document.querySelectorAll('[data-hotkey]').forEach(el => {
+        el.innerHTML = el.dataset.hotkey
+          .split('+')
+          .map(p => `<kbd>${isMac && p === 'Ctrl' ? 'Cmd' : p}</kbd>`)
+          .join('+');
+      });
     })();
 
-    /* ── Reveal feedback section ── */
+    /* ── Decline offer: collapse the card into the recall bar, reveal feedback ── */
     const noThanksBtn = document.getElementById('no-thanks-btn');
     if (noThanksBtn) {
       noThanksBtn.addEventListener('click', () => {
+        const offer  = document.getElementById('offer-card');
+        const recall = document.getElementById('recall-bar');
+        if (offer)  offer.hidden  = true;
+        if (recall) recall.hidden = false;
         const s = document.getElementById('feedback-section');
         s.classList.add('visible');
-        s.style.display = 'flex';
-        s.style.flexDirection = 'column';
-        s.style.gap = '14px';
-        s.style.animation = 'slide-in 0.25s ease';
         s.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     }
@@ -219,6 +256,7 @@
     const radios     = document.querySelectorAll('input[name="reason"]');
     const radioItems = document.querySelectorAll('.radio-item');
     const cancelBtn  = document.getElementById('cancel-btn');
+    const cancelHint = document.getElementById('cancel-hint');
     const ctxPanels  = document.querySelectorAll('.ctx-panel');
     const PANELS     = {
       got_job:          document.getElementById('ctx-got_job'),
@@ -239,7 +277,7 @@
         /* swap context panel */
         ctxPanels.forEach(p => p.hidden = true);
         const panel = PANELS[r.value];
-        if (panel) { panel.hidden = false; }
+        if (panel) { panel.hidden = false; scrollIntoViewIfNeeded(panel); }
 
         /* confetti once for got_job */
         if (r.value === 'got_job' && !confettiFired) {
@@ -249,18 +287,19 @@
 
         /* unlock cancel */
         cancelBtn.disabled = false;
+        cancelHint.hidden  = true;
       });
     });
 
-    /* scroll-to-offer button */
-    const scrollOfferBtn = document.getElementById('scroll-offer-btn');
-    if (scrollOfferBtn) {
-      scrollOfferBtn.addEventListener('click', () => {
-        const offer = document.getElementById('offer-card');
-        offer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        offer.style.transition = 'box-shadow 0.3s';
-        offer.style.boxShadow = '0 0 0 2px rgba(0,212,170,0.5)';
-        setTimeout(() => offer.style.boxShadow = '', 1800);
+    /* A revealed panel can open below the fold - bring it into view without
+       yanking the page further than it needs. */
+    function scrollIntoViewIfNeeded(el) {
+      requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const vh   = window.innerHeight;
+        if (rect.top >= 0 && rect.bottom <= vh) return;
+        const delta = Math.min(rect.top - 24, rect.bottom - vh + 24);
+        window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: 'smooth' });
       });
     }
 
@@ -279,7 +318,7 @@
       document.getElementById('hidden-detail').value = detail;
     });
 
-    const keepBtn     = document.getElementById('keep-btn');
+    const keepBtn   = document.getElementById('keep-btn');
     const textareas = document.querySelectorAll('textarea.ctx-textarea');
 
     function updateKeepLabel() {
@@ -298,40 +337,42 @@
     /* ── Confetti ── */
     function launchConfetti() {
       const canvas = document.getElementById('confetti-canvas');
-      const ctx    = canvas.getContext('2d');
-      canvas.width  = window.innerWidth;
-      canvas.height = window.innerHeight;
+      if (!canvas || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = window.innerWidth, h = window.innerHeight;
+      canvas.width  = w * dpr;
+      canvas.height = h * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
 
-      const COLORS = ['#6c63ff','#00d4aa','#f87171','#fbbf24','#34d399','#a78bfa','#ffffff'];
-      const COUNT  = 120;
-      const particles = Array.from({ length: COUNT }, () => ({
-        x:   Math.random() * canvas.width,
-        y:   Math.random() * -canvas.height * 0.5,
-        w:   6 + Math.random() * 6,
-        h:   10 + Math.random() * 8,
+      const COLORS = ['#C6F24E', '#ECECEE', '#9C9CA6', '#A8CF3E', '#F4F4F6'];
+      const particles = Array.from({ length: 90 }, () => ({
+        x:   Math.random() * w,
+        y:   Math.random() * -h * 0.5,
+        w:   4 + Math.random() * 5,
+        h:   8 + Math.random() * 7,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
-        vx:  (Math.random() - 0.5) * 3,
-        vy:  2 + Math.random() * 4,
+        vx:  (Math.random() - 0.5) * 2.4,
+        vy:  1.6 + Math.random() * 3.4,
         angle: Math.random() * Math.PI * 2,
-        spin: (Math.random() - 0.5) * 0.2,
+        spin: (Math.random() - 0.5) * 0.18,
         opacity: 1,
       }));
 
-      let frame;
       const start = performance.now();
 
       function draw(now) {
         const elapsed = now - start;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.clearRect(0, 0, w, h);
 
         let alive = false;
         for (const p of particles) {
           p.x     += p.vx;
           p.y     += p.vy;
           p.angle += p.spin;
-          p.vy    += 0.08; /* gravity */
-          if (elapsed > 1800) p.opacity = Math.max(0, p.opacity - 0.012);
-          if (p.y < canvas.height + 20 && p.opacity > 0) alive = true;
+          p.vy    += 0.07; /* gravity */
+          if (elapsed > 1600) p.opacity = Math.max(0, p.opacity - 0.014);
+          if (p.y < h + 20 && p.opacity > 0) alive = true;
 
           ctx.save();
           ctx.globalAlpha = p.opacity;
@@ -343,13 +384,13 @@
         }
 
         if (alive) {
-          frame = requestAnimationFrame(draw);
+          requestAnimationFrame(draw);
         } else {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.clearRect(0, 0, w, h);
         }
       }
 
-      frame = requestAnimationFrame(draw);
+      requestAnimationFrame(draw);
     }
   </script>
 {% endblock %}
