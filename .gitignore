@@ -12,3 +12,4 @@ test_users.db
 /test_screenshots/
 loadtest/accounts.json
 loadtest/results/
+findings.md
