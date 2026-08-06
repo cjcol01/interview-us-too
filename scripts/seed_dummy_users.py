@@ -1,9 +1,13 @@
 """Seeds dummy users covering a spread of real account states, for manual testing
 against templates/admin pages without needing to work through real Stripe/signup flows.
 
+Also seeds the five recording accounts (A–E) that video_scripts.md asks for, named
+dummy_rec_a_new … dummy_rec_e_disconnected.
+
 Backs up users.db first (via sqlite3's backup API, so it's a consistent snapshot
 even in WAL mode) to users.db.bak-<timestamp> next to it. Safe to re-run — skips
-any dummy_* username that already exists.
+any dummy_* username that already exists, so adding new accounts here and re-running
+tops up an already-seeded DB rather than doing nothing.
 
 Usage: python scripts/seed_dummy_users.py
 """
@@ -41,6 +45,9 @@ def backup_db():
 
 def make_user(db, *, username, email, full_name, account_level, created_days_ago,
               last_login_days_ago=None, setup_complete=True, api_token=True, **kwargs):
+    existing = db.query(User).filter(User.username == username).first()
+    if existing:
+        return existing
     user = User(
         username=username,
         email=email,
@@ -67,10 +74,6 @@ def main():
     init_db()
     db = SessionLocal()
     try:
-        if db.query(User).filter(User.username == "dummy_free1").first():
-            print("Dummy users already seeded — skipping (delete them manually first to reseed).")
-            return
-
         now = datetime.utcnow()
 
         # --- Partners (created first — referred users below point at them) ---
@@ -130,12 +133,13 @@ def main():
             created_days_ago=30, last_login_days_ago=5,
             stripe_customer_id="cus_dummy_session1", sessions_remaining=2, intro_redeemed=True,
         )
-        db.add(InterviewSession(
-            user_id=session1.id,
-            started_at=now - timedelta(days=5),
-            expires_at=now - timedelta(days=5) + timedelta(hours=2, minutes=30),
-            ended_at=now - timedelta(days=5) + timedelta(hours=2, minutes=30),
-        ))
+        if not db.query(InterviewSession).filter(InterviewSession.user_id == session1.id).first():
+            db.add(InterviewSession(
+                user_id=session1.id,
+                started_at=now - timedelta(days=5),
+                expires_at=now - timedelta(days=5) + timedelta(hours=2, minutes=30),
+                ended_at=now - timedelta(days=5) + timedelta(hours=2, minutes=30),
+            ))
 
         session2 = make_user(
             db, username="dummy_session2", email="dummy.session2@example.test",
@@ -144,13 +148,14 @@ def main():
             stripe_customer_id="cus_dummy_session2", sessions_remaining=0, intro_redeemed=True,
             referred_by_id=partner2.id,
         )
-        for days_ago in (40, 20):
-            db.add(InterviewSession(
-                user_id=session2.id,
-                started_at=now - timedelta(days=days_ago),
-                expires_at=now - timedelta(days=days_ago) + timedelta(hours=2, minutes=30),
-                ended_at=now - timedelta(days=days_ago) + timedelta(hours=2, minutes=30),
-            ))
+        if not db.query(InterviewSession).filter(InterviewSession.user_id == session2.id).first():
+            for days_ago in (40, 20):
+                db.add(InterviewSession(
+                    user_id=session2.id,
+                    started_at=now - timedelta(days=days_ago),
+                    expires_at=now - timedelta(days=days_ago) + timedelta(hours=2, minutes=30),
+                    ended_at=now - timedelta(days=days_ago) + timedelta(hours=2, minutes=30),
+                ))
         db.commit()
 
         # --- Unlimited (subscription) ---
@@ -170,45 +175,106 @@ def main():
         )
 
         # --- Referrals tying the above together ---
-        db.add(Referral(
-            referrer_id=partner1.id, referee_id=trial2.id,
-            status=ReferralStatus.signed_up,
-            created_at=trial2.created_at,
-        ))
-        db.add(Referral(
-            referrer_id=partner2.id, referee_id=session2.id,
-            status=ReferralStatus.subscribed, intro_credited=True, sub_credited=True,
-            created_at=session2.created_at,
-            intro_at=session2.created_at,
-            sub_at=session2.created_at + timedelta(days=15),
-        ))
+        if not db.query(Referral).filter(Referral.referee_id == trial2.id).first():
+            db.add(Referral(
+                referrer_id=partner1.id, referee_id=trial2.id,
+                status=ReferralStatus.signed_up,
+                created_at=trial2.created_at,
+            ))
+        if not db.query(Referral).filter(Referral.referee_id == session2.id).first():
+            db.add(Referral(
+                referrer_id=partner2.id, referee_id=session2.id,
+                status=ReferralStatus.subscribed, intro_credited=True, sub_credited=True,
+                created_at=session2.created_at,
+                intro_at=session2.created_at,
+                sub_at=session2.created_at + timedelta(days=15),
+            ))
         db.commit()
 
         # --- Partner commissions for partner2, earned off session2's two purchases ---
         # First purchase: still within the hold window (pending). Second: matured (available).
         source_pence = 1500
         rate_bps = PARTNER_TIER2_BPS
-        db.add(PartnerCommission(
-            partner_id=partner2.id, referee_id=session2.id,
-            source_amount_pence=source_pence, rate_bps=rate_bps,
-            amount_pence=source_pence * rate_bps // 10000,
-            kind="intro", status=CommissionStatus.pending,
-            created_at=now - timedelta(days=5),
-            mature_at=now + timedelta(days=25),
-        ))
-        db.add(PartnerCommission(
-            partner_id=partner2.id, referee_id=session2.id,
-            source_amount_pence=source_pence, rate_bps=rate_bps,
-            amount_pence=source_pence * rate_bps // 10000,
-            kind="sessions_pack", status=CommissionStatus.available,
-            created_at=now - timedelta(days=20),
-            mature_at=now - timedelta(days=5),
-        ))
+        if not db.query(PartnerCommission).filter(PartnerCommission.partner_id == partner2.id).first():
+            db.add(PartnerCommission(
+                partner_id=partner2.id, referee_id=session2.id,
+                source_amount_pence=source_pence, rate_bps=rate_bps,
+                amount_pence=source_pence * rate_bps // 10000,
+                kind="intro", status=CommissionStatus.pending,
+                created_at=now - timedelta(days=5),
+                mature_at=now + timedelta(days=25),
+            ))
+            db.add(PartnerCommission(
+                partner_id=partner2.id, referee_id=session2.id,
+                source_amount_pence=source_pence, rate_bps=rate_bps,
+                amount_pence=source_pence * rate_bps // 10000,
+                kind="sessions_pack", status=CommissionStatus.available,
+                created_at=now - timedelta(days=20),
+                mature_at=now - timedelta(days=5),
+            ))
         db.commit()
 
-        print("Seeded 11 dummy users (password for all: {!r}):".format(DUMMY_PASSWORD))
-        for u in db.query(User).filter(User.username.like("dummy_%")).order_by(User.id).all():
-            print(f"  {u.username:<24} {u.account_level.value:<10} partner={u.partner_status:<7} "
+        # --- Recording accounts for video_scripts.md (A–E) ---------------------
+        # Named so they're obvious on camera-adjacent screens (admin lists, emails) and
+        # still swept up by the dummy_% cleanup query above.
+
+        # A — brand new, never signed in, no extension. Lands on /onboarding.
+        # Leave the trial UNUSED: /api/trial/start refuses a second one.
+        make_user(
+            db, username="dummy_rec_a_new", email="dummy.rec.a@example.test",
+            full_name="Alex New", account_level=AccountLevel.trial,
+            created_days_ago=0, setup_complete=False, api_token=False,
+        )
+
+        # B — trial, onboarding done, extension connected, replay on at 15s so the
+        # popup readout matches the landing copy ("replay the last 15 seconds").
+        # Arming replay itself is an extension-side tab lock — do that on the day.
+        make_user(
+            db, username="dummy_rec_b_ready", email="dummy.rec.b@example.test",
+            full_name="Bea Ready", account_level=AccountLevel.trial,
+            created_days_ago=3, last_login_days_ago=0,
+            welcome_seen=True, tutorial_seen=True,
+            replay_enabled=True, replay_seconds=15,
+        )
+
+        # C — session packs with sessions left. Also the "nothing to cancel" companion shot.
+        make_user(
+            db, username="dummy_rec_c_sessions", email="dummy.rec.c@example.test",
+            full_name="Cass Sessions", account_level=AccountLevel.paid,
+            created_days_ago=14, last_login_days_ago=0,
+            welcome_seen=True, tutorial_seen=True,
+            stripe_customer_id="cus_dummy_rec_c", sessions_remaining=3, intro_redeemed=True,
+            replay_enabled=True, replay_seconds=15,
+        )
+
+        # D — unlimited WITH a sub id, required by V6: /billing/cancel redirects anyone
+        # without one. sub_invoice_paid + unclaimed offer so the 50%-off card actually shows.
+        make_user(
+            db, username="dummy_rec_d_sub", email="dummy.rec.d@example.test",
+            full_name="Dev Subscriber", account_level=AccountLevel.unlimited,
+            created_days_ago=75, last_login_days_ago=0,
+            welcome_seen=True, tutorial_seen=True,
+            stripe_customer_id="cus_dummy_rec_d", stripe_sub_id="sub_dummy_rec_d",
+            sub_invoice_paid=True, retention_offer_claimed=False,
+            replay_enabled=True, replay_seconds=15,
+        )
+
+        # E — deliberately broken: set up, but no API token, so the extension can't
+        # authenticate and /support's extension row lands on "Not connected".
+        # Per-take reset is clearing the token in the extension popup, not reseeding.
+        make_user(
+            db, username="dummy_rec_e_disconnected", email="dummy.rec.e@example.test",
+            full_name="Erin Disconnected", account_level=AccountLevel.paid,
+            created_days_ago=21, last_login_days_ago=0,
+            welcome_seen=True, tutorial_seen=True, api_token=False,
+            stripe_customer_id="cus_dummy_rec_e", sessions_remaining=1, intro_redeemed=True,
+        )
+        db.commit()
+
+        dummies = db.query(User).filter(User.username.like("dummy_%")).order_by(User.id).all()
+        print("Dummy users (password for all: {!r}) — {} total:".format(DUMMY_PASSWORD, len(dummies)))
+        for u in dummies:
+            print(f"  {u.username:<26} {u.account_level.value:<10} partner={u.partner_status:<7} "
                   f"referred={'yes' if u.referred_by_id else 'no':<3} email={u.email}")
     finally:
         db.close()

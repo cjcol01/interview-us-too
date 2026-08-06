@@ -1,21 +1,18 @@
 # TODO
 
 ## immediately
-- [ ] settings mobile refresh (nearly done, a bit wider then the phone)
-
+- [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
+- [ ] create videos for support, install, sideload, landing
 
 
 ## Now
-- [ ] setup check before real interview without starting session.
+- [ ] setup check before real interview without starting session. 
 - [ ] I got the job, referral system, pause instead of cancel
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] light mode visual check (settings, cancel page navbar, text hard to read)
-- [ ] cancel page revamp, text and maybe some visual. ()
-- [ ] settings page, check horizontal dividing line on shortcuts/ spacing
 - [ ] exit button on mobile takes to landing, probably should take to settings
 
 ## Soon 
-- [ ] shorten landing page
 - [ ] dark mode text can be hard to read
 - [ ] find new name 
 - [ ] change AI content 
@@ -109,3 +106,7 @@
 - [x] de case sensitive username  
 - [x] show password button on login and create account so users can see what they typed.
 - [x] welcome already done page can surface after demo call - unformatted and flashes up. looks bad
+- [x] settings page, check horizontal dividing line on shortcuts/ spacing
+- [x] settings mobile refresh (nearly done, a bit wider then the phone) - check first
+- [x] cancel page revamp, text and maybe some visual.
+- [x] shorten landing page

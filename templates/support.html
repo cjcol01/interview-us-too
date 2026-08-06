@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Support - InterviewAce{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/support.css">{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/support.css">
+  <script src="/static/js/ext_probe.js"></script>{% endblock %}
 {% block content %}
 <main class="support-main">
 
@@ -426,18 +427,6 @@
   }
 
   let _extVersion = null;
-  document.addEventListener('interview-ace:pong', (e) => {
-    _pongSeen = true;
-    clearTimeout(_extTimeout);
-    _extLinked = !!(e.detail && e.detail.linked);
-    _extVersion = e.detail && e.detail.version;
-    _updateExtCheck();
-  });
-
-  document.addEventListener('interview-ace:enabled-status', (e) => {
-    _extEnabled = !!(e.detail && e.detail.enabled);
-    _updateExtCheck();
-  });
 
   function connectExtensionFromSupport(triggerBtn) {
     const btn = triggerBtn || document.getElementById('check-ext-connect');
@@ -454,8 +443,7 @@
       clearTimeout(timeout);
       btn.textContent = '✓ Connected!';
       _extConnectHold = true; // keep the button visible so the message above is readable
-      _pongSeen = false;
-      _retryDispatch('interview-ace:ping', () => _pongSeen);
+      IAExtProbe.probe();
       setTimeout(() => {
         _extConnectHold = false;
         reset();
@@ -467,70 +455,42 @@
     }));
   }
 
-  document.addEventListener('interview-ace:mic-status', (e) => {
-    _micSeen = true;
-    clearTimeout(_micTimeout);
-    const state = e.detail && e.detail.state;
-    if (state === 'granted') _setCheck('mic', 'ok', 'Granted · ready');
-    else if (state === 'denied') _setCheck('mic', 'bad', 'No signal - permission?');
-    else if (state === 'error') _setCheck('mic', 'bad', 'No signal - check device');
-    else _setCheck('mic', 'warn', 'Not granted yet - test it before your interview');
-  });
-
-  document.addEventListener('interview-ace:replay-status', (e) => {
-    _replayLast = e.detail;
-    _applyReplayCheck();
-  });
-
   function _applyReplayCheck() {
-    const state = _replayLast && _replayLast.state;
+    const state = _replayLast;
     if (state === 'armed') _setCheck('replay', 'ok', 'Armed · locked to tab');
     else if (state === 'error' || state === 'stream-ended') _setCheck('replay', 'bad', 'Buffer empty / off');
     else _setCheck('replay', 'warn', 'Not locked to a tab - set it up before your interview');
   }
 
-  // The extension's content script injects at document_idle, which can run
-  // *after* this inline script already executed once (it's part of the
-  // initial HTML parse) — a single ping/mic-check dispatch can fire before
-  // the extension's listeners exist and gets lost with no response ever
-  // coming back. Retry a few times over ~1.2s instead of a one-shot dispatch.
-  let _pongSeen = false;
-  let _micSeen = false;
+  // Detection lives in /static/js/ext_probe.js — this page only renders it. The probe
+  // handles the document_idle race (retrying the dispatch), the not-detected timeout, and
+  // re-asking on focus/interval, which is what kept these rows honest while Settings and
+  // /app drifted.
+  IAExtProbe.subscribe((s) => {
+    if (s.detected === false) {
+      _setCheck('ext', 'bad', 'Not detected');
+      _setExtFixState('not-detected');
+      _setCheck('phone', 'bad', "Can't check");
+    } else if (s.detected) {
+      _extLinked = s.linked;
+      _extEnabled = s.enabled;
+      _extVersion = s.version;
+      _updateExtCheck();
+    }
 
-  function _retryDispatch(eventName, isSeen) {
-    let attempts = 0;
-    document.dispatchEvent(new CustomEvent(eventName));
-    const timer = setInterval(() => {
-      if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
-      document.dispatchEvent(new CustomEvent(eventName));
-    }, 200);
-    return timer;
-  }
+    if (s.mic === 'granted')      _setCheck('mic', 'ok', 'Granted · ready');
+    else if (s.mic === 'denied')  _setCheck('mic', 'bad', 'No signal - permission?');
+    else if (s.mic === 'error')   _setCheck('mic', 'bad', 'No signal - check device');
+    else if (s.mic === 'unknown') _setCheck('mic', 'unknown', 'Install the extension to check');
+    else if (s.mic)               _setCheck('mic', 'warn', 'Not granted yet - test it before your interview');
 
-  const _extTimeout = setTimeout(() => {
-    if (_pongSeen) return;
-    _setCheck('ext', 'bad', 'Not detected');
-    _setExtFixState('not-detected');
-    _setCheck('phone', 'bad', "Can't check");
-  }, 1500);
-  const _micTimeout = setTimeout(() => {
-    if (_micSeen) return;
-    _setCheck('mic', 'unknown', 'Install the extension to check');
-  }, 1500);
+    _replayLast = s.replay;
+    _applyReplayCheck();
+  });
 
-  _retryDispatch('interview-ace:ping', () => _pongSeen);
-  _retryDispatch('interview-ace:mic-check', () => _micSeen);
   _applyReplayCheck();
   _updateStuckMailto();
-
-  // Mic permission is only pushed here when explicitly re-queried, unlike ext/enabled state —
-  // re-check whenever this tab regains focus (e.g. after granting/revoking it elsewhere),
-  // rather than only on page load or the manual "Run diagnostics" button.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    _micSeen = false;
-    _retryDispatch('interview-ace:mic-check', () => _micSeen);
-  });
+  IAExtProbe.start();
 
   setTimeout(() => { _settled = true; _refreshSubline(); }, 1800);
 
@@ -543,10 +503,7 @@
     icon.classList.add('spinning');
     label.textContent = 'Scanning…';
     document.getElementById('check-subline').textContent = 'Scanning…';
-    _pongSeen = false;
-    _micSeen = false;
-    _retryDispatch('interview-ace:ping', () => _pongSeen);
-    _retryDispatch('interview-ace:mic-check', () => _micSeen);
+    IAExtProbe.probe();
     setTimeout(() => {
       icon.classList.remove('spinning');
       label.textContent = 'Run diagnostics';
@@ -596,7 +553,7 @@
     _micSettingsSeen = true;
     _micSettingsUrl = e.detail && e.detail.url;
   });
-  _retryDispatch('interview-ace:mic-settings-link', () => _micSettingsSeen);
+  IAExtProbe.retryDispatch('interview-ace:mic-settings-link', () => _micSettingsSeen);
 
   function copyMicSettingsLink(el) {
     if (_micSettingsUrl) { copyChromeUrl(el, _micSettingsUrl); return; }
@@ -618,7 +575,7 @@
       copyChromeUrl(el, _micSettingsUrl);
     };
     document.addEventListener('interview-ace:mic-settings-link-result', onResult, { once: true });
-    _retryDispatch('interview-ace:mic-settings-link', () => answered);
+    IAExtProbe.retryDispatch('interview-ace:mic-settings-link', () => answered);
     setTimeout(() => {
       if (answered) return;
       answered = true;

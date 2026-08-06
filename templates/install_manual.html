@@ -4,91 +4,304 @@
 {% block content %}
 <main class="im-main">
 
-  <header class="im-hero">
+  <div class="im-intro">
     <p class="im-eyebrow">Direct install</p>
     <h1>Install InterviewAce without the Chrome Web Store</h1>
-    <p class="im-subtitle">If the Web Store listing is ever down for review or unavailable, you can still install the exact same extension directly. It takes about a minute and only needs to be done once.</p>
-  </header>
-
-  <div class="im-download-card">
-    <div class="im-download-body">
-      <h2>Download the extension</h2>
-      <p>A zip of the same code that ships on the Web Store.</p>
-    </div>
-    <div class="im-download-actions">
-      <a href="{{ zip_url }}" class="im-download-btn">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
-        Download .zip
-      </a>
-      <a href="{{ mirror_zip_url }}" class="im-mirror-link" download>Trouble downloading? Try the mirror</a>
-    </div>
+    <p>If the Web Store listing is ever down for review or unavailable, you can still install the
+       exact same extension directly. It takes about a minute and only needs to be done once - the
+       last step detects itself automatically.</p>
   </div>
 
   <div class="im-steps">
 
-    <div class="im-step-card">
+    <!-- Step 1: download -->
+    <div class="im-step-card is-active" id="im-step-1" data-step="1">
       <div class="im-step-num">1</div>
       <div class="im-step-body">
-        <h2>Unzip it</h2>
-        <p>Extract the downloaded zip anywhere on your computer - a folder called <code>interviewace-extension</code> will appear. Keep that folder where it is; Chrome reads the extension directly from it, so don't delete it after installing.</p>
-      </div>
-    </div>
-
-    <div class="im-step-card">
-      <div class="im-step-num">2</div>
-      <div class="im-step-body">
-        <h2>Open Chrome's extensions page</h2>
-        <p>Chrome blocks links from opening this page directly, so copy the address below and paste it into your address bar.</p>
-        <div class="im-copy-row">
-          <code id="im-ext-url">chrome://extensions</code>
-          <button class="im-copy-btn" onclick="copyText('im-ext-url', this)">Copy</button>
+        <h2>Download the extension</h2>
+        <p class="im-step-state" id="im-state-1" hidden></p>
+        <div class="im-step-inner">
+          <p>A zip of the same code that ships on the Web Store.</p>
+          <a href="{{ zip_url }}" class="im-download-btn" onclick="imDownloadClicked()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            Download .zip
+          </a>
+          <a href="{{ mirror_zip_url }}" class="im-mirror-link" download onclick="imDownloadClicked()">Trouble downloading? Try the mirror</a>
         </div>
       </div>
     </div>
 
-    <div class="im-step-card">
+    <!-- Step 2: unzip -->
+    <div class="im-step-card is-locked" id="im-step-2" data-step="2">
+      <div class="im-step-num">2</div>
+      <div class="im-step-body">
+        <h2>Unzip it</h2>
+        <p class="im-step-state" id="im-state-2" hidden></p>
+        <div class="im-step-inner">
+          <p>Extract the downloaded zip anywhere on your computer - a folder called
+             <code>interviewace-extension</code> will appear. Keep that folder where it is; Chrome
+             reads the extension directly from it, so don't delete it after installing.</p>
+          <button type="button" class="im-done-btn" onclick="imComplete(2)">Done - it's unzipped →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: open chrome://extensions -->
+    <div class="im-step-card is-locked" id="im-step-3" data-step="3">
       <div class="im-step-num">3</div>
       <div class="im-step-body">
-        <h2>Turn on Developer mode</h2>
-        <p>Toggle <strong>Developer mode</strong> on in the top-right corner of the extensions page. Chrome will show a banner saying developer-mode extensions may be less safe. <em>This is annoying, but Chrome shows it for every extension installed outside the Web Store - it's not a sign anything is wrong with ours.</em></p>
+        <h2>Open Chrome's extensions page</h2>
+        <p class="im-step-state" id="im-state-3" hidden></p>
+        <div class="im-step-inner">
+          <p>Chrome blocks links from opening this page directly, so copy the address below and
+             paste it into your address bar.</p>
+          <div class="im-copy-row" onclick="imCopyRow(this)" title="Click to copy">
+            <code id="im-ext-url">chrome://extensions</code>
+            <button type="button" class="im-copy-btn">Copy</button>
+          </div>
+          <button type="button" class="im-done-btn" onclick="imComplete(3)">Done - it's open →</button>
+        </div>
       </div>
     </div>
 
-    <div class="im-step-card">
+    <!-- Step 4: developer mode -->
+    <div class="im-step-card is-locked" id="im-step-4" data-step="4">
       <div class="im-step-num">4</div>
       <div class="im-step-body">
-        <h2>Load unpacked</h2>
-        <p>Click <strong>Load unpacked</strong> (top-left) and select the <code>interviewace-extension</code> folder you unzipped in step 1. The extension installs immediately - no restart needed.</p>
+        <h2>Turn on Developer mode</h2>
+        <p class="im-step-state" id="im-state-4" hidden></p>
+        <div class="im-step-inner">
+          <p>Toggle <strong>Developer mode</strong> on in the top-right corner of the extensions
+             page. Chrome will show a banner saying developer-mode extensions may be less safe.
+             <em>This is annoying, but Chrome shows it for every extension installed outside the
+             Web Store - it's not a sign anything is wrong with ours.</em></p>
+          <button type="button" class="im-done-btn" onclick="imComplete(4)">Done - it's on →</button>
+        </div>
       </div>
     </div>
 
-    <div class="im-step-card">
+    <!-- Step 5: load unpacked (auto-detected) -->
+    <div class="im-step-card is-locked" id="im-step-5" data-step="5">
       <div class="im-step-num">5</div>
       <div class="im-step-body">
+        <h2>Load unpacked</h2>
+        <p class="im-step-state" id="im-state-5" hidden></p>
+        <div class="im-step-inner">
+          <p>Click <strong>Load unpacked</strong> (top-left) and select the
+             <code>interviewace-extension</code> folder you unzipped in step 2. The extension
+             installs immediately - no restart needed.</p>
+          <div class="im-detect">
+            <span class="im-detect-led warn" id="im-detect-led"></span>
+            <span class="im-detect-msg" id="im-detect-msg">Waiting for Chrome to load the extension…</span>
+          </div>
+          <button type="button" class="im-step-alt" onclick="imComplete(5)">I've loaded it - continue anyway →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6: continue -->
+    <div class="im-step-card is-locked" id="im-step-6" data-step="6">
+      <div class="im-step-num">6</div>
+      <div class="im-step-body">
         <h2>Continue setup</h2>
-        <p>Pin it via the puzzle-piece icon in Chrome's toolbar, then head back to onboarding to connect it to your account.</p>
-        <a href="/onboarding?fresh=1" class="im-continue-btn">Continue to onboarding →</a>
+        <p class="im-step-state" id="im-state-6" hidden></p>
+        <div class="im-step-inner">
+          <p>Pin it via the puzzle-piece icon in Chrome's toolbar, then head back to onboarding to
+             connect it to your account.</p>
+          <a href="/onboarding?fresh=1" class="im-continue-btn">Continue to onboarding →</a>
+        </div>
       </div>
     </div>
 
   </div>
 
   <div class="im-note">
-    <strong>If it stops responding after a Chrome update:</strong> Chrome occasionally disables unpacked extensions when it updates itself. Go back to <code>chrome://extensions</code> and toggle it back on - your setup and hotkeys aren't affected.
+    <strong>If it stops responding after a Chrome update:</strong> Chrome occasionally disables
+    unpacked extensions when it updates itself. Go back to <code>chrome://extensions</code> and
+    toggle it back on - your setup and hotkeys aren't affected.
   </div>
 
-  <p class="im-footer-note">These steps are written for Chrome. Edge, Brave, and other Chromium browsers use the same <code>chrome://extensions</code> flow. Questions? <a href="mailto:support@interviewace.co">Email us</a>.</p>
+  <p class="im-footer-note">These steps are written for Chrome. Edge, Brave, and other Chromium
+    browsers use the same <code>chrome://extensions</code> flow. Questions?
+    <a href="mailto:support@interviewace.co">Email us</a>.</p>
 
 </main>
+
 <script>
-  function copyText(id, btn) {
-    const text = document.getElementById(id).textContent.trim();
-    navigator.clipboard.writeText(text).then(() => {
-      const orig = btn.textContent;
+  // ── Copy helpers ────────────────────────────────────────────────────────────
+  // Mac-safe copy: some Safari/older-Chrome builds reject or lack navigator.clipboard, so fall
+  // back to a hidden <textarea> + execCommand('copy'). Same approach the support page uses, after
+  // the write-only path failed to copy for some Mac users.
+  function imExecCopy(text, onOk) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try { if (document.execCommand('copy')) onOk(); } finally { document.body.removeChild(ta); }
+  }
+  function imWriteClipboard(text, onOk) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(onOk).catch(() => imExecCopy(text, onOk));
+    } else {
+      imExecCopy(text, onOk);
+    }
+  }
+
+  // Clicking anywhere in the copy row — the code box or the button — copies, with feedback on
+  // the button either way.
+  function imCopyRow(row) {
+    const text = row.querySelector('code').textContent.trim();
+    const btn = row.querySelector('.im-copy-btn');
+    const orig = btn.textContent;
+    imWriteClipboard(text, () => {
       btn.textContent = 'Copied!';
       btn.classList.add('copied');
       setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
     });
   }
+
+  // ── Accordion stepper ───────────────────────────────────────────────────────
+  // Same model as onboarding: one step open at a time, a real green border-flash on completion,
+  // and finished cards collapse to a ✓ summary line you can click to re-read. Most sideload steps
+  // (unzip, open the page, dev mode) have no programmatic signal, so they advance on a manual
+  // "Done"; step 5 (load unpacked) genuinely detects itself via the extension's ping/pong.
+  const IM_STATE_TEXT = {
+    1: 'Extension downloaded',
+    2: 'Unzipped',
+    3: 'Extensions page open',
+    4: 'Developer mode on',
+    5: 'Extension detected',
+    6: 'Ready',
+  };
+  const IM_LAST_STEP = 6;
+  const IM_HOLD_MS = 1400;
+  const IM_COLLAPSE_MS = 260;
+  const _sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  let _imOpen = 1;
+  const _imDone = new Set();
+  const _imCompleting = new Set();
+
+  function imRender() {
+    for (let n = 1; n <= IM_LAST_STEP; n++) {
+      const card = document.getElementById('im-step-' + n);
+      const state = document.getElementById('im-state-' + n);
+      const done = _imDone.has(n);
+      // Locked means an earlier step is still outstanding — not merely "not open" — so reopening
+      // an earlier card to re-read it doesn't re-lock everything after it.
+      const reachable = done || n === 1 || _imDone.has(n - 1);
+      card.classList.toggle('is-done', done);
+      card.classList.toggle('is-active', n === _imOpen);
+      card.classList.toggle('is-locked', !reachable && n !== _imOpen);
+      state.hidden = !done || n === _imOpen;
+      if (done) state.textContent = IM_STATE_TEXT[n];
+    }
+  }
+
+  function imGoTo(n) {
+    _imOpen = Math.min(n, IM_LAST_STEP);
+    imRender();
+    const card = document.getElementById('im-step-' + _imOpen);
+    if (card.scrollIntoView) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  /* Fade the open card's body out so it closes rather than vanishing, then let the border-flash
+     finish before cleanup. display:none as the collapsed state keeps finished steps out of the tab
+     order and off screen readers, which a max-height trick would quietly break. */
+  async function imFadeOut(n) {
+    const card = document.getElementById('im-step-' + n);
+    if (!card || !card.classList.contains('is-active')) return;
+    card.classList.add('is-collapsing', 'is-completing');
+    await _sleep(IM_COLLAPSE_MS);
+    card.classList.remove('is-collapsing');
+    setTimeout(() => card.classList.remove('is-completing'), 280);
+  }
+
+  /* holdMs > 0 keeps the step on its success state before collapsing — used when a real signal
+     (the extension answering) lands, so the confirmation is readable. Manual "Done" clicks pass
+     nothing: there's no result to admire and waiting would just feel unresponsive. */
+  async function imComplete(n, holdMs = 0) {
+    if (_imCompleting.has(n)) return;   // a hold leaves a window the same step could re-complete in
+    _imCompleting.add(n);
+    _imDone.add(n);
+    imRender();                          // show the finished state *during* the hold
+    try {
+      if (holdMs && _imOpen === n) await _sleep(holdMs);
+      if (n >= _imOpen) {
+        await imFadeOut(n);
+        if (_imOpen === n) imGoTo(n + 1);
+      }
+    } finally {
+      _imCompleting.delete(n);
+    }
+  }
+
+  // Re-opening a finished/reachable card is a read, not a reset — nothing gets un-done.
+  function imReopen(n) {
+    if (n === _imOpen) return;
+    const reachable = _imDone.has(n) || n === 1 || _imDone.has(n - 1);
+    if (!reachable) return;
+    _imOpen = n;
+    imRender();
+  }
+  for (let n = 1; n <= IM_LAST_STEP; n++) {
+    document.getElementById('im-step-' + n).addEventListener('click', (e) => {
+      if (e.target.closest('.im-step-inner')) return;   // clicks on controls behave normally
+      imReopen(n);
+    });
+  }
+
+  // ── Step 1: download ────────────────────────────────────────────────────────
+  // A download doesn't blur the tab, so there's no "return" signal to wait on — the click is the
+  // signal. Advance shortly after so the file is underway as the accordion moves on.
+  let _downloadDone = false;
+  function imDownloadClicked() {
+    if (_downloadDone) return;
+    _downloadDone = true;
+    setTimeout(() => { if (_imOpen === 1) imComplete(1); }, 600);
+  }
+
+  // ── Step 5: live extension detection ────────────────────────────────────────
+  // content.js matches <all_urls>, so the moment Chrome loads the unpacked extension it starts
+  // answering interview-ace:ping on this very page. We poll until it does, then flash step 5 done.
+  // The poll runs regardless of which step is open: a returning user who already has it installed
+  // is carried straight to "Continue", and someone who finishes Load unpacked early is caught even
+  // if they never clicked through steps 2-4.
+  let _detected = false;
+  let _pingTimer = null;
+
+  function imConfirmDetectLed() {
+    const led = document.getElementById('im-detect-led');
+    led.className = 'im-detect-led ok';
+    void led.offsetWidth;          // restart the ring if it has already played
+    led.classList.add('confirm');
+  }
+
+  async function imMarkInstalled() {
+    if (_detected) return;
+    _detected = true;
+    clearInterval(_pingTimer);
+    document.getElementById('im-detect-msg').textContent = "Extension detected - you're all set.";
+    imConfirmDetectLed();
+    // Everything up to and including "load unpacked" is now a fact.
+    for (let n = 1; n <= 5; n++) _imDone.add(n);
+    if (_imOpen === 5) {
+      // The common case: flash step 5 on screen, hold, then open Continue.
+      await imComplete(5, IM_HOLD_MS);
+    } else {
+      // Detected while on an earlier step (already-installed user) — jump ahead cleanly.
+      imRender();
+      imGoTo(6);
+    }
+  }
+
+  document.addEventListener('interview-ace:pong', imMarkInstalled, { once: true });
+  function imPing() { document.dispatchEvent(new CustomEvent('interview-ace:ping')); }
+  _pingTimer = setInterval(imPing, 1500);
+  imPing();   // probe immediately for the already-installed case
+
+  // ── Boot ────────────────────────────────────────────────────────────────────
+  imRender();
 </script>
 {% endblock %}

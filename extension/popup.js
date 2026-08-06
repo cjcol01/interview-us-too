@@ -373,9 +373,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  if (replay_enabled) {
+  // Unset means the settings sync hasn't landed yet (fresh install, or a service worker
+  // that hasn't run fetchAccountLevel since). The server default is on, so match it —
+  // otherwise the replay card is invisible on a new install until the first sync, which
+  // reads as "instant replay isn't available" rather than "not loaded yet".
+  if (replay_enabled !== false) {
     replaySection.style.display = 'flex';
-    updateReplayWindowUI(replay_seconds || 10);
+    updateReplayWindowUI(replay_seconds || 15);
   }
 
   // Live-update if the setting changes while the popup happens to be open
@@ -387,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       replaySection.style.display = changes.replay_enabled.newValue ? 'flex' : 'none';
     }
     if (changes.replay_seconds) {
-      updateReplayWindowUI(changes.replay_seconds.newValue || 10);
+      updateReplayWindowUI(changes.replay_seconds.newValue || 15);
     }
   });
 

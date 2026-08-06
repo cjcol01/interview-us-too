@@ -13,6 +13,7 @@
 {% endblock %}
 {% block content %}
   {% include "_mock_interview.html" %}
+  <script src="/static/js/ext_probe.js"></script>
   <script src="/static/js/mock_interview.js"></script>
 
   <!-- Trial not-started overlay (shown on second device before starting) -->
@@ -516,6 +517,12 @@ The team actively read these and work on issues found."></textarea>
             analysisEl.className = '';
             badgeEl.textContent = 'mic';
             badgeEl.className = 'audio';
+          } else if (data.type === 'typing-preview') {
+            // Live echo while they're still typing. Deliberately leaves the previous
+            // answer on screen — nothing has been submitted yet, so nothing is stale.
+            transcLabelEl.textContent = 'Typing…';
+            transcTextEl.textContent  = data.text || '';
+            transcBoxEl.style.display = data.text ? 'block' : 'none';
           } else if (data.type === 'typing-working') {
             _noteCapture();
             _streamBuffer = '';
@@ -906,23 +913,13 @@ The team actively read these and work on issues found."></textarea>
       document.querySelectorAll('.hk-status-dot.open').forEach((d) => d.classList.remove('open'));
     });
 
-    // Extension: read-only presence/link ping — never touches the stored token.
-    // The content script injects at document_idle, which can run *after* this
-    // inline script already executed once (it's part of the initial HTML
-    // parse) — a single dispatch can fire before the extension's listeners
-    // exist and gets lost with no response ever coming back. Retry a few
-    // times instead of a one-shot dispatch.
+    // Extension presence comes from the shared read-only probe; these two track which
+    // source currently owns the dots. _localExtConnected: an extension in THIS browser
+    // answered. _pongSeen: any extension state has arrived, local or relayed from another
+    // device — it stops a local probe timeout from painting "not detected" over a perfectly
+    // good remote status on the phone.
     let _pongSeen = false;
-    let _micSeen = false;
     let _localExtConnected = false;
-    function _retryDispatch(eventName, isSeen) {
-      let attempts = 0;
-      document.dispatchEvent(new CustomEvent(eventName));
-      const timer = setInterval(() => {
-        if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
-        document.dispatchEvent(new CustomEvent(eventName));
-      }, 200);
-    }
 
     const _supportBtn = document.getElementById('support-btn');
     function _setSupportBounce(active) {
@@ -950,57 +947,6 @@ The team actively read these and work on issues found."></textarea>
       }
     }
 
-    const _extDotTimeout = setTimeout(() => {
-      if (_pongSeen) return;
-      _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
-      _setSupportBounce(true);
-    }, 1500);
-    document.addEventListener('interview-ace:pong', (e) => {
-      _pongSeen = true;
-      _localExtConnected = true;
-      clearTimeout(_extDotTimeout);
-      _extLinked = !!(e.detail && e.detail.linked);
-      _updateExtDot();
-    });
-    _retryDispatch('interview-ace:ping', () => _pongSeen);
-
-    document.addEventListener('interview-ace:enabled-status', (e) => {
-      _extEnabled = !!(e.detail && e.detail.enabled);
-      _updateExtDot();
-    });
-
-    // Mic: passive permission check, requested fresh on load.
-    const _micDotTimeout = setTimeout(() => {
-      if (_micSeen) return;
-      _setDot('mic', 'neutral', 'Microphone status unknown - install and connect the extension to check.');
-    }, 1500);
-    document.addEventListener('interview-ace:mic-status', (e) => {
-      _micSeen = true;
-      clearTimeout(_micDotTimeout);
-      const state = e.detail && e.detail.state;
-      if (state === 'granted') {
-        _setDot('mic', 'ok', 'Microphone permission granted.');
-      } else if (state === 'denied') {
-        _setDot('mic', 'bad', "Microphone permission blocked - allow it for InterviewAce in your browser's site settings, then reload this page.");
-      } else if (state === 'error') {
-        _setDot('mic', 'bad', 'Microphone isn’t working - check that a microphone is connected and permission is allowed, then try again.');
-      } else {
-        _setDot('mic', 'warn', 'Microphone permission not granted yet - press and hold the voice-capture hotkey now to grant it before your interview.');
-      }
-    });
-    _retryDispatch('interview-ace:mic-check', () => _micSeen);
-
-    // Mic permission is only ever pushed to the page when explicitly re-queried — unlike
-    // ext-linked/enabled state, nothing writes to storage on its own when the browser-level
-    // permission changes elsewhere (e.g. the user grants it via grant-mic.html in another tab,
-    // or revokes it from chrome://settings). Re-check whenever this tab regains focus, since
-    // that's the natural moment right after such a change.
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState !== 'visible') return;
-      _micSeen = false;
-      _retryDispatch('interview-ace:mic-check', () => _micSeen);
-    });
-
     // Instant replay: reuse the same status stream as the replay badge above.
     function _applyReplayDot(status) {
       const state = status && status.state;
@@ -1013,18 +959,58 @@ The team actively read these and work on issues found."></textarea>
         _setDot('replay', 'warn', "Instant replay isn't locked to a tab yet - lock it to your meeting tab in the extension popup now so it's ready before your interview.");
       }
     }
+    // tabTitle only rides along on the raw event, not through the probe's state.
     document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));
+
+    // Detection is the shared probe (/static/js/ext_probe.js) — same code as /support and
+    // Settings. It re-asks on a timer and on focus, so a dot can't keep reporting an
+    // extension that has since been disabled, reloaded or uninstalled.
+    //
+    // When nothing local answers, this page is almost certainly the phone: leave the dots
+    // to the SSE `ext_status` events from the desktop extension (_applyExtStatus) instead
+    // of painting "not detected" over them.
+    IAExtProbe.subscribe((s) => {
+      if (s.detected) {
+        _localExtConnected = true;
+        _extLinked = s.linked;
+        _extEnabled = s.enabled;
+        _updateExtDot();
+      } else if (s.detected === false && _localExtConnected) {
+        _localExtConnected = false;   // had one, lost it — hand the dots back to SSE
+        _extLinked = false;
+        _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
+        _setSupportBounce(true);
+      } else if (s.detected === false && !_pongSeen) {
+        // Never had a local extension. Say so, but only until a remote ext_status arrives —
+        // _applyExtStatus clears this timeout-equivalent by taking over the dots.
+        _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
+        _setSupportBounce(true);
+      }
+
+      if (!s.detected) return;   // remote status owns mic/replay when there's no local ext
+      if (s.mic === 'granted') {
+        _setDot('mic', 'ok', 'Microphone permission granted.');
+      } else if (s.mic === 'denied') {
+        _setDot('mic', 'bad', "Microphone permission blocked - allow it for InterviewAce in your browser's site settings, then reload this page.");
+      } else if (s.mic === 'error') {
+        _setDot('mic', 'bad', 'Microphone isn’t working - check that a microphone is connected and permission is allowed, then try again.');
+      } else if (s.mic === 'unknown' || s.mic === null) {
+        _setDot('mic', 'neutral', 'Microphone status unknown - install and connect the extension to check.');
+      } else {
+        _setDot('mic', 'warn', 'Microphone permission not granted yet - press and hold the voice-capture hotkey now to grant it before your interview.');
+      }
+    });
+
     _applyReplayDot(null);
+    IAExtProbe.start();
 
     // ── Remote ext status (cross-device: desktop ext → server → mobile dots) ──
     // Only applies when no local extension is detected. The local extension's
     // custom events always take priority over the server-broadcast state.
     function _applyExtStatus(status) {
       if (!status || !status.ext) return;
-      // A remote extension is active — cancel the "not detected" timeouts so
-      // they don't overwrite what we're about to set.
-      clearTimeout(_extDotTimeout);
-      clearTimeout(_micDotTimeout);
+      // A remote extension is active — claim the dots so a local probe timeout can't
+      // overwrite what we're about to set.
       _pongSeen = true;
 
       if (status.ext_enabled) {
@@ -1037,6 +1023,11 @@ The team actively read these and work on issues found."></textarea>
         _setDot('mic', 'ok', 'Microphone permission granted.');
       } else if (status.mic === 'denied' || status.mic === 'error') {
         _setDot('mic', 'bad', "Microphone isn’t available - check settings on the device running the extension.");
+      } else if (status.mic === 'prompt') {
+        // 'prompt' means asked-and-not-yet-granted, which is a specific, fixable state —
+        // it used to fall into the 'unknown' bucket below and read as "we can't tell",
+        // which is why the dot looked stuck whenever permission simply wasn't granted yet.
+        _setDot('mic', 'warn', 'Microphone permission not granted yet - press and hold the voice-capture hotkey on the device running the extension.');
       } else {
         _setDot('mic', 'neutral', 'Microphone status unknown.');
       }

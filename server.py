@@ -3632,7 +3632,7 @@ _RATE_LIMIT_ENDPOINTS = {
     # endpoint name (matches the `endpoint` arg passed to _rate_limit) -> its per-minute `limit`.
     "login_ip": 20, "login_user": 6, "register": 10,
     "resend_verification": 3, "forgot_password_email": 3, "forgot_password_ip": 10,
-    "capture": 6, "audio": 10,
+    "capture": 6, "audio": 10, "typing_preview": 400,
 }
 
 
@@ -4580,6 +4580,7 @@ async def settings_page(
         "hotkey_replay":  hk["replay"],
         "hotkey_typing":  hk["typing"],
         "typing_passthrough": user.typing_passthrough,
+        "typing_preview": user.typing_preview,
         "response_style": _user_response_style(user).value,
         "complexity": complexity,
         "replay_enabled": user.replay_enabled,
@@ -4832,6 +4833,31 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     return {"status": "ok", "capture_id": capture_id}
 
 
+class TypingPreviewRequest(BaseModel):
+    # Empty is legal and meaningful: it's how the extension clears the box when typing
+    # mode opens or the buffer is backspaced away.
+    text: str = Field(default="", max_length=5000)
+
+
+@app.post("/api/typing-preview")
+async def api_typing_preview(body: TypingPreviewRequest, request: Request, user: User = Depends(get_user_by_token)):
+    """Live echo of the typing-mode buffer to the dashboard, throttled by the extension.
+
+    Deliberately does none of what /api/text-capture does: no _gate_basic_access, no session
+    bookkeeping, no history write, no AI call. A keystroke must never start (or spend) a paid
+    session — only an actual submit does that. All this does is publish to the user's own
+    SSE channel."""
+    if not user.typing_preview:
+        return {"status": "disabled"}
+    r = request.app.state.redis
+    # Generous: the extension throttles to ~4/s, so this only trips on a stuck key or a
+    # client ignoring the throttle.
+    await _rate_limit(r, user.id, "typing_preview", cooldown=0, limit=400,
+                      limit_msg="Typing preview paused — too many updates")
+    await broadcast(r, user.id, "typing-preview", {"text": body.text})
+    return {"status": "ok"}
+
+
 @app.post("/api/text-capture")
 async def api_text_capture(body: TextCaptureRequest, request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     r = request.app.state.redis
@@ -4969,6 +4995,7 @@ async def api_me(request: Request, user: User = Depends(get_user_by_token)):
         "account_level": user.account_level.value,
         "hotkeys": _user_hotkeys(user),
         "typing_passthrough": user.typing_passthrough,
+        "typing_preview": user.typing_preview,
         "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
         "complexity": await get_complexity(r, user.id),
         "response_style": _user_response_style(user).value,
@@ -5011,6 +5038,13 @@ class PassthroughSetting(BaseModel):
 @app.post("/api/settings/passthrough")
 def save_passthrough(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.typing_passthrough = data.enabled
+    db.commit()
+    return {"status": "ok"}
+
+
+@app.post("/api/settings/typing-preview")
+def save_typing_preview(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.typing_preview = data.enabled
     db.commit()
     return {"status": "ok"}
 

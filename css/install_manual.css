@@ -1,24 +1,22 @@
-/* ===== Manual install fallback page ===== */
+/* ===== Manual install fallback page =====
+   Rebuilt to mirror the onboarding stepper: one dropdown open at a time, a green border-flash
+   on completion, and live extension-detection driving the final step. The visual system here is
+   deliberately the same as css/onboarding.css (ob-*), ported under im-* so the two setup flows
+   read as one product. */
 
 .im-main {
   flex: 1;
-  padding: 40px max(20px, 4vw) 80px;
-  max-width: 900px;
+  padding: 32px max(20px, 3vw) 64px;
+  max-width: 640px;
   margin: 0 auto;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
-/* ── Hero ── */
-.im-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px 0 8px;
-}
-
+/* ── Intro ── */
+.im-intro { margin-bottom: 6px; }
 .im-eyebrow {
   display: inline-block;
   width: fit-content;
@@ -32,83 +30,28 @@
   border: 1px solid var(--accent-line);
   border-radius: 20px;
   padding: 4px 12px;
+  margin-bottom: 12px;
 }
-
-.im-hero h1 {
+.im-intro h1 {
   font-family: 'Space Grotesk', sans-serif;
-  font-size: clamp(24px, 4.5vw, 32px);
+  font-size: clamp(1.3rem, 3vw, 1.7rem);
   font-weight: 700;
-  color: var(--text);
-  line-height: 1.25;
   letter-spacing: -0.02em;
-}
-
-.im-subtitle {
-  font-size: 14.5px;
-  color: var(--text-2);
-  line-height: 1.65;
-}
-
-/* ── Download card ── */
-.im-download-card {
-  background: var(--card);
-  border: 1px solid var(--accent-line);
-  border-radius: 14px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.im-download-body h2 {
-  font-family: 'Space Grotesk', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
   color: var(--text);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
-
-.im-download-body p { font-size: 13px; color: var(--text-2); }
-
-.im-download-actions {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.im-download-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--btn-bg);
-  color: var(--btn-text);
-  border: none;
-  border-radius: 9px;
-  padding: 10px 18px;
-  font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform .15s, box-shadow .15s;
-  white-space: nowrap;
-}
-.im-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,.14); }
-
-.im-mirror-link {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: var(--text-3);
-  text-decoration: none;
-  transition: color .15s;
-}
-.im-mirror-link:hover { color: var(--text-2); }
+.im-intro p { font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
 /* ── Steps ── */
-.im-steps { display: flex; flex-direction: column; gap: 12px; }
+.im-steps { display: flex; flex-direction: column; gap: 14px; }
+
+/* Flash the card border when a step completes — plays as the inner content fades out. */
+@keyframes im-card-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(198,242,78,.6); border-color: var(--accent); }
+  40%  { box-shadow: 0 0 0 8px rgba(198,242,78,.18); border-color: var(--accent); }
+  100% { box-shadow: none; border-color: var(--accent-line); }
+}
+.im-step-card.is-completing { animation: im-card-flash .52s ease-out forwards; }
 
 .im-step-card {
   background: var(--card);
@@ -118,6 +61,7 @@
   display: flex;
   gap: 18px;
   align-items: flex-start;
+  transition: opacity .3s ease, border-color .3s ease;
 }
 .im-step-num {
   width: 30px; height: 30px;
@@ -145,7 +89,9 @@
   font-size: 13.5px;
   color: var(--text-2);
   line-height: 1.6;
+  margin-bottom: 10px;
 }
+.im-step-body p:last-child { margin-bottom: 0; }
 .im-step-body code {
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
@@ -156,12 +102,76 @@
   padding: 1px 5px;
 }
 
+/* ── Step open/closed states: one step open at a time ──
+   Numerals stay numerals in every state — this is a real sequence with real dependencies, so a
+   step's position is information worth keeping. What changes is weight: solid accent for the step
+   you're on, a quiet outline once it's behind you, flat grey while it's still out of reach. */
+.im-step-card .im-step-inner { display: none; }
+.im-step-card.is-active .im-step-inner { display: block; }
+/* Must stay below the .is-active rule — identical specificity, so source order lets the fade win.
+   Still display:block here: the card only flips to display:none once the fade has run, which keeps
+   finished steps out of the tab order without making the close abrupt. */
+.im-step-card.is-collapsing .im-step-inner {
+  display: block;
+  opacity: 0;
+  transition: opacity .26s ease;
+}
+.im-step-card.is-active { border-color: var(--accent-line); }
+.im-step-card.is-locked { opacity: .42; }
+.im-step-card.is-locked .im-step-num { background: var(--line-strong); color: var(--text-3); }
+.im-step-card.is-done:not(.is-active) { cursor: pointer; }
+.im-step-card.is-done .im-step-num {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+}
+/* Collapsed result line. Beats specificity of `.im-step-body p` so a closed card doesn't carry
+   that rule's trailing margin as dead space. */
+.im-step-body p.im-step-state {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 0;
+}
+.im-step-body p.im-step-state::before { content: '✓ '; }
+
+/* ── Download button (step 1) ── */
+.im-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+  margin-top: 4px;
+}
+.im-download-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,.14); }
+.im-mirror-link {
+  display: block;
+  margin-top: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color .15s;
+}
+.im-mirror-link:hover { color: var(--text-2); }
+
 /* ── Copy row (chrome://extensions) ── */
 .im-copy-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin: 10px 0;
+  cursor: pointer;   /* the whole row copies, so signal it's clickable */
 }
 .im-copy-row code {
   flex: 1;
@@ -172,35 +182,136 @@
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 8px 12px;
+  transition: border-color .15s;
 }
+.im-copy-row:hover code { border-color: var(--accent-line); }
+/* Green by default, not just once copied — reads as the affirmative action it is. */
 .im-copy-btn {
-  background: rgba(255,255,255,.04);
-  border: 1px solid var(--line-strong);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
   border-radius: 6px;
-  color: var(--text-3);
+  color: var(--accent);
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
+  font-weight: 600;
   padding: 8px 12px;
   cursor: pointer;
-  transition: color .15s;
+  transition: background .15s;
   flex-shrink: 0;
 }
-.im-copy-btn:hover { color: var(--text-1); }
-.im-copy-btn.copied { color: var(--accent); }
+.im-copy-btn:hover { background: rgba(198,242,78,.12); }
+.im-copy-btn.copied { background: rgba(198,242,78,.18); }
 
-/* ── Continue button ── */
-.im-continue-btn {
-  display: inline-block;
-  margin-top: 10px;
+/* ── "Done" advance button for the manual steps (unzip, open page, dev mode) ── */
+.im-done-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  color: var(--accent);
+  border-radius: 9px;
+  padding: 9px 16px;
   font-family: 'Hanken Grotesk', sans-serif;
   font-size: 13.5px;
   font-weight: 700;
-  color: var(--accent);
-  text-decoration: none;
+  cursor: pointer;
+  margin-top: 12px;
+  transition: background .15s;
 }
-.im-continue-btn:hover { opacity: .8; }
+.im-done-btn:hover { background: rgba(198,242,78,.1); }
 
-/* ── Note callout ── */
+/* ── Manual "already done this" out on the auto-detected step ── */
+.im-step-alt {
+  display: block;
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 12px;
+  color: var(--text-3);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color .15s;
+}
+.im-step-alt:hover { color: var(--text-1); }
+.im-step-alt:focus-visible,
+.im-done-btn:focus-visible,
+.im-continue-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ── Live extension-detection panel (step 5) ── */
+.im-detect {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 0 4px;
+  padding: 12px 14px;
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.im-detect-led {
+  position: relative;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--line-strong);
+}
+.im-detect-led.warn { background: #d8a13a; }
+.im-detect-led.warn::before {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 1.5px solid #d8a13a;
+  animation: im-ring-pulse 2s ease-out infinite;
+}
+@keyframes im-ring-pulse {
+  0%   { transform: scale(.5); opacity: .7; }
+  100% { transform: scale(3);  opacity: 0;  }
+}
+.im-detect-led.ok { background: var(--accent); box-shadow: 0 0 6px rgba(198,242,78,.45); }
+/* One-shot ring at the moment it turns green — the eye is drawn by the change, not the colour. */
+.im-detect-led.confirm::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  animation: im-led-ring .5s ease-out forwards;
+}
+@keyframes im-led-ring {
+  0%   { transform: scale(.6); opacity: .9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.im-detect-msg {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.im-detect-led.ok ~ .im-detect-msg { color: var(--accent); }
+
+/* ── Continue button (final step) ── */
+.im-continue-btn {
+  display: inline-block;
+  margin-top: 6px;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 10px 18px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.im-continue-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(255,255,255,.14); }
+
+/* ── Note callout + footer ── */
 .im-note {
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
@@ -211,11 +322,7 @@
   line-height: 1.6;
 }
 .im-note strong { color: var(--text-1); }
-.im-note code {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  color: var(--accent);
-}
+.im-note code { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
 
 .im-footer-note {
   font-size: 12.5px;
@@ -228,11 +335,14 @@
 .im-footer-note a { color: var(--accent); text-decoration: none; }
 .im-footer-note a:hover { opacity: .8; }
 
-/* ── Responsive ── */
+/* Respect reduced-motion: keep the state change, drop the flourish. */
+@media (prefers-reduced-motion: reduce) {
+  .im-step-card.is-completing { animation: none; }
+  .im-step-card.is-collapsing .im-step-inner { transition: none; }
+  .im-detect-led.warn::before,
+  .im-detect-led.confirm::after { animation: none; opacity: 0; }
+}
+
 @media (max-width: 480px) {
-  .im-hero h1 { font-size: 24px; }
-  .im-download-card { flex-direction: column; align-items: stretch; }
-  .im-download-actions { align-items: stretch; }
-  .im-download-btn { justify-content: center; }
-  .im-mirror-link { text-align: center; }
+  .im-intro h1 { font-size: 22px; }
 }

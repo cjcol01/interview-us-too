@@ -65,9 +65,13 @@ class User(Base):
     hotkey_replay      = Column(String, nullable=True)
     hotkey_typing      = Column(String, nullable=True)
     typing_passthrough = Column(Boolean, default=True, nullable=False, server_default="1")
+    # Live echo of the typing-mode buffer to the dashboard as it's typed. On by default;
+    # the tradeoff (keystrokes leave the machine before you commit to sending them) is
+    # spelled out in Settings → Capture & replay, where it can be turned off.
+    typing_preview     = Column(Boolean, default=True, nullable=False, server_default="1")
     response_style     = Column(Enum(ResponseStyle), nullable=True)
     replay_enabled     = Column(Boolean, default=True, nullable=False, server_default="1")
-    replay_seconds     = Column(Integer, default=10,    nullable=False, server_default="10")
+    replay_seconds     = Column(Integer, default=15,    nullable=False, server_default="15")
     referral_credit_pence = Column(Integer, default=0, nullable=False, server_default="0")
     sub_trial_used     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")

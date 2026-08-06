@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Settings - InterviewAce{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/settings.css">
+  <script src="/static/js/ext_probe.js"></script>
   <!-- highlight.js for the live response preview's code block. Same @highlightjs/cdn-assets
        bundle as the /app page (exposes window.hljs + ~40 common languages incl. python). -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
@@ -340,6 +341,21 @@
               </label>
             </div>
             <div id="passthrough-status" class="save-status"></div>
+
+            <div class="card-row">
+              <div class="card-row-left">
+                <div class="card-row-label">Live typing preview</div>
+                <div class="card-row-desc">Shows what you're typing on your phone as you type it, rather than only once you send. Requested often enough that it's on by default.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="typing-preview-toggle" {% if typing_preview %}checked{% endif %} onchange="saveTypingPreview()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="card-row-note" id="typing-preview-note" {% if not typing_preview %}hidden{% endif %}>
+              Your keystrokes reach your dashboard as you type - not the AI, and not your history. Switch this off and nothing leaves your machine until you send.
+            </div>
+            <div id="typing-preview-status" class="save-status"></div>
           </div>
 
         </section>
@@ -806,6 +822,36 @@
       }
     }
 
+    // ── Live typing preview ────────────────────────────────────────
+    async function saveTypingPreview() {
+      const enabled = document.getElementById('typing-preview-toggle').checked;
+      const statusEl = document.getElementById('typing-preview-status');
+      // The caveat only applies while it's on — off, there's nothing to caveat.
+      document.getElementById('typing-preview-note').hidden = !enabled;
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-3)';
+      statusEl.textContent = 'Saving…';
+      try {
+        const resp = await fetch('/api/settings/typing-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled }),
+        });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent)';
+          document.dispatchEvent(new CustomEvent('interview-ace:typing-preview', { detail: { enabled } }));
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
     // ── Typing passthrough ─────────────────────────────────────────
     async function savePassthrough() {
       const enabled = document.getElementById('passthrough-toggle').checked;
@@ -941,19 +987,20 @@
       return timer;
     }
 
-    let extensionDetected = false;
-
-    const pingTimeout = setTimeout(() => {
-      if (!extensionDetected) showConnect();
-    }, 1500);
-
-    document.addEventListener('interview-ace:connected', () => {
-      extensionDetected = true;
-      clearTimeout(pingTimeout);
-      showConnected();
-    }, { once: true });
-
-    _retryConnectDispatch(() => extensionDetected);
+    // Detection is the shared read-only probe (/static/js/ext_probe.js), the same one
+    // /support and /app use. This used to detect the extension by firing
+    // `interview-ace:connect` on page load — but that event WRITES the token into extension
+    // storage, so merely opening Settings repointed the extension at this page's origin.
+    // It also only ever asked once, which is why the banner kept claiming "connected" long
+    // after the extension had been disabled or removed. The probe re-asks on a timer and on
+    // focus, so the row now tracks reality. `connect` is still used, but only where it
+    // belongs: behind the explicit Connect button.
+    IAExtProbe.subscribe((s) => {
+      if (s.detected === null) return;              // still asking — leave the current state
+      if (s.detected && s.linked) showConnected();
+      else showConnect();
+    });
+    IAExtProbe.start();
 
     function showConnected() {
       document.getElementById('ext-connected').style.display = 'flex';
@@ -983,6 +1030,7 @@
         connected = true;
         clearTimeout(timeout);
         showConnected();
+        IAExtProbe.probe();   // confirm the write actually took, rather than assuming
       }, { once: true });
       _retryConnectDispatch(() => connected);
     }

@@ -32,6 +32,7 @@ async function fetchAccountLevel() {
         });
       }
       if (data.typing_passthrough != null) await chrome.storage.local.set({ typing_passthrough: data.typing_passthrough });
+      if (data.typing_preview != null) await chrome.storage.local.set({ typing_preview: data.typing_preview });
       if (data.replay) {
         await chrome.storage.local.set({
           replay_enabled: data.replay.enabled,
@@ -154,6 +155,15 @@ async function handleToggle(senderTabId) {
   const next = !enabled;
   _extEnabled = next;
   await chrome.storage.local.set({ enabled: next });
+  // Push immediately. Same-browser pages hear this via storage.onChanged, but the phone
+  // dashboard only knows what the server knows — without this it shows the old state until
+  // the 30s heartbeat catches up, which is exactly the dot you check before an interview.
+  sendExtStatus();
+  // Re-probe the mic too. Reading mic_status from storage only helps if something ever
+  // wrote it — a device that has never run a check reports 'unknown' forever, and the
+  // phone has no extension of its own to ask. This is the passive permissions query, so
+  // it never prompts; its result writes storage and sends a fresh status by itself.
+  checkMicPermission();
   if (next) await notifyEnabled();
   if (senderTabId) {
     chrome.tabs.sendMessage(senderTabId, { type: 'toggled', enabled: next }).catch(() => {});
@@ -205,7 +215,15 @@ let _replayState = 'idle';
 let _extEnabled  = false;
 
 async function sendExtStatus() {
-  const { server_url, api_token } = await chrome.storage.local.get(['server_url', 'api_token']);
+  // Read mic/replay from storage rather than trusting the in-memory copies. Those are
+  // reset to 'unknown'/'idle' every time MV3 evicts the service worker and only rehydrated
+  // inside an async .then() at startup — so any send that races that (a toggle waking the
+  // worker, say) would tell the dashboard the mic is unknown when it isn't. Storage is
+  // already the normalized truth: stale 'armed'/'arming' is scrubbed on startup while
+  // terminal 'stream-ended'/'error' is deliberately preserved.
+  const { server_url, api_token, mic_status, replay_status } = await chrome.storage.local.get(
+    ['server_url', 'api_token', 'mic_status', 'replay_status'],
+  );
   if (!server_url || !api_token) return;
   await fetch(`${server_url}/api/ext/status`, {
     method: 'POST',
@@ -213,7 +231,12 @@ async function sendExtStatus() {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${api_token}`,
     },
-    body: JSON.stringify({ ext: true, ext_enabled: _extEnabled, mic: _micState, replay: _replayState }),
+    body: JSON.stringify({
+      ext: true,
+      ext_enabled: _extEnabled,
+      mic: mic_status?.state || _micState,
+      replay: replay_status?.state || _replayState,
+    }),
   }).catch(() => {});
 }
 
@@ -224,7 +247,7 @@ async function sendExtStatus() {
 let _replayArmed     = false;
 let _replayTabId     = null;
 let _replayTabOrigin = null;
-let _replayWindowSec = 10;
+let _replayWindowSec = 15;
 const _replayPending = {};   // requestId → resolve fn
 
 // Clear any stale *armed* status from a previous SW lifetime — a lock never
@@ -284,6 +307,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     handleAudioData(msg.base64, msg.mimeType);
   } else if (msg.type === 'typing-start') {
     handleTypingStart();
+  } else if (msg.type === 'typing-preview') {
+    queueTypingPreview(msg.text);
   } else if (msg.type === 'typing-submit') {
     handleTypingSubmit(msg.text);
   } else if (msg.type === 'audio-error') {
@@ -462,10 +487,63 @@ async function handleTypingStart() {
   }
   chrome.action.setBadgeText({ text: 'TYPE' });
   chrome.action.setBadgeBackgroundColor({ color: '#2563eb' });
+  queueTypingPreview('');  // clears any leftover preview from the last round
+}
+
+// Live preview of the typing buffer, throttled to one request per TYPING_PREVIEW_MS.
+// Always sends the WHOLE buffer rather than a delta: a dropped or out-of-order request
+// then costs one stale frame instead of corrupting the text, and no sequencing is needed.
+// Trailing edge, so the last keystroke of a burst always lands.
+const TYPING_PREVIEW_MS = 250;
+let _previewText = null;
+let _previewTimer = null;
+let _previewLastSent = 0;
+
+function queueTypingPreview(text) {
+  _previewText = text;
+  if (_previewTimer) return;
+  const wait = Math.max(0, TYPING_PREVIEW_MS - (Date.now() - _previewLastSent));
+  _previewTimer = setTimeout(() => {
+    _previewTimer = null;
+    const pending = _previewText;
+    _previewText = null;
+    _previewLastSent = Date.now();
+    sendTypingPreview(pending);
+  }, wait);
+}
+
+async function sendTypingPreview(text) {
+  const { server_url, api_token, enabled, typing_preview } = await chrome.storage.local.get([
+    'server_url', 'api_token', 'enabled', 'typing_preview',
+  ]);
+  // Unset means the settings sync hasn't run yet — the server default is on, so match it.
+  if (typing_preview === false) return;
+  if (!enabled || !api_token || !server_url) return;
+  try {
+    await fetch(`${server_url}/api/typing-preview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${api_token}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+  } catch {
+    // A dropped preview frame is not worth surfacing — the next keystroke resends the
+    // full buffer, and the submit itself goes through /api/text-capture regardless.
+  }
+}
+
+function cancelTypingPreview() {
+  if (_previewTimer) { clearTimeout(_previewTimer); _previewTimer = null; }
+  _previewText = null;
 }
 
 async function handleTypingSubmit(text) {
   chrome.action.setBadgeText({ text: '' });
+  // Drop any queued preview — otherwise a trailing frame lands after the submit and
+  // repaints the dashboard's preview over the "thinking…" state.
+  cancelTypingPreview();
   if (!text || !text.trim()) return;
 
   const { server_url, api_token, enabled } = await chrome.storage.local.get(['server_url', 'api_token', 'enabled']);
@@ -657,5 +735,8 @@ chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status 
   _extEnabled = !!enabled;
   if (mic_status?.state) _micState = mic_status.state;
   sendExtStatus();
+  // Nothing has ever established a mic state on this device, so no amount of reading
+  // storage will produce one — ask once, or the dashboard shows "unknown" indefinitely.
+  if (!mic_status?.state || mic_status.state === 'unknown') checkMicPermission();
 });
 setInterval(sendExtStatus, 30_000);

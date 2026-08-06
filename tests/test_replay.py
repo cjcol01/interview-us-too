@@ -12,7 +12,7 @@ def register(test, skip, client):
         try:
             u = make_user(db, AccountLevel.trial)
             assert u.replay_enabled is True
-            assert u.replay_seconds == 10
+            assert u.replay_seconds == 15
             assert u.hotkey_replay is None
         finally:
             cleanup(db, u)
@@ -280,7 +280,7 @@ def register(test, skip, client):
             body = r.json()
             assert "replay" in body
             assert body["replay"]["enabled"] is True
-            assert body["replay"]["seconds"] == 10
+            assert body["replay"]["seconds"] == 15
             assert "replay" in body["hotkeys"]
             assert body["hotkeys"]["replay"] == HOTKEY_DEFAULTS["replay"]
         finally:

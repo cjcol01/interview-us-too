@@ -80,6 +80,10 @@ document.addEventListener('interview-ace:passthrough', (e) => {
   chrome.storage.local.set({ typing_passthrough: e.detail.enabled });
 }, { signal: ac.signal });
 
+document.addEventListener('interview-ace:typing-preview', (e) => {
+  chrome.storage.local.set({ typing_preview: e.detail.enabled });
+}, { signal: ac.signal });
+
 document.addEventListener('interview-ace:replay', (e) => {
   const { enabled, seconds } = e.detail;
   chrome.storage.local.set({ replay_enabled: enabled, replay_seconds: seconds });
@@ -285,6 +289,9 @@ document.addEventListener('keydown', (e) => {
     } else {
       return;  // navigation/modifier keys: ignore and let them pass through
     }
+    // .catch: the router answers nothing, so MV3 rejects the send promise with "message port
+  // closed". Harmless, but unhandled it floods the page console on every keystroke.
+  chrome.runtime.sendMessage({ type: 'typing-preview', text: _typingBuffer }).catch(() => {});
     if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
     return;
   }
@@ -319,5 +326,8 @@ document.addEventListener('paste', (e) => {
   const pasted = (e.clipboardData || window.clipboardData)?.getData('text') || '';
   if (!pasted) return;
   _typingBuffer += pasted;
+  // .catch: the router answers nothing, so MV3 rejects the send promise with "message port
+  // closed". Harmless, but unhandled it floods the page console on every keystroke.
+  chrome.runtime.sendMessage({ type: 'typing-preview', text: _typingBuffer }).catch(() => {});
   if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
 }, { capture: true, signal: ac.signal });

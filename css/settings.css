@@ -275,6 +275,22 @@
 }
 .card-row-desc strong { color: var(--text-1); }
 
+/* Inset caveat under a toggle — for the tradeoff a setting makes, where a one-line
+   description isn't enough and the user deserves the full story before deciding. */
+.card-row-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--accent-line);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+.card-row-note strong { color: var(--text-1); font-weight: 600; }
+.card-row-note[hidden] { display: none; }
+
 /* ── Response section grid ── */
 .response-grid {
   display: grid;
