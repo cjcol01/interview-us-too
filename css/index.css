@@ -192,6 +192,8 @@ main {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 #analysis-label {
   font-family: 'JetBrains Mono', monospace;
@@ -201,7 +203,7 @@ main {
   letter-spacing: 0.1em;
   color: var(--text-3);
 }
-.analysis-header-right { display: flex; align-items: center; gap: 10px; }
+.analysis-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 
 /* Clear button */
 #clear-btn {
@@ -220,7 +222,16 @@ main {
 #clear-btn.visible { display: inline-block; }
 #clear-btn:hover { border-color: var(--danger); color: var(--danger); }
 
-/* Complexity controls */
+/* Complexity + comment-level steppers (same control, two settings) */
+.stepper-group { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.stepper-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
 .complexity-control { display: flex; align-items: center; gap: 6px; }
 .complexity-btn {
   background: var(--card-inset);

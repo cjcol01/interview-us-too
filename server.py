@@ -53,7 +53,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
-from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, verify_password
+from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, validate_username, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
 from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
@@ -469,6 +469,33 @@ COMPLEXITY_SUFFIX = {
     3: "\n\nComplexity level: 3/3 — give the optimal approach. Best time/space complexity, clean production-quality code, with a thorough explanation including trade-offs and edge cases.",
 }
 
+# How heavily the AI comments any code it writes. Stored, stepped and broadcast exactly
+# like complexity above (Redis-backed, 1..3, reset with the rest of the capture state).
+COMMENT_LEVEL_MIN     = 1
+COMMENT_LEVEL_MAX     = 3
+COMMENT_LEVEL_DEFAULT = 2
+COMMENT_LEVEL_NAMES   = {1: "low", 2: "high", 3: "every_line"}
+COMMENT_LEVEL_SUFFIX = {
+    1: "\n\nComment level: low — comment in the normal manner, particuarly on non obvious code. Leave self-explanatory lines bare.",
+    2: "\n\nComment level: high — comment every logical block of the code, saying why it does what it does, not just what it does.",
+    3: "\n\nComment level: every line — put a short trailing comment on every single line of code you write, including declarations and returns, trying to explain why",
+}
+
+
+# What the AI is told about *how the input arrived*, appended straight after AI_PROMPT and
+# ahead of everything else. The four methods differ in ways that materially change a good
+# answer: a screenshot is a clean complete document, typed text is a terse instruction aimed
+# at the AI, mic audio is one speaker's ASR transcript to be answered out loud, and instant
+# replay is a retroactive slice that starts and ends mid-sentence, can hold several speakers
+# (including the candidate), and sometimes contains no question at all. This is the only
+# per-input-method prompt seam: wording that varies by capture path belongs in here.
+INPUT_MODE_PROMPT: dict[str, str] = {
+    "screenshot": "\n\nThe user has sent a screenshot, usually of a coding problem such as a LeetCode question. The image is the source of truth; answer from what's actually visible in it rather than from what a similar problem usually asks. If the candidate has already written code, continue in their style, correcting mistakes and noting briefly what you changed. End with time and space complexity. If the screenshot isn't a coding problem, help however seems most useful given these instructions.",
+    "text":       "\n\nThe input below was typed by the candidate and is addressed directly to you — it's a question or instruction, not necessarily something an interviewer said. It may be terse or shorthand. Answer it directly. If it's a fragment that only makes sense against the previous exchange (e.g. \"optimise it\", \"why n log n\"), resolve it against that and continue from there rather than starting over.",
+    "audio":      "\n\nThe text below is a transcript of what the interviewer just said, captured from the candidate's microphone. It's speech, so it may contain filler, false starts, or transcription errors — silently repair obvious mistranscriptions of technical terms (e.g. \"big oh of n\", or \"hash map\" heard as \"hash mat\") rather than commenting on them. The candidate has to respond out loud in real time, so lead with the answer in a form they can say directly.",
+    "replay":     "\n\nThe text below is a transcript of the last several seconds of meeting audio, captured retroactively because the candidate missed or didn't catch something. Unlike a deliberate recording it will start and end mid-sentence and may contain more than one speaker, including the candidate. Find the most recent question or request directed at the candidate and answer that. Ignore the candidate's own speech except as context for what's already been said. If the slice contains no question at all, say so in one short line rather than inventing one.",
+}
+
 
 class HotkeySettings(BaseModel):
     capture: str
@@ -757,6 +784,7 @@ _CAPTURE_DEFAULTS = {"analysis": "", "timestamp": "", "capture_id": "0", "monito
 
 def _capture_key(uid: int) -> str:    return f"user:{uid}:capture"
 def _complexity_key(uid: int) -> str: return f"user:{uid}:complexity"
+def _comment_level_key(uid: int) -> str: return f"user:{uid}:comment_level"
 def _events_channel(uid: int) -> str: return f"user:{uid}:events"
 def _ext_status_key(uid: int) -> str: return f"user:{uid}:ext_status"
 
@@ -787,6 +815,11 @@ async def get_capture_state(r, user_id: int) -> dict:
 async def get_complexity(r, user_id: int) -> int:
     val = await r.get(_complexity_key(user_id))
     return int(val) if val is not None else 2
+
+
+async def get_comment_level(r, user_id: int) -> int:
+    val = await r.get(_comment_level_key(user_id))
+    return int(val) if val is not None else COMMENT_LEVEL_DEFAULT
 
 
 def _truncate(s: str, n: int) -> str:
@@ -1161,9 +1194,13 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
                       limit_msg="Too many login attempts from this connection — try again in a minute",
                       window_limit=60, window_seconds=300,
                       window_msg="Too many login attempts from this connection — try again in a few minutes")
-    # Username-based: the real defense against brute-forcing one account — doesn't care how
-    # many other people share your IP, and also catches attempts spread across many IPs.
-    await _rate_limit(r, body.username.lower(), "login_user", cooldown=2, limit=6,
+    # Identity-based: the real defense against brute-forcing one account — doesn't care how
+    # many other people share your IP, and also catches attempts spread across many IPs. Keyed on
+    # the identifier as typed, so username and email are two separate buckets for the same
+    # account; that hands an attacker two budgets instead of one, but the IP limit above still
+    # bounds the total and the alternative (resolving to a user id first) would mean a database
+    # lookup on every unauthenticated request.
+    await _rate_limit(r, body.username.strip().lower(), "login_user", cooldown=2, limit=6,
                       cooldown_msg="Too many attempts — wait a moment before trying again",
                       limit_msg="Too many attempts on this account — try again in a minute",
                       window_limit=15, window_seconds=900,
@@ -1171,9 +1208,22 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
     def _authenticate():
         # Case-insensitive: usernames are matched/uniqued without regard to case, so "John"
         # logs in as "john". func.lower (not ilike — usernames may contain '_', a LIKE wildcard).
-        user = db.query(User).filter(func.lower(User.username) == body.username.lower()).first()
+        #
+        # The identifier is either a username or an email, and '@' decides which — an identifier
+        # containing one is matched against email and *only* email. Partitioning this way (rather
+        # than trying one column then the other) is what makes the field unambiguous: were both
+        # columns searched, anyone could register the username "victim@example.com" and shadow a
+        # real user's email at the login prompt. validate_username keeps '@' out of new usernames
+        # as a second layer, but the routing here is what actually defuses it.
+        identifier = body.username.strip()
+        if "@" in identifier:
+            # Emails are stored lowercased on every signup path (password, Google, GitHub, lead
+            # capture), so this only has to defend against odd casing in what was typed.
+            user = db.query(User).filter(func.lower(User.email) == identifier.lower()).first()
+        else:
+            user = db.query(User).filter(func.lower(User.username) == identifier.lower()).first()
         if not user or not verify_password(body.password, user.password_hash):
-            raise HTTPException(status_code=401, detail="Invalid username or password.")
+            raise HTTPException(status_code=401, detail="Invalid login or password.")
         if not user.is_active:
             raise HTTPException(status_code=403, detail="This account has been suspended. Contact support if you think this is a mistake.")
         user.last_login = datetime.utcnow()
@@ -1206,7 +1256,11 @@ async def auth_register(
                       window_limit=25, window_msg="Too many signups from this connection — try again later")
     def _register():
         email = body.email.strip().lower()
-        if db.query(User).filter(func.lower(User.username) == body.username.lower()).first():
+        username = body.username.strip()
+        username_error = validate_username(username)
+        if username_error:
+            raise HTTPException(status_code=400, detail=username_error)
+        if db.query(User).filter(func.lower(User.username) == username.lower()).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
         if db.query(User).filter(User.email == email).first():
             raise HTTPException(status_code=400, detail="Email already registered.")
@@ -1215,7 +1269,7 @@ async def auth_register(
             raise HTTPException(status_code=400, detail=password_error)
 
         user = User(
-            username=body.username,
+            username=username,
             email=email,
             full_name=body.full_name,
             password_hash=hash_password(body.password),
@@ -4527,6 +4581,7 @@ async def settings_page(
 ):
     r = request.app.state.redis
     complexity = await get_complexity(r, user.id)
+    comment_level = await get_comment_level(r, user.id)
 
     def _load_page_data():
         _ensure_api_token(user, db)
@@ -4583,6 +4638,7 @@ async def settings_page(
         "typing_preview": user.typing_preview,
         "response_style": _user_response_style(user).value,
         "complexity": complexity,
+        "comment_level": comment_level,
         "replay_enabled": user.replay_enabled,
         "replay_seconds": user.replay_seconds,
         "contexts": contexts,
@@ -4604,7 +4660,10 @@ async def settings_page(
 @app.get("/latest")
 async def get_latest(request: Request, user: User = Depends(require_subscription)):
     r = request.app.state.redis
-    return {"capture": await get_capture_state(r, user.id), "settings": {"complexity": await get_complexity(r, user.id)}}
+    return {"capture": await get_capture_state(r, user.id), "settings": {
+        "complexity": await get_complexity(r, user.id),
+        "comment_level": await get_comment_level(r, user.id),
+    }}
 
 
 @app.get("/screenshot")
@@ -4624,8 +4683,23 @@ async def change_complexity(direction: str, request: Request, user: User = Depen
     elif direction == "down":
         c = max(COMPLEXITY_MIN, c - 1)
     await r.set(_complexity_key(user.id), c)
-    await broadcast(r, user.id, "settings", {"complexity": c})
+    await broadcast(r, user.id, "settings", {"complexity": c, "comment_level": await get_comment_level(r, user.id)})
     return {"complexity": c}
+
+
+@app.post("/settings/comment-level/{direction}")
+async def change_comment_level(direction: str, request: Request, user: User = Depends(require_subscription)):
+    r = request.app.state.redis
+    c = await get_comment_level(r, user.id)
+    if direction == "up":
+        c = min(COMMENT_LEVEL_MAX, c + 1)
+    elif direction == "down":
+        c = max(COMMENT_LEVEL_MIN, c - 1)
+    await r.set(_comment_level_key(user.id), c)
+    # Both values go out on every settings event so a listener can render the whole
+    # control block from one payload without tracking which knob moved.
+    await broadcast(r, user.id, "settings", {"complexity": await get_complexity(r, user.id), "comment_level": c})
+    return {"comment_level": c}
 
 
 # ---------------------------------------------------------------------------
@@ -4819,7 +4893,8 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + RESPONSE_STYLE_SUFFIX[style]
+    comments   = await get_comment_level(r, user.id)
+    prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
 
     history = await _load_history_messages(r, user.id)
     full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id, history=history)
@@ -4829,7 +4904,7 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
     state = await get_capture_state(r, user.id)
     await broadcast(r, user.id, "capture", state)
-    track(user.id, "capture_submitted", complexity=complexity)
+    track(user.id, "capture_submitted", complexity=complexity, comment_level=comments)
     return {"status": "ok", "capture_id": capture_id}
 
 
@@ -4901,7 +4976,8 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
 
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
-    prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style]
+    comments   = await get_comment_level(r, user.id)
+    prompt = AI_PROMPT + INPUT_MODE_PROMPT["text"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + f"\n\nTyped input: {body.text}" + RESPONSE_STYLE_SUFFIX[style]
 
     history = await _load_history_messages(r, user.id)
     full_text = await _stream_ai_response(r, user.id, prompt, history=history)
@@ -4912,7 +4988,7 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
         "analysis": full_text,
         "timestamp": time.strftime("%H:%M:%S"),
     })
-    track(user.id, "text_capture_submitted", complexity=complexity)
+    track(user.id, "text_capture_submitted", complexity=complexity, comment_level=comments)
     return {"status": "ok"}
 
 
@@ -4920,10 +4996,16 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
 async def api_audio_capture(
     request: Request,
     audio: UploadFile = File(...),
+    # Which of the two audio paths this clip came from: "mic" (the candidate deliberately
+    # recorded the interviewer) or "replay" (a retroactive slice of tab audio). Only the
+    # prompt cares — everything else about the two is identical, so they share this route.
+    # Defaults to "mic" so an extension built before this field existed still works.
+    source: str = Form("mic"),
     user: User = Depends(get_user_by_token),
     db: Session = Depends(get_db),
 ):
     r = request.app.state.redis
+    mode = "replay" if source == "replay" else "audio"
     await _gate_basic_access(r, user, db)
     await _rate_limit(r, user.id, "audio", cooldown=5, limit=10,
                       cooldown_msg="Recording too fast — wait 5 seconds between recordings",
@@ -4965,17 +5047,21 @@ async def api_audio_capture(
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
-        prompt = AI_PROMPT + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + f"\n\nThe interviewer said: {transcription_text}" + RESPONSE_STYLE_SUFFIX[style]
+        comments   = await get_comment_level(r, user.id)
+        input_label = (f"\n\nTranscript of the last {user.replay_seconds} seconds of call audio: {transcription_text}"
+                       if mode == "replay" else
+                       f"\n\nThe interviewer said: {transcription_text}")
+        prompt = AI_PROMPT + INPUT_MODE_PROMPT[mode] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + input_label + RESPONSE_STYLE_SUFFIX[style]
         history = await _load_history_messages(r, user.id)
         full_text = await _stream_ai_response(r, user.id, prompt, history=history)
-        await _append_history(r, user.id, "audio", transcription_text, full_text, user.account_level)
+        await _append_history(r, user.id, mode, transcription_text, full_text, user.account_level)
 
         await broadcast(r, user.id, "audio-analysis", {
             "transcription": transcription_text,
             "analysis": full_text,
             "timestamp": time.strftime("%H:%M:%S"),
         })
-        track(user.id, "audio_capture_submitted")
+        track(user.id, "audio_capture_submitted", source=mode, complexity=complexity, comment_level=comments)
     except Exception as exc:
         # Never forward the raw exception text (e.g. "400 Client Error: ... for url: ...") to
         # the dashboard — log the real detail server-side, show the user something actionable.
@@ -4998,6 +5084,7 @@ async def api_me(request: Request, user: User = Depends(get_user_by_token)):
         "typing_preview": user.typing_preview,
         "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
         "complexity": await get_complexity(r, user.id),
+        "comment_level": await get_comment_level(r, user.id),
         "response_style": _user_response_style(user).value,
     }
 
@@ -5006,11 +5093,26 @@ class ComplexityRequest(BaseModel):
     value: int = Field(ge=1, le=3)
 
 
+class CommentLevelRequest(BaseModel):
+    value: int = Field(ge=COMMENT_LEVEL_MIN, le=COMMENT_LEVEL_MAX)
+
+
 @app.post("/api/settings/complexity")
 async def set_complexity(request: Request, data: ComplexityRequest, user: User = Depends(get_user_by_token)):
     r = request.app.state.redis
     await r.set(_complexity_key(user.id), data.value)
     return {"complexity": data.value}
+
+
+@app.post("/api/settings/comment-level")
+async def set_comment_level(request: Request, data: CommentLevelRequest, user: User = Depends(get_user_by_token)):
+    r = request.app.state.redis
+    await r.set(_comment_level_key(user.id), data.value)
+    await broadcast(r, user.id, "settings", {
+        "complexity": await get_complexity(r, user.id),
+        "comment_level": data.value,
+    })
+    return {"comment_level": data.value}
 
 
 @app.post("/api/settings/style")
@@ -5272,12 +5374,16 @@ def update_account(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if body.username and body.username != user.username:
+    if body.username and body.username.strip() != user.username:
+        new_username = body.username.strip()
         if not body.current_password or not verify_password(body.current_password, user.password_hash):
             raise HTTPException(status_code=400, detail="Current password is required to change your username.")
-        if db.query(User).filter(func.lower(User.username) == body.username.lower(), User.id != user.id).first():
+        username_error = validate_username(new_username)
+        if username_error:
+            raise HTTPException(status_code=400, detail=username_error)
+        if db.query(User).filter(func.lower(User.username) == new_username.lower(), User.id != user.id).first():
             raise HTTPException(status_code=400, detail="Username already taken.")
-        user.username = body.username
+        user.username = new_username
     if body.full_name is not None:
         user.full_name = body.full_name
     db.commit()
@@ -5346,7 +5452,7 @@ async def account_delete_confirm(
     user_id = await run_in_threadpool(_delete)
 
     r = request.app.state.redis
-    await r.delete(_capture_key(user_id), _complexity_key(user_id), _history_key(user_id))
+    await r.delete(_capture_key(user_id), _complexity_key(user_id), _comment_level_key(user_id), _history_key(user_id))
 
     response = RedirectResponse("/login?deleted=1", status_code=303)
     response.delete_cookie("session")
@@ -5485,7 +5591,11 @@ async def billing_webhook(request: Request, db: Session = Depends(get_db)):
 async def stream(request: Request, user: User = Depends(require_subscription)):
     r = request.app.state.redis
     state = await get_capture_state(r, user.id)
-    settings_payload = json.dumps({"type": "settings", "complexity": await get_complexity(r, user.id)})
+    settings_payload = json.dumps({
+        "type": "settings",
+        "complexity": await get_complexity(r, user.id),
+        "comment_level": await get_comment_level(r, user.id),
+    })
     pubsub = r.pubsub()
     await pubsub.subscribe(_events_channel(user.id))
 

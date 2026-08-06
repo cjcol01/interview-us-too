@@ -31,13 +31,13 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 **Core modules:**
 
 - `server.py` — all routes, business logic, SSE streaming. Single file; nothing is split into routers.
-- `auth.py` — two auth paths: cookie-based JWT (browser sessions via `get_current_user`/`get_optional_user`) and Bearer token (extension API calls via `get_user_by_token`). Cookie sessions can be started by password login, Google OAuth (`/auth/google*` in `server.py`, gated on `GOOGLE_OAUTH_ENABLED` in `config.py`), or GitHub OAuth (`/auth/github*`, gated on `GITHUB_OAUTH_ENABLED`) — all three paths converge on the same `create_token`/`session` cookie.
+- `auth.py` — two auth paths: cookie-based JWT (browser sessions via `get_current_user`/`get_optional_user`) and Bearer token (extension API calls via `get_user_by_token`). Cookie sessions can be started by password login, Google OAuth (`/auth/google*` in `server.py`, gated on `GOOGLE_OAUTH_ENABLED` in `config.py`), or GitHub OAuth (`/auth/github*`, gated on `GITHUB_OAUTH_ENABLED`) — all three paths converge on the same `create_token`/`session` cookie. The password login field accepts **either** a username or an email, and `@` decides which: an identifier containing one is matched against `User.email` and nothing else, never against `User.username`. That partition is what keeps the field unambiguous, so don't "helpfully" fall back to the other column — searching both would let anyone register the username `victim@example.com` and shadow a real user at the prompt. `validate_username` (charset `[A-Za-z0-9._-]`, 3–32 chars) keeps `@` out of new usernames as a second layer; it's enforced on register and on username change, but never on login, since accounts predating the rule must still sign in.
 - `models.py` — three SQLAlchemy models: `User`, `InterviewSession`, `Referral`. `AccountLevel` enum: `free → trial → paid → unlimited`.
 - `billing.py` — Stripe checkout, portal, and webhook handling.
 - `config.py` — all env vars. Server **refuses to start** if `SECRET_KEY` is the default or if Stripe keys are missing.
 - `database.py` — SQLite by default (`interview.db`), SQLAlchemy session factory.
 - `mailer.py` — Resend API for verification and cancellation emails.
-- `extension/` — Chrome MV3 extension. `background.js` handles hotkeys and API calls; `content.js` bridges the extension ↔ page.
+- `extension/` — Chrome MV3 extension. `background.js` handles hotkeys and API calls; `content.js` bridges the extension ↔ page. Both audio paths — a deliberate mic recording and an instant-replay slice of tab audio — POST to the same `/api/audio-capture`, distinguished only by a `source` form field (`mic` | `replay`, defaulting to `mic` for extensions built before the field existed). The server uses it to pick the prompt; nothing else about the two paths differs.
 - `templates/` — Jinja2 templates. `base.html` is the layout parent.
 - `tests/` — custom test harness (`harness.py`), not pytest. Each `test_*.py` exports a `register(test, skip, client)` function called from `run_tests.py`.
 
@@ -63,7 +63,7 @@ This is a FastAPI web app with a Chrome extension. The flow: extension captures 
 | `REDIS_URL` | No | Defaults to `redis://localhost:6379/0` |
 | `BASE_URL` | No | Used in extension setup; defaults to local IP |
 | `DB_DATA_DIR` | No | Where SQLite files live. Defaults to `~/.interview-us-too` (a WSL2 workaround — see `config.py`). Set explicitly on servers/VPS to a path your deploy/backup process actually manages. |
-| `AI_PROMPT` | No | System prompt for Claude |
+| `AI_PROMPT` | No | Shared base prompt for Claude, prepended on every capture. The per-input-method wording (screenshot / typed / mic / instant replay) is **not** here — it lives in `INPUT_MODE_PROMPT` in `server.py`, appended straight after this. Overriding this changes the assistant's voice and standing rules; the per-method deltas stay put. |
 | `RESEND_API_KEY` | No | Email verification |
 | `AUTHOR_PASSWORD` | No | Gates an internal admin-only page. Keep unset locally; set a strong random value in production. |
 | `SKIP_EMAIL_VERIFICATION` | No | Dev-only convenience flag — see `.env` for details. Must never be set in production. |

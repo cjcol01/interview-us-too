@@ -36,9 +36,9 @@
       <!-- login form -->
       <form id="login-form" class="auth-form" method="post" onsubmit="handleSubmit(event, 'login')" novalidate>
         <div class="field-group">
-          <label class="field-label" for="login-username">Username</label>
+          <label class="field-label" for="login-username">Username or email</label>
           <input class="field-input" id="login-username" type="text" name="username"
-            autocomplete="username" placeholder="Username">
+            autocomplete="username" placeholder="Username or email">
         </div>
         <div class="field-group">
           <label class="field-label" for="login-password">Password</label>
@@ -84,7 +84,9 @@
           <div class="field-group">
             <label class="field-label" for="reg-username">Username</label>
             <input class="field-input" id="reg-username" type="text" name="username"
-              autocomplete="username" placeholder="JohnS">
+              autocomplete="username" placeholder="JohnS" minlength="3" maxlength="32"
+              pattern="[A-Za-z0-9._\-]+"
+              title="Usernames can only use letters, numbers, and . - _">
           </div>
         </div>
         <div class="field-group">
@@ -217,8 +219,11 @@
       document.getElementById('register-error').textContent = '';
     }
 
+    // Mirrors USERNAME_RE / validate_username in auth.py — keep both in sync.
+    const USERNAME_RE = /^[A-Za-z0-9._-]+$/;
+
     function validateLoginForm(data) {
-      if (!data.username) return 'Username is required.';
+      if (!data.username) return 'Enter your username or email.';
       if (!data.password) return 'Password is required.';
       return null;
     }
@@ -226,6 +231,9 @@
     function validateRegisterForm(data) {
       if (!data.full_name) return 'Full name is required.';
       if (!data.username) return 'Username is required.';
+      if (data.username.length < 3) return 'Username must be at least 3 characters.';
+      if (data.username.length > 32) return 'Username must be 32 characters or fewer.';
+      if (!USERNAME_RE.test(data.username)) return 'Usernames can only use letters, numbers, and . - _';
       if (!data.email) return 'Email is required.';
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return 'Enter a valid email address.';
       if (!data.password) return 'Password is required.';
@@ -244,6 +252,10 @@
       const btn = form.querySelector('button[type=submit]');
       const errEl = document.getElementById(action + '-error');
       const data = Object.fromEntries(new FormData(form));
+      // The server strips the identifier before validating/matching it, so trim here too —
+      // otherwise a stray leading space fails the charset check client-side on a name the
+      // server would have accepted.
+      if (typeof data.username === 'string') data.username = data.username.trim();
 
       btn.disabled = true;
       errEl.textContent = '';

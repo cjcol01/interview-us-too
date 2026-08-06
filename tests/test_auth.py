@@ -336,6 +336,93 @@ def register(test, skip, client=None):
                     db.commit()
             db.close()
 
+    def _seed_login_user(db, username, email):
+        from auth import hash_password
+        from models import AccountLevel, User
+        db.add(User(
+            username=username, email=email, full_name="Ident",
+            password_hash=hash_password("testpass123"), account_level=AccountLevel.trial,
+        ))
+        db.commit()
+
+    def _login(identifier):
+        """POSTs /auth/login, first clearing the limiter keys this call would trip. The
+        identifier-keyed cooldown is 2s and the per-IP window counts every test in the suite,
+        so back-to-back logins in one test would otherwise 429 regardless of credentials."""
+        import asyncio
+        import server
+
+        async def _clear():
+            r = server.app.state.redis
+            for key in (identifier.strip().lower(), "testclient"):
+                for endpoint in ("login_user", "login_ip"):
+                    await r.delete(f"rl:{key}:{endpoint}:last", f"rl:{key}:{endpoint}:count")
+        asyncio.run(_clear())
+        return client.post("/auth/login", json={"username": identifier, "password": "testpass123"})
+
+    def test_login_accepts_email_identifier():
+        from database import SessionLocal, init_db
+        from models import User
+        init_db()
+        db = SessionLocal()
+        try:
+            _seed_login_user(db, "_ident_email_test", "_ident_email@test.internal")
+            # The identifier field takes an email as readily as a username — the path that
+            # matters for OAuth accounts, whose username was generated and never shown.
+            assert _login("_ident_email@test.internal").status_code == 200
+            # ...and case-insensitively, since what's typed isn't necessarily lowercased.
+            assert _login("_IDENT_EMAIL@Test.Internal").status_code == 200
+            # The username still works, unchanged.
+            assert _login("_ident_email_test").status_code == 200
+        finally:
+            u = db.query(User).filter(User.username == "_ident_email_test").first()
+            if u:
+                db.delete(u)
+                db.commit()
+            db.close()
+
+    def test_login_email_shaped_username_cannot_shadow_email():
+        """An identifier containing '@' is matched against email and *only* email. Without that
+        split, registering the username "<victim's email>" would shadow them at the prompt."""
+        from database import SessionLocal, init_db
+        from models import User
+        init_db()
+        db = SessionLocal()
+        try:
+            # Seeded directly (register would now reject the '@'), simulating a legacy row.
+            _seed_login_user(db, "_squat@test.internal", "_squatter@test.internal")
+            assert _login("_squat@test.internal").status_code == 401
+            # The same account still signs in by its real email.
+            assert _login("_squatter@test.internal").status_code == 200
+        finally:
+            u = db.query(User).filter(User.username == "_squat@test.internal").first()
+            if u:
+                db.delete(u)
+                db.commit()
+            db.close()
+
+    def test_username_rules():
+        """Unit-level check of the shared validator (avoids the register rate-limit cooldown,
+        which would otherwise fire on back-to-back /auth/register calls)."""
+        from auth import validate_username
+        assert validate_username("_reg@name") is not None    # '@' — unreachable at login
+        assert validate_username("_reg name") is not None    # whitespace
+        assert validate_username("_reg+name") is not None    # outside the charset
+        assert validate_username("ab") is not None           # under USERNAME_MIN_LENGTH
+        assert validate_username("a" * 33) is not None       # over USERNAME_MAX_LENGTH
+        assert validate_username("JohnS") is None
+        assert validate_username("_ok.a-b_1") is None        # every allowed separator
+
+    def test_register_rejects_invalid_username():
+        """The validator above, wired into /auth/register."""
+        import secrets as _sec
+        tag = _sec.token_hex(4)
+        res = client.post("/auth/register", json={
+            "full_name": "Bad", "username": f"_reg@{tag}",
+            "email": f"_reg_bad_{tag}@test.internal", "password": "testpass123",
+        })
+        assert res.status_code == 400, res.status_code
+
     test("Password hashing and verification",         test_password_hashing)
     test("JWT token creation and decode",             test_token_roundtrip)
     test("decode_user_id: garbage token -> None",     test_decode_user_id_garbage_returns_none)
@@ -343,6 +430,10 @@ def register(test, skip, client=None):
     test("Login rejects inactive user (403)",         test_login_rejects_inactive_user)
     test("Login is case-insensitive on username",     test_login_is_case_insensitive)
     test("Register rejects case-variant duplicate",   test_register_duplicate_username_case_insensitive)
+    test("Login accepts an email as the identifier",  test_login_accepts_email_identifier)
+    test("Email-shaped username can't shadow email",  test_login_email_shaped_username_cannot_shadow_email)
+    test("Username charset/length rules",             test_username_rules)
+    test("Register rejects an invalid username",      test_register_rejects_invalid_username)
     test("Duplicate username rejected",               test_duplicate_username_rejected)
     test("Referral code generation — 10 unique",     test_referral_code_generation)
     test("Referral code is URL-safe",                 test_referral_code_is_url_safe)

@@ -1,12 +1,13 @@
 const COMPLEXITY_DESC = { 1: 'Concise hint', 2: 'Full solution', 3: 'Optimal + trade-offs' };
+const COMMENT_LEVEL_DESC = { 1: 'Low', 2: 'High', 3: 'Every line' };
 
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('version-label').textContent = 'V' + chrome.runtime.getManifest().version;
 
-  const { server_url, api_token, complexity, response_style, last_capture, last_error, enabled,
+  const { server_url, api_token, complexity, comment_level, response_style, last_capture, last_error, enabled,
           hotkey_capture, is_unlimited,
           replay_enabled, replay_seconds } =
-    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'response_style',
+    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'comment_level', 'response_style',
                                     'last_capture', 'last_error', 'enabled',
                                     'hotkey_capture', 'is_unlimited',
                                     'replay_enabled', 'replay_seconds']);
@@ -16,6 +17,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const toggleBtn     = document.getElementById('toggle_token');
   const complexityVal = document.getElementById('complexity_val');
   const complexityDesc = document.getElementById('complexity_desc');
+  const commentVal    = document.getElementById('comment_level_val');
+  const commentDesc   = document.getElementById('comment_level_desc');
   const saveBtn       = document.getElementById('save');
   const statusEl      = document.getElementById('status');
   const enabledBtn      = document.getElementById('toggle_enabled');
@@ -70,6 +73,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   complexityVal.textContent = comp;
   complexityDesc.textContent = COMPLEXITY_DESC[comp];
 
+  let cmt = comment_level ?? 2;
+  commentVal.textContent  = cmt;
+  commentDesc.textContent = COMMENT_LEVEL_DESC[cmt];
+
   function showStatus(msg, isError = false) {
     statusEl.textContent = msg;
     statusEl.className = 'status ' + (isError ? 'err' : 'ok');
@@ -121,6 +128,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (comp < 3) { comp++; complexityVal.textContent = comp; complexityDesc.textContent = COMPLEXITY_DESC[comp]; }
   });
 
+  document.getElementById('comment_level_down').addEventListener('click', () => {
+    if (cmt > 1) { cmt--; commentVal.textContent = cmt; commentDesc.textContent = COMMENT_LEVEL_DESC[cmt]; }
+  });
+
+  document.getElementById('comment_level_up').addEventListener('click', () => {
+    if (cmt < 3) { cmt++; commentVal.textContent = cmt; commentDesc.textContent = COMMENT_LEVEL_DESC[cmt]; }
+  });
+
   saveBtn.addEventListener('click', async () => {
     const url = serverInput.value.trim().replace(/\/$/, '');
     const tok = tokenInput.value.trim();
@@ -128,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!url) { showStatus('Server URL is required', true); return; }
     if (!tok)  { showStatus('API token is required', true); return; }
 
-    await chrome.storage.local.set({ server_url: url, api_token: tok, complexity: comp, last_error: '' });
+    await chrome.storage.local.set({ server_url: url, api_token: tok, complexity: comp, comment_level: cmt, last_error: '' });
 
     const prevLabel = saveBtn.textContent;
     saveBtn.textContent = 'Saved ✓';
@@ -145,12 +160,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch {}
 
-    // Sync complexity to server so it applies to audio/replay too
+    // Sync complexity + comment level to the server so they apply to audio/replay too
     try {
       await fetch(`${url}/api/settings/complexity`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: comp }),
+      });
+    } catch {}
+
+    try {
+      await fetch(`${url}/api/settings/comment-level`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: cmt }),
       });
     } catch {}
   });

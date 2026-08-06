@@ -226,15 +226,30 @@ The team actively read these and work on issues found."></textarea>
         <div id="analysis-label">Your answer</div>
         <div class="analysis-header-right">
           <button id="clear-btn" onclick="clearCapture()">Clear</button>
-          <div class="complexity-control">
-          <button class="complexity-btn" id="complexity-down" onclick="postComplexity('down')">&minus;</button>
-          <div class="complexity-dots">
-            <div class="complexity-dot" id="dot-1"></div>
-            <div class="complexity-dot" id="dot-2"></div>
-            <div class="complexity-dot" id="dot-3"></div>
+          <div class="stepper-group">
+            <span class="stepper-label">Detail</span>
+            <div class="complexity-control">
+              <button class="complexity-btn" id="complexity-down" onclick="postComplexity('down')">&minus;</button>
+              <div class="complexity-dots">
+                <div class="complexity-dot" id="dot-1"></div>
+                <div class="complexity-dot" id="dot-2"></div>
+                <div class="complexity-dot" id="dot-3"></div>
+              </div>
+              <button class="complexity-btn" id="complexity-up" onclick="postComplexity('up')">+</button>
+            </div>
           </div>
-          <button class="complexity-btn" id="complexity-up" onclick="postComplexity('up')">+</button>
-        </div>
+          <div class="stepper-group">
+            <span class="stepper-label">Comments</span>
+            <div class="complexity-control">
+              <button class="complexity-btn" id="comment-down" onclick="postCommentLevel('down')">&minus;</button>
+              <div class="complexity-dots">
+                <div class="complexity-dot" id="cmt-dot-1"></div>
+                <div class="complexity-dot" id="cmt-dot-2"></div>
+                <div class="complexity-dot" id="cmt-dot-3"></div>
+              </div>
+              <button class="complexity-btn" id="comment-up" onclick="postCommentLevel('up')">+</button>
+            </div>
+          </div>
         </div>
       </div>
       <div id="transcription-box">
@@ -380,17 +395,33 @@ The team actively read these and work on issues found."></textarea>
       badgeEl.className = data.monitor || '';
     }
 
+    // Settings events carry both knobs, but each field is applied only if present so a
+    // partial payload can never silently reset the other control to its minimum.
     function applySettings(data) {
-      const c = data.complexity || 1;
-      for (let i = 1; i <= 3; i++) {
-        document.getElementById('dot-' + i).classList.toggle('active', i <= c);
+      if (data.complexity != null) {
+        const c = data.complexity;
+        for (let i = 1; i <= 3; i++) {
+          document.getElementById('dot-' + i).classList.toggle('active', i <= c);
+        }
+        document.getElementById('complexity-down').disabled = c <= 1;
+        document.getElementById('complexity-up').disabled   = c >= 3;
       }
-      document.getElementById('complexity-down').disabled = c <= 1;
-      document.getElementById('complexity-up').disabled   = c >= 3;
+      if (data.comment_level != null) {
+        const n = data.comment_level;
+        for (let i = 1; i <= 3; i++) {
+          document.getElementById('cmt-dot-' + i).classList.toggle('active', i <= n);
+        }
+        document.getElementById('comment-down').disabled = n <= 1;
+        document.getElementById('comment-up').disabled   = n >= 3;
+      }
     }
 
     async function postComplexity(dir) {
       await fetch('/settings/complexity/' + dir, { method: 'POST' });
+    }
+
+    async function postCommentLevel(dir) {
+      await fetch('/settings/comment-level/' + dir, { method: 'POST' });
     }
 
     function clearCapture() {

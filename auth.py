@@ -28,6 +28,10 @@ def generate_unique_username(db: Session, base: str) -> str:
     """Derives a free `username` from an email local-part (or any base string) — used
     for accounts created via Google sign-in, which don't collect a username up front."""
     slug = re.sub(r"[^a-z0-9_]", "", base.lower()) or "user"
+    # Keep generated names inside validate_username's bounds, so every row in the table is a
+    # name its owner could also have typed themselves. A short email local-part ("jo@…") would
+    # otherwise yield a username below USERNAME_MIN_LENGTH.
+    slug = slug[:USERNAME_MAX_LENGTH].ljust(USERNAME_MIN_LENGTH, "0")
     # Case-insensitive uniqueness: the slug is already lowercase, but an existing username
     # differing only in case (e.g. "John") must still count as taken.
     if not db.query(User).filter(func.lower(User.username) == slug).first():
@@ -59,6 +63,32 @@ def validate_password(password: str) -> Optional[str]:
     for _key, label, check in PASSWORD_RULES:
         if not check(password):
             return f"Password must include: {label.lower()}."
+    return None
+
+
+USERNAME_MIN_LENGTH = 3
+USERNAME_MAX_LENGTH = 32
+
+# Letters, digits, and the three separators — nothing else. Crucially this excludes '@':
+# /auth/login routes an identifier containing '@' to the email column and nothing else, so an
+# email-shaped username would be an account nobody could ever sign into. It also excludes
+# whitespace, which otherwise makes two visually identical usernames distinct rows. Leading '_'
+# stays legal — the test suite namespaces its fixtures that way (tests/helpers.py). Keep in sync
+# with templates/login.html and templates/settings.html.
+USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
+USERNAME_RULE_TEXT = "Usernames can only use letters, numbers, and . - _"
+
+
+def validate_username(username: str) -> Optional[str]:
+    """Returns an error message if `username` isn't a legal username, or None if it is.
+    Applied on registration and on username change — not on login, where the stored value is
+    matched as-is (accounts predating this rule must still be able to sign in)."""
+    if len(username) < USERNAME_MIN_LENGTH:
+        return f"Username must be at least {USERNAME_MIN_LENGTH} characters."
+    if len(username) > USERNAME_MAX_LENGTH:
+        return f"Username must be {USERNAME_MAX_LENGTH} characters or fewer."
+    if not USERNAME_RE.match(username):
+        return USERNAME_RULE_TEXT
     return None
 
 

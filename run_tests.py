@@ -167,7 +167,7 @@ with TestClient(app) as client:
     import tests.test_replay
     tests.test_replay.register(test, skip, client)
 
-    section("Response Style & Complexity API")
+    section("Response Style, Complexity & Comment Level API")
     import tests.test_response_style
     tests.test_response_style.register(test, skip, client)
 

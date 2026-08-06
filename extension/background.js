@@ -40,6 +40,7 @@ async function fetchAccountLevel() {
         });
       }
       if (data.complexity != null)    await chrome.storage.local.set({ complexity: data.complexity });
+      if (data.comment_level != null) await chrome.storage.local.set({ comment_level: data.comment_level });
       if (data.response_style != null) await chrome.storage.local.set({ response_style: data.response_style });
     }
   } catch {}
@@ -456,6 +457,9 @@ async function handleAudioData(base64, mimeType) {
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const form = new FormData();
     form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
+    // Both audio paths hit the same endpoint; this is what tells the server which prompt
+    // to use — a deliberate mic recording, not a retroactive replay slice.
+    form.append('source', 'mic');
     try {
       const resp = await fetch(`${server_url}/api/audio-capture`, {
         method: 'POST',
@@ -675,6 +679,9 @@ async function handleReplayTrigger(senderTabId) {
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   const form = new FormData();
   form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
+  // Marks this as a retroactive tab-audio slice rather than a mic recording, so the server
+  // prompts for truncated, multi-speaker input instead of one clean interviewer question.
+  form.append('source', 'replay');
   try {
     await fetch(`${server_url}/api/audio-capture`, {
       method: 'POST',

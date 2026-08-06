@@ -136,6 +136,83 @@ def register(test, skip, client):
         finally:
             cleanup(db, u); db.close()
 
+    # -- Comment level (Redis-backed, same shape as complexity) --------------
+
+    def test_api_me_comment_level_defaults_to_high():
+        from server import COMMENT_LEVEL_DEFAULT
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.get("/api/me", headers={"Authorization": f"Bearer {u.api_token}"})
+            assert r.status_code == 200
+            assert r.json()["comment_level"] == COMMENT_LEVEL_DEFAULT == 2
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_api_settings_comment_level_bearer_sets_value():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post(
+                "/api/settings/comment-level",
+                json={"value": 3},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 200
+            assert r.json() == {"comment_level": 3}
+            me = client.get("/api/me", headers={"Authorization": f"Bearer {u.api_token}"})
+            assert me.json()["comment_level"] == 3
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_api_settings_comment_level_bearer_requires_auth():
+        r = client.post("/api/settings/comment-level", json={"value": 2})
+        assert r.status_code in (401, 403)
+
+    def test_api_settings_comment_level_rejects_out_of_range():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            r = client.post(
+                "/api/settings/comment-level",
+                json={"value": 4},
+                headers={"Authorization": f"Bearer {u.api_token}"},
+            )
+            assert r.status_code == 422
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_settings_comment_level_stepper_clamps():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            token = create_token(u.id)
+            # Default is 2, so one step down hits the floor and a second must stay there
+            r = client.post("/settings/comment-level/down", cookies={"session": token})
+            assert r.status_code == 200 and r.json() == {"comment_level": 1}
+            r = client.post("/settings/comment-level/down", cookies={"session": token})
+            assert r.json() == {"comment_level": 1}
+            for expected in (2, 3, 3):
+                r = client.post("/settings/comment-level/up", cookies={"session": token})
+                assert r.json() == {"comment_level": expected}
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_settings_comment_level_stepper_requires_subscription():
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.free)
+            token = create_token(u.id)
+            r = client.post("/settings/comment-level/up", cookies={"session": token})
+            assert r.status_code == 403
+        finally:
+            cleanup(db, u); db.close()
+
+    def test_every_comment_level_has_wording():
+        from server import COMMENT_LEVEL_MAX, COMMENT_LEVEL_MIN, COMMENT_LEVEL_SUFFIX
+        for level in range(COMMENT_LEVEL_MIN, COMMENT_LEVEL_MAX + 1):
+            assert COMMENT_LEVEL_SUFFIX[level].startswith("\n\nComment level:")
+
     test("_user_response_style defaults to conversational",         test_user_response_style_defaults_to_conversational)
     test("POST /api/settings/style (Bearer) persists style",        test_api_settings_style_bearer_persists)
     test("POST /api/settings/style: invalid value → 422",          test_api_settings_style_invalid_value_returns_422)
@@ -147,3 +224,10 @@ def register(test, skip, client):
     test("POST /api/settings/complexity (Bearer) sets value",       test_api_settings_complexity_bearer_sets_value)
     test("POST /api/settings/complexity requires Bearer token",     test_api_settings_complexity_bearer_requires_auth)
     test("POST /api/settings/complexity: out-of-range → 422",      test_api_settings_complexity_bearer_rejects_out_of_range)
+    test("/api/me comment_level defaults to 2 (high)",              test_api_me_comment_level_defaults_to_high)
+    test("POST /api/settings/comment-level (Bearer) sets value",    test_api_settings_comment_level_bearer_sets_value)
+    test("POST /api/settings/comment-level requires Bearer token",  test_api_settings_comment_level_bearer_requires_auth)
+    test("POST /api/settings/comment-level: out-of-range → 422",   test_api_settings_comment_level_rejects_out_of_range)
+    test("/settings/comment-level/{up,down} clamps to 1..3",        test_settings_comment_level_stepper_clamps)
+    test("/settings/comment-level requires a subscription",         test_settings_comment_level_stepper_requires_subscription)
+    test("every comment level has prompt wording",                  test_every_comment_level_has_wording)

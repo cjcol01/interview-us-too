@@ -129,6 +129,23 @@
                 <div id="complexity-status" class="save-status"></div>
               </div>
 
+              <!-- Comment level stepper -->
+              <div class="ctrl-group">
+                <div class="ctrl-label">Comment level</div>
+                <div class="complexity-row">
+                  <button class="cmplx-btn" onclick="changeCommentLevel(-1)" aria-label="fewer comments">−</button>
+                  <div class="cmplx-dots">
+                    <span class="cmplx-dot{% if comment_level >= 1 %} on{% endif %}" id="mdot-1"></span>
+                    <span class="cmplx-dot{% if comment_level >= 2 %} on{% endif %}" id="mdot-2"></span>
+                    <span class="cmplx-dot{% if comment_level >= 3 %} on{% endif %}" id="mdot-3"></span>
+                  </div>
+                  <button class="cmplx-btn" onclick="changeCommentLevel(1)" aria-label="more comments">+</button>
+                </div>
+                <div id="comment-level-val" class="complexity-level-name"></div>
+                <div id="comment-level-desc" class="complexity-desc"></div>
+                <div id="comment-level-status" class="save-status"></div>
+              </div>
+
             </div><!-- /response-controls -->
 
             <!-- Live preview column -->
@@ -484,7 +501,9 @@
               </div>
               <div class="field-group">
                 <label class="field-label" for="account-username">Username</label>
-                <input class="field-input" id="account-username" type="text" name="username" value="{{ username }}" autocomplete="username">
+                <input class="field-input" id="account-username" type="text" name="username" value="{{ username }}" autocomplete="username"
+                  minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+"
+                  title="Usernames can only use letters, numbers, and . - _">
               </div>
               <div class="field-group">
                 <label class="field-label" for="account-email">Email</label>
@@ -638,7 +657,9 @@
       for (let i = 1; i <= 3; i++) {
         document.getElementById('cdot-' + i).classList.toggle('on', i <= _complexity);
       }
-      _updatePreview();
+      // Defined in a later <script> block — absent on the first (page-load) call, which is
+      // fine: that block renders the preview itself once it has run.
+      if (typeof _updatePreview === 'function') _updatePreview();
     }
     _applyComplexityUI();
 
@@ -653,6 +674,50 @@
       statusEl.textContent   = 'Saving…';
       try {
         const resp = await fetch('/settings/complexity/' + (delta > 0 ? 'up' : 'down'), { method: 'POST' });
+        if (resp.ok) {
+          statusEl.textContent = 'Saved.';
+          statusEl.style.color = 'var(--accent)';
+        } else {
+          statusEl.textContent = 'Failed to save.';
+          statusEl.style.color = 'var(--danger)';
+        }
+        setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
+      } catch {
+        statusEl.textContent = 'Network error.';
+        statusEl.style.color = 'var(--danger)';
+      }
+    }
+
+    // ── Comment level ──────────────────────────────────────────────
+    const _commentDescs = {
+      1: 'Low - only the genuinely non-obvious parts get a comment.',
+      2: 'High - every logical block explained, including the why.',
+      3: 'Every line - a short trailing comment on each line of code.',
+    };
+    const _commentNames = { 1: 'Low', 2: 'High', 3: 'Every line' };
+    let _commentLevel = {{ comment_level }};
+
+    function _applyCommentLevelUI() {
+      document.getElementById('comment-level-val').textContent  = _commentNames[_commentLevel];
+      document.getElementById('comment-level-desc').textContent = _commentDescs[_commentLevel];
+      for (let i = 1; i <= 3; i++) {
+        document.getElementById('mdot-' + i).classList.toggle('on', i <= _commentLevel);
+      }
+      if (typeof _updatePreview === 'function') _updatePreview();
+    }
+    _applyCommentLevelUI();
+
+    async function changeCommentLevel(delta) {
+      const next = Math.max(1, Math.min(3, _commentLevel + delta));
+      if (next === _commentLevel) return;
+      _commentLevel = next;
+      _applyCommentLevelUI();
+      const statusEl = document.getElementById('comment-level-status');
+      statusEl.style.display = 'block';
+      statusEl.style.color   = 'var(--text-3)';
+      statusEl.textContent   = 'Saving…';
+      try {
+        const resp = await fetch('/settings/comment-level/' + (delta > 0 ? 'up' : 'down'), { method: 'POST' });
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
@@ -708,12 +773,29 @@
         summary: 'One-pass hash map - O(n) time, O(n) space.',
         oneLiner: 'Hash map storing num→index, return match on lookup.',
         prose: 'Try a hash map. For each number, check if its complement is already stored. If yes, return the indices.',
-        code: `def two_sum(nums, target):
+        // One snippet per comment level (1 low → 3 every line); the code itself is identical.
+        code: {
+          1: `def two_sum(nums, target):
     seen = {}
     for i, n in enumerate(nums):
         if target - n in seen:
             return [seen[target - n], i]
         seen[n] = i`,
+          2: `def two_sum(nums, target):
+    # value -> index of everything seen so far
+    seen = {}
+    for i, n in enumerate(nums):
+        # if the complement is already stored, this pair sums to target
+        if target - n in seen:
+            return [seen[target - n], i]
+        seen[n] = i`,
+          3: `def two_sum(nums, target):
+    seen = {}                             # value -> index seen so far
+    for i, n in enumerate(nums):          # one pass over the list
+        if target - n in seen:            # complement already stored?
+            return [seen[target - n], i]  # return both indices
+        seen[n] = i                       # remember this number`,
+        },
         tags: ['O(n)', 'Hash map'],
       },
       2: {
@@ -721,7 +803,8 @@
         summary: 'Single-pass hash map - O(n) time, O(n) space - returns first valid pair.',
         oneLiner: 'One-pass hash map: check complement existence before storing; return indices on hit.',
         prose: 'Use a hash map to find the complement in one pass. For each element, check if target − num exists in the map. If it does, return both indices. Otherwise store the element.',
-        code: `def two_sum(nums: list[int], target: int) -> list[int]:
+        code: {
+          1: `def two_sum(nums: list[int], target: int) -> list[int]:
     seen: dict[int, int] = {}
     for i, num in enumerate(nums):
         complement = target - num
@@ -729,6 +812,26 @@
             return [seen[complement], i]
         seen[num] = i
     return []  # guaranteed by problem`,
+          2: `def two_sum(nums: list[int], target: int) -> list[int]:
+    # map each value to its index as we go, so lookups stay O(1)
+    seen: dict[int, int] = {}
+    for i, num in enumerate(nums):
+        # the partner this number needs to hit the target
+        complement = target - num
+        # seen it already -> that earlier index plus this one is the answer
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []  # guaranteed by problem`,
+          3: `def two_sum(nums: list[int], target: int) -> list[int]:
+    seen: dict[int, int] = {}          # value -> index
+    for i, num in enumerate(nums):     # single pass, index and value
+        complement = target - num      # what we still need
+        if complement in seen:         # seen it on an earlier pass?
+            return [seen[complement], i]  # earlier index, then this one
+        seen[num] = i                  # store for a later complement
+    return []                          # unreachable per constraints`,
+        },
         tags: ['O(n) time', 'O(n) space', 'Hash map'],
       },
       3: {
@@ -736,7 +839,8 @@
         summary: 'One-pass hash map is optimal: O(n) time, O(n) space. Brute-force O(n²) also accepted but slow.',
         oneLiner: 'Hash map (complement → index) beats O(n²) brute force; handles duplicates via distinct indices.',
         prose: 'Brute force checks every pair in O(n²) - unacceptable at scale. The optimal approach is a one-pass hash map: store each seen number mapped to its index, then for each new number check if its complement is already stored. This gives O(n) time and O(n) space with a single scan.',
-        code: `def two_sum(nums: list[int], target: int) -> list[int]:
+        code: {
+          1: `def two_sum(nums: list[int], target: int) -> list[int]:
     # O(n) time, O(n) space - optimal
     seen: dict[int, int] = {}
     for i, num in enumerate(nums):
@@ -745,6 +849,26 @@
             return [seen[complement], i]
         seen[num] = i
     return []  # unreachable per constraints`,
+          2: `def two_sum(nums: list[int], target: int) -> list[int]:
+    # O(n) time, O(n) space - beats the O(n^2) nested-loop scan
+    seen: dict[int, int] = {}
+    for i, num in enumerate(nums):
+        # storing the complement, not the number, is what makes this one pass
+        complement = target - num
+        # duplicates are safe: the stored index is always strictly earlier
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []  # unreachable per constraints`,
+          3: `def two_sum(nums: list[int], target: int) -> list[int]:
+    seen: dict[int, int] = {}          # value -> first index it appeared at
+    for i, num in enumerate(nums):     # O(n): every element visited once
+        complement = target - num      # the value that completes the pair
+        if complement in seen:         # stored earlier, so indices differ
+            return [seen[complement], i]  # earlier index first, per spec
+        seen[num] = i                  # only stored after the check
+    return []                          # unreachable per constraints`,
+        },
         tags: ['O(n) optimal', 'O(n²) naive', 'Hash map', 'Trade-offs'],
       },
     };
@@ -769,7 +893,7 @@
         textHtml = `<p class="preview-line">${line}</p>`;
       }
 
-      const codeHtml = `<pre class="preview-code"><code class="language-python">${_escapeHtml(c.code)}</code></pre>`;
+      const codeHtml = `<pre class="preview-code"><code class="language-python">${_escapeHtml(c.code[_commentLevel])}</code></pre>`;
       bodyEl.innerHTML = textHtml + (_style !== 'one_liner' ? codeHtml : '');
 
       // Syntax-highlight the code block (github-dark theme, same as the /app page)

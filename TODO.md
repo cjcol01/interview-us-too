@@ -1,11 +1,23 @@
 # TODO
 
 ## immediately
-- [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
-- [ ] create videos for support, install, sideload, landing
 
+- [ ]  First hotkey run is too fast (on welcome 'call') 🟡 — On the first Ctrl+Shift+7 too much happened at once across two areas of the screen to absorb; on a second pass with context it felt fine. This is a first-run comprehension problem specifically. lets slow down the default speed by 25%
+- [ ] Skip setup" needs a confirmation 🔵 — She expected a warning that the extension is essential; she avoided clicking it in case it cost her her place. - this applies to all skip buttons on /welcome, welcome/next and onboarding or sideload page.
+- [ ] **18. No way back to the demo** 🔴 — If a user skips or leaves the demo, there's no back arrow or "back to demo" link. She called this a core heuristic violation (user control and freedom / clearly marked exits).
+- [ ] **27. "Prop your phone up" tip is buried** 🔵 — She called this one of the most important instructions in the product (users can't be caught glancing sideways or down) and it's easy to skim past. Suggests a lightbulb icon or similar emphasis (on onboarding page)
+- [ ] **28. Can't scroll back through past answers** 🟡 — She tried to scroll up on the phone view and couldn't.
+- [ ] remove the hotkeys from the onboarding page
+- [ ] move default hotkeys to (all ctrl + shift +) 6: screen cap, 7: voice 7: IR 9: typing, 0: arm
+- [ ] change arm / disarm extension wording to turn on turn off in all places across website and extension
+- [ ] on trial-end, remove buttons to context and hotkey. mention they can change them any time once theyve paid (dont word it like that but yk) so users dont get lost
+- [ ] make the run a system check a bit more prominent, maybe a white button (dont distract from CTA of go to pricing)
+- add a light/dark toggle (same as on landing) to /onboarding page
+- [ ] on large screens, the scroll speed of testimonials on /landing is good (24 inch screen) but on my mac (15 inch) its wayyy to quick, i think its probably because of the pixel count/density. please slow down/ make consistent on all screens. its actually fine on mobile.
 
 ## Now
+- [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
+- [ ] create videos for support, install, sideload, landing
 - [ ] setup check before real interview without starting session. 
 - [ ] I got the job, referral system, pause instead of cancel
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
