@@ -37,8 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function applyEnabledState() {
     enabledBtn.className = 'arm-btn ' + (isEnabled ? 'on' : 'off');
-    armTitle.textContent = isEnabled ? 'Assistant armed' : 'Assistant off';
-    armSub.textContent   = isEnabled ? 'LISTENING FOR HOTKEY' : 'TAP TO ARM';
+    armTitle.textContent = isEnabled ? 'Assistant on' : 'Assistant off';
+    armSub.textContent   = isEnabled ? 'LISTENING FOR HOTKEY' : 'TAP TO TURN ON';
     armState.textContent = isEnabled ? 'ON' : 'OFF';
   }
 
@@ -356,8 +356,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (changes.last_disabled_press) {
       chrome.storage.local.get(['hotkey_toggle', 'hotkey_capture'], (r) => {
-        const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+9';
-        const capture = r.hotkey_capture || 'Ctrl+Shift+7';
+        // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync.
+        const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+0';
+        const capture = r.hotkey_capture || 'Ctrl+Shift+6';
         showStatus(`Interview assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
       });
     }

@@ -204,7 +204,7 @@ chrome.storage.onChanged.addListener((changes) => {
 chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
 
 // ---------------------------------------------------------------------------
-// Audio capture (hold Ctrl+Shift+8 to record, release to send)
+// Audio capture (hold the audio hotkey to record, release to send)
 // ---------------------------------------------------------------------------
 
 let _audioActive = false;

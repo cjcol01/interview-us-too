@@ -457,13 +457,14 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         ("Aisha B.",  "New Grad, CS",             "First real interview loop of my life and I didn't get stuck once. Worth it for the confidence alone :)", 5),
         ("Ravi P.",   "Platform Engineer",        "Asked support if I could type my own question when an online whiteboard photo was too messy to read. A typing hotkey showed up 2 days (days!) later", 5),
         ("Dev P.",    "Senior Software Engineer", "Used it for a system design round and even though I knew most answers, it gave me structured bullet points off my uploaded information that stopped me rambling", 5),
+        ("Omar D.",   "Self-taught Developer",    "Code was right but I was reading it cold in front of someone. I needed more comments on why each line is there, not just what it does.", 4),
         ("Hannah W.", "Career Switcher",          "Coming from a non-CS background, that extra second to think without panicking got me through my first technical screen.", 5),
         ("Sam L.",    "Mobile Engineer",          "Propped the monitor on a stand behind the webcam for a live coding round, nobody on the call noticed.", 5),
         ("Chris N.",  "Full-Stack Engineer",      "The best interview prep tool I've tried, icl it did carry me a bit.", 5),
         ("Owen F.",   "Site Reliability Engineer", "Got an incident response question and it gave me exactly the structure I needed without sounding scripted.", 5),
         ("Nadia H.",  "Machine Learning Engineer", "The complexity slider is so good - dialled it down to a nudge instead of a full answer so I still had to do the thinking.", 5),
         ("Ben C.",    "Junior Developer",         "Took a couple of practice runs before I actually remembered to look at my phone instead of just winging it. Once I started looking, it was great", 4),
-        ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window was longer than 15s for interviewers who can't stop yapping. Still got an offer (but not from the rambler :o).", 4),
+        ("Grace T.",  "QA Engineer",              "Genuinely helped, though I'd love the replay window was longer than 10s for interviewers who can't stop yapping. Still got an offer (but not from the rambler :o).", 4),
         ("Yuki M.",   "Backend Engineer",         "Used the audio capture for a phone screen and it wrote out the question fast enough that I never felt like I was waiting.", 5),
         ("Isabel R.", "Product Engineer",         "Less about the answers, more about not spiralling when I go blank. That got me through two rounds I'd normally have f*****. Still didn't get the job lol.", 5),
         ("Callum D.", "Platform Engineer",        "Cancelled after landing the job and it took two clicks. I'd use it again for the next job hunt.", 5),
@@ -471,6 +472,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         ("Priyanka V.", "Cloud Engineer",         "Was convinced someone would notice me looking away. Turns out if the phone sits right under the webcam, checking it looks exactly like reading your own screen.", 5),
         ("Theo B.",   "iOS Developer",            "Screen capture nailed the exact prompt and detected a weird language (zig) instantly.", 5),
         ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was tough. This helped me until I caught up.", 5),
+        ("Marco S.",  "Systems Engineer",         "Wanted to scroll back to the answer before last on my phone mid-call and there was no way to do it.", 4),
         ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is sick. Hands stay on the keyboard the whole time.", 5),
         ("Freya F.",  "Data Engineer",            "Used it for like 13 interviews across 6 different companies this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
         ("Kenji M.",  "Staff Engineer",           "Even at a senior level, the nerves hit. Why not use it? it's fast, and it reads perfectly at a glance on a second monitor.", 5),
@@ -480,6 +482,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       {% set shipped = {
         "Ravi P.": "Great suggestion Ravi!. Glad we could ship it to you so quick!",
         "Grace T.": "Done - Settings now has a replay length slider, 10 to 30 seconds.",
+        "Omar D.": "Done - You can now change how many comments are added in settings.",
+        "Marco S.": "Done - You can now scroll back to your previous questions!",
       } %}
       {% set short_extra = ["Isabel R.", "Ben C.", "Diego M.", "Priyanka V.", "Freya F.", "Sophie L.", "Leo A.", "Priya S."] %}
       {% for name, role, quote, rating in reviews + reviews %}
@@ -1099,10 +1103,15 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   var proofHint = document.getElementById('proofHint');
   if (proofWrap && proofTrack) {
     var MOBILE_QUERY = window.matchMedia('(max-width: 720px)');
-    var BASE_DRIFT_SPEED = 1.4; // px/frame baseline auto-drift (desktop)
+    // Everything here is px per *second*, and every frame multiplies by that frame's real
+    // elapsed time. It used to be px per frame, which meant the strip's speed was whatever the
+    // display's refresh rate happened to be — a 120Hz ProMotion laptop ran it at literally twice
+    // the speed of a 60Hz monitor, which read as "way too fast" on the smaller screen.
+    var BASE_DRIFT_SPEED = 84;  // px/s baseline auto-drift (desktop) — the old 1.4px/frame at 60Hz
     var DRIFT_SPEED = MOBILE_QUERY.matches ? BASE_DRIFT_SPEED * 0.7 : BASE_DRIFT_SPEED; // -30% on mobile
-    var MAX_FLING_VEL = 40;   // px/frame cap so a fast flick doesn't fly off
-    var FLING_DECAY = 0.94;   // per-frame velocity decay while settling, toward baseline drift speed (not zero)
+    var MAX_FLING_VEL = 2400; // px/s cap so a fast flick doesn't fly off
+    var FLING_DECAY = 0.94;   // velocity decay toward the baseline drift (not zero), per 1/60s
+    var MAX_FRAME = 0.05;     // s — clamp dt so a backgrounded tab doesn't teleport the strip on return
 
     // Each card is tagged --short or --long; size every card in a tier to the
     // tallest natural (content-driven) height within that same tier, so heights
@@ -1158,20 +1167,23 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       if (proofHint) proofHint.classList.add('ia-proof-hint--hidden');
     }
 
-    function tick() {
+    var lastFrame = 0;
+    function tick(now) {
+      var dt = lastFrame ? Math.min((now - lastFrame) / 1000, MAX_FRAME) : 1 / 60;
+      lastFrame = now;
       if (dragging) {
         // position is updated directly in the move handler
       } else if (settling) {
         // Decay toward the baseline drift speed (not toward zero) so a fling never
         // dips to a near-stop before the auto-drift resumes — it eases straight into it.
         var target = noMotion ? 0 : -DRIFT_SPEED;
-        vel = target + (vel - target) * FLING_DECAY;
-        pos += vel;
-        if (Math.abs(vel - target) < 0.02) { vel = target; settling = false; }
+        vel = target + (vel - target) * Math.pow(FLING_DECAY, dt * 60);
+        pos += vel * dt;
+        if (Math.abs(vel - target) < 1.2) { vel = target; settling = false; }
         wrap();
         render();
       } else if (revealed && !noMotion) {
-        pos -= DRIFT_SPEED;
+        pos -= DRIFT_SPEED * dt;
         wrap();
         render();
       }
@@ -1205,7 +1217,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       var now = performance.now();
       var dt = now - lastT;
       if (dt > 0) {
-        var v = (x - lastX) / dt * 16.67; // px per ~frame
+        var v = (x - lastX) / dt * 1000; // px/s
         vel = Math.max(-MAX_FLING_VEL, Math.min(MAX_FLING_VEL, v));
       }
       lastX = x; lastT = now;
@@ -1214,7 +1226,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       if (!dragging) return;
       dragging = false;
       proofWrap.classList.remove('ia-proof-dragging');
-      settling = Math.abs(vel) > 0.02;
+      settling = Math.abs(vel) > 1.2;
     }
 
     proofWrap.addEventListener('mousedown', function(e) { begin(e.clientX); e.preventDefault(); });

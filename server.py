@@ -505,7 +505,13 @@ class HotkeySettings(BaseModel):
     typing:  str
 
 
-HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+7", "audio": "Ctrl+Shift+8", "toggle": "Ctrl+Shift+9", "replay": "Ctrl+Shift+6", "typing": "Ctrl+Shift+5"}
+# Laid out so the five keys run 6-7-8-9-0 left to right in the order you'd reach for them.
+# The `hotkey_*` columns are nullable and NULL means "use the default" (see _user_hotkeys), so
+# changing these moves every user who never set their own — which is intended. Anyone who picked
+# their own keys has them stored and is unaffected.
+# Duplicated, unavoidably, in extension/content.js, extension/popup.js and templates/settings.html
+# (the extension can't import from here) — keep all four in sync.
+HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+6", "audio": "Ctrl+Shift+7", "replay": "Ctrl+Shift+8", "typing": "Ctrl+Shift+9", "toggle": "Ctrl+Shift+0"}
 
 REPLAY_SECONDS_MIN = 10
 REPLAY_SECONDS_MAX = 30
@@ -952,6 +958,19 @@ async def _rate_limit(r, user_id: int | str, endpoint: str, cooldown: int, limit
     await r.set(last_key, time.time(), ex=cooldown + 5)
 
 
+async def _rate_limit_clear(r, user_id: int | str, endpoint: str):
+    """Wipe a limiter's counters. For endpoints whose limit exists to bound *guessing* (login),
+    a success proves the caller wasn't guessing, so their budget shouldn't stay spent — someone
+    who fumbles a password twice and then gets it right starts clean on their next sign-in.
+    Safe because the identity-keyed bucket is only resettable by whoever can already authenticate
+    as that identity; an attacker spraying passwords never reaches this."""
+    await r.delete(
+        f"rl:{user_id}:{endpoint}:last",
+        f"rl:{user_id}:{endpoint}:count",
+        f"rl:{user_id}:{endpoint}:window_count",
+    )
+
+
 # Recognised ad-click params for the mobile lead-capture funnel (server.py /api/install-link,
 # /claim). Kept in one place since attribution is stored as a JSON blob, not discrete columns.
 _ATTR_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "gclid", "fbclid")
@@ -1200,10 +1219,15 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
     # account; that hands an attacker two budgets instead of one, but the IP limit above still
     # bounds the total and the alternative (resolving to a user id first) would mean a database
     # lookup on every unauthenticated request.
-    await _rate_limit(r, body.username.strip().lower(), "login_user", cooldown=2, limit=6,
-                      cooldown_msg="Too many attempts — wait a moment before trying again",
+    #
+    # No cooldown: a fixed gap between attempts costs an attacker (who scripts around it)
+    # nothing while reliably punishing the one case that's always legitimate — a typo caught
+    # and immediately retyped. The per-minute and per-15-minute ceilings are what actually
+    # bound guessing, so the throttling lives entirely there.
+    identity = body.username.strip().lower()
+    await _rate_limit(r, identity, "login_user", cooldown=0, limit=10,
                       limit_msg="Too many attempts on this account — try again in a minute",
-                      window_limit=15, window_seconds=900,
+                      window_limit=30, window_seconds=900,
                       window_msg="Too many attempts on this account — try again later")
     def _authenticate():
         # Case-insensitive: usernames are matched/uniqued without regard to case, so "John"
@@ -1231,6 +1255,9 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
         return user
 
     user = await run_in_threadpool(_authenticate)
+    # Credentials checked out, so the attempts leading up to this were fumbles, not guesses —
+    # release the identity's budget rather than leaving it spent for the rest of the window.
+    await _rate_limit_clear(r, identity, "login_user")
     track(user.id, "login")
 
     token = create_token(user.id)

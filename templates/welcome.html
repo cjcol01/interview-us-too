@@ -1,10 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Welcome - InterviewAce{% endblock %}
 {% block head %}
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11/styles/github-dark.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/core.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11/lib/languages/python.min.js"></script>
+  <!-- marked pinned to a major, as on /app: mock_interview.js renders the AI answers through it.
+       highlight.js MUST be the @highlightjs/cdn-assets browser bundle — the plain
+       highlight.js@11/lib/* files are CommonJS and, loaded via <script>, never define a global
+       `hljs`, so the demo's code blocks silently went unhighlighted. -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
   <link rel="stylesheet" href="/css/onboarding.css">
   <link rel="stylesheet" href="/css/mock_interview.css">
 {% endblock %}
@@ -23,17 +26,40 @@
     <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding" onclick="return wSkipDemo(event)">Skip the demo - go straight to setup →</a></p>
   </main>
 
+  <!-- The demo is the only place all four ways to get an answer are shown together, and it's
+       the one thing here a user can't come back to by accident. Worth one question. -->
+  <div id="skip-demo-confirm" class="ob-confirm-overlay">
+    <div class="ob-confirm-box">
+      <p class="ob-confirm-title">Skip the demo?</p>
+      <p class="ob-confirm-body">It runs for 60 seconds and it's the <strong>only</strong> place you'll see all four
+        ways to get an answer before you're in a real interview. It doesn't use any of your test-run time - and if
+        you skip, there's a link back to it on the setup page.</p>
+      <div class="ob-confirm-actions">
+        <button type="button" class="wm-cancel-btn" onclick="wConfirmSkipDemo()">Skip anyway</button>
+        <button type="button" class="wm-confirm-btn" onclick="wCloseSkipConfirm()">Watch it</button>
+      </div>
+    </div>
+  </div>
+
   {% include "_mock_interview.html" %}
   <script src="/static/js/mock_interview.js"></script>
   <script>
-    // This link leaves the page without going through miClose(), so it has to record the
+    function wSkipDemo(e) {
+      e.preventDefault();
+      document.getElementById('skip-demo-confirm').classList.add('visible');
+      return false;
+    }
+
+    function wCloseSkipConfirm() {
+      document.getElementById('skip-demo-confirm').classList.remove('visible');
+    }
+
+    // This path leaves the page without going through miClose(), so it has to record the
     // demo as seen itself — otherwise "skip the demo" means the demo ambushes you on /app
     // instead, which is the opposite of what the user just asked for.
-    async function wSkipDemo(e) {
-      e.preventDefault();
+    async function wConfirmSkipDemo() {
       try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
       window.location.href = '/onboarding';
-      return false;
     }
 
     window.MI_HOTKEYS = {

@@ -115,15 +115,63 @@ def register(test, skip, client):
 
     # -- Integration: unauthenticated endpoints -------------------------------
 
-    def test_login_rapid_calls_hit_cooldown_429():
+    def test_login_retry_is_immediate_but_bounded():
+        """Login has no per-attempt cooldown — retyping a fumbled password straight away must
+        reach the credential check, not a 429. Guessing is bounded by the per-minute ceiling
+        (10 on the identity), which is what eventually returns 429."""
+        import server
         uname = f"_test_login_rl_{_sec.token_hex(4)}"
         body = {"username": uname, "password": "wrongpassword"}
-        first = client.post("/auth/login", json=body)
-        second = client.post("/auth/login", json=body)
-        # Rate limiting runs before credential checks, so both calls 401/429 regardless
-        # of the (nonexistent) account — the cooldown is username-keyed (cooldown=2s).
-        assert first.status_code == 401
-        assert second.status_code == 429
+
+        async def _clear_ip():
+            # The per-IP limiter (20/min) is keyed on "testclient" and shared with every other
+            # test in the suite, so clear it or this test's own burst 429s on the wrong axis.
+            r = server.app.state.redis
+            await r.delete(
+                "rl:testclient:login_ip:last",
+                "rl:testclient:login_ip:count",
+                "rl:testclient:login_ip:window_count",
+            )
+
+        asyncio.run(_clear_ip())
+        # Ten back-to-back attempts, no pause: every one gets a real answer (401 for this
+        # nonexistent account) rather than being turned away by a throttle.
+        for _ in range(10):
+            asyncio.run(_clear_ip())
+            assert client.post("/auth/login", json=body).status_code == 401
+        # The eleventh in the same minute is over the identity's ceiling.
+        asyncio.run(_clear_ip())
+        assert client.post("/auth/login", json=body).status_code == 429
+
+    def test_login_success_clears_identity_budget():
+        """A correct password releases the identity's spent budget, so fumbling a couple of
+        times and then getting it right doesn't leave the next sign-in pre-throttled."""
+        from database import SessionLocal
+        from models import AccountLevel
+        from tests.helpers import cleanup, make_user
+        import server
+
+        db = SessionLocal()
+        try:
+            u = make_user(db, AccountLevel.trial)
+            from auth import hash_password
+            u.password_hash = hash_password("testpass123")
+            db.commit()
+            identity = u.username.lower()
+
+            async def _counts():
+                r = server.app.state.redis
+                return (await r.get(f"rl:{identity}:login_user:count"),
+                        await r.get(f"rl:{identity}:login_user:window_count"))
+
+            for _ in range(3):
+                assert client.post("/auth/login", json={"username": u.username, "password": "nope"}).status_code == 401
+            assert asyncio.run(_counts())[0] is not None      # the fumbles were counted
+            assert client.post("/auth/login", json={"username": u.username, "password": "testpass123"}).status_code == 200
+            assert asyncio.run(_counts()) == (None, None)     # ...and the success wiped them
+        finally:
+            cleanup(db, u)
+            db.close()
 
     def test_register_rapid_calls_hit_cooldown_429():
         from tests.helpers import delete_by_name
@@ -177,7 +225,8 @@ def register(test, skip, client):
             cleanup(db, u)
             db.close()
 
-    test("POST /auth/login: rapid calls hit cooldown -> 429",              test_login_rapid_calls_hit_cooldown_429)
+    test("POST /auth/login: immediate retry allowed, ceiling still 429",   test_login_retry_is_immediate_but_bounded)
+    test("POST /auth/login: success clears the identity's limiter budget", test_login_success_clears_identity_budget)
     test("POST /auth/register: rapid calls hit cooldown -> 429",           test_register_rapid_calls_hit_cooldown_429)
     test("POST /auth/forgot-password: rapid calls hit cooldown -> 429",    test_forgot_password_rapid_calls_hit_cooldown_429)
     test("POST /auth/resend-verification: rapid calls hit cooldown -> 429", test_resend_verification_rapid_calls_hit_cooldown_429)

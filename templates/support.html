@@ -457,7 +457,7 @@
 
   function _applyReplayCheck() {
     const state = _replayLast;
-    if (state === 'armed') _setCheck('replay', 'ok', 'Armed · locked to tab');
+    if (state === 'armed') _setCheck('replay', 'ok', 'On · locked to tab');
     else if (state === 'error' || state === 'stream-ended') _setCheck('replay', 'bad', 'Buffer empty / off');
     else _setCheck('replay', 'warn', 'Not locked to a tab - set it up before your interview');
   }

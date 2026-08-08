@@ -106,7 +106,7 @@ clear the API Token field → Save) reproduces "Not connected" without reinstall
 ## 2. Shot conventions (apply to all videos)
 
 - **No talking head, no intro card, no logo sting.** Cut straight to the screen.
-- Every hotkey press gets a **key-cap overlay** in the corner (`Ctrl+Shift+7` etc.) added in post.
+- Every hotkey press gets a **key-cap overlay** in the corner (`Ctrl+Shift+6` etc.) added in post.
   On screen the hotkey does nothing visible on the computer — that's the whole design — so without
   the overlay the viewer can't tell anything happened.
 - **Never cut during a stream.** The answer arriving on the phone is the payoff shot; let it render
@@ -117,11 +117,11 @@ clear the API Token field → Save) reproduces "Not connected" without reinstall
 
   | Action | Key |
   |--------|-----|
-  | Capture screen | `Ctrl+Shift+7` |
-  | Voice (hold) | `Ctrl+Shift+8` |
-  | Toggle on/off | `Ctrl+Shift+9` |
-  | Instant replay | `Ctrl+Shift+6` |
-  | Typing mode | `Ctrl+Shift+5` |
+  | Capture screen | `Ctrl+Shift+6` |
+  | Voice (hold) | `Ctrl+Shift+7` |
+  | Toggle on/off | `Ctrl+Shift+0` |
+  | Instant replay | `Ctrl+Shift+8` |
+  | Typing mode | `Ctrl+Shift+9` |
 
   On macOS the UI renders `Ctrl` as `Cmd` (`templates/onboarding.html:206`). Pick one OS per video
   and stay on it.
@@ -155,10 +155,10 @@ steps above it make: *"Three ways to capture. One silent result."*
 | # | Shot | On screen | Verify |
 |---|------|-----------|--------|
 | 1 | Wide, static: monitor with a coding problem, phone propped in front of it showing an idle `/app` | 0:00–0:04 | Phone dashboard shows the idle placeholder, not a stale answer. Clear it first (`Clear` button, `templates/index.html:227`) |
-| 2 | Screen: the LeetCode problem. Press `Ctrl+Shift+7` | Key-cap overlay | **Nothing changes on the computer screen.** This is the shot that sells it. Do not cut away |
+| 2 | Screen: the LeetCode problem. Press `Ctrl+Shift+6` | Key-cap overlay | **Nothing changes on the computer screen.** This is the shot that sells it. Do not cut away |
 | 3 | Cut to phone (physical shot): "working" state → answer streams in | Live, uncut | Syntax highlighting renders; the code isn't red (that regression is fixed, but confirm on the day). Complexity dots visible |
-| 4 | Back to computer. Hold `Ctrl+Shift+8`, speak a question ("what's the time complexity of a hashmap lookup?"), release | Key-cap overlay held, then released | Phone shows the **"You said"** transcription box (`templates/index.html:239`) before the answer — that box is the proof it heard you |
-| 5 | Switch to the meeting tab (person speaking). Let 5–10s of speech play, then press `Ctrl+Shift+6` | Key-cap overlay | Phone shows the transcription of what was *just said* — no recording gesture happened. This is the least understood feature and the most impressive one |
+| 4 | Back to computer. Hold `Ctrl+Shift+7`, speak a question ("what's the time complexity of a hashmap lookup?"), release | Key-cap overlay held, then released | Phone shows the **"You said"** transcription box (`templates/index.html:239`) before the answer — that box is the proof it heard you |
+| 5 | Switch to the meeting tab (person speaking). Let 5–10s of speech play, then press `Ctrl+Shift+8` | Key-cap overlay | Phone shows the transcription of what was *just said* — no recording gesture happened. This is the least understood feature and the most impressive one |
 | 6 | Final: hand picks up the phone from in front of the monitor; monitor is still on the plain problem page | 0:55–1:05 | Nothing on the computer screen shows the product at any point |
 
 ### Do not include
@@ -332,7 +332,7 @@ same way — the user didn't do the setup gesture. Show the gesture, then the pa
 
 ### Segment 1 — voice capture (0:00–0:40)
 
-- Hold `Ctrl+Shift+8` while a question is spoken; release.
+- Hold `Ctrl+Shift+7` while a question is spoken; release.
 - Phone: **"You said"** box appears with the transcription, then the answer.
 - Point out: hold, don't tap. Release sends.
 
@@ -341,15 +341,15 @@ same way — the user didn't do the setup gesture. Show the gesture, then the pa
 - The setup: popup → **Lock to this tab**. Show the "Locked to: <tab name>" row and the Unlock
   button (`extension/popup.html:111`).
 - Show the window slider (10–30s) and set it to match whatever the marketing copy says (see B3).
-- Let audio play. Press `Ctrl+Shift+6`. Transcript + answer land on the phone.
+- Let audio play. Press `Ctrl+Shift+8`. Transcript + answer land on the phone.
 - Show the failure: close the locked tab → the lock drops → replay produces nothing. Then re-lock.
   Showing the failure and the recovery is more useful than showing only the success.
 
 ### Segment 3 — typing mode + passthrough (1:20–2:00)
 
-- Press `Ctrl+Shift+5`. **Nothing appears on the computer screen** — keystrokes are buffered by the
+- Press `Ctrl+Shift+9`. **Nothing appears on the computer screen** — keystrokes are buffered by the
   content script (`extension/content.js:270`).
-- Type a question. Press `Ctrl+Shift+5` again (or Enter) to submit.
+- Type a question. Press `Ctrl+Shift+9` again (or Enter) to submit.
 - Phone shows the typed question and the answer.
 - Show passthrough on vs off: with passthrough **on**, the keystrokes also reach the page — demo
   this in an online IDE so the viewer sees the text land in the editor too, which is exactly the

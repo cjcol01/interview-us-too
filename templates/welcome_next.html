@@ -8,8 +8,23 @@
     <a class="ob-logo" href="/">
       <span class="ob-logo-dot"></span>InterviewAce
     </a>
-    <a href="/onboarding" class="ob-skip">Skip for now</a>
+    <a href="/onboarding" class="ob-skip" onclick="return wnSkip(event)">Skip for now</a>
   </header>
+
+  <!-- Skipping here loses the date, and the date is what the reminder hangs off — the one bit
+       of setup on this page that can't be inferred later. -->
+  <div id="skip-date-confirm" class="ob-confirm-overlay">
+    <div class="ob-confirm-box">
+      <p class="ob-confirm-title">Skip the date?</p>
+      <p class="ob-confirm-body">Without one we won't know when to check in, so you'll get a single nudge in a
+        week instead of a reminder <strong>the evening before your interview</strong>. It's one tap, and you can
+        change or clear it any time in Settings.</p>
+      <div class="ob-confirm-actions">
+        <button type="button" class="wm-cancel-btn" onclick="wnConfirmSkip()">Skip anyway</button>
+        <button type="button" class="wm-confirm-btn" onclick="wnCloseSkipConfirm()">Pick a date</button>
+      </div>
+    </div>
+  </div>
 
   <main class="ob-main wn-main">
     <div class="wn-layout">
@@ -123,6 +138,15 @@
         _selected = addDays(2);
         selectPill(soonPill);
       }
+
+      const skipConfirm = document.getElementById('skip-date-confirm');
+      window.wnSkip = function (e) {
+        e.preventDefault();
+        skipConfirm.classList.add('visible');
+        return false;
+      };
+      window.wnCloseSkipConfirm = function () { skipConfirm.classList.remove('visible'); };
+      window.wnConfirmSkip = function () { window.location.href = '/onboarding'; };
 
       window.wnDone = async function () {
         const btn = document.getElementById('wn-done-btn');

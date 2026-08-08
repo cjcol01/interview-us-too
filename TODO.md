@@ -1,19 +1,19 @@
 # TODO
 
 ## immediately
-
-- [ ]  First hotkey run is too fast (on welcome 'call') 🟡 — On the first Ctrl+Shift+7 too much happened at once across two areas of the screen to absorb; on a second pass with context it felt fine. This is a first-run comprehension problem specifically. lets slow down the default speed by 25%
-- [ ] Skip setup" needs a confirmation 🔵 — She expected a warning that the extension is essential; she avoided clicking it in case it cost her her place. - this applies to all skip buttons on /welcome, welcome/next and onboarding or sideload page.
-- [ ] **18. No way back to the demo** 🔴 — If a user skips or leaves the demo, there's no back arrow or "back to demo" link. She called this a core heuristic violation (user control and freedom / clearly marked exits).
-- [ ] **27. "Prop your phone up" tip is buried** 🔵 — She called this one of the most important instructions in the product (users can't be caught glancing sideways or down) and it's easy to skim past. Suggests a lightbulb icon or similar emphasis (on onboarding page)
-- [ ] **28. Can't scroll back through past answers** 🟡 — She tried to scroll up on the phone view and couldn't.
-- [ ] remove the hotkeys from the onboarding page
-- [ ] move default hotkeys to (all ctrl + shift +) 6: screen cap, 7: voice 7: IR 9: typing, 0: arm
-- [ ] change arm / disarm extension wording to turn on turn off in all places across website and extension
-- [ ] on trial-end, remove buttons to context and hotkey. mention they can change them any time once theyve paid (dont word it like that but yk) so users dont get lost
-- [ ] make the run a system check a bit more prominent, maybe a white button (dont distract from CTA of go to pricing)
-- add a light/dark toggle (same as on landing) to /onboarding page
-- [ ] on large screens, the scroll speed of testimonials on /landing is good (24 inch screen) but on my mac (15 inch) its wayyy to quick, i think its probably because of the pixel count/density. please slow down/ make consistent on all screens. its actually fine on mobile.
+- [x] add syntax highlighting to demo
+- [ ] onboarding skip setup button - you cant come back here from settings
+- [x] relax password rate limiting (2 passwords in 5 seconds is allowed)
+- [ ] stop space bar scrolling in typing mode
+- [ ] if instant replay or audio is empty, dont send anything, (currently sends gobbledegook)
+- [ ] pricing page, ensure cancel anytime is clear
+- [ ] undetectability work needs doing (can we change id dynamically, change name, change icon)
+- [ ] https://claude.ai/code/artifact/24206334-f8e7-4fcd-9120-15ccd8634eb8 implement 2C
+- [ ] change all input selector types to show code (bullets, one liner - maybe exclude that dk)
+- [ ] check all spacing on settings page.
+- [ ] typing preview, in the same note style as others
+- [ ] extension connected/ reconnect in settings could be made more reliable
+- [ ] buy alternate domains similar to interview-wise?
 
 ## Now
 - [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
@@ -23,6 +23,15 @@
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] light mode visual check (settings, cancel page navbar, text hard to read)
 - [ ] exit button on mobile takes to landing, probably should take to settings
+- [ ] footer links blcoked
+- [ ] non links on CWS
+- [ ] non links on privacy and TCs
+- [ ] navbar gap
+- [ ] low contrast text
+- [ ] 1,2,3 on homepage
+- [ ] clear up instant replay wording
+- [ ] can we detect phone scan via qr code?
+- [ ] unlimited allows setup test and practise with friend
 
 ## Soon 
 - [ ] dark mode text can be hard to read
@@ -122,3 +131,15 @@
 - [x] settings mobile refresh (nearly done, a bit wider then the phone) - check first
 - [x] cancel page revamp, text and maybe some visual.
 - [x] shorten landing page
+- [x] skip buttons now confirm before skipping - welcome, welcome_next, onboarding setup (not the low-stakes per-step skips)
+- [x] back to the demo link on onboarding - the page didn't load the demo at all before, so that got wired up too
+- [x] prop your phone up tip promoted from a plain line to a bordered callout on onboarding
+- [x] removed the hotkey list from onboarding - kept the instant replay and typing explainers, only the key combos went
+- [x] arm/disarm - turn on/turn off in every user-visible string, site and extension (code identifiers left alone)
+- [x] light/dark toggle on onboarding, same control as landing
+- [x] first demo round slowed 25% and second 10% so the first hotkey run is readable - response delay and typing speed unchanged
+- [x] history nav on /app always shows now, disabled until there's an older answer, instead of hiding until 2+ answers
+- [x] new default hotkeys - ctrl+shift+6 screen, 7 voice, 8 instant replay, 9 typing, 0 on/off (updated in all five places)
+- [x] removed the context and hotkey links from trial-end so users don't wander mid-funnel, with a line saying they're set up later
+- [x] run a system check on trial-end is now an outline button instead of a text link buried in a footer
+- [x] testimonial scroll speed is time-based now, so it's the same on 60/120Hz instead of literally 2x on a ProMotion screen

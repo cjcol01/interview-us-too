@@ -346,9 +346,9 @@ def register(test, skip, client=None):
         db.commit()
 
     def _login(identifier):
-        """POSTs /auth/login, first clearing the limiter keys this call would trip. The
-        identifier-keyed cooldown is 2s and the per-IP window counts every test in the suite,
-        so back-to-back logins in one test would otherwise 429 regardless of credentials."""
+        """POSTs /auth/login, first clearing the limiter keys this call would trip. The per-IP
+        counters accumulate across every test in the suite, so back-to-back logins in one test
+        would otherwise 429 regardless of credentials."""
         import asyncio
         import server
 

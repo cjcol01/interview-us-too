@@ -181,7 +181,9 @@ document.addEventListener('interview-ace:connect', (e) => {
   });
 }, { signal: ac.signal });
 
-const _hotkeys = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6', typing: 'Ctrl+Shift+5' };
+// Mirrors HOTKEY_DEFAULTS in server.py — keep in sync. Overwritten by the user's own bindings
+// once they arrive from the server; these only apply until then.
+const _hotkeys = { capture: 'Ctrl+Shift+6', audio: 'Ctrl+Shift+7', replay: 'Ctrl+Shift+8', typing: 'Ctrl+Shift+9', toggle: 'Ctrl+Shift+0' };
 let _audioRecording = false;
 let _typingActive = false;
 let _typingBuffer = '';

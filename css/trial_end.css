@@ -228,6 +228,31 @@
 .te-upgrade-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 32px rgba(198,242,78,.3); }
 [data-theme="light"] .te-upgrade-btn:hover { box-shadow: 0 12px 32px rgba(63,98,18,.22); }
 
+/* Replaces the "Add your context →" / "change your hotkeys →" links that used to end these
+   cards. Both pointed at Settings, which pulled people out of the upgrade flow mid-decision;
+   the reassurance is that none of it has to happen now. */
+.te-later { margin-top: auto; padding-top: 12px; }
+
+/* Outline button, deliberately not filled: this sits below .te-upgrade-btn and must read as
+   the secondary path, but the old inline text link inside the footer note was invisible to
+   anyone whose setup was actually broken. */
+.te-check { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.te-check-q { font-size: 13px; color: var(--text-3); }
+.te-check-btn {
+  display: inline-block;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-1);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  padding: 10px 22px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.te-check-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--card-inset); }
+
 .te-main .footer-note { margin-top: 0; }
 
 /* ── Responsive ── */

@@ -5,7 +5,7 @@ A practice companion for coding interview prep. Work through problems on any cod
 ## How it works
 
 1. Sit down with a coding platform (LeetCode, HackerRank, a take-home, your own mock-interview set) and attempt the problem yourself first
-2. Stuck, or want to sanity-check your solution? Press `Ctrl+Shift+7` (or click the extension popup) to capture the screen
+2. Stuck, or want to sanity-check your solution? Press `Ctrl+Shift+6` (or click the extension popup) to capture the screen
 3. The extension sends the screenshot to your server
 4. Claude analyses the question and streams a walkthrough back to your web dashboard — read it, compare it to what you wrote, and note what you'd change
 5. Adjust the complexity level (1-3) to see the same problem explained at different depths, which is a good way to check you actually understand *why* a solution is optimal, not just what it is
@@ -59,8 +59,10 @@ Open the popup, paste your API token from the settings page, and you're ready.
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Shift+7` | Capture current tab and analyse |
-| `Ctrl+Shift+8` | Hold to record audio question |
-| `Ctrl+Shift+9` | Toggle the assistant on/off |
+| `Ctrl+Shift+6` | Capture current tab and analyse |
+| `Ctrl+Shift+7` | Hold to record audio question |
+| `Ctrl+Shift+8` | Instant replay of the last few seconds of tab audio |
+| `Ctrl+Shift+9` | Typing mode |
+| `Ctrl+Shift+0` | Turn the assistant on/off |
 
-All three shortcuts are user-rebindable from the Settings page.
+All five shortcuts are user-rebindable from the Settings page.

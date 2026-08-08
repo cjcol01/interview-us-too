@@ -64,6 +64,27 @@
 }
 .ob-intro p { font-size: 14.5px; color: var(--text-2); line-height: 1.6; }
 
+/* Way back into the demo for anyone who skipped or left it on /welcome. Deliberately quiet —
+   it's an exit that should be findable, not a second call to action competing with step 1. */
+.ob-demo-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding: 7px 13px;
+  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  color: var(--text-2);
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.ob-demo-btn:hover { border-color: var(--accent); color: var(--text-1); }
+.ob-demo-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
 /* Flash the card border when a step completes — plays as the inner content fades out. */
 @keyframes ob-card-flash {
   0%   { box-shadow: 0 0 0 0 rgba(198,242,78,.6); border-color: var(--accent); }
@@ -511,14 +532,7 @@
 }
 .ob-platform-link:hover { border-color: var(--accent); color: var(--text-1); }
 
-/* ── Hotkey hints ── */
-.ob-hotkey-hint {
-  font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 13px;
-  color: var(--text-2);
-  line-height: 1.8;
-  margin-bottom: 2px;
-}
+/* ── Keyboard keys ── */
 kbd {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;
@@ -553,6 +567,16 @@ kbd {
   margin-bottom: 0;
 }
 .ob-feature-callout p strong { color: var(--text-1); }
+
+/* Same shell, lifted with an accent edge — for the handful of instructions that cost the user
+   the interview if they skim past them. */
+.ob-tip-callout {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  border-left: 3px solid var(--accent);
+  margin-top: 0;
+  margin-bottom: 14px;
+}
 
 .ob-passthrough-row {
   display: flex;
@@ -801,6 +825,91 @@ kbd {
   transition: color .15s, border-color .15s;
 }
 #wm-cancel:hover, .wm-cancel-btn:hover { color: var(--text-1); border-color: var(--line-strong); }
+
+/* ── Skip confirmation ──
+   Same dialog as the demo's .mi-leave-confirm (css/mock_interview.css), rebuilt on this page's
+   theme vars so it also works in light mode. Shared by /welcome, /welcome/next and /onboarding,
+   and only used on the three skips that cost real setup — the per-step "Skip for now" buttons
+   stay a single click, or the dialog stops meaning anything. */
+.ob-confirm-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+.ob-confirm-overlay.visible { display: flex; }
+.ob-confirm-box {
+  width: 100%;
+  max-width: 380px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.5);
+}
+.ob-confirm-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 8px;
+}
+.ob-confirm-body {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin-bottom: 18px;
+}
+.ob-confirm-body strong { color: var(--text-1); }
+/* Row, not the .wm-actions column: these two are a choice between equals, and the safe one
+   sits on the right where the primary action is expected. */
+.ob-confirm-actions { display: flex; gap: 10px; }
+.ob-confirm-actions button { flex: 1; padding: 12px; }
+
+/* ── Theme switcher ── */
+/* Copied from landing.html, with its hardcoded rgba values swapped for the theme tokens —
+   landing's were tuned against its own dark backdrop and read as a smudge on this page in
+   light mode. --nav-bg is the same translucent surface the navbar uses in both themes. */
+#theme-switcher {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  z-index: 90;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  padding: 9px 16px;
+}
+.tsw-icon { width: 15px; height: 15px; flex-shrink: 0; display: block; transition: color .25s; }
+.tsw-icon.tsw-sun  { color: rgba(255,200,60,.75); }
+.tsw-icon.tsw-moon { color: rgba(180,210,255,.55); }
+[data-theme="light"] .tsw-icon.tsw-sun  { color: rgba(196,132,16,.9); }
+[data-theme="light"] .tsw-icon.tsw-moon { color: rgba(60,80,120,.55); }
+.tsw-label { display: inline-flex; align-items: center; cursor: pointer; }
+#tsw-input { display: none; }
+.tsw-track {
+  display: block; width: 40px; height: 22px; border-radius: 999px;
+  background: var(--line-strong);
+  border: 1px solid var(--line);
+  position: relative;
+  transition: background .25s, border-color .25s;
+}
+.tsw-thumb {
+  position: absolute; top: 3px; left: 3px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--btn-bg);
+  transition: transform .25s cubic-bezier(0.34,1.56,0.64,1);
+}
+#tsw-input:checked + .tsw-track { background: var(--accent-line); border-color: var(--accent-line); }
+#tsw-input:checked + .tsw-track .tsw-thumb { transform: translateX(18px); }
+#tsw-input:focus-visible + .tsw-track { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ── /welcome/next: post-demo full page ── */
 .wn-main {

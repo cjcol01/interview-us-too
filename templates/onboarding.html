@@ -2,9 +2,32 @@
 {% block title %}Get started - InterviewAce{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/css/onboarding.css">
+  <link rel="stylesheet" href="/css/mock_interview.css">
+  <!-- marked pinned to a major, as on /app: mock_interview.js renders the AI answers through it.
+       highlight.js is the same @highlightjs/cdn-assets bundle as /app and /welcome — the demo is
+       replayable from here, and its code blocks should look identical wherever it's opened. -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15/marked.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/styles/github-dark.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 {% endblock %}
 {% block content %}
+  {% include "_mock_interview.html" %}
+  <script src="/static/js/mock_interview.js"></script>
+  <script>
+    // Config for static/js/mock_interview.js. Also the only remaining reader of the route's
+    // hotkey_* template vars on this page, now that the printed key list is gone.
+    // No MI_FIRST_NAME: the /onboarding route doesn't pass first_name, and miFirstName()
+    // falls back to '' — the greeting is just less personal.
+    window.MI_HOTKEYS = {
+      capture: '{{ hotkey_capture }}',
+      audio:   '{{ hotkey_audio }}',
+      toggle:  '{{ hotkey_toggle }}',
+      replay:  '{{ hotkey_replay }}',
+      typing:  '{{ hotkey_typing }}',
+    };
+  </script>
+
   <!-- Trial-only warning modal -->
   <div id="warning-overlay">
     <div class="warning-modal">
@@ -31,6 +54,22 @@
     </div>
   </div>
 
+  <!-- Skipping the whole of setup costs the user the extension, which is the product. Testers
+       read the bare link as possibly forfeiting their trial and avoided it entirely, so it now
+       says what it does and what it doesn't. -->
+  <div id="skip-confirm-overlay" class="ob-confirm-overlay">
+    <div class="ob-confirm-box">
+      <p class="ob-confirm-title">Skip setup for now?</p>
+      <p class="ob-confirm-body">The browser extension is what captures your screen and audio - without it,
+        <strong>nothing reaches your phone during an interview</strong>. Skipping doesn't cost you any of your
+        test run, and you can come back here from your dashboard whenever you like.</p>
+      <div class="ob-confirm-actions">
+        <button type="button" class="wm-cancel-btn" onclick="obConfirmSkipSetup()">Skip anyway</button>
+        <button type="button" class="wm-confirm-btn" onclick="obCloseSkipConfirm()">Keep setting up</button>
+      </div>
+    </div>
+  </div>
+
   <header class="ob-header">
     <a class="ob-logo" href="/">
       <span class="ob-logo-dot"></span>InterviewAce
@@ -42,6 +81,15 @@
     <div class="ob-intro">
       <h1>You're in. Let's get set up.</h1>
       <p>A few quick steps, then your 10-minute test run begins. No card required.</p>
+      <!-- Skipping or leaving the demo on /welcome used to be one-way: there was no route back
+           to it from here. Not a first run — that would fire MI_ON_FIRST_RUN_FINISH and navigate
+           the user off this page. /app carries the same escape hatch in its header. -->
+      <button type="button" class="ob-demo-btn" onclick="openMockInterview(false)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+        Watch the 60-second demo
+      </button>
     </div>
 
     <!-- Step 1: Install -->
@@ -169,7 +217,7 @@
     <div class="ob-step-card is-locked" id="ob-step-4" data-step="4">
       <div class="ob-step-num">4</div>
       <div class="ob-step-body">
-        <h2>Arm instant replay <span class="ob-audio-opt">OPTIONAL</span></h2>
+        <h2>Turn on instant replay <span class="ob-audio-opt">OPTIONAL</span></h2>
         <p class="ob-step-state" id="ob-state-4" hidden></p>
         <div class="ob-step-inner">
           <p>Buffers the last {{ replay_seconds }} seconds of one tab's audio, so you can resend a
@@ -184,7 +232,7 @@
           </ol>
           <div class="ob-mic-state">
             <span class="ob-mic-led idle" id="ob-replay-led"></span>
-            <span class="ob-mic-msg" id="ob-replay-msg">Not armed yet.</span>
+            <span class="ob-mic-msg" id="ob-replay-msg">Not turned on yet.</span>
           </div>
           <p class="ob-manual-hint">On the day, do the same on your meeting tab. A lock follows one
              tab and drops when it closes.</p>
@@ -208,12 +256,6 @@
           <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeWars</a>
           <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeSignal</a>
         </div>
-        <p class="ob-hotkey-hint"><span id="ob-key-capture"></span> - capture screen &amp; analyse</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-audio"></span> - hold to record voice, release to send</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-toggle"></span> - arm / disarm the extension</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-replay"></span> - trigger instant replay</p>
-        <p class="ob-hotkey-hint"><span id="ob-key-typing"></span> - enter typing mode</p>
-
         <button class="ob-manual-toggle ob-advanced-toggle" onclick="toggleAdvanced()">Show details</button>
         <div id="advanced-section" class="ob-manual-section">
           <div class="ob-feature-callout">
@@ -231,20 +273,6 @@
           </div>
         </div>
 
-        <script>
-          (function() {
-            const hk = { capture: '{{ hotkey_capture }}', audio: '{{ hotkey_audio }}', toggle: '{{ hotkey_toggle }}', replay: '{{ hotkey_replay }}', typing: '{{ hotkey_typing }}' };
-            const isMac = /Mac/.test(navigator.platform);
-            function renderHotkey(key) {
-              return key.split('+').map(p => `<kbd>${isMac && p === 'Ctrl' ? 'Cmd' : p}</kbd>`).join(' + ');
-            }
-            document.getElementById('ob-key-capture').innerHTML = renderHotkey(hk.capture);
-            document.getElementById('ob-key-audio').innerHTML   = renderHotkey(hk.audio);
-            document.getElementById('ob-key-replay').innerHTML  = renderHotkey(hk.replay);
-            document.getElementById('ob-key-typing').innerHTML  = renderHotkey(hk.typing);
-            document.getElementById('ob-key-toggle').innerHTML  = renderHotkey(hk.toggle);
-          })();
-        </script>
         <!-- Same escape hatch as step 1: the platform links are the trigger, but plenty of
              people already have a problem open in another tab. -->
         <button type="button" class="ob-step-alt" onclick="obComplete(5)">I've already got one open →</button>
@@ -283,7 +311,15 @@
 
         <!-- Before moved -->
         <div id="pre-moved">
-          <p class="ob-manual-hint">Prop your phone up in front of your monitor or laptop so you can glance at it during the interview.</p>
+          <!-- Promoted out of a plain hint: where the phone sits decides whether the user gets
+               caught glancing sideways or down, which is the one mistake the product can't
+               recover from. Too easy to skim as body text. -->
+          <div class="ob-feature-callout ob-tip-callout">
+            <div class="ob-fc-title">💡 Prop your phone up, don't lay it flat</div>
+            <p>Stand it <strong>in front of your monitor or laptop</strong>, as close to eye level as you can.
+               A phone flat on the desk means glancing down, and that reads on camera - one propped just
+               behind your screen looks like you're reading the problem.</p>
+          </div>
           <button id="moved-btn" class="ob-moved-btn" onclick="iMoved()">I'm on my phone →</button>
         </div>
 
@@ -305,21 +341,48 @@
     </div>
   </main>
 
+  <div id="theme-switcher">
+    <svg class="tsw-icon tsw-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+    <label class="tsw-label">
+      <input type="checkbox" id="tsw-input" aria-label="Dark mode">
+      <span class="tsw-track"><span class="tsw-thumb"></span></span>
+    </label>
+    <svg class="tsw-icon tsw-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </div>
+
   <script>
     // ?fresh=1 means the user just arrived from /install-manual and should see the full
     // animated flow, not the instant-jump that obSyncFromExtension() would do. Defined at
     // the very top so every function below can read it.
     const _isFreshInstall = new URLSearchParams(location.search).get('fresh') === '1';
 
-    // "Skip setup" has to clear the setup_complete gate, or it isn't a skip: /app bounces
+    // Gated behind a confirmation rather than firing on the click: this is the one skip on
+    // the page that costs the user the extension entirely.
+    function obSkipSetup(e) {
+      e.preventDefault();
+      document.getElementById('skip-confirm-overlay').classList.add('visible');
+      return false;
+    }
+
+    function obCloseSkipConfirm() {
+      document.getElementById('skip-confirm-overlay').classList.remove('visible');
+    }
+
+    // Skipping has to clear the setup_complete gate, or it isn't a skip: /app bounces
     // straight back here, and so does every route out of /settings, leaving no way off this
     // page at all. The dashboard is self-recovering for a user who skipped — the Ext status
     // LED shows red and the trial-start overlay carries a "go to setup →" link back here.
-    async function obSkipSetup(e) {
-      e.preventDefault();
+    async function obConfirmSkipSetup() {
       try { await fetch('/api/setup/complete?skipped=true', { method: 'POST' }); } catch {}
       window.location.href = '/app';
-      return false;
     }
 
     // The content script injects at document_idle, which can run *after*
@@ -377,7 +440,7 @@
       1: 'Extension installed',
       2: 'Connected to your account',
       3: 'Microphone allowed',
-      4: 'Instant replay armed',
+      4: 'Instant replay on',
       5: 'Challenge open',
       6: 'Ready',
     };
@@ -822,11 +885,11 @@
       const led = document.getElementById('ob-replay-led');
       const msg = document.getElementById('ob-replay-msg');
       const MAP = {
-        armed:           ['ok',   'Armed' + (e.detail.tabTitle ? ' on: ' + e.detail.tabTitle : '') + '.'],
-        arming:          ['warn', 'Arming…'],
+        armed:           ['ok',   'Turned on' + (e.detail.tabTitle ? ' for: ' + e.detail.tabTitle : '') + '.'],
+        arming:          ['warn', 'Turning on…'],
         error:           ['bad',  e.detail.errorMsg || 'Could not capture that tab - try locking again.'],
         'stream-ended':  ['bad',  'Lock dropped - that tab closed or navigated away.'],
-        idle:            ['idle', 'Not armed yet.'],
+        idle:            ['idle', 'Not turned on yet.'],
       };
       const [cls, text] = MAP[state] || MAP.idle;
       led.className = 'ob-mic-led ' + cls;
@@ -1054,5 +1117,21 @@
       await fetch('/api/trial/start', { method: 'POST' }).catch(() => {});
       window.location.href = '/app';
     }
+
+    // ── Theme switcher ──────────────────────────────────────────────────────
+    // Same control as the landing page, but note the polarity is the *opposite* of
+    // landing.css's: everywhere else (global.css, this page) no data-theme means dark and
+    // data-theme="light" is the opt-in. base.html's pre-paint script already reads
+    // localStorage['theme'], so all this has to do is set the attribute and store the choice.
+    (function () {
+      const html = document.documentElement;
+      const inp = document.getElementById('tsw-input');
+      if (!inp) return;
+      inp.checked = html.dataset.theme !== 'light';
+      inp.addEventListener('change', () => {
+        if (inp.checked) { delete html.dataset.theme; localStorage.setItem('theme', 'dark'); }
+        else { html.dataset.theme = 'light'; localStorage.setItem('theme', 'light'); }
+      });
+    })();
   </script>
 {% endblock %}

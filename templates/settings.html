@@ -370,7 +370,7 @@
               </label>
             </div>
             <div class="card-row-note" id="typing-preview-note" {% if not typing_preview %}hidden{% endif %}>
-              Your keystrokes reach your dashboard as you type - not the AI, and not your history. Switch this off and nothing leaves your machine until you send.
+              Your keystrokes reach your dashboard as you type. Switch this off and nothing leaves your machine until you send, but you wont have any visual indication your typing.
             </div>
             <div id="typing-preview-status" class="save-status"></div>
           </div>
@@ -1012,7 +1012,8 @@
       replay:  '{{ hotkey_replay }}',
       typing:  '{{ hotkey_typing }}',
     };
-    const _defaults = { capture: 'Ctrl+Shift+7', audio: 'Ctrl+Shift+8', toggle: 'Ctrl+Shift+9', replay: 'Ctrl+Shift+6', typing: 'Ctrl+Shift+5' };
+    // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync (drives the "Reset to defaults" button).
+    const _defaults = { capture: 'Ctrl+Shift+6', audio: 'Ctrl+Shift+7', replay: 'Ctrl+Shift+8', typing: 'Ctrl+Shift+9', toggle: 'Ctrl+Shift+0' };
     let _recording = null;
 
     function recordHotkey(action, btn) {

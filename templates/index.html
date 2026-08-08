@@ -166,7 +166,7 @@ The team actively read these and work on issues found."></textarea>
 
   <div id="hint-toast">
     <button id="hint-dismiss" onclick="document.getElementById('hint-toast').classList.remove('visible')">&times;</button>
-    <p>Try it - press <kbd id="hint-kbd">Ctrl+Shift+8</kbd> and say <strong>"what's an API?"</strong></p>
+    <p>Try it - press <kbd id="hint-kbd">Ctrl+Shift+7</kbd> and say <strong>"what's an API?"</strong></p>
   </div>
 
   <header>
@@ -313,7 +313,7 @@ The team actively read these and work on issues found."></textarea>
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Toggle on/off</span>
-          <span class="hk-ref-desc">Tap - arm or disarm every hotkey</span>
+          <span class="hk-ref-desc">Tap - turn every hotkey on or off</span>
           <span class="hk-ref-key" id="hkref-toggle"></span>
         </div>
       </div>
@@ -351,7 +351,11 @@ The team actively read these and work on issues found."></textarea>
     }
 
     function _updateHistoryNav() {
-      if (_history.length < 2) { histNavEl.style.display = 'none'; return; }
+      // Shown from the very first answer, with both buttons disabled until there's actually
+      // something earlier to go back to. It used to stay hidden below two answers, which meant
+      // the control only appeared at the moment you'd already gone looking for it — testers
+      // tried to scroll the panel instead and concluded past answers were simply gone.
+      if (_history.length === 0) { histNavEl.style.display = 'none'; return; }
       histNavEl.style.display    = 'flex';
       histOlderEl.disabled       = _historyIdx >= _history.length - 1;
       histNewerEl.disabled       = _historyIdx === 0;
@@ -983,7 +987,7 @@ The team actively read these and work on issues found."></textarea>
       const state = status && status.state;
       if (state === 'armed') {
         const page = status.tabTitle ? ` - locked to "${status.tabTitle}"` : '';
-        _setDot('replay', 'ok', 'Instant replay is armed and ready' + page + '.');
+        _setDot('replay', 'ok', 'Instant replay is on and ready' + page + '.');
       } else if (state === 'error' || state === 'stream-ended') {
         _setDot('replay', 'warn', 'Instant replay lost its connection - click re-lock in the extension popup.');
       } else {
@@ -1064,9 +1068,9 @@ The team actively read these and work on issues found."></textarea>
       }
 
       if (status.replay === 'armed') {
-        _setDot('replay', 'ok', 'Instant replay is armed and ready.');
+        _setDot('replay', 'ok', 'Instant replay is on and ready.');
       } else if (status.replay === 'arming') {
-        _setDot('replay', 'warn', 'Instant replay is arming…');
+        _setDot('replay', 'warn', 'Instant replay is turning on…');
       } else if (status.replay === 'error' || status.replay === 'stream-ended') {
         _setDot('replay', 'warn', 'Instant replay lost its connection.');
       } else {

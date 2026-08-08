@@ -81,7 +81,6 @@
               <div class="mi-tile-chip mi-tile-chip-you">You</div>
             </div>
             <div class="mi-you-status" id="mi-you-status">
-              <div class="mi-you-hint" id="mi-you-hint">Your mic is live - speak when you're ready.</div>
               <div class="mi-you-live" id="mi-you-live">
                 <div class="mi-you-live-label">
                   <span class="mi-you-live-dot"></span>You're speaking
@@ -185,6 +184,16 @@
                   <button type="button" class="mi-style-pill active" data-style="conversational">Convo</button>
                   <button type="button" class="mi-style-pill" data-style="bullets">Bullets</button>
                   <button type="button" class="mi-style-pill" data-style="summary">Summary</button>
+                </div>
+                <!-- Comment-level stepper: shown only on beats that answer with code, so it's
+                     hidden until miSyncCommentSwitch decides otherwise. Mirrors the real
+                     Comments setting in Settings and the extension popup. -->
+                <p class="mi-comment-toast" id="mi-comment-toast">Want more explanation? Step the comments up or down - the same code comes back with as much or as little as you want.</p>
+                <div class="mi-comment-switch" id="mi-comment-switch" style="display:none;">
+                  <span class="mi-comment-switch-label">Comments</span>
+                  <button type="button" class="mi-comment-btn" id="mi-comment-down" onclick="miChangeCommentLevel(-1)" aria-label="Fewer comments">&minus;</button>
+                  <span class="mi-comment-level" id="mi-comment-level">High</span>
+                  <button type="button" class="mi-comment-btn" id="mi-comment-up" onclick="miChangeCommentLevel(1)" aria-label="More comments">+</button>
                 </div>
                 <div class="mi-answer-transcription" id="mi-answer-transcription">
                   <div class="mi-answer-transcription-label" id="mi-answer-transcription-label">You said</div>

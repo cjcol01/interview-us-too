@@ -72,8 +72,8 @@ Not marketing copy — incomplete and janky bits are called out plainly.
 - `GET /api/me` (`server.py:699`) — returns `account_level` + current hotkeys (with defaults for nulls via `_user_hotkeys` at `server.py:83-88`).
 - Extension picks up changes: `background.js:1-20` fetches `/api/me` on load; `content.js:43-53` listens for storage changes.
 - Hotkey parser in extension supports Ctrl/Shift/Alt + single letter or digit only (`content.js:55-71`).
-- Settings page at `/settings` (`server.py:449`) renders all three hotkeys as editable fields.
-- Defaults: Capture `Ctrl+Shift+7`, Audio `Ctrl+Shift+8`, Toggle `Ctrl+Shift+9` (`server.py:80`).
+- Settings page at `/settings` renders all five hotkeys as editable fields.
+- Defaults: Capture `Ctrl+Shift+6`, Audio `Ctrl+Shift+7`, Replay `Ctrl+Shift+8`, Typing `Ctrl+Shift+9`, On/off `Ctrl+Shift+0` (`HOTKEY_DEFAULTS` in `server.py`).
 
 ---
 
@@ -177,11 +177,13 @@ Both sync (`client`) and async (`async_client`) Anthropic clients are instantiat
 
 | Action | Default |
 |---|---|
-| Capture | `Ctrl+Shift+7` |
-| Audio (hold) | `Ctrl+Shift+8` |
-| Toggle on/off | `Ctrl+Shift+9` |
+| Capture | `Ctrl+Shift+6` |
+| Audio (hold) | `Ctrl+Shift+7` |
+| Instant replay | `Ctrl+Shift+8` |
+| Typing mode | `Ctrl+Shift+9` |
+| Turn on/off | `Ctrl+Shift+0` |
 
-All three are user-rebindable via `/settings` → synced to extension via `/api/me`.
+All five are user-rebindable via `/settings` → synced to extension via `/api/me`.
 
 **Note:** `README.md` says capture is `Ctrl+Shift+Y` and lists only two shortcuts — it is out of date as of commit `14db733`.
 

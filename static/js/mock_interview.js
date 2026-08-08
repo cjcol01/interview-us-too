@@ -26,10 +26,23 @@ function miScheduleTimer(scaled, fn) {
   return timer;
 }
 
-function miAfter(ms, fn) { return miScheduleTimer(ms * miSpeedMultiplier(), fn); }
+// First-run comprehension: the opening round throws a lot at someone at once — interviewer
+// question, hotkey press, then an answer streaming into two areas of the screen — and testers
+// couldn't absorb it live. On a second pass, with context, the same pace felt fine. So the first
+// two rounds run slower and the rest of the call is unchanged. Indexed by _miIndex, which is -1
+// during the intro (unslowed) and 0-based once questions start.
+const MI_ROUND_PACING = [1.25, 1.1];
 
-// Unscaled version of miAfter — used for the two things the tortoise/hare buttons should
-// never touch: how long the AI takes to start responding, and the typing/streaming speed.
+function miRoundMultiplier() { return MI_ROUND_PACING[_miIndex] || 1; }
+
+// Stacks with miSpeedMultiplier rather than replacing it, so the tortoise/hare buttons still
+// work during the slowed rounds.
+function miAfter(ms, fn) { return miScheduleTimer(ms * miSpeedMultiplier() * miRoundMultiplier(), fn); }
+
+// Unscaled version of miAfter — used for the things neither the tortoise/hare buttons nor the
+// first-round slowdown should touch: how long the AI takes to start responding, and the
+// typing/streaming speed. Those already read well at full speed; slowing them just makes the
+// demo feel sluggish rather than comprehensible.
 function miAfterFixed(ms, fn) { return miScheduleTimer(ms, fn); }
 
 function miUpdateSpeedBtns() {
@@ -117,13 +130,36 @@ function miStreamText(el, text, done) {
   tick();
 }
 
+// Syntax-highlights the <pre><code> blocks marked just rendered, so the demo's answers look
+// like the real /app ones instead of a flat wall of monospace. Optional by design: hljs is a
+// CDN script, and a demo that renders unhighlighted code is far better than one that throws
+// mid-stream, so every call site goes through here rather than touching hljs directly.
+function miHighlightCode(el) {
+  if (!window.hljs) return;
+  el.querySelectorAll('pre code').forEach((block) => {
+    const m = block.className.match(/language-(\S+)/);   // marked's default langPrefix
+    if (m && !hljs.getLanguage(m[1])) block.className = ''; // not in the bundle → let hljs auto-detect
+    try { hljs.highlightElement(block); } catch {}
+  });
+}
+
+// The single place markdown gets written into an answer body — both the streaming path and the
+// response-style pills go through it, so the highlight pass can't be dropped on one of them.
+function miRenderMarkdown(el, text) {
+  el.innerHTML = marked.parse(text);
+  miHighlightCode(el);
+}
+
 function miStreamMarkdown(el, text, done) {
-  if (MI_PREFERS_REDUCED_MOTION) { el.innerHTML = marked.parse(text); if (done) miAfterFixed(150, done); return; }
+  if (MI_PREFERS_REDUCED_MOTION) { miRenderMarkdown(el, text); if (done) miAfterFixed(150, done); return; }
   let i = 0;
   function tick() {
-    if (i >= text.length) { el.innerHTML = marked.parse(text); if (done) done(); return; }
+    if (i >= text.length) { miRenderMarkdown(el, text); if (done) done(); return; }
     i = Math.min(i + 3, text.length);
-    el.innerHTML = marked.parse(text.slice(0, i));
+    // Highlighting each frame (not just the finished block) is the point: an unclosed ``` fence
+    // still parses as a code block, so the colour arrives with the characters the way it does on
+    // a real streamed response. The blocks are ~10 lines, so re-highlighting per tick is cheap.
+    miRenderMarkdown(el, text.slice(0, i));
     miAfterFixed(26 + Math.random() * 26, tick);
   }
   tick();
@@ -246,8 +282,15 @@ const MI_BEATS = [
     ],
     line: "Now how would you solve it recursively instead?",
     popup: 'Hold the hotkey to talk, then release to send.',
+    answerDwellMs: 6500,   // the comment stepper lands on this beat — see miScheduleContinueAfterAnswer
     transcription: 'Hmm, let me think, how would I do this recursively',
-    answer: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):\n    seen = seen if seen is not None else {}\n    if i == len(nums):\n        return None\n    if target - nums[i] in seen:\n        return [seen[target - nums[i]], i]\n    seen[nums[i]] = i\n    return two_sum(nums, target, i + 1, seen)\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
+    answer: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):\n    # Fresh dict per top-level call — a `{}` default would be shared between calls\n    seen = seen if seen is not None else {}\n\n    # Base case: walked the whole array without finding a pair\n    if i == len(nums):\n        return None\n\n    # An earlier call already stored the complement, so those two indices are the answer\n    if target - nums[i] in seen:\n        return [seen[target - nums[i]], i]\n\n    # Otherwise record where this value lives and let the next call handle the rest\n    seen[nums[i]] = i\n    return two_sum(nums, target, i + 1, seen)\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
+    // Comment-level variants — level 2 ("High") is `answer` above, so only 1 and 3 live here.
+    // Same code either way: the stepper changes how much the AI explains, never the solution.
+    answerCommentVariants: {
+      1: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):\n    seen = seen if seen is not None else {}   # avoids the mutable-default trap\n    if i == len(nums):\n        return None\n    if target - nums[i] in seen:\n        return [seen[target - nums[i]], i]\n    seen[nums[i]] = i\n    return two_sum(nums, target, i + 1, seen)\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
+      3: "Here's a recursive version:\n\n```python\ndef two_sum(nums, target, i=0, seen=None):     # i and seen carry state down the recursion\n    seen = seen if seen is not None else {}    # fresh dict per top-level call, never a shared default\n    if i == len(nums):                         # base case: ran off the end of the array\n        return None                            # nothing left to pair, so hand back nothing\n    if target - nums[i] in seen:               # has the complement been recorded already?\n        return [seen[target - nums[i]], i]     # yes — that earlier index plus this one is the pair\n    seen[nums[i]] = i                          # no — remember where this value lives\n    return two_sum(nums, target, i + 1, seen)  # recurse on the rest, threading seen along\n```\n\nSame **O(n) time**, but it trades the loop for call-stack depth — fine here, but I'd go back to the loop for very large inputs to avoid hitting the recursion limit.",
+    },
     answerVariants: {
       one_liner: "Same hash-map check, just done recursively one element at a time — still O(n) time.",
       bullets: "- Recurse one element at a time instead of looping\n- Same hash map check at each call: is `target - n` already seen?\n- Base case: ran out of elements, return nothing\n- **O(n) time** — trades the loop for stack depth",
@@ -325,9 +368,58 @@ let _miContinueTimer = null;     // the pending "wrap up this answer and move on
 let _miStyleToastShown = false;  // only explain the switcher once per call
 let _miDemoToastShown = false;   // only explain the laptop/phone split once per call
 
+// Comment-level stepper (mirrors the real Comments setting — same 1..3 range, same names, same
+// default as COMMENT_LEVEL_* in server.py and the extension popup). Only beats that answer with
+// code carry answerCommentVariants, so the stepper appears exactly where moving it would change
+// something; on the others it stays hidden rather than sitting there doing nothing.
+const MI_COMMENT_LEVEL_NAMES = { 1: 'Low', 2: 'High', 3: 'Every line' };
+const MI_COMMENT_LEVEL_MIN = 1;
+const MI_COMMENT_LEVEL_MAX = 3;
+const MI_DEFAULT_COMMENT_LEVEL = 2;
+let _miCommentLevel = MI_DEFAULT_COMMENT_LEVEL;
+let _miCommentToastShown = false;
+
 function miAnswerTextFor(beat) {
-  if (_miSelectedStyle === MI_DEFAULT_STYLE) return beat.answer;
-  return (beat.answerVariants && beat.answerVariants[_miSelectedStyle]) || beat.answer;
+  if (_miSelectedStyle !== MI_DEFAULT_STYLE) {
+    return (beat.answerVariants && beat.answerVariants[_miSelectedStyle]) || beat.answer;
+  }
+  return (beat.answerCommentVariants && beat.answerCommentVariants[_miCommentLevel]) || beat.answer;
+}
+
+// The stepper only makes sense against the full conversational answer: the one-liner, bullet and
+// summary variants carry no code block for comments to attach to, so picking one of those hides
+// it rather than leaving a control that silently does nothing.
+function miCommentSwitchApplies(beat) {
+  return !!(beat && beat.answerCommentVariants && _miSelectedStyle === MI_DEFAULT_STYLE);
+}
+
+function miSyncCommentSwitch(beat) {
+  document.getElementById('mi-comment-switch').style.display = miCommentSwitchApplies(beat) ? '' : 'none';
+  document.getElementById('mi-comment-level').textContent = MI_COMMENT_LEVEL_NAMES[_miCommentLevel];
+  document.getElementById('mi-comment-down').disabled = _miCommentLevel <= MI_COMMENT_LEVEL_MIN;
+  document.getElementById('mi-comment-up').disabled   = _miCommentLevel >= MI_COMMENT_LEVEL_MAX;
+}
+
+function miChangeCommentLevel(delta) {
+  if (!miCommentSwitchApplies(_miCurrentAnswerBeat)) return;
+  const next = Math.min(MI_COMMENT_LEVEL_MAX, Math.max(MI_COMMENT_LEVEL_MIN, _miCommentLevel + delta));
+  if (next === _miCommentLevel) return;
+  _miCommentLevel = next;
+  miSyncCommentSwitch(_miCurrentAnswerBeat);
+  miDismissCommentToast();
+  miRenderMarkdown(document.getElementById('mi-answer-body'), miAnswerTextFor(_miCurrentAnswerBeat));
+  miScheduleContinueAfterAnswer(_miCurrentAnswerBeat);
+}
+
+function miShowCommentToast(beat) {
+  if (_miCommentToastShown || !miCommentSwitchApplies(beat)) return;
+  _miCommentToastShown = true;
+  document.getElementById('mi-comment-toast').classList.add('active');
+  miAfterFixed(6000, miDismissCommentToast);
+}
+
+function miDismissCommentToast() {
+  document.getElementById('mi-comment-toast').classList.remove('active');
 }
 
 function miSyncStylePills() {
@@ -363,20 +455,25 @@ function miDismissDemoToast() {
   document.getElementById('mi-demo-toast').classList.remove('active');
 }
 
-// The switcher is only meaningful while this answer is still the thing on screen being
-// read. Once miScheduleContinueAfterAnswer's countdown commits — the phone's about to drop
-// and the reply's about to be spoken — a late click must not be able to re-fire that whole
-// sequence on top of itself, so lock (and visually grey out) the pills right at that moment
-// rather than waiting for the next beat's reset to get around to it.
-function miLockStyleSwitch() {
-  _miCurrentAnswerBeat = null;
-  miDismissStyleToast();
-  document.getElementById('mi-style-switch').classList.add('mi-style-locked');
+// Both answer controls (style pills, comment stepper) are only meaningful while this answer is
+// still the thing on screen being read. Once miScheduleContinueAfterAnswer's countdown commits —
+// the phone's about to drop and the reply's about to be spoken — a late click must not be able to
+// re-fire that whole sequence on top of itself, so lock (and visually grey out) both right at that
+// moment rather than waiting for the next beat's reset to get around to it.
+function miAnswerControls() {
+  return [document.getElementById('mi-style-switch'), document.getElementById('mi-comment-switch')];
 }
 
-function miUnlockStyleSwitch(beat) {
+function miLockAnswerControls() {
+  _miCurrentAnswerBeat = null;
+  miDismissStyleToast();
+  miDismissCommentToast();
+  miAnswerControls().forEach(el => el.classList.add('mi-answer-locked'));
+}
+
+function miUnlockAnswerControls(beat) {
   _miCurrentAnswerBeat = beat;
-  document.getElementById('mi-style-switch').classList.remove('mi-style-locked');
+  miAnswerControls().forEach(el => el.classList.remove('mi-answer-locked'));
 }
 
 // Bound directly (not on DOMContentLoaded) — this script tag is placed after
@@ -387,7 +484,10 @@ document.querySelectorAll('.mi-style-pill').forEach((btn) => {
     _miSelectedStyle = btn.dataset.style;
     miSyncStylePills();
     miDismissStyleToast();
-    document.getElementById('mi-answer-body').innerHTML = marked.parse(miAnswerTextFor(_miCurrentAnswerBeat));
+    // Style is chosen after the stepper may already be on screen, and it decides whether the
+    // stepper applies at all — so re-sync it here, not just when the answer first lands.
+    miSyncCommentSwitch(_miCurrentAnswerBeat);
+    miRenderMarkdown(document.getElementById('mi-answer-body'), miAnswerTextFor(_miCurrentAnswerBeat));
     miScheduleContinueAfterAnswer(_miCurrentAnswerBeat);
   });
 });
@@ -518,10 +618,14 @@ function miResetCallState() {
   _miCurrentAnswerBeat = null;
   _miStyleToastShown = false;
   miDismissStyleToast();
+  _miCommentLevel = MI_DEFAULT_COMMENT_LEVEL;
+  _miCommentToastShown = false;
+  miDismissCommentToast();
   _miDemoToastShown = false;
   miDismissDemoToast();
   miSyncStylePills();
-  document.getElementById('mi-style-switch').classList.remove('mi-style-locked');
+  miSyncCommentSwitch(null);
+  miAnswerControls().forEach(el => el.classList.remove('mi-answer-locked'));
 }
 
 // A real InterviewAce extension installed in this browser listens for the same hotkeys the
@@ -818,10 +922,14 @@ function miRevealAnswer(beat, typedText) {
     } else {
       contextNote.style.display = 'none';
     }
-    miUnlockStyleSwitch(beat);
+    miUnlockAnswerControls(beat);
     miSyncStylePills();
+    miSyncCommentSwitch(beat);
     miStreamMarkdown(body, miAnswerTextFor(beat), () => {
+      // At most one explainer per answer: the style toast fires on the first beat, so by the time
+      // a code beat with a stepper comes round it's spent and the comment toast gets the slot.
       miShowStyleToast();
+      miShowCommentToast(beat);
       miScheduleContinueAfterAnswer(beat);
     });
   });
@@ -834,9 +942,13 @@ function miRevealAnswer(beat, typedText) {
 // cancels and restarts this countdown instead of stacking a second one on top.
 function miScheduleContinueAfterAnswer(beat) {
   miCancelTimer(_miContinueTimer);
-  _miContinueTimer = miAfter(2500, () => {
+  // 2.5s is enough to read an answer you weren't invited to touch, but not to notice a control,
+  // read the toast explaining it, and press it. Beats that put a knob in front of the viewer set
+  // answerDwellMs to buy that time — and every press restarts this countdown, so trying it twice
+  // doesn't get cut off either.
+  _miContinueTimer = miAfter(beat.answerDwellMs || 2500, () => {
     _miContinueTimer = null;
-    miLockStyleSwitch();
+    miLockAnswerControls();
     miPhoneFocus(false);
     miAfter(600, () => {                 // let the drop animation settle first
       miSpeak(beat.youReply, 'you', () => {
