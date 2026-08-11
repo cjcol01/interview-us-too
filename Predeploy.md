@@ -9,6 +9,12 @@
 - [ ] Set up basic alerting/health check — nothing currently pages on a critical failure (see `OPS_PLAN.md`)
 - [ ] Decide on a rollback plan for a bad deploy — currently none beyond manual `git revert` (see `OPS_PLAN.md`)
 
+## Alembic migrations
+
+- New schema changes go in a **new revision file** (`alembic revision -m "description"`), never in `c1a770f1636e_baseline.py` — that file is permanently a no-op marker; editing it won't run anything
+- `init_db()` auto-detects fresh vs existing DBs: fresh gets `alembic stamp head`, existing gets `alembic upgrade head` — no manual steps needed on deploy
+- Avoid DDL that acquires `AccessExclusiveLock` (e.g. `ALTER TABLE DROP/ADD CONSTRAINT`) on tables with live traffic; Railway keeps failed containers alive during its grace period and the lock will cascade across deploys
+
 ## Predeploy setup
 
 - [ ] Pick a host (Railway/Render/Fly.io/VPS), deploy, confirm clean start
