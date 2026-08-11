@@ -1,4 +1,4 @@
 [deploy]
-startCommand = "python server.py"
+startCommand = "python -u server.py"
 healthcheckPath = "/healthz"
 healthcheckTimeout = 120

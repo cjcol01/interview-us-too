@@ -224,6 +224,8 @@ async def lifespan(app: FastAPI):
         import fakeredis.aioredis
         app.state.redis = fakeredis.aioredis.FakeRedis(decode_responses=True)
     else:
+        _redis_display = REDIS_URL.split("@")[-1] if "@" in REDIS_URL else REDIS_URL  # hide credentials
+        logger.info("[redis] connecting to %s ...", _redis_display)
         app.state.redis = aioredis.from_url(
             REDIS_URL,
             decode_responses=True,
@@ -235,9 +237,12 @@ async def lifespan(app: FastAPI):
         )
         for attempt in range(5):
             try:
-                await app.state.redis.ping()
+                logger.info("[redis] ping attempt %d/5 ...", attempt + 1)
+                await asyncio.wait_for(app.state.redis.ping(), timeout=5.0)
+                logger.info("[redis] ping ok")
                 break
-            except (redis_exceptions.TimeoutError, redis_exceptions.ConnectionError):
+            except (asyncio.TimeoutError, redis_exceptions.TimeoutError, redis_exceptions.ConnectionError) as e:
+                logger.warning("[redis] ping failed: %s: %s", type(e).__name__, e)
                 if attempt == 4:
                     raise
                 logger.warning("Redis not reachable yet (attempt %d/5) — retrying in 2s", attempt + 1)
@@ -3547,10 +3552,10 @@ def admin_dashboard(
 async def _check_redis(r) -> dict:
     start = time.monotonic()
     try:
-        await r.ping()
+        await asyncio.wait_for(r.ping(), timeout=3.0)
         return {"ok": True, "detail": "reachable", "latency_ms": round((time.monotonic() - start) * 1000, 1)}
     except Exception as e:
-        return {"ok": False, "detail": str(e), "latency_ms": None}
+        return {"ok": False, "detail": f"{type(e).__name__}: {e}", "latency_ms": None}
 
 
 def _check_database(db: Session) -> dict:
@@ -4113,18 +4118,9 @@ async def admin_health_deep_check(
 
 
 @app.get("/healthz")
-async def healthz(request: Request, db: Session = Depends(get_db)):
-    """Public, unauthenticated liveness check — no secrets, no user data. Point an external
-    monitor (UptimeRobot, healthchecks.io, ...) at this so you get paged even when the app
-    is down entirely, which /admin/health can't do since it needs the app up to view it."""
-    r = request.app.state.redis
-    redis_ok = (await _check_redis(r))["ok"]
-    db_ok = _check_database(db)["ok"]
-    ok = bool(redis_ok and db_ok)
-    return JSONResponse(
-        status_code=200 if ok else 503,
-        content={"status": "ok" if ok else "degraded", "redis": redis_ok, "database": db_ok},
-    )
+async def healthz(request: Request):
+    """Liveness probe — confirms uvicorn is serving. Full health detail at /admin/health."""
+    return JSONResponse(status_code=200, content={"status": "ok"})
 
 
 def _admin_redirect(return_to: str, msg: str) -> RedirectResponse:
