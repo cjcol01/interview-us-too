@@ -14,3 +14,4 @@ test_users.db
 loadtest/accounts.json
 loadtest/results/
 findings.md
+grep
