@@ -17,7 +17,12 @@
 - [ ] do we need You're in, sdasd. Here's what it looks like. A 60-second simulated interview call so you can see InterviewAce in action before you set anything up. Skip the demo - go straight to setup →
 - [ ] after paying, add button to add your context
 - [ ] add referal link to payments page.
-- [ ] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type.)
+- [ ] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
+- [ ] support page, install extension to check, phone link and instant replay
+
+
+
+
 ## Now
 - [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
 - [ ] create videos for support, install, sideload, landing
