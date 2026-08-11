@@ -4123,6 +4123,38 @@ async def healthz(request: Request):
     return JSONResponse(status_code=200, content={"status": "ok"})
 
 
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt():
+    content = (
+        "User-agent: *\n"
+        "Allow: /$\n"
+        "Allow: /pricing\n"
+        "Allow: /faq\n"
+        "Allow: /support\n"
+        "Allow: /login\n"
+        "Disallow: /app\n"
+        "Disallow: /api/\n"
+        "Disallow: /admin/\n"
+        "Disallow: /billing/\n"
+        "Disallow: /auth/\n"
+        "Disallow: /settings\n"
+        "Disallow: /account/\n"
+        "Disallow: /welcome\n"
+        "Disallow: /onboarding\n"
+        "Disallow: /trial-end\n"
+        "Disallow: /finish-signup\n"
+        "Disallow: /claim\n"
+        "Disallow: /mobile-login\n"
+        "Disallow: /install-manual\n"
+        "Disallow: /screenshot\n"
+        "Disallow: /latest\n"
+        "Disallow: /icons\n"
+        "\n"
+        f"Sitemap: {BASE_URL.rstrip('/')}/sitemap.xml\n"
+    )
+    return Response(content=content, media_type="text/plain")
+
+
 def _admin_redirect(return_to: str, msg: str) -> RedirectResponse:
     if not return_to.startswith("/admin/"):
         return_to = "/admin/usage"
