@@ -20,6 +20,7 @@
 - [ ] Pick a host (Railway/Render/Fly.io/VPS), deploy, confirm clean start
 - [ ] Point Stripe webhook to the live `/billing/webhook` endpoint
 - [ ] Confirm SSL/HTTPS
+- [ ] Consider switching Cloudflare from grey cloud (DNS only) to orange cloud (proxied) for DDoS protection — requires setting Cloudflare SSL/TLS mode to **Full (strict)** first, otherwise Cloudflare→Railway leg is plain HTTP. Railway's Let's Encrypt cert is valid so Full (strict) works fine.
 - [ ] Buy domain, point DNS to host
 - [ ] Set up support email (Resend/Cloudflare/Workspace)
 - [ ] Update `FROM_EMAIL` once live
