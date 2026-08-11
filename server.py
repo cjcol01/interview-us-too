@@ -1029,9 +1029,9 @@ def _attribution_from_query(request: Request) -> str:
 def _attribution_json(cookie_value: Optional[str]) -> Optional[str]:
     """Turns the packed ia_attr cookie value into the JSON blob stored on Lead.attribution.
     Drops whole keys to fit the cap rather than slicing the serialised string — slicing
-    could truncate mid-object and persist invalid JSON, which SQLite's json_extract *raises*
-    on (rather than returning NULL), which would take the whole growth dashboard down with
-    it the first time an admin loads the attribution breakdown."""
+    could truncate mid-object and persist invalid JSON, which would cause json.loads() in
+    the attribution dashboard query to fall back to "direct" for that lead, silently
+    discarding its UTM / gclid / referer data."""
     if not cookie_value:
         return None
     try:
@@ -3408,37 +3408,31 @@ def admin_dashboard(
     _new_lead = Lead.kind == "new"
     _lead_claimed = case((Lead.claimed_at.isnot(None), 1), else_=0)
     _lead_paid = case((or_(User.intro_redeemed == True, User.sub_invoice_paid == True), 1), else_=0)  # noqa: E712
-    _attr_source = func.json_extract(Lead.attribution, "$.utm_source")
-
-    # json_extract RAISES "malformed JSON" on a bad blob rather than returning NULL, so the
-    # attributed query must never reach a row that might be invalid — partition on
-    # json_valid() instead. json_valid(NULL) is 0, so NULL attribution lands in the second
-    # bucket, not neither — the partition is exhaustive.
-    attributed_rows = (
-        db.query(_attr_source, func.count(Lead.id), func.sum(_lead_claimed), func.sum(_lead_paid))
+    # Attribution aggregation done in Python: json_extract/json_valid are SQLite-only functions
+    # with no Postgres equivalent. The leads table is admin-only and tiny, so fetching all rows
+    # and parsing in Python is fine. None and malformed JSON both land in "direct", preserving
+    # the same semantics as the previous json_valid() partition.
+    _lead_user_rows = (
+        db.query(Lead, User)
         .outerjoin(User, User.id == Lead.user_id)
-        .filter(_new_lead, func.json_valid(Lead.attribution) == 1)
-        .group_by(_attr_source).all()
-    )
-    unattributed_row = (
-        db.query(func.count(Lead.id), func.sum(_lead_claimed), func.sum(_lead_paid))
-        .outerjoin(User, User.id == Lead.user_id)
-        .filter(_new_lead, func.json_valid(Lead.attribution) == 0)
-        .first()
+        .filter(_new_lead)
+        .all()
     )
     _by_source = {}
-    for source, captured, claimed, paid in attributed_rows:
-        # A valid blob with no utm_source (gclid-only, referer-only, bare timestamp) is
-        # still "direct" as far as channel attribution goes — folded in, not dropped.
-        e = _by_source.setdefault(source or "direct", {"source": source or "direct", "captured": 0, "claimed": 0, "paid": 0})
-        e["captured"] += captured or 0
-        e["claimed"] += claimed or 0
-        e["paid"] += paid or 0
-    if unattributed_row and unattributed_row[0]:
-        e = _by_source.setdefault("direct", {"source": "direct", "captured": 0, "claimed": 0, "paid": 0})
-        e["captured"] += unattributed_row[0] or 0
-        e["claimed"] += unattributed_row[1] or 0
-        e["paid"] += unattributed_row[2] or 0
+    for lead, user in _lead_user_rows:
+        try:
+            attr = json.loads(lead.attribution) if lead.attribution else {}
+            # A valid blob with no utm_source (gclid-only, referer-only, bare timestamp)
+            # still counts as "direct" — folded in, not dropped.
+            source = attr.get("utm_source") or "direct"
+        except (json.JSONDecodeError, TypeError):
+            source = "direct"
+        claimed = 1 if lead.claimed_at is not None else 0
+        paid = 1 if user and (user.intro_redeemed or user.sub_invoice_paid) else 0
+        e = _by_source.setdefault(source, {"source": source, "captured": 0, "claimed": 0, "paid": 0})
+        e["captured"] += 1
+        e["claimed"] += claimed
+        e["paid"] += paid
     attribution_rows = sorted(_by_source.values(), key=lambda e: e["captured"], reverse=True)
     for e in attribution_rows:
         e["claim_rate"] = round(e["claimed"] / e["captured"] * 100, 1) if e["captured"] else 0
@@ -3479,7 +3473,8 @@ def admin_dashboard(
         PartnerCommission.status.notin_([CommissionStatus.paid, CommissionStatus.reversed])
     ).scalar()
 
-    # SQLite's date() returns 'YYYY-MM-DD' text, which lines up with date.isoformat() below.
+    # func.date() on Postgres returns a date object (psycopg2 adapts it), so the dict keys
+    # and the lookup keys are both date objects — no .isoformat() conversion needed or wanted.
     signup_trend = dict(
         db.query(func.date(User.created_at), func.count(User.id))
         .filter(User.created_at >= since_30d).group_by(func.date(User.created_at)).all()
@@ -3489,8 +3484,8 @@ def admin_dashboard(
         .filter(InterviewSession.started_at >= since_30d).group_by(func.date(InterviewSession.started_at)).all()
     )
     days = [since_30d.date() + timedelta(days=i) for i in range(31)]
-    signup_series = [{"label": d.strftime("%d %b"), "count": signup_trend.get(d.isoformat(), 0)} for d in days]
-    session_series = [{"label": d.strftime("%d %b"), "count": session_trend.get(d.isoformat(), 0)} for d in days]
+    signup_series = [{"label": d.strftime("%d %b"), "count": signup_trend.get(d, 0)} for d in days]
+    session_series = [{"label": d.strftime("%d %b"), "count": session_trend.get(d, 0)} for d in days]
 
     drilldown = None
     if segment in _DASHBOARD_SEGMENTS:
@@ -3564,9 +3559,8 @@ def _check_database(db: Session) -> dict:
         db.execute(text("SELECT 1"))
         latency = round((time.monotonic() - start) * 1000, 1)
         user_count = db.query(User).count()
-        db_filename = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"
-        db_path = os.path.join(DATA_DIR, db_filename)
-        size_mb = round(os.path.getsize(db_path) / 1024 / 1024, 2) if os.path.exists(db_path) else 0
+        size_bytes = db.execute(text("SELECT pg_database_size(current_database())")).scalar()
+        size_mb = round(size_bytes / 1024 / 1024, 2)
         return {"ok": True, "detail": f"{user_count} users, {size_mb} MB", "latency_ms": latency}
     except Exception as e:
         return {"ok": False, "detail": str(e), "latency_ms": None}
@@ -3679,18 +3673,15 @@ def _recent_error_log_entries(max_entries: int = 20, since: Optional[datetime] =
     return entries[-max_entries:]
 
 
-def _db_disk_usage() -> dict:
-    """DB file size already appears folded into the Database core check (row count + size);
-    this is the same number surfaced on its own, plus the WAL/SHM sidecars for true on-disk
-    footprint — those aren't reflected by the main file's size alone under WAL mode."""
-    db_filename = "test_users.db" if os.getenv("TESTING") == "1" else "users.db"
-    total_bytes = 0
-    for suffix in ("", "-wal", "-shm"):
-        path = os.path.join(DATA_DIR, db_filename + suffix)
-        if os.path.exists(path):
-            total_bytes += os.path.getsize(path)
-    size_mb = round(total_bytes / 1024 / 1024, 2)
-    return {"ok": True, "detail": f"{size_mb} MB on disk (main + WAL/SHM)", "latency_ms": None}
+def _db_disk_usage(db: Session) -> dict:
+    """Postgres database size from pg_database_size — equivalent to the old SQLite file+WAL footprint.
+    Accepts the caller's session so it doesn't consume an extra pool slot."""
+    try:
+        size_bytes = db.execute(text("SELECT pg_database_size(current_database())")).scalar()
+        size_mb = round(size_bytes / 1024 / 1024, 2)
+        return {"ok": True, "detail": f"{size_mb} MB", "latency_ms": None}
+    except Exception as e:
+        return {"ok": False, "detail": str(e), "latency_ms": None}
 
 
 def _billing_summary(db: Session) -> dict:
@@ -4013,7 +4004,7 @@ async def admin_health(
     resend_failures_24h = await _sum_hourly_metric(r, EMAIL_FAIL_PREFIX)
     http_5xx_24h = await _sum_hourly_metric(r, HTTP_5XX_PREFIX)
     metrics = {
-        "db_disk": _db_disk_usage(),
+        "db_disk": _db_disk_usage(db),
         "billing": _billing_summary(db),
         "resend_failures": {"ok": resend_failures_24h == 0, "detail": f"{resend_failures_24h} in last 24h", "latency_ms": None},
         "http_5xx": {"ok": http_5xx_24h == 0, "detail": f"{http_5xx_24h} in last 24h", "latency_ms": None},
@@ -5653,7 +5644,7 @@ if __name__ == "__main__":
         # actually source.
         uvicorn.run(
             "server:app", host=SERVER_HOST, port=SERVER_PORT, reload=True,
-            reload_excludes=["screenshots/*", "*.db", "*.db-*", "__pycache__/*", "*.pyc"],
+            reload_excludes=["screenshots/*", "__pycache__/*", "*.pyc"],
             # Without this, reload hangs forever on "Waiting for connections to close" if a
             # browser tab has the dashboard's /stream SSE connection open — that connection
             # never closes on its own, and uvicorn's default graceful shutdown has no timeout.

@@ -71,6 +71,10 @@ def cleanup(db, *users):
         ).delete()
         db.query(Withdrawal).filter(Withdrawal.partner_id == u.id).delete()
         db.query(Lead).filter(Lead.user_id == u.id).delete()
+        # AnnouncementDismissal is intentionally omitted: its FK has ondelete="CASCADE" so
+        # Postgres deletes those rows automatically when the user is deleted. Any future child
+        # table that also uses ondelete="CASCADE" on users.id doesn't need an explicit delete
+        # here — only tables with ondelete="SET NULL" or no ondelete clause do.
         db.delete(u)
     db.commit()
 

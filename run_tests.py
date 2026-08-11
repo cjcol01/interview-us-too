@@ -21,14 +21,32 @@ warnings.filterwarnings("ignore")
 import logging
 logging.disable(logging.CRITICAL)
 
-os.environ.setdefault("TESTING", "1")  # use fakeredis + an isolated SQLite file — must be set before importing server
+os.environ.setdefault("TESTING", "1")  # use fakeredis + isolated Postgres schema — must be set before importing server
 
-# Start from a clean test database each run. If a prior run crashed mid-test, a leftover
-# fixed-name row (e.g. tests using hardcoded usernames) would otherwise cause spurious
-# UNIQUE-constraint cascades on the next run.
-_test_db_path = os.path.join(os.path.expanduser("~/.interview-us-too"), "test_users.db")
-if os.path.exists(_test_db_path):
-    os.remove(_test_db_path)
+# Start from a clean test database each run. Drop and recreate the public schema rather than
+# just calling drop_all() — the five native Postgres ENUM types (AccountLevel, ResponseStyle,
+# ReferralStatus, CommissionStatus, WithdrawalStatus) live outside any table and are NOT
+# removed by drop_all(), so a second run would fail with "type already exists" on create_all().
+from config import TEST_DATABASE_URL as _test_url
+if not _test_url:
+    print(
+        "\nERROR: TEST_DATABASE_URL is not set. Provide a Postgres test database URL before running tests.\n"
+        "\nQuick start:\n"
+        "  docker run -d --name pg-iut -e POSTGRES_PASSWORD=dev -p 5432:5432 postgres:16\n"
+        "  export TEST_DATABASE_URL=postgresql://postgres:dev@localhost:5432/iut_test\n"
+        "(create the iut_test database once: docker exec pg-iut createdb -U postgres iut_test)\n"
+    )
+    sys.exit(1)
+
+import psycopg2 as _psycopg2
+_pg = _psycopg2.connect(_test_url)
+_pg.autocommit = True
+_pgc = _pg.cursor()
+_pgc.execute("DROP SCHEMA public CASCADE")
+_pgc.execute("CREATE SCHEMA public")
+_pgc.close()
+_pg.close()
+del _psycopg2, _pg, _pgc, _test_url
 
 from tests.harness import BOLD, FAIL, PASS, RESET, SKIP, results, set_client, set_redis, skip, test
 

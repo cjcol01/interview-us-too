@@ -25,7 +25,7 @@ APP_VERSION = f"{APP_VERSION_MAJOR}.{APP_VERSION_MINOR}.{max(_commit_count() - V
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
-SERVER_PORT = int(os.getenv("SERVER_PORT", 8000))
+SERVER_PORT = int(os.getenv("SERVER_PORT") or os.getenv("PORT") or 8000)  # Railway injects PORT; local dev uses SERVER_PORT
 RELOAD = os.getenv("RELOAD", "0") == "1"
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production")
 if SECRET_KEY == "change-me-in-production":
@@ -102,11 +102,15 @@ FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
 REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
-# Where the SQLite data files (and their WAL/SHM sidecars) live. Defaults to a path outside
-# the repo because on WSL2 dev machines the repo is 9p-mounted (e.g. /mnt/d/...), and SQLite's
-# file locking is unreliable there — reliably produces "disk I/O error" on commit under WAL.
-# On servers/VPS this has no locking requirement to satisfy, so set DB_DATA_DIR explicitly to
-# whatever path your deploy/backup process actually manages, rather than relying on the default.
+# Postgres connection URLs. Railway injects DATABASE_URL automatically when a Postgres service
+# is attached. Normalise "postgres://" → "postgresql://" because SQLAlchemy 2.x rejects the
+# bare form. database.py raises with a helpful message if the relevant URL is unset at boot.
+DATABASE_URL      = os.getenv("DATABASE_URL",      "").replace("postgres://", "postgresql://", 1)
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
+
+# Directory for non-DB persistent files: app.log (analytics.py), disk health checks
+# (server.py). Defaults outside the repo so a WSL2 dev machine (9p-mounted repo) can still
+# write logs reliably. On Railway/VPS, point this at a mounted volume so logs survive redeploys.
 DB_DATA_DIR      = os.getenv("DB_DATA_DIR", "~/.interview-us-too")
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
 LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"

@@ -58,7 +58,7 @@ class User(Base):
     intro_declined     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_cancel_at      = Column(DateTime, nullable=True)
     referral_code      = Column(String, nullable=True, unique=True, index=True)
-    referred_by_id     = Column(Integer, ForeignKey("users.id"), nullable=True)
+    referred_by_id     = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     hotkey_capture     = Column(String, nullable=True)
     hotkey_audio       = Column(String, nullable=True)
     hotkey_toggle      = Column(String, nullable=True)
@@ -93,7 +93,7 @@ class InterviewContext(Base):
     __table_args__ = (UniqueConstraint("user_id", "slot", name="uq_interview_context_user_slot"),)
 
     id      = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     slot    = Column(Integer, nullable=False)  # 1..MAX_CONTEXTS_PER_USER (server.py)
     name    = Column(String, nullable=False, default="")
     text    = Column(Text, nullable=False, default="")
@@ -109,8 +109,8 @@ class Referral(Base):
     __tablename__ = "referrals"
 
     id             = Column(Integer, primary_key=True, index=True)
-    referrer_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    referee_id     = Column(Integer, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    referrer_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    referee_id     = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
     status         = Column(Enum(ReferralStatus), default=ReferralStatus.signed_up, nullable=False)
     intro_credited = Column(Boolean, default=False, nullable=False)
     sub_credited   = Column(Boolean, default=False, nullable=False)
@@ -130,8 +130,8 @@ class PartnerCommission(Base):
     __tablename__ = "partner_commissions"
 
     id                  = Column(Integer, primary_key=True, index=True)
-    partner_id          = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    referee_id          = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    partner_id          = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    referee_id          = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     source_amount_pence = Column(Integer, nullable=False)  # what we earned on this payment
     rate_bps            = Column(Integer, nullable=False)  # 1500 / 2500 at time of accrual
     amount_pence        = Column(Integer, nullable=False)  # the commission itself
@@ -152,7 +152,7 @@ class Withdrawal(Base):
     __tablename__ = "withdrawals"
 
     id           = Column(Integer, primary_key=True, index=True)
-    partner_id   = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    partner_id   = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     amount_pence = Column(Integer, nullable=False)
     method       = Column(String, nullable=False)   # bank | paypal
     destination  = Column(String, nullable=False)   # account details / PayPal email (free text)
@@ -165,7 +165,7 @@ class InterviewSession(Base):
     __tablename__ = "interview_sessions"
 
     id         = Column(Integer, primary_key=True, index=True)
-    user_id    = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     ended_at   = Column(DateTime, nullable=True)
@@ -176,7 +176,7 @@ class UsageDaily(Base):
     __table_args__ = (UniqueConstraint("user_id", "date", name="uq_usage_daily_user_date"),)
 
     id            = Column(Integer, primary_key=True, index=True)
-    user_id       = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id       = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     date          = Column(Date, nullable=False, default=_date.today, index=True)
     capture_count = Column(Integer, default=0, nullable=False)
     audio_count   = Column(Integer, default=0, nullable=False)
@@ -209,8 +209,8 @@ class AnnouncementDismissal(Base):
     __table_args__ = (UniqueConstraint("announcement_id", "user_id", name="uq_dismissal_announcement_user"),)
 
     id              = Column(Integer, primary_key=True, index=True)
-    announcement_id = Column(Integer, ForeignKey("announcements.id"), nullable=False, index=True)
-    user_id         = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    announcement_id = Column(Integer, ForeignKey("announcements.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id         = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     created_at      = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
@@ -237,7 +237,7 @@ class Lead(Base):
     expires_at     = Column(DateTime, nullable=False)
     claimed_at     = Column(DateTime, nullable=True, index=True)
     claim_count    = Column(Integer, default=0, nullable=False, server_default="0")
-    user_id        = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+    user_id        = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     interview_date = Column(Date, nullable=True)   # transferred onto User at claim
     ref_code       = Column(String, nullable=True) # snapshot of the `ref` cookie at capture time — survives the device hop
     attribution    = Column(Text, nullable=True)   # JSON blob: utm_*, gclid, fbclid, referer, first-touch ts
@@ -254,7 +254,7 @@ class SessionFeedback(Base):
     __tablename__ = "session_feedback"
 
     id                  = Column(Integer, primary_key=True, index=True)
-    user_id             = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id             = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     rating              = Column(Integer, nullable=False)  # 1..5
     comment             = Column(Text, nullable=True)
     next_interview_date = Column(Date, nullable=True)

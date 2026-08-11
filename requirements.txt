@@ -1,7 +1,9 @@
 anthropic
 openai
 resend
-sqlalchemy
+sqlalchemy>=2.0
+psycopg2-binary
+alembic
 stripe
 bcrypt
 python-jose[cryptography]
