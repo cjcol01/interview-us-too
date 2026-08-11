@@ -19,7 +19,7 @@
 - [ ] add referal link to payments page.
 - [ ] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
 - [ ] support page, install extension to check, phone link and instant replay
-
+- [ ] chnange all to interview-wise. sitemap + robots
 
 
 

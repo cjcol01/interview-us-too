@@ -4127,11 +4127,6 @@ async def healthz(request: Request):
 async def robots_txt():
     content = (
         "User-agent: *\n"
-        "Allow: /$\n"
-        "Allow: /pricing\n"
-        "Allow: /faq\n"
-        "Allow: /support\n"
-        "Allow: /login\n"
         "Disallow: /app\n"
         "Disallow: /api/\n"
         "Disallow: /admin/\n"
@@ -4149,9 +4144,71 @@ async def robots_txt():
         "Disallow: /screenshot\n"
         "Disallow: /latest\n"
         "Disallow: /icons\n"
+        "Disallow: /r/\n"
+        "Disallow: /forgot-password\n"
+        "Disallow: /reset-password\n"
         "\n"
         f"Sitemap: {BASE_URL.rstrip('/')}/sitemap.xml\n"
     )
+    return Response(content=content, media_type="text/plain")
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml():
+    base = BASE_URL.rstrip("/")
+    pages = [
+        {"loc": f"{base}/",        "priority": "1.0", "changefreq": "weekly"},
+        {"loc": f"{base}/pricing", "priority": "0.9", "changefreq": "weekly"},
+        {"loc": f"{base}/faq",     "priority": "0.7", "changefreq": "monthly"},
+        {"loc": f"{base}/support", "priority": "0.6", "changefreq": "monthly"},
+    ]
+    urls = "\n".join(
+        f"  <url>\n"
+        f"    <loc>{p['loc']}</loc>\n"
+        f"    <changefreq>{p['changefreq']}</changefreq>\n"
+        f"    <priority>{p['priority']}</priority>\n"
+        f"  </url>"
+        for p in pages
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{urls}\n"
+        "</urlset>"
+    )
+    return Response(content=xml, media_type="application/xml")
+
+
+@app.get("/llms.txt", include_in_schema=False)
+async def llms_txt():
+    content = """\
+# InterviewAce
+
+> AI-powered silent co-pilot for technical job interviews. Watches your screen, listens to your interviewer, and streams working solutions to your phone in seconds — invisible to monitoring software.
+
+InterviewAce is a Chrome extension paired with a web dashboard. It is designed for software engineering candidates sitting regular and technical interviews (LeetCode-style coding problems, system design, behavioural questions). The AI assistant analyses the problem in context and unlike competitors, allows users to upload personal info (CV, company context, behavioural questions) which it uses to provide customised answers and returns concise, language-matched solutions with time and space complexity.
+
+## Features
+
+- Screenshot capture: captures the interview screen on demand and sends it to AI for analysis
+- Audio capture: records the interviewer speaking (mic input or 15-second instant replay of tab audio) and transcribes + analyses it
+- Typed input: candidate can type context or a question directly
+- Conversation history: maintains context across multiple captures within a session
+- Response streamed to phone: answer appears on the candidate's phone, not the interview screen
+- Complexity analysis: always includes time/space complexity for coding problems
+- Behavioural questions: answered in STAR format where appropriate
+
+## Pages
+
+- [Home](https://interview-wise.com/): product landing page
+- [Pricing](https://interview-wise.com/pricing): subscription and session pack options
+- [FAQ](https://interview-wise.com/faq): frequently asked questions
+- [Support](https://interview-wise.com/support): support contact
+
+## Usage policy
+
+Content on this site may be used to answer questions about InterviewAce and its features. Do not represent this content as your own product or service. Do not use it to train models without permission.
+"""
     return Response(content=content, media_type="text/plain")
 
 
