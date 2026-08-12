@@ -145,8 +145,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                 </div>
                 <div class="sc-editor">
                   <div class="sc-editor-tabs"><span class="active">Python3</span><span>JavaScript</span></div>
-                  <pre class="sc-editor-stub">class Solution:
-    def reverseList(self, head):
+                  <!-- Kept in sync with applyScreenshotSet(), which re-renders this through
+                       the same highlight() the phone answers use. -->
+                  <pre class="sc-editor-stub"><span class="tok-kw">class</span> <span class="tok-def">Solution</span>:
+    <span class="tok-kw">def</span> <span class="tok-def">reverseList</span>(<span class="tok-self">self</span>, head):
         <span class="demo-cursor"></span></pre>
                 </div>
                 <div class="demo-capture-bar">
@@ -761,12 +763,34 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   function clearAll() { timers.forEach(clearTimeout); timers = []; devAdvanceStalled = false; }
 
   function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-  function highlight(c) {
-    return esc(c)
-      .replace(/(#[^\n]*)/g,'<span class="tok-cm">$1</span>')
-      .replace(/\b(def|for|in|if|else|not|while|return)\b/g,'<span class="tok-kw">$1</span>')
-      .replace(/\b(enumerate|range|len|min|max|append|pop|float)\b/g,'<span class="tok-fn">$1</span>')
-      .replace(/\b(\d+)\b/g,'<span class="tok-num">$1</span>');
+
+  /* Tiny Python highlighter for the demo. Deliberately not highlight.js: the hero demo has to
+     paint before anything else on the page, and this is ~20 lines against a 100KB CDN script
+     that /app can afford and the landing page can't. It walks the source once (comment, string,
+     number, word) instead of chaining .replace()es over already-marked-up HTML, so a keyword
+     inside a string or a class name inside a comment no longer gets coloured. */
+  var PY_KW   = /^(?:def|class|return|if|elif|else|for|while|in|not|and|or|is|None|True|False|import|from|as|with|try|except|raise|yield|break|continue|pass|lambda)$/;
+  var PY_FN   = /^(?:enumerate|range|len|min|max|sum|sorted|reversed|abs|round|append|pop|float|int|str|list|dict|set|tuple|zip|map|filter|print)$/;
+  var PY_TOK  = /(#[^\n]*)|('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_]\w*)/g;
+
+  function highlight(code) {
+    var out = '', last = 0, prev = '', m;
+    PY_TOK.lastIndex = 0;
+    while ((m = PY_TOK.exec(code))) {
+      var t = m[0];
+      out += esc(code.slice(last, m.index));
+      if      (m[1]) out += '<span class="tok-cm">'  + esc(t) + '</span>';
+      else if (m[2]) out += '<span class="tok-str">' + esc(t) + '</span>';
+      else if (m[3]) out += '<span class="tok-num">' + esc(t) + '</span>';
+      else if (PY_KW.test(t))            out += '<span class="tok-kw">'   + t + '</span>';
+      else if (prev === 'def' || prev === 'class') out += '<span class="tok-def">' + t + '</span>';
+      else if (t === 'self')             out += '<span class="tok-self">' + t + '</span>';
+      else if (PY_FN.test(t))            out += '<span class="tok-fn">'   + t + '</span>';
+      else out += t;
+      if (m[4]) prev = t;                // only words set the "previous token" for def/class
+      last = m.index + t.length;
+    }
+    return out + esc(code.slice(last));
   }
 
   function applyScreenshotSet(set) {
@@ -774,7 +798,8 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     var badgeEl = document.querySelector('.demo-badge-easy'); if (badgeEl) badgeEl.textContent = set.badge;
     var descEl = document.querySelector('.sc-lc-desc'); if (descEl) descEl.innerHTML = set.desc;
     var exEl = document.querySelector('.sc-lc-example pre'); if (exEl) exEl.textContent = set.example;
-    var stubEl = document.querySelector('.sc-editor-stub'); if (stubEl) stubEl.innerHTML = 'class Solution:\n    ' + set.sig + '\n        <span class="demo-cursor"></span>';
+    var stubEl = document.querySelector('.sc-editor-stub');
+    if (stubEl) stubEl.innerHTML = highlight('class Solution:\n    ' + set.sig + '\n        ') + '<span class="demo-cursor"></span>';
   }
 
   function streamText(el, text, done, useHighlight) {
@@ -786,7 +811,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         if (done) done();
         return;
       }
-      el.textContent = text.slice(0, i + 1);
+      // Highlight as it types rather than only on the last character — the code sat flat and
+      // grey for the whole stream before, then snapped into colour, which read as a glitch.
+      if (useHighlight) el.innerHTML = highlight(text.slice(0, i + 1));
+      else el.textContent = text.slice(0, i + 1);
       var ch = text[i];
       var delay = ch === '\n' ? 50 + Math.random()*40 : ch === ' ' ? 5 : 12 + Math.random()*12;
       i++;

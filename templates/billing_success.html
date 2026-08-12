@@ -71,6 +71,20 @@
       btn.className = 'bs-btn';
       btn.textContent = 'Open InterviewAce →';
       card.appendChild(btn);
+
+      // The highest-value thing a new payer can do before their first interview, and the one
+      // they'd otherwise have to go hunting for: answers get noticeably better once the AI
+      // has their CV and the company they're interviewing with.
+      const ctx = document.createElement('a');
+      ctx.href = '/settings#context';
+      ctx.className = 'bs-btn bs-btn-outline';
+      ctx.textContent = 'Add your CV & interview context';
+      card.appendChild(ctx);
+
+      const ctxNote = document.createElement('p');
+      ctxNote.className = 'bs-note';
+      ctxNote.textContent = 'Takes a minute, and every answer comes back tailored to you.';
+      card.appendChild(ctxNote);
     }
 
     function showDeclined() {

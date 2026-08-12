@@ -312,7 +312,7 @@ def register(test, skip, client):
             try:
                 target = make_user(db, AccountLevel.unlimited, stripe_id=_stripe_id())
                 r = client.post("/partner/admin/tier", data={"email": target.email, "tier": "3"},
-                                auth=("cjcol01", _cfg.AUTHOR_PASSWORD), follow_redirects=False)
+                                auth=(_cfg.ADMIN_USERNAME, _cfg.AUTHOR_PASSWORD), follow_redirects=False)
                 assert r.status_code in (302, 303, 307)
                 db.refresh(target)
                 assert target.partner_tier == 3
@@ -499,7 +499,7 @@ def register(test, skip, client):
                     db.add(Referral(referrer_id=flagged_referrer.id, referee_id=fr.id, status=ReferralStatus.signed_up))
                 db.commit()
 
-                r = client.get("/partner/admin", auth=("cjcol01", _cfg.AUTHOR_PASSWORD))
+                r = client.get("/partner/admin", auth=(_cfg.ADMIN_USERNAME, _cfg.AUTHOR_PASSWORD))
                 assert r.status_code == 200
                 assert "Referrals &amp; Partners" in r.text or "Referrals & Partners" in r.text
                 assert referrer.email in r.text

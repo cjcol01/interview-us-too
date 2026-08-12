@@ -101,6 +101,14 @@
 }
 .bs-btn-outline:hover { background: rgba(255,255,255,.03); box-shadow: none; }
 
+/* Sits directly under the button it explains, so it loses the card's 18px row gap. */
+.bs-note {
+  font-size: 13px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin-top: -10px;
+}
+
 @media (max-width: 480px) {
   .bs-card { padding: 30px 22px; border-radius: 14px; }
 }

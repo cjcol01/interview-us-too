@@ -9,6 +9,7 @@ dist/
 last_screenshot.png
 users.db
 test_users.db
+interview.db
 /screenshots/
 /test_screenshots/
 loadtest/accounts.json

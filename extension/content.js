@@ -217,6 +217,19 @@ const _onStorageChanged = (changes) => {
 chrome.storage.onChanged.addListener(_onStorageChanged);
 ac.signal.addEventListener('abort', () => chrome.storage.onChanged.removeListener(_onStorageChanged));
 
+// Is the keystroke going somewhere that will actually consume it (a text box, a code editor)?
+// Only used to decide whether a Space in typing mode would scroll the page instead of typing.
+function typesIntoTarget(el) {
+  // Walk into shadow roots: editors like Monaco/CodeMirror retarget the event to their host
+  // element, so the real focused text box is one (or more) shadow boundaries down.
+  while (el) {
+    const tag = el.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable === true) return true;
+    el = el.shadowRoot?.activeElement;
+  }
+  return false;
+}
+
 function parseHotkey(hotkey) {
   const parts = hotkey.toLowerCase().split('+').map(p => p.trim());
   const key = parts.find(p => !['ctrl', 'shift', 'alt'].includes(p)) || '';
@@ -284,6 +297,16 @@ document.addEventListener('keydown', (e) => {
       chrome.runtime.sendMessage({ type: 'typing-submit', text });
       return;
     }
+    // Escape abandons the capture — buffer discarded, nothing sent, no session spent. The
+    // way out when you start typing and think better of it mid-question.
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      _typingActive = false;
+      _typingBuffer = '';
+      chrome.runtime.sendMessage({ type: 'typing-cancel' });
+      return;
+    }
     if (e.key === 'Backspace') {
       _typingBuffer = _typingBuffer.slice(0, -1);
     } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
@@ -295,6 +318,11 @@ document.addEventListener('keydown', (e) => {
   // closed". Harmless, but unhandled it floods the page console on every keystroke.
   chrome.runtime.sendMessage({ type: 'typing-preview', text: _typingBuffer }).catch(() => {});
     if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
+    // Passthrough deliberately lets keystrokes reach the page, but Space's page default is
+    // "scroll down a screen" whenever focus isn't in a text field — so typing a question with
+    // the editor unfocused walked the interview page down the screen a paragraph per word.
+    // Swallow only that default; the character is already in the buffer either way.
+    else if (e.code === 'Space' && !typesIntoTarget(e.target) && !typesIntoTarget(document.activeElement)) e.preventDefault();
     return;
   }
 

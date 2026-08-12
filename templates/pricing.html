@@ -24,6 +24,45 @@
       </p>
     </div>
 
+    <!-- Referral redemption. Sits above the plans, not under them: applying a code changes what
+         the New member deal below actually costs (£2 → £0), so it has to be settled before they
+         read a price. Only rendered while the code can still be redeemed - i.e. before their
+         first payment of any kind. -->
+    {% set ref_reward %}
+      {%- if intro_free_active and not intro_redeemed and referral_discount_active -%}
+        your first session free, or £5 off the pack or Unlimited
+      {%- elif intro_free_active and not intro_redeemed -%}
+        your first session free
+      {%- elif referral_discount_active -%}
+        £5 off your first pack or Unlimited payment
+      {%- else -%}
+        a discount at checkout
+      {%- endif -%}
+    {% endset %}
+    {% if ref_success or is_referred %}
+    <div class="ref-card ref-card--applied">
+      <span class="ref-tick">&#10003;</span>
+      <p class="ref-msg">
+        {% if ref_success %}Referral applied - {% endif %}{{ ref_reward }}, taken off at checkout.
+      </p>
+    </div>
+    {% elif can_apply_referral %}
+    <div class="ref-card">
+      <div class="ref-card-head">
+        <div class="ref-card-title">Have a referral code?</div>
+        <!-- A referral is worth two different things depending on which card they click, so
+             the box names both rather than quoting the £5 and understating the intro. -->
+        <p class="ref-card-desc">A friend's code gets you {{ ref_reward }}. Apply it before you check out.</p>
+      </div>
+      <form class="ref-form" action="/referral/apply" method="post">
+        <input type="hidden" name="source" value="pricing">
+        <input class="ref-input" type="text" name="code" placeholder="Code or full link" maxlength="200" autocomplete="off" required>
+        <button class="ref-submit" type="submit">Apply</button>
+      </form>
+      {% if ref_error_msg %}<p class="ref-error">{{ ref_error_msg }}</p>{% endif %}
+    </div>
+    {% endif %}
+
     <div class="plans-grid">
 
       {% if not intro_redeemed %}
@@ -33,8 +72,15 @@
           <span class="deal-tag">New member deal</span>
           <div>
             <div class="plan-name">First-time offer</div>
+            <!-- A referral doesn't just add a note here, it changes the number: the £2 is
+                 struck through and the card charges £0. Same condition as the CTA below. -->
             <div class="plan-price">
+              {% if is_referred and intro_free_active %}
+              <span class="price-was">£2</span>
+              <span class="price-main price-cut">Free</span>
+              {% else %}
               <span class="price-main">£2</span>
+              {% endif %}
               <span class="price-suffix">for 1 session</span>
             </div>
           </div>
@@ -45,15 +91,20 @@
           </div>
         </div>
         <div class="intro-right">
+          <!-- Both the label and the promise below hang on intro_free_active, not just on
+               is_referred: without the 100%-off coupon configured, checkout attaches no
+               discount and Stripe charges the full £2 after we've said "£0 charged". -->
           <a class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/login?next=/billing/checkout?plan=sessions' }}">
-            {% if is_referred %}Claim free session{% else %}Claim deal - £2{% endif %}
+            {% if is_referred and intro_free_active %}Claim free session{% else %}Claim deal - £2{% endif %}
           </a>
-          {% if is_referred %}
+          {% if is_referred and intro_free_active %}
           <p class="plan-fine credit-note">&#10003; Free first session with your referral - card required, £0 charged</p>
           {% else %}
           <p class="plan-fine">Single payment · No auto-renewal</p>
           {% endif %}
-          {% if referral_credit_pence > 0 %}
+          <!-- See the pack card: the free-intro coupon and the credit coupon are an if/elif in
+               create_checkout_session, so at most one of these notes is true at a time. -->
+          {% if referral_credit_pence > 0 and not (is_referred and intro_free_active) %}
           {% set intro_applied = [referral_credit_pence, 200]|min %}
           {% set intro_over = referral_credit_pence - intro_applied %}
           {% if intro_over > 0 %}
@@ -74,7 +125,12 @@
             <div>
               <div class="plan-name">Sessions pack</div>
               <div class="plan-price">
+                {% if is_referred and referral_discount_active %}
+                <span class="price-was">£10</span>
+                <span class="price-main price-cut">£5</span>
+                {% else %}
                 <span class="price-main">£10</span>
+                {% endif %}
                 <span class="price-suffix">for 3 sessions</span>
               </div>
             </div>
@@ -106,13 +162,16 @@
         </div>
 
         <a class="plan-cta cta-sessions" href="{{ '/billing/checkout?plan=sessions_pack' if logged_in else '/login?next=/billing/checkout?plan=sessions_pack' }}">
-          Get 3 sessions - £10
+          Get 3 sessions - £{% if is_referred and referral_discount_active %}5{% else %}10{% endif %}
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
         {% if is_referred and referral_discount_active %}
-        <p class="plan-fine credit-note">&#10003; £5 off applied at checkout - your referral reward</p>
+        <p class="plan-fine credit-note">&#10003; £5 referral reward off this first purchase</p>
         {% endif %}
-        {% if referral_credit_pence > 0 %}
+        <!-- Credit and the referral coupon can't both land: create_checkout_session applies one
+             or the other (if apply_referral_discount ... elif referral_credit_pence), so only
+             one of the two notes may claim the discount. -->
+        {% if referral_credit_pence > 0 and not (is_referred and referral_discount_active) %}
         {% set pack_applied = [referral_credit_pence, 1000]|min %}
         {% set pack_over = referral_credit_pence - pack_applied %}
         {% if pack_over > 0 %}
@@ -167,9 +226,14 @@
           <a class="plan-cta cta-sub" href="{{ '/billing/checkout?plan=subscription' if logged_in else '/login?next=/billing/checkout?plan=subscription' }}">
             Start free week &rarr;
           </a>
+          <!-- Nothing to strike in the headline price (it's "Free first week"), so the cut shows
+               on the only number this card quotes: the monthly rate after the trial. -->
+          {% set sub_first_pence = [sub_price_pence - 500, 0]|max %}
+          {% if sub_price_pence and is_referred and referral_discount_active %}
+          <p class="plan-fine">Card required · <span class="price-was">£{{ "%.0f"|format(sub_price_pence / 100) }}</span> <span class="price-cut">£{{ "%.0f"|format(sub_first_pence / 100) }}</span> first month, then £{{ "%.0f"|format(sub_price_pence / 100) }}/month</p>
+          <p class="plan-fine credit-note">&#10003; £5 referral reward off your first full payment</p>
+          {% else %}
           <p class="plan-fine">Card required · {% if sub_price_pence %}£{{ "%.0f"|format(sub_price_pence / 100) }}/month after trial{% else %}billed monthly after trial{% endif %}</p>
-          {% if is_referred and referral_discount_active %}
-          <p class="plan-fine credit-note">&#10003; £5 off your first full payment applied at checkout</p>
           {% endif %}
           {% if referral_credit_pence > 0 and sub_price_pence > 0 %}
           {% set sub_applied = [referral_credit_pence, sub_price_pence]|min %}

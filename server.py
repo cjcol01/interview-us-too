@@ -55,7 +55,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, validate_username, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
-from config import AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
+from config import ADMIN_USERNAME, AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
 from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
@@ -132,6 +132,10 @@ def _template_globals(request: Request) -> dict:
         "user": user,
         "account_level": user.account_level.value if user else "free",
         "sessions_remaining": user.sessions_remaining if user else 0,
+        # Templates get a boolean, never the name itself — the navbar only needs to know
+        # whether to draw the Admin dropdown, and comparing usernames in a template would
+        # put ADMIN_USERNAME back into a tracked file.
+        "is_admin": bool(user and ADMIN_USERNAME and user.username == ADMIN_USERNAME),
         "unseen_account_flag": bool(user and user.account_flag and not user.account_flag_seen),
         "active_announcement": _active_announcement_for(user) if user else None,
     }
@@ -448,6 +452,29 @@ def _deepgram_transcribe(audio_bytes: bytes, suffix: str) -> str:
         logger.error("[audio] Deepgram %s: %s", resp.status_code, resp.text[:500])
     resp.raise_for_status()
     return resp.json()["results"]["channels"][0]["alternatives"][0]["transcript"]
+
+
+# Silence doesn't come back as an empty string. Both transcribers hallucinate a stock phrase
+# over near-silent audio — "Thank you.", "you", "Thanks for watching!", subtitle credits — and
+# handing one of those to the model produces a confident answer to a question nobody asked.
+# So: a transcript built only from these words carries no question, whatever its length.
+_TRANSCRIPT_FILLER_WORDS = {
+    "a", "ah", "amara", "and", "applause", "by", "bye", "captions", "channel", "com",
+    "community", "eh", "end", "for", "goodbye", "hello", "hey", "hi", "hm", "hmm", "i", "like",
+    "m", "mm", "music", "no", "of", "ok", "okay", "oh", "org", "please", "silence", "so",
+    "sorry", "subscribe", "subtitles", "thank", "thanks", "the", "this", "transcription",
+    "uh", "um", "video", "watching", "well", "www", "yeah", "yep", "yes", "you",
+}
+_TRANSCRIPT_FILLER_MAX_WORDS = 8
+
+
+def _transcript_has_no_speech(text: str) -> bool:
+    """True when a transcript holds nothing worth sending to the AI."""
+    words = re.sub(r"[^\w\s]", " ", (text or "").lower()).split()
+    if not words:
+        return True
+    # Long enough and it's real speech even if every word looks like filler ("yes, yes, yes...").
+    return len(words) <= _TRANSCRIPT_FILLER_MAX_WORDS and all(w in _TRANSCRIPT_FILLER_WORDS for w in words)
 
 
 SESSION_DURATION = timedelta(hours=1, minutes=30)
@@ -2305,7 +2332,12 @@ def trial_end(request: Request, user: User = Depends(require_user), db: Session 
 
 
 @app.get("/pricing")
-def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def pricing_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    ref_success: str = "",
+    ref_error: str = "",
+):
     if user and user.account_level == AccountLevel.unlimited:
         return RedirectResponse("/settings", status_code=302)
     if user:
@@ -2315,14 +2347,22 @@ def pricing_page(request: Request, user: Optional[User] = Depends(get_optional_u
         "intro_redeemed": user.intro_redeemed if user else False,
         "is_referred": user.referred_by_id is not None if user else False,
         "referral_discount_active": bool(STRIPE_REFERRAL_COUPON_ID),
+        # The free-first-session promise is only real if the 100%-off coupon exists — without
+        # it create_checkout_session attaches no discount and Stripe charges the full £2, so
+        # the page must not say "£0 charged". See create_checkout_session(plan="sessions").
+        "intro_free_active": bool(STRIPE_INTRO_FREE_COUPON_ID),
         "referral_credit_pence": user.referral_credit_pence if user else 0,
         "sub_price_pence": STRIPE_SUB_PRICE_PENCE,
+        # A code is worth nothing once they've paid, so the box only appears while it can
+        # still be redeemed — right where they're about to spend money, not buried in settings.
+        "can_apply_referral": _can_apply_referral_code(user) if user else False,
+        "ref_success": ref_success == "1",
+        "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
         "show_navbar": True,
     })
 
 
 _basic = HTTPBasic(auto_error=False)
-_ADMIN_USERNAME = "cjcol01"
 
 _AUTHOR_MAX_FAILS = 5
 _AUTHOR_LOCKOUT_SECONDS = 15 * 60
@@ -2332,7 +2372,10 @@ async def _require_author(
     user: Optional[User] = Depends(get_optional_user),
     credentials: Optional[HTTPBasicCredentials] = Depends(_basic),
 ):
-    if user and user.username == _ADMIN_USERNAME:
+    # The ADMIN_USERNAME guard is load-bearing, not defensive noise: unset it reads as "",
+    # and without the check an account named "" would match — as would a Basic-auth client
+    # sending an empty username below, since compare_digest(b"", b"") is true.
+    if user and ADMIN_USERNAME and user.username == ADMIN_USERNAME:
         return
 
     r = request.app.state.redis
@@ -2350,7 +2393,8 @@ async def _require_author(
     if (
         credentials
         and AUTHOR_PASSWORD
-        and secrets.compare_digest(credentials.username.encode(), _ADMIN_USERNAME.encode())
+        and ADMIN_USERNAME
+        and secrets.compare_digest(credentials.username.encode(), ADMIN_USERNAME.encode())
         and secrets.compare_digest(credentials.password.encode(), AUTHOR_PASSWORD.encode())
     ):
         if fails:
@@ -2420,7 +2464,7 @@ def apply_referral_code(
     source: str = Form(default="referral"),
 ):
     def redirect(param: str, value: str):
-        base = "/settings" if source == "settings" else "/partner/dashboard"
+        base = {"settings": "/settings", "pricing": "/pricing"}.get(source, "/partner/dashboard")
         return RedirectResponse(f"{base}?{param}={value}", status_code=303)
 
     if user.referred_by_id or db.query(Referral).filter(Referral.referee_id == user.id).first():
@@ -3748,6 +3792,7 @@ _CONFIG_CHECKS = [
     ("STRIPE_SESSIONS_PACK_PRICE_ID", STRIPE_SESSIONS_PACK_PRICE_ID),
     ("RESEND_API_KEY", RESEND_API_KEY),
     ("AUTHOR_PASSWORD", AUTHOR_PASSWORD),
+    ("ADMIN_USERNAME", ADMIN_USERNAME),
     ("DEEPGRAM_API_KEY", DEEPGRAM_API_KEY),
 ]
 
@@ -5146,6 +5191,17 @@ async def api_audio_capture(
                 raise
             logger.error("[audio] OpenAI transcription failed, failing over to Deepgram: %s", transcribe_exc)
             transcription_text = await asyncio.to_thread(_deepgram_transcribe, audio_bytes, suffix)
+
+        # Nothing was actually said. Stop here rather than spend a capture — and the user's
+        # attention mid-interview — on an answer to a hallucinated "Thank you."
+        if _transcript_has_no_speech(transcription_text):
+            message = ("No speech in that clip - nothing was sent."
+                       if mode == "replay" else
+                       "Didn't catch anything - hold the hotkey while the interviewer speaks.")
+            logger.info("[audio] no speech in %s clip (transcript=%r), skipped AI call", mode, transcription_text)
+            await broadcast(r, user.id, "audio-error", {"message": message})
+            return {"status": "no-speech"}
+
         await broadcast(r, user.id, "audio-transcribed", {"transcription": transcription_text})
 
         style      = _user_response_style(user)

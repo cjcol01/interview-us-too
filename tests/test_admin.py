@@ -2,13 +2,15 @@
 
 All five routes are gated by `_require_author`, which accepts either HTTP Basic auth
 (needs AUTHOR_PASSWORD, usually unset locally/in tests) or a session cookie belonging to
-the hardcoded admin username "cjcol01" — we use the latter to exercise the success paths.
+the account named by ADMIN_USERNAME — we use the latter to exercise the success paths.
+run_tests.py pins that env var to a test-only value, so this never depends on the real one.
 """
 import secrets as _sec
 from unittest.mock import patch
 
 import stripe
 
+from config import ADMIN_USERNAME
 from auth import create_token, hash_password
 from database import SessionLocal
 from models import AccountLevel, User
@@ -22,7 +24,7 @@ class _FakeStripeObj(dict):
 
 def _make_admin_cookie(db):
     admin = User(
-        username="cjcol01",
+        username=ADMIN_USERNAME,
         email=f"_test_admin_{_sec.token_hex(4)}@test.internal",
         full_name="Admin",
         password_hash=hash_password("adminpass123"),

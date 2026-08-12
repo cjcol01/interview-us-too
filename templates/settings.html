@@ -350,7 +350,7 @@
             <div class="card-row">
               <div class="card-row-left">
                 <div class="card-row-label">Typing passthrough</div>
-                <div class="card-row-desc">Press the typing hotkey to start capturing what you type, press again to send it. <strong>On</strong> - your typing also appears in the page. <strong>Off</strong> - your typing is hidden and sent only to your phone.</div>
+                <div class="card-row-desc">Press the typing hotkey to start capturing what you type, press again to send it - or <strong>Esc</strong> to cancel without sending. <strong>On</strong> - your typing also appears in the page. <strong>Off</strong> - your typing is hidden and sent only to your phone.</div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="passthrough-toggle" {% if typing_passthrough %}checked{% endif %} onchange="savePassthrough()">
@@ -363,14 +363,17 @@
               <div class="card-row-left">
                 <div class="card-row-label">Live typing preview</div>
                 <div class="card-row-desc">Shows what you're typing on your phone as you type it, rather than only once you send. Requested often enough that it's on by default.</div>
+                <!-- Only shown while the preview is on, since that's the only state with a
+                     tradeoff worth stating. Same second-description pattern as the app-theme
+                     row above, rather than the boxed callout this used to be. -->
+                <div class="card-row-desc" id="typing-preview-note" {% if not typing_preview %}hidden{% endif %}>
+                  Your keystrokes reach your dashboard as you type. Switch this off and nothing leaves your machine until you send, but you won't see anything on your phone until then either.
+                </div>
               </div>
               <label class="toggle-switch">
                 <input type="checkbox" id="typing-preview-toggle" {% if typing_preview %}checked{% endif %} onchange="saveTypingPreview()">
                 <span class="toggle-track"></span>
               </label>
-            </div>
-            <div class="card-row-note" id="typing-preview-note" {% if not typing_preview %}hidden{% endif %}>
-              Your keystrokes reach your dashboard as you type. Switch this off and nothing leaves your machine until you send, but you wont have any visual indication your typing.
             </div>
             <div id="typing-preview-status" class="save-status"></div>
           </div>

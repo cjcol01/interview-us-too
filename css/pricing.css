@@ -261,7 +261,22 @@ main {
   letter-spacing: -0.03em;
 }
 .price-suffix { font-size: 13px; color: var(--text-2); }
-.price-was { font-size: 12px; color: var(--text-3); text-decoration: line-through; }
+
+/* Referral price cut: the old price struck through, the new one in accent. The same pair is
+   used next to a 2rem headline price and inline in 11.5px fine print, so the size is set per
+   context rather than once here. */
+.price-was {
+  font-weight: 600;
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+.plan-price .price-was {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.price-cut { color: var(--accent); }
 
 .badge {
   background: var(--accent-soft);
@@ -352,5 +367,62 @@ main {
   line-height: 1.5;
 }
 .plan-fine.credit-note { color: var(--accent); margin-top: 4px; }
+
+/* ── Referral code redemption ── */
+/* A direct child of `main`, whose flex column already supplies the 20px gap to the plans grid
+   below it — hence no margin of its own. */
+.ref-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.ref-card-head { flex: 1 1 260px; }
+.ref-card-title {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-1);
+  margin-bottom: 4px;
+}
+.ref-card-desc { font-size: 13px; color: var(--text-2); line-height: 1.55; }
+
+.ref-form { display: flex; gap: 8px; flex: 1 1 280px; }
+.ref-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  color: var(--text-1);
+}
+.ref-input::placeholder { color: var(--text-3); }
+.ref-input:focus { outline: none; border-color: var(--accent-line); }
+.ref-submit {
+  background: var(--accent);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 9px;
+  padding: 10px 20px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.ref-submit:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(198,242,78,.22); }
+.ref-error { flex: 1 1 100%; font-size: 12.5px; color: var(--danger); }
+
+.ref-card--applied { border-color: var(--accent-line); justify-content: flex-start; gap: 10px; }
+.ref-tick { color: var(--accent); font-size: 15px; line-height: 1; }
+.ref-msg { font-size: 13.5px; color: var(--text-2); }
 
 @media (max-width: 640px) { main { padding: 24px 16px 56px; } }

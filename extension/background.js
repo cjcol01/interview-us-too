@@ -312,6 +312,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     queueTypingPreview(msg.text);
   } else if (msg.type === 'typing-submit') {
     handleTypingSubmit(msg.text);
+  } else if (msg.type === 'typing-cancel') {
+    handleTypingCancel();
   } else if (msg.type === 'audio-error') {
     _micState = 'error';
     _audioActive = false;
@@ -541,6 +543,15 @@ async function sendTypingPreview(text) {
 function cancelTypingPreview() {
   if (_previewTimer) { clearTimeout(_previewTimer); _previewTimer = null; }
   _previewText = null;
+}
+
+// Escape in typing mode: drop the buffer without sending it anywhere.
+function handleTypingCancel() {
+  chrome.action.setBadgeText({ text: '' });
+  cancelTypingPreview();
+  // Clear the dashboard's live preview too — a half-typed question left on the phone would
+  // read as "still waiting to send" when nothing is coming.
+  sendTypingPreview('');
 }
 
 async function handleTypingSubmit(text) {

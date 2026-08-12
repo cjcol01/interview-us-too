@@ -1,29 +1,28 @@
 # TODO
 
 ## immediately
-- [x] add syntax highlighting to demo
+- [ ] welcome/next (and /onboarding) navbar is black on light mode, black done take me in button, do we use black buttons on light mode?
+- [ ] referral should reduce price for all cards
+
+
+## Now
+- [ ] link up emails to buttons
 - [ ] onboarding skip setup button - you cant come back here from settings
-- [x] relax password rate limiting (2 passwords in 5 seconds is allowed)
-- [ ] stop space bar scrolling in typing mode
-- [ ] if instant replay or audio is empty, dont send anything, (currently sends gobbledegook)
 - [ ] pricing page, ensure cancel anytime is clear
 - [ ] undetectability work needs doing (can we change id dynamically, change name, change icon)
 - [ ] https://claude.ai/code/artifact/24206334-f8e7-4fcd-9120-15ccd8634eb8 implement 2C
 - [ ] change all input selector types to show code (bullets, one liner - maybe exclude that dk)
 - [ ] check all spacing on settings page.
-- [ ] typing preview, in the same note style as others
 - [ ] extension connected/ reconnect in settings could be made more reliable
 - [ ] buy alternate domains similar to interview-wise?
 - [ ] do we need You're in, sdasd. Here's what it looks like. A 60-second simulated interview call so you can see InterviewAce in action before you set anything up. Skip the demo - go straight to setup →
-- [ ] after paying, add button to add your context
-- [ ] add referal link to payments page.
-- [ ] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
-- [ ] support page, install extension to check, phone link and instant replay
-- [ ] chnange all to interview-wise. sitemap + robots
+- [x] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
+- [ ] support page, install extension to check phone link and instant replay
+- [ ] change all to interview-wise. sitemap + robots
 - [ ] Set up SPF, DKIM, DMARC in Cloudflare for Google Workspace, and verify interview-wise.com in Resend — fixes outbound email going to junk.
-
-
-## Now
+- [ ] stripe CC setup
+- [ ] add a start session warning for session users, enable/ disable warning in settings, default on
+- [ ] make the demo easier to watch, sign up after complete
 - [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
 - [ ] create videos for support, install, sideload, landing
 - [ ] setup check before real interview without starting session. 
@@ -31,26 +30,26 @@
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] light mode visual check (settings, cancel page navbar, text hard to read)
 - [ ] exit button on mobile takes to landing, probably should take to settings
-- [ ] footer links blcoked
+- [ ] footer links blocked by light mode
 - [ ] non links on CWS
 - [ ] non links on privacy and TCs
-- [ ] navbar gap
 - [ ] low contrast text
+- [ ] accessibility
 - [ ] 1,2,3 on homepage
 - [ ] clear up instant replay wording
 - [ ] can we detect phone scan via qr code?
 - [ ] unlimited allows setup test and practise with friend
+- [ ] more rate limiting/ monitoring, reduce max audio size
+- [ ] create stripe coupon for 100% off for intro offer.
+- [ ] create the free-first-session coupon in Stripe (100% off, duration once) and set `STRIPE_INTRO_FREE_COUPON_ID` — it's empty in `.env` and (check) on Railway, so the referred-user "first session free" offer isn't live at all: /pricing correctly falls back to "Claim deal - £2" and checkout charges the full £2. The £5-off coupon (`STRIPE_REFERRAL_COUPON_ID`) is set and working. Needs doing in both test and live mode
 
 ## Soon 
-- [ ] dark mode text can be hard to read
-- [ ] find new name 
-- [ ] change AI content 
+- [ ] dark mode text can be hard to read 
 - [ ] change stop blanking, start acing tagline
 - [ ] some kind of alert system for health checks directly to mobile
 - [ ] undetectability FAQ's try fhonest assessment
 - [ ] test job in github actions
 - [ ] auto top up sessions - toggle that rebuys 3 sessions when down to 1. Needs off-session card charging: current Stripe checkout never saves a reusable card (no `setup_future_usage`, no stored payment method). Would need checkout to save a card + an off-session PaymentIntent + SCA/decline handling; only works for purchases made after the change ships.
-- [ ] investigate postgres
 - [ ] proper on call esque alerts for major server issues, one api (ais) going down, failures, api credit run out etc
 - [ ] loadtest (locust, LOADTEST_RAMP=1) wedges the whole server around ~800 concurrent users even after fixing async routes that blocked the event loop (settings_page, api_capture, auth routes etc. now use run_in_threadpool). Real cause: SQLAlchemy pool_size=20+max_overflow=20=40 (database.py) and AnyIO's default thread pool (also 40) both saturate around the same point — every request holds a DB connection/thread for its full duration, so >40 concurrent DB-touching requests queue and cascade into a total stall. Raise both pool sizes (together) if we ever expect real concurrency near that.
 - [ ] make a reel get something free
@@ -61,11 +60,11 @@
 ## Later
 
 - [ ] Follow-up hotkey — let the candidate type a clarification to the AI's *previous* answer (e.g. "now do it recursively") instead of starting a fresh question. Sent to the same underlying "chat" so the reply has context of what was already said.
-  - New 6th hotkey (`hotkey_followup`) — same keydown/buffer plumbing as the existing `typing` hotkey in `content.js`/`background.js`, so extension-side work is mechanical
-  - Needs a DB migration: new nullable `User.hotkey_followup` column, plus entries in `HOTKEY_DEFAULTS`, `_user_hotkeys()`, `HotkeySettings`, and a settings.html row
-  - Server currently has **no memory** of the last answer to build on — only `/api/capture` (screenshot) persists `analysis` to Redis, and even that has no turn/prompt structure; `/api/text-capture` and `/api/audio-capture` don't persist anything past the SSE push. Needs a short-TTL "last Q&A" Redis entry per user
-  - All 3 capture endpoints currently send Claude a single-turn `messages` array — the follow-up needs `messages: [prior instruction, prior answer, new instruction]` instead
-  - Cost: verified via `count_tokens` against the live model (`claude-sonnet-4-6`) — a single follow-up adds an almost negligible ~$0.0007 (re-sending the ~250-token prior text answer as context). The one hard rule: **never re-send the original screenshot** in that history — only carry forward the text answer. Doing it naively (resending images) roughly 5-6x's the cost of a multi-turn session; doing it right (text-only history, ideally + prompt caching) keeps a full session to ~1.3-2x today's cost
+- New 6th hotkey (`hotkey_followup`) — same keydown/buffer plumbing as the existing `typing` hotkey in `content.js`/`background.js`, so extension-side work is mechanical
+- Needs a DB migration: new nullable `User.hotkey_followup` column, plus entries in `HOTKEY_DEFAULTS`, `_user_hotkeys()`, `HotkeySettings`, and a settings.html row
+- Server currently has **no memory** of the last answer to build on — only `/api/capture` (screenshot) persists `analysis` to Redis, and even that has no turn/prompt structure; `/api/text-capture` and `/api/audio-capture` don't persist anything past the SSE push. Needs a short-TTL "last Q&A" Redis entry per user
+- All 3 capture endpoints currently send Claude a single-turn `messages` array — the follow-up needs `messages: [prior instruction, prior answer, new instruction]` instead
+- Cost: verified via `count_tokens` against the live model (`claude-sonnet-4-6`) — a single follow-up adds an almost negligible ~$0.0007 (re-sending the ~250-token prior text answer as context). The one hard rule: **never re-send the original screenshot** in that history — only carry forward the text answer. Doing it naively (resending images) roughly 5-6x's the cost of a multi-turn session; doing it right (text-only history, ideally + prompt caching) keeps a full session to ~1.3-2x today's cost
 - [ ] Desktop app with invisible-to-screen-share overlay (native, not a plain extension port)
 - [ ] Video demonstration for landing page
 - [ ] zero downtime deploy
@@ -78,6 +77,14 @@
 
 
 ## Done
+
+- [x] syntax highlighting on the landing demo — the old highlighter was four chained `.replace()`es over already-marked-up HTML (keywords inside strings got coloured, and the phone code stayed flat grey for the whole stream then snapped into colour on the last character). Replaced with a single-pass tokeniser in landing.html covering comments, strings, numbers, keywords, builtins, `self` and def/class names; it now highlights *as* it types, and the fake LeetCode editor on the laptop screen goes through the same function instead of being monochrome. New `.tok-str/.tok-def/.tok-self` colours in landing.css
+- [x] space bar no longer scrolls the page in typing mode — typing passthrough is on by default, and Space's page default is "scroll a screen" whenever focus isn't in a text box, so typing a question walked the interview page down a paragraph per word. content.js now swallows only that default (Space, and only when neither `e.target` nor `document.activeElement` is an input/textarea/contenteditable, walking shadow roots for Monaco/CodeMirror). Everything else still passes through
+- [x] Esc cancels typing mode — buffer discarded, nothing sent, no session spent. New `typing-cancel` message from content.js → background.js clears the badge, drops any queued preview frame and pushes an empty preview so the half-typed question doesn't sit on the phone looking like it's still coming. Mentioned in the settings copy and the onboarding typing explainer
+- [x] empty audio / instant replay no longer sends gobbledegook — silence doesn't transcribe to `""`, it transcribes to a hallucinated "Thank you." / "you" / "Thanks for watching!" / subtitle credits, which the AI then confidently answers. `_transcript_has_no_speech` in server.py drops a transcript built only from filler words (≤8 words, all in the list), and /api/audio-capture returns `{"status": "no-speech"}` with a "didn't catch anything" message on the phone instead of calling the AI. Note: the live end-to-end audio test's fixture was a one-word "Hello" clip — exactly what this drops — so it's been replaced with `interview_question.wav` (a real spoken question)
+- [x] typing preview note restyled — was the page's only boxed inset callout, which made one ordinary caveat shout louder than the settings around it. Now a plain second `card-row-desc` under the toggle, same pattern as the app-theme row (`.card-row-note` deleted). Also fixed the "you wont have any visual indication your typing" line
+- [x] after paying, a button to add your context — /billing/success now offers "Add your CV & interview context" (→ /settings#context) under the "Open InterviewAce" CTA, with a line on why it's worth the minute
+- [x] referral redemption on the payments page — /pricing now carries the "Have a referral code?" box (same form as settings, `source=pricing` so it returns to /pricing rather than dumping the user in settings mid-purchase), shown only while a code can still be redeemed and replaced by a "£5 off applied at checkout" confirmation once it is
 
 - [x] center pricing info on landing when user is trial or sessions — pure CSS: `.ia-plan:only-child` in landing.css makes a lone pricing card span both grid columns and centre (max-width 480px, auto margins) instead of sitting in the left column. Both cards still show for trial (kept intentionally); only the single-card case (sessions user sees Unlimited only) is affected.
 - [x] add another status light on /app for anything stopping the product from working — new generic "Alert" light in the Ext/Mic/Replay row, hidden until there's a problem, hover/tap for detail, most-severe alert sets the LED colour. A central `ALERT_CONFIG` map in index.html toggles each alert on/off individually. Alerts: no_plan / no_sessions / low_sessions / sub_cancelling (on); session_ending / rate_limited / approaching_limit (off by default, since the first two already have their own bar/toast). Server seeds account state via `_compute_account_alert()`; live JS hooks cover session-ending, rate-limit, and nearing the per-window capture cap. `.hk-status-dot[hidden]` CSS added so the hidden attribute actually hides it.
@@ -151,3 +158,7 @@
 - [x] removed the context and hotkey links from trial-end so users don't wander mid-funnel, with a line saying they're set up later
 - [x] run a system check on trial-end is now an outline button instead of a text link buried in a footer
 - [x] testimonial scroll speed is time-based now, so it's the same on 60/120Hz instead of literally 2x on a ProMotion screen
+- [x] relax password rate limiting (2 passwords in 5 seconds is allowed)
+- [x] investigate postgres
+- [x] find new name 
+- [x] change AI content

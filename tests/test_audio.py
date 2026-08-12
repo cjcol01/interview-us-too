@@ -2,7 +2,10 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-FIXTURE = Path(__file__).parent / "fixtures" / "test_audio.wav"
+# A spoken interview question, not a "hello": the endpoint now drops clips with no actual
+# speech in them, and the old one-word fixture transcribed to exactly the kind of thing that
+# filter exists to throw away (see _transcript_has_no_speech in server.py).
+FIXTURE = Path(__file__).parent / "fixtures" / "interview_question.wav"
 
 
 def register(test, skip, client):
@@ -99,6 +102,40 @@ def register(test, skip, client):
             cleanup(db, u)
             db.close()
 
+    def test_silent_transcript_helper():
+        from server import _transcript_has_no_speech
+        # Whisper's stock hallucinations over silence, plus genuinely empty results.
+        for silent in ("", "   ", ".", "you", "Thank you.", "Thanks for watching!", "Bye.",
+                       "Thank you. Thank you.", "Uh, so, um, yeah", "[ Silence ]"):
+            assert _transcript_has_no_speech(silent), f"expected no-speech: {silent!r}"
+        for speech in ("Explain BFS", "Why SQL?", "What is the time complexity?",
+                       "Tell me about yourself.", "So, why do you want to work here?",
+                       "yes yes yes yes yes yes yes yes yes"):
+            assert not _transcript_has_no_speech(speech), f"expected speech: {speech!r}"
+
+    def test_silent_clip_skips_the_ai_call():
+        """A near-silent clip transcribes to a hallucinated "Thank you." — the endpoint must
+        stop there instead of streaming a confident answer to a question nobody asked."""
+        db = SessionLocal()
+        u = None
+        try:
+            u = make_user(db, AccountLevel.paid)
+            import server
+            with patch.object(server.openai_client.audio.transcriptions, "create",
+                              return_value=MagicMock(text="Thank you.")), \
+                 patch.object(server, "_stream_ai_response") as stream:
+                r = client.post(
+                    "/api/audio-capture",
+                    files={"audio": ("rec.wav", fake_audio_bytes(), "audio/wav")},
+                    headers={"Authorization": f"Bearer {u.api_token}"},
+                )
+            assert r.status_code == 200, f"status={r.status_code} body={r.text[:300]}"
+            assert r.json() == {"status": "no-speech"}, f"json={r.json()}"
+            assert not stream.called, "AI was called for a clip with no speech in it"
+        finally:
+            cleanup(db, u)
+            db.close()
+
     def test_paid_happy_path_live():
         db = SessionLocal()
         try:
@@ -107,7 +144,7 @@ def register(test, skip, client):
                 audio_bytes = f.read()
             r = client.post(
                 "/api/audio-capture",
-                files={"audio": ("test_audio.wav", audio_bytes, "audio/wav")},
+                files={"audio": ("interview_question.wav", audio_bytes, "audio/wav")},
                 headers={"Authorization": f"Bearer {u.api_token}"},
                 timeout=60,
             )
@@ -122,6 +159,8 @@ def register(test, skip, client):
     test("Invalid token → 401",                                  test_invalid_token_is_401)
     test("Missing audio field → 422",                            test_missing_audio_field_is_422)
     test("Whisper failure returns 500",                          test_whisper_failure_returns_500)
+    test("_transcript_has_no_speech separates silence from speech", test_silent_transcript_helper)
+    test("Silent clip skips the AI call (no-speech)",            test_silent_clip_skips_the_ai_call)
 
     if live_ok:
         test("Paid user audio capture end-to-end (live API)",   test_paid_happy_path_live)

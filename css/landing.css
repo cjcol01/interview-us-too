@@ -535,10 +535,15 @@ a { color: inherit; text-decoration: none; }
   color: #D6D6DC; margin: 0; white-space: pre-wrap; word-break: break-word;
   flex: 1; overflow: hidden; min-height: 0;
 }
-.tok-kw  { color: #C6F24E; }
-.tok-fn  { color: #9CDCFE; }
-.tok-num { color: #B5CEA8; }
-.tok-cm  { color: #67676F; }
+/* Demo code tokens — shared by the phone answers and the fake editor on the laptop screen.
+   Always dark: both sit inside mock devices, so these don't follow the light/dark toggle. */
+.tok-kw   { color: #C6F24E; }
+.tok-fn   { color: #9CDCFE; }
+.tok-num  { color: #B5CEA8; }
+.tok-cm   { color: #67676F; }
+.tok-str  { color: #E5A06B; }
+.tok-def  { color: #E8D48B; }
+.tok-self { color: #C586C0; }
 
 .phone-complexity-row { display: flex; gap: 5px; margin-top: 7px; }
 .phone-badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: #C6F24E; border: 1px solid rgba(198,242,78,0.25); border-radius: 5px; padding: 3px 7px; }

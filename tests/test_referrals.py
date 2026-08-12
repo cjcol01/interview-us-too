@@ -382,7 +382,83 @@ def register(test, skip, client):
             cleanup(db, referrer); db.close()
             delete_by_name(uname)
 
+    def test_pricing_shows_referral_box_and_applies():
+        """/pricing carries the redeem box while a code can still be used, and applying from
+        there comes back to /pricing rather than dumping the user in settings mid-purchase."""
+        init_db()
+        db = SessionLocal()
+        referrer = make_user(db, AccountLevel.unlimited)
+        token, uname = make_cookie(AccountLevel.trial)
+        try:
+            page = client.get("/pricing", cookies={"session": token})
+            assert page.status_code == 200
+            assert 'name="code"' in page.text, "no referral redeem box on /pricing"
+
+            r = client.post(
+                "/referral/apply",
+                data={"code": referrer.referral_code, "source": "pricing"},
+                cookies={"session": token},
+                follow_redirects=False,
+            )
+            assert r.status_code in (302, 303, 307)
+            assert r.headers.get("location", "").startswith("/pricing?ref_success=1"), r.headers.get("location")
+
+            # Redeemed: the form is replaced by the confirmation, not shown twice.
+            after = client.get("/pricing?ref_success=1", cookies={"session": token})
+            assert 'name="code"' not in after.text
+            assert "ref-card--applied" in after.text
+        finally:
+            cleanup(db, referrer); db.close()
+            delete_by_name(uname)
+
+    def test_pricing_cards_show_the_discounted_price():
+        """A referral has to change the numbers on the cards, not just add a note underneath:
+        £2 intro → Free, £10 pack → £5, and the £15/mo line → £10 for the first month."""
+        import server as _s
+        init_db()
+        db = SessionLocal()
+        referrer = make_user(db, AccountLevel.unlimited)
+        token, uname = make_cookie(AccountLevel.trial)
+        # Pinned rather than read from .env so the assertions hold wherever this runs.
+        orig_ref, orig_intro = _s.STRIPE_REFERRAL_COUPON_ID, _s.STRIPE_INTRO_FREE_COUPON_ID
+        try:
+            applicant = db.query(User).filter(User.username == uname).first()
+            applicant.referred_by_id = referrer.id
+            db.commit()
+
+            _s.STRIPE_REFERRAL_COUPON_ID = "promo_test_ref"
+            _s.STRIPE_INTRO_FREE_COUPON_ID = "promo_test_intro"
+            html = client.get("/pricing", cookies={"session": token}).text
+            assert "price-was" in html, "no struck-through price on any card"
+            assert "Get 3 sessions - £5" in html, "pack CTA still quotes the full £10"
+            assert "Claim free session" in html
+            assert "first month, then" in html, "subscription card doesn't show the first-month cut"
+
+            # Without the intro coupon the intro card must quote £2 again — the checkout
+            # wouldn't zero it, so the card mustn't say Free.
+            _s.STRIPE_INTRO_FREE_COUPON_ID = ""
+            html = client.get("/pricing", cookies={"session": token}).text
+            assert "Claim deal - £2" in html
+            # Matched on the rendered promise, not "£0 charged" — that string also lives in the
+            # template comment above the block, which ships to the client either way.
+            assert "Free first session with your referral" not in html
+
+            # No referral at all: full prices, no strikethrough anywhere.
+            applicant = db.query(User).filter(User.username == uname).first()
+            applicant.referred_by_id = None
+            db.commit()
+            _s.STRIPE_INTRO_FREE_COUPON_ID = "promo_test_intro"
+            html = client.get("/pricing", cookies={"session": token}).text
+            assert "price-was" not in html
+            assert "Get 3 sessions - £10" in html
+        finally:
+            _s.STRIPE_REFERRAL_COUPON_ID, _s.STRIPE_INTRO_FREE_COUPON_ID = orig_ref, orig_intro
+            cleanup(db, referrer); db.close()
+            delete_by_name(uname)
+
     test("/referral/apply: valid code creates referral row",          test_referral_apply_valid_code_creates_referral)
+    test("/pricing: referral redeem box applies and returns",         test_pricing_shows_referral_box_and_applies)
+    test("/pricing: cards show the discounted price, not just a note", test_pricing_cards_show_the_discounted_price)
     test("/referral/apply: already referred is rejected",             test_referral_apply_already_referred_is_rejected)
     test("/referral/apply: invalid code is rejected",                 test_referral_apply_invalid_code_is_rejected)
     test("/referral/apply: URL-form /r/CODE is parsed correctly",     test_referral_apply_url_form_code_is_parsed)

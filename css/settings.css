@@ -275,21 +275,12 @@
 }
 .card-row-desc strong { color: var(--text-1); }
 
-/* Inset caveat under a toggle — for the tradeoff a setting makes, where a one-line
-   description isn't enough and the user deserves the full story before deciding. */
-.card-row-note {
-  margin-top: 12px;
-  padding: 12px 14px;
-  background: var(--card-inset);
-  border: 1px solid var(--line);
-  border-left: 2px solid var(--accent-line);
-  border-radius: 8px;
-  font-size: 12.5px;
-  line-height: 1.6;
-  color: var(--text-2);
-}
-.card-row-note strong { color: var(--text-1); font-weight: 600; }
-.card-row-note[hidden] { display: none; }
+/* A second description line under a row, revealed by the state of that row's control. Kept
+   as plain text like every other description on the page — this used to be a boxed inset,
+   which made one ordinary caveat shout louder than the settings around it.
+   The :not([hidden]) guard matters where the two lines are alternatives rather than a stack
+   (the app-theme row): the survivor shouldn't inherit a gap from a sibling that isn't there. */
+.card-row-desc:not([hidden]) + .card-row-desc { margin-top: 8px; }
 
 /* ── Response section grid ── */
 .response-grid {

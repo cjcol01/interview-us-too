@@ -97,6 +97,12 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 # _stream_ai_response and the audio-capture route.
 DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY", "")
 AUTHOR_PASSWORD = os.getenv("AUTHOR_PASSWORD", "")
+# Username whose session cookie is trusted as the admin account by _require_author, and the
+# Basic-auth username the same check accepts alongside AUTHOR_PASSWORD. Kept in env rather
+# than hardcoded in server.py because this repo is public (see the jsDelivr URL below) — a
+# literal here names the one account worth attacking. Unset, there is no cookie-based admin
+# and no Basic-auth match either, so /admin and friends are simply unreachable (fail closed).
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")

@@ -22,6 +22,10 @@ import logging
 logging.disable(logging.CRITICAL)
 
 os.environ.setdefault("TESTING", "1")  # use fakeredis + isolated Postgres schema — must be set before importing server
+# Pin the admin account the _require_author tests log in as. Set here rather than read from
+# .env so the suite doesn't depend on (or hardcode) the real ADMIN_USERNAME; load_dotenv()
+# in config.py doesn't override an already-set var, so this wins.
+os.environ.setdefault("ADMIN_USERNAME", "_test_admin")
 
 # Start from a clean test database each run. Drop and recreate the public schema rather than
 # just calling drop_all() — the five native Postgres ENUM types (AccountLevel, ResponseStyle,
