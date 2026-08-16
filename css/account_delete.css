@@ -1,6 +1,6 @@
 /* ===== Account Delete ===== */
 header {
-  background: rgba(10,10,12,.85);
+  background: var(--nav-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   padding: 14px 18px;

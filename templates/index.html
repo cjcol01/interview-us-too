@@ -57,6 +57,55 @@
     </div>
   </div>
 
+  {% if session_start_warning %}
+  <!-- Session start reminder (paid/session-pack users only, shown once per page visit before
+       the first capture. Informational — doesn't block anything, just makes it clear a
+       session is about to start. Hidden once dismissed; can be turned off in Settings.) -->
+  <div id="session-warn-overlay" class="session-warn-overlay" style="display:none" aria-modal="true" role="alertdialog" aria-labelledby="session-warn-title">
+    <div class="session-warn-modal">
+      <div class="session-warn-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <h2 class="session-warn-title" id="session-warn-title">Starting a session</h2>
+      <p class="session-warn-body">This will use <strong>1 of your {{ sessions_remaining }} remaining session{{ 's' if sessions_remaining != 1 else '' }}</strong>. Make sure you're ready — sessions can't be paused once started.</p>
+      <div class="session-warn-actions">
+        <button class="session-warn-btn-primary" onclick="sessionWarnDismiss()">I'm ready</button>
+        <button class="session-warn-btn-ghost" onclick="sessionWarnDisable()">Don't remind me again</button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  <script>
+    // _maybeShowSessionWarn is always defined so the 'working' SSE handler never
+    // throws a ReferenceError (which would silently kill the rest of that handler).
+    // It's a no-op when the overlay doesn't exist (non-paid users / warning disabled).
+    function _maybeShowSessionWarn() {
+      var overlay = document.getElementById('session-warn-overlay');
+      if (!overlay) return;
+      if (sessionStorage.getItem('sessionWarnSeen')) return;
+      overlay.style.display = '';
+    }
+
+    function sessionWarnDismiss() {
+      var overlay = document.getElementById('session-warn-overlay');
+      if (overlay) overlay.style.display = 'none';
+      sessionStorage.setItem('sessionWarnSeen', '1');
+    }
+
+    function sessionWarnDisable() {
+      // Turn off the reminder in settings so it never shows again, then dismiss.
+      fetch('/api/settings/session-warning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: false }),
+      });
+      sessionWarnDismiss();
+    }
+  </script>
+
   <!-- Post-interview feedback. Opened from EXACTLY ONE place: the "Interview done" button's
        click handler (fbOpen(), below). Never server-rendered open, never triggered by SSE,
        never re-shown on a later page load — the whole point is that this can only ever
@@ -464,6 +513,7 @@ The team actively read these and work on issues found."></textarea>
           const data = JSON.parse(e.data);
           console.debug('[sse]', data.type);
           if (data.type === 'working') {
+            _maybeShowSessionWarn();
             _noteCapture();
             _streamBuffer = '';
             _historyIdx = 0;
@@ -1154,7 +1204,7 @@ The team actively read these and work on issues found."></textarea>
       if (_mobileExitBtn && _mobileExitBtn.classList.contains('is-done')) {
         interviewDone();
       } else {
-        window.location.href = '/';
+        window.location.href = '/settings';
       }
     }
 

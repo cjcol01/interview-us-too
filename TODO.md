@@ -1,27 +1,22 @@
 # TODO
 
 ## immediately
-- [ ] welcome/next (and /onboarding) navbar is black on light mode, black done take me in button, do we use black buttons on light mode?
-- [ ] referral should reduce price for all cards
-
+- [ ] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
 
 ## Now
-- [ ] link up emails to buttons
-- [ ] onboarding skip setup button - you cant come back here from settings
-- [ ] pricing page, ensure cancel anytime is clear
+- [ ] add log file for errors on /admin to railway. check why they werent showing
+- [x]  Cloudflare Access for admin pages at cdn level
+- [ ] add switch to mobile button followed by QR popup on onboarding. mention to test it like your in an interview try on you phone, but make it clear they dont have to
+- [ ] add scroll to demos. remove scroll bars but add floating arrow at bottom
 - [ ] undetectability work needs doing (can we change id dynamically, change name, change icon)
 - [ ] https://claude.ai/code/artifact/24206334-f8e7-4fcd-9120-15ccd8634eb8 implement 2C
 - [ ] change all input selector types to show code (bullets, one liner - maybe exclude that dk)
 - [ ] check all spacing on settings page.
 - [ ] extension connected/ reconnect in settings could be made more reliable
 - [ ] buy alternate domains similar to interview-wise?
-- [ ] do we need You're in, sdasd. Here's what it looks like. A 60-second simulated interview call so you can see InterviewAce in action before you set anything up. Skip the demo - go straight to setup →
-- [x] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
-- [ ] support page, install extension to check phone link and instant replay
-- [ ] change all to interview-wise. sitemap + robots
-- [ ] Set up SPF, DKIM, DMARC in Cloudflare for Google Workspace, and verify interview-wise.com in Resend — fixes outbound email going to junk.
+- [ ] change all to interview-wise. 
+- [x] Set up SPF, DKIM, DMARC in Cloudflare for Google Workspace, and verify interview-wise.com in Resend — fixes outbound email going to junk.
 - [ ] stripe CC setup
-- [ ] add a start session warning for session users, enable/ disable warning in settings, default on
 - [ ] make the demo easier to watch, sign up after complete
 - [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
 - [ ] create videos for support, install, sideload, landing
@@ -29,10 +24,7 @@
 - [ ] I got the job, referral system, pause instead of cancel
 - [ ] Let the mobile demo run free and ask for the email at the end as "where should I send your install link?" - https://claude.ai/share/c8563073-4545-43fe-a1a9-4019f586da9f
 - [ ] light mode visual check (settings, cancel page navbar, text hard to read)
-- [ ] exit button on mobile takes to landing, probably should take to settings
-- [ ] footer links blocked by light mode
 - [ ] non links on CWS
-- [ ] non links on privacy and TCs
 - [ ] low contrast text
 - [ ] accessibility
 - [ ] 1,2,3 on homepage
@@ -77,7 +69,21 @@
 
 
 ## Done
-
+- [x] make send to ai button more clear to click on (more jumping or glowing or something)
+- [x] move all admin pages to /admin (not /partner/admin etc) so theyre caught by cloudflare access rule. except verify author
+- [x] add a link from settings to let you go back to onboarding. ensure it works with any db states, like trial_complete or similar
+- [x] pricing page, ensure cancel anytime is clear (mention 3 click cancel)
+- [x] support page, install extension to check phone link and instant replay, dont show them all as orange/red if not installed. keep the default colour until extension is installed
+- [x] add a start session warning for session users, enable/ disable warning in settings, default on. clean up wording anywhere it says you wont get a warning 
+- [x] exit button from monitor on /app on mobile takes to landing, probably should take to settings
+- [x] footer links blocked by light/dark mode toggle
+- [x] non links on privacy and TCs
+- [x] sitemap + robots.txt
+- [x] welcome/next (and /onboarding) navbar is black on light mode, black done take me in button, do we use black buttons on light mode? check all navbars are the correct colour on all pages
+- [x] referral should reduce price for all cards
+- [x] You're in, CJ. Here's what it looks like. A 60-second simulated interview call so you can see InterviewAce in action before you set anything up. ensure this page never shows up, why do we even need it, can it be removed.
+- [x] £15 £10 / month after. thats consusing and misleading. should say £10 first month/ remove referral code applied to account cjcol12 so i can test again
+- [x] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
 - [x] syntax highlighting on the landing demo — the old highlighter was four chained `.replace()`es over already-marked-up HTML (keywords inside strings got coloured, and the phone code stayed flat grey for the whole stream then snapped into colour on the last character). Replaced with a single-pass tokeniser in landing.html covering comments, strings, numbers, keywords, builtins, `self` and def/class names; it now highlights *as* it types, and the fake LeetCode editor on the laptop screen goes through the same function instead of being monochrome. New `.tok-str/.tok-def/.tok-self` colours in landing.css
 - [x] space bar no longer scrolls the page in typing mode — typing passthrough is on by default, and Space's page default is "scroll a screen" whenever focus isn't in a text box, so typing a question walked the interview page down a paragraph per word. content.js now swallows only that default (Space, and only when neither `e.target` nor `document.activeElement` is an input/textarea/contenteditable, walking shadow roots for Monaco/CodeMirror). Everything else still passes through
 - [x] Esc cancels typing mode — buffer discarded, nothing sent, no session spent. New `typing-cancel` message from content.js → background.js clears the badge, drops any queued preview frame and pushes an empty preview so the half-typed question doesn't sit on the phone looking like it's still coming. Mentioned in the settings copy and the onboarding typing explainer

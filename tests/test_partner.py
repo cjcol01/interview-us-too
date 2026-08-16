@@ -311,7 +311,7 @@ def register(test, skip, client):
             target = None
             try:
                 target = make_user(db, AccountLevel.unlimited, stripe_id=_stripe_id())
-                r = client.post("/partner/admin/tier", data={"email": target.email, "tier": "3"},
+                r = client.post("/admin/partners/tier", data={"email": target.email, "tier": "3"},
                                 auth=(_cfg.ADMIN_USERNAME, _cfg.AUTHOR_PASSWORD), follow_redirects=False)
                 assert r.status_code in (302, 303, 307)
                 db.refresh(target)
@@ -462,21 +462,20 @@ def register(test, skip, client):
         r = client.get("/partner/admin")
         assert r.status_code == 401
 
-    def test_admin_referrals_redirects_to_partner_admin():
-        """/admin/referrals and /partner/admin used to be two separate pages; the referral
-        activity page was merged into /partner/admin (mirroring /referral -> /partner/dashboard
-        on the user-facing side), so old links/bookmarks must keep working."""
+    def test_admin_referrals_redirects_to_admin_partners():
+        """/admin/referrals is a legacy URL; it redirects to /admin/partners
+        (under Cloudflare Access coverage) so old links and bookmarks still work."""
         r = client.get("/admin/referrals", follow_redirects=False)
         assert r.status_code == 302
-        assert r.headers["location"] == "/partner/admin"
+        assert r.headers["location"] == "/admin/partners"
 
     def test_admin_referrals_redirect_preserves_query_string():
         r = client.get("/admin/referrals?admin_msg=done", follow_redirects=False)
         assert r.status_code == 302
-        assert r.headers["location"] == "/partner/admin?admin_msg=done"
+        assert r.headers["location"] == "/admin/partners?admin_msg=done"
 
     test("/partner/admin requires HTTP Basic auth", test_admin_requires_basic_auth)
-    test("/admin/referrals redirects to /partner/admin",              test_admin_referrals_redirects_to_partner_admin)
+    test("/admin/referrals redirects to /admin/partners",             test_admin_referrals_redirects_to_admin_partners)
     test("/admin/referrals redirect preserves query string",          test_admin_referrals_redirect_preserves_query_string)
 
     import config as _cfg

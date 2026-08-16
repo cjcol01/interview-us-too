@@ -117,7 +117,7 @@
         <div class="auth-actions">
           <label class="auth-checkbox">
             <input type="checkbox" id="reg-agree" name="agree">
-            <span>I agree to the <a href="#" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
+            <span>I agree to the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
           </label>
           <div id="register-error" class="auth-error"></div>
           <button type="submit" class="auth-submit">Create account</button>
@@ -138,7 +138,7 @@
         </a>
         {% endif %}
         {% if google_enabled or github_enabled %}
-        <p class="auth-google-note">By continuing above you agree to our <a href="#" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
+        <p class="auth-google-note">By continuing above you agree to our <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a>.</p>
         {% endif %}
         <p class="auth-switch">Already have an account? <a href="#" onclick="switchTab('login');return false;">Sign in</a></p>
       </form>
@@ -168,12 +168,13 @@
       const error = params.get('error');
       if (error) {
         const ERRORS = {
-          account_suspended:  'This account has been suspended. Contact support if you think this is a mistake.',
+          account_suspended:  'This account has been suspended. <a href="/contact?dept=support">Contact support</a> if you think this is a mistake.',
           link_expired:       'That link has expired or has already been used. Request a new one from the homepage.',
           verify_link_used:   'That verification link is no longer valid. If you have already verified, just sign in below - otherwise request a new link.',
           already_registered: 'You already have an account with that email - sign in below.',
         };
-        document.getElementById('login-error').textContent = ERRORS[error] || 'Sign-in failed - please try again.';
+        const errEl = document.getElementById('login-error');
+        errEl.innerHTML = ERRORS[error] || 'Sign-in failed - please try again.';
       }
     })();
 

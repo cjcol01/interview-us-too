@@ -21,6 +21,7 @@ def send_verification_email(to_email: str, token: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Confirm your email to start your free InterviewAce trial",
+            "text": f"Welcome to InterviewAce!\n\nConfirm your email to unlock your free 10-minute trial:\n{url}\n\nIf you didn't sign up, you can safely ignore this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Welcome to InterviewAce 👋</h2>
@@ -57,6 +58,7 @@ def send_password_reset_email(to_email: str, token: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Reset your InterviewAce password",
+            "text": f"Reset your InterviewAce password\n\nClick the link below to set a new password. This link expires in 1 hour.\n{url}\n\nIf you didn't request a password reset, you can safely ignore this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Reset your password</h2>
@@ -93,6 +95,7 @@ def send_install_link_email(to_email: str, token: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce install link (open on your laptop)",
+            "text": f"Open this on your laptop\n\nInterviewAce runs as a Chrome extension, so setup needs a laptop or desktop. Open this email there and use the link below — you'll land already signed in, one click from installing.\n{url}\n\nThis link works for 14 days. Don't forward it — it signs you in.\n\nIf you didn't ask for an InterviewAce install link, you can safely ignore this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Open this on your laptop 💻</h2>
@@ -134,6 +137,7 @@ def send_desktop_login_email(to_email: str, token: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce sign-in link (open on your laptop)",
+            "text": f"Sign in on your laptop\n\nOpen this email on the laptop or desktop you'll interview from, then use the link below — you'll land signed in to your InterviewAce account.\n{url}\n\nThis link expires in 15 minutes and can only be used once. Never forward it — it signs someone in to your account.\n\nIf you didn't request this, you can safely ignore this email — your account is unchanged.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Pick up on your laptop 💻</h2>
@@ -179,6 +183,7 @@ def send_password_set_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "A password was just set on your InterviewAce account",
+            "text": f"Password set\n\nSomeone just finished setting up {to_email} with a password, so it can be signed into directly from now on.\n\nIf this was you, there's nothing else to do. If it wasn't, reset it right away — you still control this inbox either way.\n{reset_url}\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Password set</h2>
@@ -236,6 +241,7 @@ def send_cancel_feedback_email(user_email: str, reason: str, detail: str, kept: 
             "from": FROM_EMAIL,
             "to": NOTIFY_EMAIL,
             "subject": f"[InterviewAce] Cancel feedback — {reason_label} ({action})",
+            "text": f"Cancel page feedback\nFrom: {user_email}\nOutcome: {'Kept subscription' if kept else 'Cancelled'}\nReason: {reason_label}\nDetail: {detail or 'No additional detail.'}",
             "html": f"""
             <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
                         padding:32px;background:#0d0d0d;color:#e0e0e0;">
@@ -278,6 +284,7 @@ def send_usage_warning_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Unusual activity on your InterviewAce account",
+            "text": "We've noticed unusual activity\n\nYour account has been sending far more requests than a typical interview session involves. This is a heads-up that we've flagged it for review.\n\nIf this was you and there's a good reason for it, no action is needed. If it continues, we may pause or restrict access to keep the service fair for everyone.\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">We've noticed unusual activity</h2>
@@ -311,6 +318,7 @@ def send_account_banned_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce account has been suspended",
+            "text": "Your account has been suspended\n\nWe've suspended access to your InterviewAce account. You won't be able to log in or use the extension while it's suspended.\n\nIf you think this is a mistake, just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Your account has been suspended</h2>
@@ -340,6 +348,7 @@ def send_account_unbanned_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce account has been restored",
+            "text": "Your account has been restored\n\nYour InterviewAce account is no longer suspended. You can log in and use the extension again as normal.\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Your account has been restored</h2>
@@ -369,6 +378,7 @@ def send_subscription_paused_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce subscription has been paused",
+            "text": "Your subscription has been paused\n\nWe've paused your InterviewAce subscription. Billing has stopped and your plan has been downgraded for now.\n\nIf you think this is a mistake, just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Your subscription has been paused</h2>
@@ -398,6 +408,7 @@ def send_subscription_resumed_email(to_email: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce subscription has been resumed",
+            "text": "Your subscription has been resumed\n\nYour InterviewAce subscription is active again and billing has resumed as normal.\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Your subscription has been resumed</h2>
@@ -426,6 +437,7 @@ def send_expiry_reminder_email(to_email: str, cancel_date: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your InterviewAce access ends soon",
+            "text": f"Your access ends on {cancel_date}\n\nYour InterviewAce subscription is set to cancel on {cancel_date}. You'll keep full access until then, and can undo this any time before that date from your account settings.\n{BASE_URL}/settings\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Your access ends on {cancel_date}</h2>
@@ -460,6 +472,7 @@ def send_low_sessions_email(to_email: str, sessions_remaining: int) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": f"{sessions_remaining} {plural} left on your InterviewAce account",
+            "text": f"You have {sessions_remaining} {plural} left\n\nOnce they're used up you'll need to top up before starting another interview session.\nTop up sessions: {BASE_URL}/pricing\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">You have {sessions_remaining} {plural} left</h2>
@@ -492,6 +505,7 @@ def send_interview_reminder_email(to_email: str, full_name: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": "Your interview is tomorrow",
+            "text": f"Good luck tomorrow, {first_name}\n\nQuick setup check before you go in: make sure the extension is installed, connected, and your phone or second device is signed in and propped up where you can glance at it.\nCheck your setup: {BASE_URL}/settings\n\nThis is the only reminder you'll get from us about this interview. Questions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <h2 style="margin:0 0 16px;color:#1a1a2e;">Good luck tomorrow, {first_name}</h2>
@@ -529,6 +543,7 @@ def send_announcement_email(to_email: str, subject: str, body: str) -> None:
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": subject,
+            "text": f"{body}\n\nQuestions? Just reply to this email.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">{body_html}</p>
@@ -564,6 +579,7 @@ def send_lead_announcement_email(to_email: str, subject: str, body: str, token: 
             "from": FROM_EMAIL,
             "to": to_email,
             "subject": subject,
+            "text": f"{body}\n\nSet up InterviewAce (open on a laptop or desktop):\n{url}\n\nDon't forward this link — it signs you in.\n\nYou gave us this address on InterviewAce's site. If that wasn't you, ignore this email — no account has been created.",
             "html": f"""
             <div style="font-family:system-ui,-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#ffffff;color:#1a1a2e;">
               <p style="margin:0 0 24px;color:#4a4a5e;line-height:1.6;">{body_html}</p>
@@ -608,6 +624,7 @@ def send_account_deletion_email(user_email: str, reason: str, detail: str) -> No
             "from": FROM_EMAIL,
             "to": NOTIFY_EMAIL,
             "subject": f"[InterviewAce] Account deleted — {reason_label}",
+            "text": f"Account deletion\nFrom: {user_email}\nReason: {reason_label}\nDetail: {detail or 'No additional detail.'}",
             "html": f"""
             <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
                         padding:32px;background:#0d0d0d;color:#e0e0e0;">
@@ -630,6 +647,75 @@ def send_account_deletion_email(user_email: str, reason: str, detail: str) -> No
         })
     except Exception as e:
         logger.error("[email] failed to send account deletion notice: %s", e)
+        record_email_failure()
+
+
+CONTACT_DEPT_LABELS = {
+    "support":   "Support",
+    "billing":   "Billing",
+    "privacy":   "Privacy & Data",
+    "legal":     "Legal",
+    "partner":   "Partnerships",
+    "marketing": "Marketing",
+    "hello":     "General",
+}
+
+CONTACT_DEPT_ADDRESSES = {
+    "support":   "support@interview-wise.com",
+    "billing":   "billing@interview-wise.com",
+    "privacy":   "privacy@interview-wise.com",
+    "legal":     "legal@interview-wise.com",
+    "partner":   "partner@interview-wise.com",
+    "marketing": "marketing@interview-wise.com",
+    "hello":     "hello@interview-wise.com",
+}
+
+
+def send_contact_email(dept: str, from_email: str, subject: str, message: str) -> None:
+    """User-submitted contact form. Routes to the right department inbox, with reply_to
+    set to the user's address so a plain Reply goes back to them, not the noreply sender."""
+    dept_label   = CONTACT_DEPT_LABELS.get(dept, "General")
+    dept_address = CONTACT_DEPT_ADDRESSES.get(dept, "hello@interview-wise.com")
+
+    logger.info("[contact] dept=%s from=%s subject=%r", dept, from_email, subject)
+
+    if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:
+        return
+
+    from html import escape
+    message_html = escape(message).replace("\n", "<br>")
+
+    try:
+        resend.Emails.send({
+            "from":     FROM_EMAIL,
+            "to":       dept_address,
+            "reply_to": from_email,
+            "subject":  f"[Contact: {dept_label}] {subject}",
+            "text":     f"From: {from_email}\nDepartment: {dept_label}\nSubject: {subject}\n\n{message}",
+            "html":     f"""
+            <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
+                        padding:32px;background:#0d0d0d;color:#e0e0e0;">
+              <h2 style="margin:0 0 4px;color:#fff;font-size:1.1rem;">Contact: {dept_label}</h2>
+              <p style="margin:0 0 24px;color:#555;font-size:0.82rem;">
+                from <strong style="color:#888;">{escape(from_email)}</strong>
+                &nbsp;·&nbsp; reply goes straight back to them
+              </p>
+
+              <table style="width:100%;border-collapse:collapse;font-size:0.9rem;">
+                <tr>
+                  <td style="padding:10px 0;color:#666;width:90px;">Subject</td>
+                  <td style="padding:10px 0;color:#e0e0e0;font-weight:600;">{escape(subject)}</td>
+                </tr>
+              </table>
+
+              <p style="margin:16px 0 4px;color:#666;font-size:0.82rem;">Message</p>
+              <p style="margin:0;padding:14px;background:#1a1a2e;border-radius:8px;
+                        color:#ccc;font-size:0.9rem;line-height:1.7;">{message_html}</p>
+            </div>
+            """,
+        })
+    except Exception as e:
+        logger.error("[email] failed to send contact email: %s", e)
         record_email_failure()
 
 
@@ -658,6 +744,7 @@ def send_webstore_alert_email(detail: str, recovered: bool = False) -> None:
             "from": FROM_EMAIL,
             "to": NOTIFY_EMAIL,
             "subject": f"[InterviewAce] {heading}",
+            "text": f"{heading}\n\n{body}\n\nDetail: {detail}\n\nHealth: {BASE_URL}/admin/health",
             "html": f"""
             <div style="font-family:system-ui,sans-serif;max-width:520px;margin:0 auto;
                         padding:32px;background:#0d0d0d;color:#e0e0e0;">

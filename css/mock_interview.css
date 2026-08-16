@@ -700,12 +700,13 @@
 
 /* Nudges the eye once "Need help?" has been sitting there unpressed, for anyone who hasn't
    spotted that the button is the thing to press. Cleared the moment it's used — see
-   miShowNeedHelp. The hop itself keeps the ~500ms of .mi-leave-jump, but sits in a 2.4s
-   cycle so there's a clear rest between bounces rather than a constant jitter. */
+   miShowNeedHelp. Jump + glow-pulse so it's unmissable on the phone screen. */
 .mi-nh-btn.mi-nh-jump { animation: mi-nh-jump 2.4s ease-in-out infinite; }
 @keyframes mi-nh-jump {
-  0%, 21%, 100% { transform: translateY(0); }
-  12% { transform: translateY(-7px); }
+  0%, 21%, 100% { transform: translateY(0); box-shadow: 0 0 0 0 rgba(198,242,78,0); border-color: rgba(198,242,78,0.28); }
+  6%  {          box-shadow: 0 0 14px 4px rgba(198,242,78,0.45); border-color: rgba(198,242,78,0.7); }
+  12% { transform: translateY(-8px); box-shadow: 0 0 22px 8px rgba(198,242,78,0.6); border-color: rgba(198,242,78,0.9); }
+  18% {          box-shadow: 0 0 8px 2px rgba(198,242,78,0.25); border-color: rgba(198,242,78,0.4); }
 }
 @media (prefers-reduced-motion: reduce) { .mi-nh-btn.mi-nh-jump { animation: none; } }
 

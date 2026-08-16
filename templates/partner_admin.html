@@ -77,7 +77,7 @@
     <div class="pa-grant-card">
       <h2>Grant a tier manually</h2>
       <p class="pa-grant-sub">Overrides the automatic tier logic. Tier 2/3 granted here are sticky - never auto-downgraded.</p>
-      <form action="/partner/admin/tier" method="post" class="pa-grant-row">
+      <form action="/admin/partners/tier" method="post" class="pa-grant-row">
         <input type="email" name="email" class="pa-grant-input" placeholder="partner@email.com" required>
         <select name="tier" class="pa-grant-select">
           <option value="2">Tier 2 ({{ tier2_pct }}%)</option>
@@ -114,8 +114,8 @@
           <td>{{ w.status | capitalize }}</td>
           <td>
             {% if w.status == 'requested' %}
-            <form action="/partner/admin/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-ok">Mark paid</button></form>
-            <form action="/partner/admin/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-danger">Reject</button></form>
+            <form action="/admin/partners/withdraw/{{ w.id }}/paid" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-ok">Mark paid</button></form>
+            <form action="/admin/partners/withdraw/{{ w.id }}/rejected" method="post" class="pa-form"><button type="submit" class="ua-btn ua-btn-danger">Reject</button></form>
             {% else %}
 - 
             {% endif %}

@@ -205,21 +205,23 @@ main {
 }
 .analysis-header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
 
-/* Clear button */
+/* Clear button — same base style as .complexity-btn so it sits naturally beside the steppers */
 #clear-btn {
-  background: none;
+  background: var(--card-inset);
   border: 1px solid var(--line-strong);
   color: var(--text-3);
   cursor: pointer;
-  padding: 3px 10px;
+  padding: 0 10px;
+  height: 24px;
   border-radius: 5px;
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   font-weight: 600;
   transition: border-color .15s, color .15s;
   display: none;
+  align-self: flex-end; /* align with the stepper buttons */
 }
-#clear-btn.visible { display: inline-block; }
+#clear-btn.visible { display: inline-flex; align-items: center; }
 #clear-btn:hover { border-color: var(--danger); color: var(--danger); }
 
 /* Complexity + comment-level steppers (same control, two settings) */
@@ -921,6 +923,90 @@ main {
 .session-over-btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 @media (max-width: 480px) {
   .session-over-modal { padding: 32px 20px; }
+}
+
+/* ── Session start warning overlay (paid/session-pack users) ── */
+.session-warn-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.82);
+  z-index: 480;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.session-warn-modal {
+  background: var(--card);
+  border: 1px solid rgba(245,166,35,.28);
+  border-radius: 16px;
+  padding: 36px 32px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+}
+.session-warn-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(245,166,35,.10);
+  border: 1px solid rgba(245,166,35,.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+.session-warn-icon svg { display: block; }
+.session-warn-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0 0 10px;
+  line-height: 1.3;
+}
+.session-warn-body {
+  font-size: 14px;
+  color: var(--text-3);
+  margin: 0 0 26px;
+  line-height: 1.6;
+}
+.session-warn-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.session-warn-btn-primary {
+  display: block;
+  background: rgba(198,242,78,.08);
+  border: 1px solid rgba(198,242,78,.35);
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: background .15s;
+}
+.session-warn-btn-primary:hover { background: rgba(198,242,78,.14); }
+.session-warn-btn-ghost {
+  display: block;
+  background: none;
+  border: 1px solid var(--line-strong);
+  color: var(--text-3);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color .15s, color .15s;
+}
+.session-warn-btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 480px) {
+  .session-warn-modal { padding: 28px 20px; }
 }
 
 /* ── Post-interview feedback overlay ── */

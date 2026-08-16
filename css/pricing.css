@@ -278,6 +278,14 @@ main {
 }
 .price-cut { color: var(--accent); }
 
+/* Referral savings note below the headline price on the subscription card. */
+.plan-referral-note {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
 .badge {
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);

@@ -867,7 +867,10 @@ a { color: inherit; text-decoration: none; }
   font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px; color: var(--text-1);
 }
 .ia-footer-copy { font-size: 13px; color: var(--text-3); }
-.ia-footer-links { display: flex; gap: 22px; font-size: 13px; color: var(--text-2); }
+/* The dark/light toggle is position:fixed bottom-right — ensure footer links don't sit
+   underneath it. padding-right keeps the right-most links clear of the ~90px toggle; the
+   wrapping bottom-row also needs extra bottom clearance on small screens (see responsive). */
+.ia-footer-links { display: flex; flex-wrap: wrap; gap: 16px 22px; font-size: 13px; color: var(--text-2); }
 .ia-footer-links a { transition: color .15s; }
 .ia-footer-links a:hover { color: var(--text-1); }
 .ia-footer-links a.ia-footer-link--highlight {
@@ -929,6 +932,10 @@ a { color: inherit; text-decoration: none; }
   .ia-demo-frame { padding-bottom: 36px; }
   .phone-context-note.has-note { display: none; }
   .phone-toast.has-note { display: block; }
+  /* Footer: theme toggle is position:fixed at bottom-right (~90px wide, right:24px). Give the
+     footer bottom clearance and right-side padding so links don't hide under the toggle. */
+  .ia-footer { padding-bottom: 72px; }
+  .ia-footer-links { padding-right: 116px; }
 }
 
 /* ===== REDUCED MOTION ===== */

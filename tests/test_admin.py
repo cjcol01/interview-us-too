@@ -23,6 +23,14 @@ class _FakeStripeObj(dict):
 
 
 def _make_admin_cookie(db):
+    # Purge any stale row from a previous crashed test run before inserting.
+    # UniqueViolation on the username index would otherwise poison the session
+    # and cascade failures through every subsequent admin test.
+    stale = db.query(User).filter(User.username == ADMIN_USERNAME).first()
+    if stale:
+        db.delete(stale)
+        db.commit()
+
     admin = User(
         username=ADMIN_USERNAME,
         email=f"_test_admin_{_sec.token_hex(4)}@test.internal",

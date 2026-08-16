@@ -184,15 +184,14 @@ def register(test, skip, client):
             delete_by_name(uname)
 
     def test_settings_shows_session_warning_for_paid_users():
-        """Paid (session-based) users get a heads-up that pressing the capture hotkey
-        with the extension on spends a session immediately — no confirmation popup,
-        since the app is deliberately discreet. See TODO.md 'Now' item."""
+        """Paid (session-based) users see the session-start reminder toggle in
+        the Hotkeys section so they can control the pre-capture warning modal."""
         token, uname = make_cookie(AccountLevel.paid)
         try:
             r = client.get("/settings", cookies={"session": token})
             assert r.status_code == 200
-            assert "session-notice" in r.text
-            assert "Heads up" in r.text
+            assert "session-warning-toggle" in r.text
+            assert "Session start reminder" in r.text
         finally:
             delete_by_name(uname)
 
@@ -327,7 +326,9 @@ def register(test, skip, client):
             db.close()
             delete_by_name(uname)
 
-    def test_onboarding_redirects_non_trial_to_app():
+    def test_onboarding_accessible_for_non_trial_users():
+        """Paid/unlimited users can revisit the setup guide — the trial-only gate
+        was removed so they can reconnect the extension on a new device."""
         from models import User
         token, uname = make_cookie(AccountLevel.paid)
         db = SessionLocal()
@@ -336,8 +337,7 @@ def register(test, skip, client):
             u.email_verified = True
             db.commit()
             r = client.get("/onboarding", cookies={"session": token}, follow_redirects=False)
-            assert r.status_code in (302, 303, 307)
-            assert "/app" in r.headers.get("location", "")
+            assert r.status_code == 200
         finally:
             db.close()
             delete_by_name(uname)
@@ -616,7 +616,7 @@ def register(test, skip, client):
     test("GET /auth/logout also redirects to login",          test_get_logout_redirects)
     test("/onboarding renders for trial user",                test_onboarding_renders_for_trial_user)
     test("/onboarding generates api_token if missing",        test_onboarding_generates_api_token_if_missing)
-    test("/onboarding redirects non-trial to /app",           test_onboarding_redirects_non_trial_to_app)
+    test("/onboarding accessible for non-trial users",        test_onboarding_accessible_for_non_trial_users)
     test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
     test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
     test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)

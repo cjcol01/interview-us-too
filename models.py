@@ -75,6 +75,7 @@ class User(Base):
     referral_credit_pence = Column(Integer, default=0, nullable=False, server_default="0")
     sub_trial_used     = Column(Boolean, default=False, nullable=False, server_default="0")
     sub_invoice_paid   = Column(Boolean, default=False, nullable=False, server_default="0")
+    sub_lapsed_at      = Column(DateTime, nullable=True)  # when the subscription last went to canceled/unpaid; used to re-offer the trial after 90 days
     retention_offer_claimed = Column(Boolean, default=False, nullable=False, server_default="0")
     partner_status     = Column(String, default="none", nullable=False, server_default="none")  # none | active (active = upgraded to a %-commission tier)
     partner_tier       = Column(Integer, default=0, nullable=False, server_default="0")  # 0/1 = implicit flat Tier 1 | 2 = 15% | 3 = 25%
@@ -86,6 +87,10 @@ class User(Base):
     account_flag_seen   = Column(Boolean, default=True, nullable=False, server_default="1")
     interview_date         = Column(Date, nullable=True)  # user-supplied date of their real interview, for the day-before reminder email
     interview_reminder_sent = Column(Boolean, default=False, nullable=False, server_default="0")
+    # Show a "session about to start" reminder on /app when the user is a paid (session-pack)
+    # user and they haven't started a session yet this visit. Default on; can be disabled from
+    # Settings → Hotkeys once the user is comfortable with the no-confirmation flow.
+    session_start_warning  = Column(Boolean, default=True, nullable=False, server_default="1")
 
 
 class InterviewContext(Base):

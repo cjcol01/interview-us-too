@@ -10,7 +10,7 @@
 
   {% if account_flag_notice == 'paused' %}
   <div class="account-flag-banner">
-    Your subscription was paused by an admin - your plan has been downgraded and you won't be billed further while paused. Contact support if you think this is a mistake.
+    Your subscription was paused by an admin - your plan has been downgraded and you won't be billed further while paused. <a href="/contact?dept=support">Contact support</a> if you think this is a mistake.
   </div>
   {% elif account_flag_notice == 'resumed' %}
   <div class="account-flag-banner account-flag-banner-ok">
@@ -387,12 +387,21 @@
           </div>
 
           {% if account_level == 'paid' %}
-          <div class="session-notice">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2.2">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-            </svg>
-            <p><strong>Heads up:</strong> because InterviewAce stays discreet, there's no "start a session?" popup. If the extension is on and you press the screen capture hotkey, it starts a session immediately - spending one of your {{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}. Toggle the extension off between interviews to avoid using one by accident.</p>
+          <div class="settings-card" style="margin-bottom:16px;">
+            <div class="card-row">
+              <div class="card-row-left">
+                <div class="card-row-title">Session start reminder</div>
+                <div class="card-row-desc">Show a reminder on your phone dashboard before your first capture each visit — so you know a session is about to start and won't spend one by accident.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="session-warning-toggle" {% if session_start_warning %}checked{% endif %} onchange="saveSessionWarning()">
+                <span class="toggle-track"></span>
+              </label>
+            </div>
+            <div class="card-row-desc" id="session-warn-hint" style="margin-top:4px;{% if session_start_warning %}display:none{% endif %}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2.2" style="vertical-align:-1px;flex-shrink:0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              Reminder is off — pressing the screen capture hotkey with the extension on starts a session immediately, spending one of your {{ sessions_remaining }} session{{ 's' if sessions_remaining != 1 else '' }}.
+            </div>
           </div>
           {% endif %}
 
@@ -454,6 +463,7 @@
         <section class="settings-section" id="extension">
           <div class="section-hd">
             <h2 class="section-title">Extension</h2>
+            <p class="section-sub">Need to reconnect or set up on a new device? <a href="/onboarding" style="color:var(--accent)">Go to the setup guide &rarr;</a></p>
           </div>
           <div class="settings-card">
 
@@ -1005,6 +1015,18 @@
         statusEl.textContent = 'Network error.';
         statusEl.style.color = 'var(--danger)';
       }
+    }
+
+    // ── Session start warning toggle ──────────────────────────────
+    async function saveSessionWarning() {
+      const enabled = document.getElementById('session-warning-toggle').checked;
+      const hint = document.getElementById('session-warn-hint');
+      if (hint) hint.style.display = enabled ? 'none' : '';
+      await fetch('/api/settings/session-warning', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      });
     }
 
     // ── Hotkey recording ───────────────────────────────────────────

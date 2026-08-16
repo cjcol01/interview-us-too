@@ -68,17 +68,16 @@
       }
       const btn = document.createElement('a');
       btn.href = '/app';
-      btn.className = 'bs-btn';
-      btn.textContent = 'Open InterviewAce →';
+      btn.className = 'bs-btn bs-btn-outline';
+      btn.textContent = 'Open InterviewAce';
       card.appendChild(btn);
 
-      // The highest-value thing a new payer can do before their first interview, and the one
-      // they'd otherwise have to go hunting for: answers get noticeably better once the AI
-      // has their CV and the company they're interviewing with.
+      // CV context: the single highest-value action before a first interview.
+      // Answers get noticeably better once the AI has their CV and target company.
       const ctx = document.createElement('a');
       ctx.href = '/settings#context';
-      ctx.className = 'bs-btn bs-btn-outline';
-      ctx.textContent = 'Add your CV & interview context';
+      ctx.className = 'bs-btn';
+      ctx.textContent = 'Add your CV & interview context →';
       card.appendChild(ctx);
 
       const ctxNote = document.createElement('p');

@@ -8,6 +8,25 @@ from models import AccountLevel, CommissionStatus, IntroCardFingerprint, Partner
 
 stripe.api_key = STRIPE_SECRET_KEY
 
+# Paying customers who let their subscription lapse get a second free trial after this
+# many days — long enough that it feels like a genuine win-back offer, not a reset exploit.
+_TRIAL_REELIGIBILITY_DAYS = 90
+
+
+def trial_eligible(user: User) -> bool:
+    """True if this user should receive a free trial period at checkout.
+
+    New users (never trialled) always qualify. Lapsed paying customers qualify
+    again after _TRIAL_REELIGIBILITY_DAYS days — sub_invoice_paid confirms they
+    actually paid at least one invoice, so pure trial-and-cancel abusers don't benefit."""
+    if not user.sub_trial_used:
+        return True
+    return (
+        user.sub_invoice_paid
+        and user.sub_lapsed_at is not None
+        and datetime.utcnow() - user.sub_lapsed_at >= timedelta(days=_TRIAL_REELIGIBILITY_DAYS)
+    )
+
 
 def get_or_create_customer(user: User, db: Session) -> str:
     if user.stripe_customer_id:
@@ -146,12 +165,16 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
-        # A referred user's first session is free — a 100%-off coupon nets the £2 intro to £0,
-        # but the card is still collected (so the fingerprint anti-abuse check still runs). This
-        # IS their intro, so it can't stack with a paid one (intro_redeemed enforces single use).
+        # A referred user's intro is free. Priority: (1) dedicated 100%-off intro coupon if
+        # configured — explicit and card-required; (2) referral coupon (£5) which exceeds the
+        # £2 price so Stripe floors it to £0, also card-required; (3) referral account credit.
         if user.referred_by_id and not user.intro_redeemed and STRIPE_INTRO_FREE_COUPON_ID:
             key = "promotion_code" if STRIPE_INTRO_FREE_COUPON_ID.startswith("promo_") else "coupon"
             kwargs["discounts"] = [{key: STRIPE_INTRO_FREE_COUPON_ID}]
+        elif apply_referral_discount and STRIPE_REFERRAL_COUPON_ID and not user.intro_redeemed:
+            # £5 off a £2 purchase → Stripe clamps to £0. Card is still required (mode=payment).
+            key = "promotion_code" if STRIPE_REFERRAL_COUPON_ID.startswith("promo_") else "coupon"
+            kwargs["discounts"] = [{key: STRIPE_REFERRAL_COUPON_ID}]
         elif user.referral_credit_pence > 0:
             kwargs["discounts"] = [{"coupon": _create_credit_coupon(user.referral_credit_pence)}]
         session = stripe.checkout.Session.create(**kwargs)
@@ -183,7 +206,7 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             success_url=f"{BASE_URL}/billing/success",
             cancel_url=f"{BASE_URL}/pricing",
         )
-        if not user.sub_trial_used:
+        if trial_eligible(user):
             kwargs["subscription_data"] = {"trial_period_days": 7}
         if apply_referral_discount and STRIPE_REFERRAL_COUPON_ID:
             key = "promotion_code" if STRIPE_REFERRAL_COUPON_ID.startswith("promo_") else "coupon"
@@ -300,6 +323,7 @@ def _sync_subscription(sub: dict, db: Session):
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
         user.sub_cancel_at = None
+        user.sub_lapsed_at = datetime.utcnow()
         track(user.id, "subscription_lapsed", status=sub["status"])
     db.commit()
 

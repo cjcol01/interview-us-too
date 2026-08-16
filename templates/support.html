@@ -330,7 +330,7 @@
   <div class="stuck-card">
     <div class="stuck-title">Still stuck?</div>
     <div class="stuck-sub">Reply is usually in minutes.</div>
-    <a class="stuck-btn" id="stuck-btn" href="mailto:support@interviewace.co">Contact support</a>
+    <a class="stuck-btn" id="stuck-btn" href="/contact?dept=support">Contact support</a>
   </div>
 
 </main>
@@ -368,7 +368,7 @@
       'Instant replay: ' + document.getElementById('check-replay-status').textContent,
     ];
     const body = 'Diagnostics snapshot:\n' + lines.join('\n') + '\n\nWhat happened:\n';
-    link.href = 'mailto:support@interviewace.co?subject=' + encodeURIComponent('InterviewAce support') + '&body=' + encodeURIComponent(body);
+    link.href = '/contact?dept=support';
   }
 
   // "Not detected" (content script never responded) and "not connected"
@@ -457,6 +457,9 @@
 
   function _applyReplayCheck() {
     const state = _replayLast;
+    // null = extension hasn't responded yet — keep the row neutral (unknown) rather than
+    // immediately showing orange, which would look like a problem before the check even runs.
+    if (state === null || state === undefined) return;
     if (state === 'armed') _setCheck('replay', 'ok', 'On · locked to tab');
     else if (state === 'error' || state === 'stream-ended') _setCheck('replay', 'bad', 'Buffer empty / off');
     else _setCheck('replay', 'warn', 'Not locked to a tab - set it up before your interview');
@@ -470,7 +473,9 @@
     if (s.detected === false) {
       _setCheck('ext', 'bad', 'Not detected');
       _setExtFixState('not-detected');
-      _setCheck('phone', 'bad', "Can't check");
+      // Phone and replay depend on the extension — keep them neutral (unknown) rather
+      // than red when the extension simply isn't installed yet.
+      _setCheck('phone', 'unknown', 'Install the extension to check');
     } else if (s.detected) {
       _extLinked = s.linked;
       _extEnabled = s.enabled;
@@ -488,7 +493,8 @@
     _applyReplayCheck();
   });
 
-  _applyReplayCheck();
+  // _applyReplayCheck() not called on init — state is null until the probe responds, which
+  // would immediately show orange. The subscribe callback above handles the first real result.
   _updateStuckMailto();
   IAExtProbe.start();
 

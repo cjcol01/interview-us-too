@@ -1,0 +1,176 @@
+/* ── Contact page ──────────────────────────────────────────── */
+.contact-main {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 60px max(20px, 4vw) 80px;
+}
+
+/* ── Hero ── */
+.contact-hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+.contact-kicker {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.contact-hero h1 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.03em;
+  margin-bottom: 12px;
+}
+.contact-hero p {
+  font-size: 15px;
+  color: var(--text-2);
+  line-height: 1.6;
+}
+
+/* ── Card ── */
+.contact-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 40px 48px;
+}
+
+/* ── Form fields ── */
+.contact-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+.contact-field label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.contact-field input,
+.contact-field select,
+.contact-field textarea {
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  color: var(--text-1);
+  outline: none;
+  transition: border-color .15s;
+  width: 100%;
+}
+.contact-field input::placeholder,
+.contact-field textarea::placeholder {
+  color: var(--text-3);
+}
+.contact-field input:focus,
+.contact-field select:focus,
+.contact-field textarea:focus {
+  border-color: var(--accent);
+}
+
+/* ── Department select ── */
+.contact-field select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  /* chevron via inline SVG background */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239C9CA6' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 36px;
+  color-scheme: dark;
+}
+[data-theme="light"] .contact-field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235C574E' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  color-scheme: light;
+}
+
+/* ── Textarea ── */
+.contact-field textarea {
+  min-height: 160px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+/* ── Submit row ── */
+.contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+.contact-submit {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border: none;
+  border-radius: 10px;
+  padding: 12px 26px;
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s, opacity .15s;
+}
+.contact-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px rgba(255,255,255,.12);
+}
+[data-theme="light"] .contact-submit:hover:not(:disabled) {
+  box-shadow: 0 10px 28px rgba(0,0,0,.18);
+}
+.contact-submit:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.contact-status {
+  font-size: 13px;
+  color: var(--text-2);
+  transition: color .2s;
+  min-height: 20px;
+}
+.contact-status.ok  { color: var(--accent); }
+.contact-status.err { color: var(--danger); }
+
+/* ── Success state ── */
+.contact-success {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 56px 24px;
+  text-align: center;
+}
+.contact-success.visible { display: flex; }
+.contact-success-icon {
+  font-size: 48px;
+  line-height: 1;
+}
+.contact-success h2 {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.02em;
+}
+.contact-success p {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.6;
+  max-width: 360px;
+}
+
+@media (max-width: 680px) {
+  .contact-card { padding: 24px 20px; }
+}

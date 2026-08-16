@@ -86,6 +86,9 @@
       </div>
       <div class="card-body" style="padding-top:0;">
         <textarea class="ctx-textarea" id="detail-text" placeholder="Anything you'd like to share? (optional)"></textarea>
+        <p id="issues-support-hint" style="display:none;margin-top:12px;font-size:13px;color:var(--text-2);line-height:1.6;">
+          Having issues? We might be able to fix it — <a href="/contact?dept=support">contact support</a> before you delete.
+        </p>
       </div>
     </div>
 
@@ -118,10 +121,12 @@
   <script>
     const radios     = document.querySelectorAll('input[name="reason"]');
     const radioItems = document.querySelectorAll('.radio-item');
+    const issuesHint = document.getElementById('issues-support-hint');
     radios.forEach(r => {
       r.addEventListener('change', () => {
         radioItems.forEach(li => li.classList.remove('selected'));
         r.closest('.radio-item').classList.add('selected');
+        issuesHint.style.display = r.value === 'had_issues' ? 'block' : 'none';
       });
     });
 

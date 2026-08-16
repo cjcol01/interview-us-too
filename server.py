@@ -54,9 +54,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from analytics import identify, logger, track
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, validate_username, verify_password
-from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription
+from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription, trial_eligible
 from config import ADMIN_USERNAME, AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
-from mailer import send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
+from mailer import CONTACT_DEPT_ADDRESSES, CONTACT_DEPT_LABELS, send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_contact_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
 from models import AccountLevel, Announcement, AnnouncementDismissal, CommissionStatus, InterviewContext, InterviewSession, Lead, PartnerCommission, Referral, ReferralStatus, ResponseStyle, SessionFeedback, UsageDaily, User, Withdrawal, WithdrawalStatus
@@ -1168,6 +1168,13 @@ _REFERRAL_ERROR_MESSAGES = {
 # Schemas
 # ---------------------------------------------------------------------------
 
+class ContactRequest(BaseModel):
+    dept: str
+    from_email: str
+    subject: str
+    message: str
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -2085,7 +2092,7 @@ def landing(request: Request, user: Optional[User] = Depends(get_optional_user),
     return response
 
 
-def _compute_account_alert(user: User) -> Optional[dict]:
+def _compute_account_alert(user: User, db: Session = None) -> Optional[dict]:
     """Initial seed for the /app status-alert light — the single most relevant
     account/entitlement problem, or None when nothing's wrong. The client-side
     ALERT_CONFIG in index.html decides whether each `key` is actually surfaced,
@@ -2096,6 +2103,17 @@ def _compute_account_alert(user: User) -> Optional[dict]:
                 "text": "No active plan — subscribe or buy a session to keep going."}
     if lvl == AccountLevel.paid:
         if user.sessions_remaining <= 0:
+            # Don't alert if the user is currently in an active session — they
+            # already know they're using one; the warning is for when they next
+            # open the dashboard and have nothing left.
+            if db is not None:
+                active = db.query(InterviewSession).filter(
+                    InterviewSession.user_id == user.id,
+                    InterviewSession.ended_at == None,
+                    InterviewSession.expires_at > datetime.utcnow(),
+                ).first()
+                if active:
+                    return None
             return {"key": "no_sessions", "severity": "bad",
                     "text": "No sessions left — top up before your next interview."}
         if user.sessions_remaining == 1:
@@ -2109,7 +2127,7 @@ def _compute_account_alert(user: User) -> Optional[dict]:
 
 
 @app.get("/app")
-def index(request: Request, user: User = Depends(require_user)):
+def index(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if not user.password_set:
@@ -2128,7 +2146,9 @@ def index(request: Request, user: User = Depends(require_user)):
         "first_name": (user.full_name or "").split(" ")[0] or "there",
         "user_id": user.id,
         "interview_date": user.interview_date.isoformat() if user.interview_date else "",
-        "account_alert": _compute_account_alert(user),
+        "account_alert": _compute_account_alert(user, db),
+        "session_start_warning": user.session_start_warning if user.account_level == AccountLevel.paid else False,
+        "sessions_remaining": user.sessions_remaining if user.account_level == AccountLevel.paid else 0,
     })
 
 
@@ -2149,7 +2169,7 @@ def welcome_page(request: Request, user: User = Depends(require_user)):
 
 
 @app.get("/welcome/next")
-def welcome_next_page(request: Request, user: User = Depends(require_user)):
+def welcome_next_page(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if not user.password_set:
@@ -2271,8 +2291,8 @@ def onboarding_page(
         return RedirectResponse("/verify-pending")
     if not user.password_set:
         return RedirectResponse("/finish-signup")
-    if user.account_level != AccountLevel.trial:
-        return RedirectResponse("/app")
+    # Onboarding is also reachable from Settings for users who've already paid — e.g. to
+    # reconnect the extension or review the setup steps on a new machine. No trial gate here.
     if not user.welcome_seen:
         user.welcome_seen = True
         db.commit()
@@ -2358,6 +2378,7 @@ def pricing_page(
         "can_apply_referral": _can_apply_referral_code(user) if user else False,
         "ref_success": ref_success == "1",
         "ref_error_msg": _REFERRAL_ERROR_MESSAGES.get(ref_error),
+        "trial_eligible": trial_eligible(user) if user else True,
         "show_navbar": True,
     })
 
@@ -2569,6 +2590,22 @@ def faq_page(
     return templates.TemplateResponse(request=request, name="faq.html", context={"show_navbar": True})
 
 
+@app.get("/privacy")
+def privacy_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    return templates.TemplateResponse(request=request, name="privacy.html", context={"show_navbar": True})
+
+
+@app.get("/cookies")
+def cookies_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    return templates.TemplateResponse(request=request, name="cookies.html", context={"show_navbar": True})
+
+
 @app.get("/support")
 def support_page(
     request: Request,
@@ -2583,6 +2620,55 @@ def support_page(
         "show_navbar": True,
         "api_token": api_token,
     })
+
+
+@app.get("/contact")
+def contact_page(
+    request: Request,
+    dept: Optional[str] = None,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    # Normalise the dept param so the template only sees valid keys (or None)
+    valid_dept = dept if dept in CONTACT_DEPT_ADDRESSES else None
+    return templates.TemplateResponse(request=request, name="contact.html", context={
+        "show_navbar":   True,
+        "default_dept":  valid_dept or "support",
+    })
+
+
+@app.post("/api/contact")
+async def api_contact(body: ContactRequest, request: Request, user: Optional[User] = Depends(get_optional_user)):
+    r = request.app.state.redis
+    ip = _client_ip(request)
+
+    # Rate-limit by IP: max 3 submissions per 5 min, with a 10-second cooldown between them.
+    await _rate_limit(
+        r, ip, "contact",
+        cooldown=10, limit=3,
+        cooldown_msg="Please wait a moment before sending another message.",
+        limit_msg="Too many messages — please wait a few minutes before trying again.",
+        window_limit=5, window_seconds=300,
+        window_msg="Too many messages — please wait a few minutes before trying again.",
+    )
+
+    dept       = body.dept.strip().lower()
+    from_email = body.from_email.strip()
+    subject    = body.subject.strip()
+    message    = body.message.strip()
+
+    if dept not in CONTACT_DEPT_ADDRESSES:
+        raise HTTPException(status_code=400, detail="Invalid department.")
+    if not from_email or "@" not in from_email:
+        raise HTTPException(status_code=400, detail="Please enter a valid email address.")
+    if not subject:
+        raise HTTPException(status_code=400, detail="Subject is required.")
+    if not message:
+        raise HTTPException(status_code=400, detail="Message is required.")
+    if len(subject) > 200 or len(message) > 4000:
+        raise HTTPException(status_code=400, detail="Message is too long.")
+
+    send_contact_email(dept=dept, from_email=from_email, subject=subject, message=message)
+    return {"ok": True}
 
 
 @app.get("/install-manual")
@@ -2746,6 +2832,14 @@ def partner_withdraw(
 
 
 @app.get("/partner/admin")
+def partner_admin_redirect(request: Request):
+    """Cloudflare Access covers /admin/* but not /partner/admin — redirect to the canonical
+    /admin/partners URL so the access rule protects it."""
+    qs = request.url.query
+    return RedirectResponse(f"/admin/partners?{qs}" if qs else "/admin/partners", status_code=301)
+
+
+@app.get("/admin/partners")
 def partner_admin(
     request: Request,
     db: Session = Depends(get_db),
@@ -2846,7 +2940,7 @@ def partner_admin(
     })
 
 
-@app.post("/partner/admin/withdraw/{withdrawal_id}/{action}")
+@app.post("/admin/partners/withdraw/{withdrawal_id}/{action}")
 def partner_admin_withdraw(
     withdrawal_id: int,
     action: str,
@@ -2858,10 +2952,10 @@ def partner_admin_withdraw(
         w.status = WithdrawalStatus.paid if action == "paid" else WithdrawalStatus.rejected
         w.paid_at = datetime.utcnow() if action == "paid" else None
         db.commit()
-    return RedirectResponse("/partner/admin", status_code=303)
+    return RedirectResponse("/admin/partners", status_code=303)
 
 
-@app.post("/partner/admin/tier")
+@app.post("/admin/partners/tier")
 def partner_admin_set_tier(
     db: Session = Depends(get_db),
     email: str = Form(...),
@@ -2877,7 +2971,7 @@ def partner_admin_set_tier(
         target.partner_tier_manual = tier >= 2
         db.commit()
         track(target.id, "partner_tier_granted", tier=tier)
-    return RedirectResponse("/partner/admin", status_code=303)
+    return RedirectResponse("/admin/partners", status_code=303)
 
 
 # ---------------------------------------------------------------------------
@@ -2943,7 +3037,7 @@ async def admin_home(
     if webhook_check["ok"] is False:
         alerts.append({"level": "caution", "text": f"No Stripe webhook received in a while — last one {webhook_check['detail']}", "href": "/admin/health"})
     if flagged_referrers:
-        alerts.append({"level": "caution", "text": f"{flagged_referrers} referrer(s) flagged for review (high signups, zero conversions)", "href": "/partner/admin"})
+        alerts.append({"level": "caution", "text": f"{flagged_referrers} referrer(s) flagged for review (high signups, zero conversions)", "href": "/admin/partners"})
     if banned_count:
         alerts.append({"level": "notice", "text": f"{banned_count} user(s) currently banned", "href": "/admin/dashboard?segment=banned"})
     if pending_cancellations:
@@ -2976,7 +3070,7 @@ async def admin_home(
         {"title": "API usage", "href": "/admin/usage",
          "desc": "Per-user capture + audio volume over a rolling window — spot abuse or runaway usage.",
          "stat": f"{usage_today[0] + usage_today[1]} today"},
-        {"title": "Referrals & Partners", "href": "/partner/admin",
+        {"title": "Referrals & Partners", "href": "/admin/partners",
          "desc": "Affiliate tier status and commission balances, plus referral activity and referrers flagged for high signups with zero conversions.",
          "stat": f"{flagged_referrers} flagged" if flagged_referrers else "none flagged"},
         {"title": "Author page", "href": "/verify-author",
@@ -3320,12 +3414,10 @@ def _flagged_referrer_count(db: Session) -> int:
 
 @app.get("/admin/referrals")
 def admin_referrals(request: Request):
-    """Referral activity and partner management are one admin page now (/partner/admin),
-    matching the user-facing side where /referral already redirects to /partner/dashboard.
-    This route just keeps old bookmarks/links working, forwarding any query string (e.g. an
-    admin_msg from an action just taken) so in-flight feedback still shows."""
+    """Referral activity and partner management are one admin page now (/admin/partners).
+    This route keeps old bookmarks/links working."""
     qs = request.url.query
-    return RedirectResponse(f"/partner/admin?{qs}" if qs else "/partner/admin", status_code=302)
+    return RedirectResponse(f"/admin/partners?{qs}" if qs else "/admin/partners", status_code=302)
 
 
 # ---------------------------------------------------------------------------
@@ -4164,8 +4256,19 @@ async def admin_health_deep_check(
 
 @app.get("/healthz")
 async def healthz(request: Request):
-    """Liveness probe — confirms uvicorn is serving. Full health detail at /admin/health."""
-    return JSONResponse(status_code=200, content={"status": "ok"})
+    """Liveness probe — confirms Redis and the database are reachable. Full health at /admin/health."""
+    r = request.app.state.redis
+    redis_result = await _check_redis(r)
+    db = SessionLocal()
+    try:
+        db_result = _check_database(db)
+    finally:
+        db.close()
+    return JSONResponse(status_code=200, content={
+        "status": "ok",
+        "redis": redis_result["ok"],
+        "database": db_result["ok"],
+    })
 
 
 @app.get("/robots.txt", include_in_schema=False)
@@ -4206,6 +4309,7 @@ async def sitemap_xml():
         {"loc": f"{base}/pricing", "priority": "0.9", "changefreq": "weekly"},
         {"loc": f"{base}/faq",     "priority": "0.7", "changefreq": "monthly"},
         {"loc": f"{base}/support", "priority": "0.6", "changefreq": "monthly"},
+        {"loc": f"{base}/contact", "priority": "0.5", "changefreq": "yearly"},
     ]
     urls = "\n".join(
         f"  <url>\n"
@@ -4801,6 +4905,7 @@ async def settings_page(
         "interview_date": user.interview_date.isoformat() if user.interview_date else "",
         "account_flag_notice": account_flag_notice,
         "active_session_expires_at": active_session_expires_at,
+        "session_start_warning": user.session_start_warning,
         "show_navbar": True,
     })
 
@@ -5310,6 +5415,13 @@ def save_typing_preview(data: PassthroughSetting, user: User = Depends(get_curre
     return {"status": "ok"}
 
 
+@app.post("/api/settings/session-warning")
+def save_session_warning(data: PassthroughSetting, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    user.session_start_warning = data.enabled
+    db.commit()
+    return {"status": "ok"}
+
+
 @app.post("/api/settings/replay")
 def save_replay(data: ReplaySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.replay_enabled = data.enabled
@@ -5625,9 +5737,11 @@ async def account_delete_confirm(
 @app.get("/billing/checkout")
 def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
     apply_discount = False
-    # £5 off the referee's first real paid plan — the £10 pack or the £15 subscription (never
-    # the £2 intro). The free-first-session (100%-off intro) is handled inside create_checkout_session.
-    if plan in ("subscription", "sessions_pack") and user.referred_by_id:
+    # £5 off the referee's first plan purchase. Applied to all three plans: the intro deal (£2→£0
+    # since £5 > £2), the sessions pack (£10→£5), and the subscription (£15→£10 first month).
+    # The dedicated 100%-off intro coupon (STRIPE_INTRO_FREE_COUPON_ID) takes priority over this
+    # on the intro deal — both result in £0, but the free coupon is more explicit.
+    if user.referred_by_id:
         ref = db.query(Referral).filter(Referral.referee_id == user.id).first()
         if ref and ref.status != ReferralStatus.subscribed:
             apply_discount = True

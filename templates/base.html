@@ -25,6 +25,249 @@
     document.documentElement.setAttribute('data-theme','light');
   }());</script>
   {% block head %}{% endblock %}
+  <!-- Termly cookie consent manager -->
+  <script src="https://app.termly.io/resource-blocker/40ba9e20-9116-48dc-8fbf-d385f0147b8c"></script>
+  <script>
+  // Termly dynamically injects its own stylesheet, so static CSS !important
+  // loses.  JS inline setProperty(…, 'important') always wins.
+  //
+  // Two Termly surfaces to theme:
+  //   1. .t-consentPrompt  — the floating banner (position:fixed itself;
+  //                          its parent wrappers have zero dimensions).
+  //   2. Preferences modal — rendered dynamically on user click, so a
+  //                          MutationObserver catches it rather than the
+  //                          initial interval.
+  (function () {
+    var isDark = document.documentElement.dataset.theme !== 'light';
+    var bg     = isDark ? '#111114' : '#ffffff';
+    var bgSub  = isDark ? '#19191D' : '#F4F4F2';  // subtler surface for inner sections
+    var border = isDark ? '1px solid rgba(255,255,255,.11)' : '1px solid rgba(28,24,14,.11)';
+    var shadow = isDark
+      ? '0 0 0 1px rgba(255,255,255,.04) inset, 0 4px 6px rgba(0,0,0,.3), 0 24px 64px rgba(0,0,0,.7)'
+      : '0 4px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12)';
+
+    function set(el, prop, val) { el.style.setProperty(prop, val, 'important'); }
+
+    // ── Banner ──────────────────────────────────────────────────────────────
+    function applyBannerTheme() {
+      var card = document.querySelector('#termly-code-snippet-support .t-consentPrompt');
+      if (!card) return false;
+
+      set(card, 'background',       bg);
+      set(card, 'background-color', bg);
+      set(card, 'border',           border);
+      set(card, 'border-radius',    '16px');
+      set(card, 'box-shadow',       shadow);
+
+      // Strip only inner divs that Termly gave an explicit inline background
+      // (the button-wrapper box). querySelectorAll is descendants-only.
+      card.querySelectorAll('div[style*="background"]').forEach(function (el) {
+        set(el, 'background',       'transparent');
+        set(el, 'background-color', 'transparent');
+        set(el, 'border',           'none');
+        set(el, 'border-radius',    '0');
+        set(el, 'box-shadow',       'none');
+      });
+
+      return true;
+    }
+
+    // ── Preferences modal ───────────────────────────────────────────────────
+    // Termly renders the preference centre inside #termly-code-snippet-support
+    // (or directly under <body>) when the user clicks "Preferences".
+    // We try several known selectors so this survives Termly class renames.
+    function applyPrefsTheme() {
+      var root = document.querySelector('#termly-code-snippet-support') || document.body;
+
+      // Panel selectors (add more if Termly renames their classes)
+      var panel = root.querySelector('[class*="t-preference_center"]') ||
+                  root.querySelector('[class*="preference_center"]')   ||
+                  root.querySelector('[class*="t-preferences-panel"]') ||
+                  root.querySelector('[role="dialog"]:not(.t-consentPrompt)');
+      if (!panel) return;
+
+      set(panel, 'background',       bg);
+      set(panel, 'background-color', bg);
+      set(panel, 'border',           border);
+      set(panel, 'border-radius',    '16px');
+      set(panel, 'box-shadow',       shadow);
+
+      // Section headers / alternating rows inside the prefs panel often have
+      // inline background. Wipe wrappers but leave toggle-switch track elements.
+      panel.querySelectorAll('div[style*="background"], section[style*="background"]').forEach(function (el) {
+        if (el.matches('[role="switch"]')) return;  // preserve toggle tracks
+        set(el, 'background',       'transparent');
+        set(el, 'background-color', 'transparent');
+        set(el, 'border',           'none');
+        set(el, 'box-shadow',       'none');
+      });
+
+      // Backdrop / overlay that appears behind the panel
+      var backdrop = panel.parentElement && panel.parentElement.previousElementSibling;
+      if (backdrop && backdrop !== panel) {
+        set(backdrop, 'background', isDark ? 'rgba(0,0,0,.75)' : 'rgba(0,0,0,.45)');
+        set(backdrop, 'backdrop-filter', 'blur(4px)');
+      }
+    }
+
+    // ── Boot ────────────────────────────────────────────────────────────────
+    // Poll until the banner is found, then switch to MutationObserver for the
+    // preferences modal (which only appears on user interaction).
+    var tries = 0;
+    var t = setInterval(function () {
+      if (applyBannerTheme() || ++tries > 60) {
+        clearInterval(t);
+        var obs = new MutationObserver(function () { applyPrefsTheme(); });
+        obs.observe(document.body, { childList: true, subtree: true });
+      }
+    }, 100);
+  }());
+  </script>
+  <style>
+    /* ── Termly floating consent card — site-themed ── */
+
+    /* Card: .t-consentPrompt is position:fixed itself — its parent wrappers
+       have zero dimensions, so we must target the alertdialog directly. */
+    #termly-code-snippet-support .t-consentPrompt {
+      background: #111114 !important;
+      background-color: #111114 !important;
+      border: 1px solid rgba(255,255,255,.11) !important;
+      border-radius: 16px !important;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.04) inset,
+        0 4px 6px rgba(0,0,0,.3),
+        0 24px 64px rgba(0,0,0,.7) !important;
+      font-family: 'Hanken Grotesk', system-ui, sans-serif !important;
+      color: #ECECEE !important;
+      z-index: 1000 !important; /* keep below #theme-switcher (z-index:9999) */
+    }
+
+    /* Wipe inner divs with explicit inline backgrounds (button box etc).
+       Only targets <div> so <button> backgrounds are unaffected. */
+    #termly-code-snippet-support .t-consentPrompt div[style*="background"] {
+      background: transparent !important;
+      background-color: transparent !important;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    /* Text */
+    #termly-code-snippet-support p,
+    #termly-code-snippet-support span,
+    #termly-code-snippet-support h1,
+    #termly-code-snippet-support h2,
+    #termly-code-snippet-support h3,
+    #termly-code-snippet-support label,
+    #termly-code-snippet-support div {
+      color: #ECECEE !important;
+      font-family: 'Hanken Grotesk', system-ui, sans-serif !important;
+    }
+    #termly-code-snippet-support p {
+      color: #9C9CA6 !important;
+      font-size: 13px !important;
+      line-height: 1.6 !important;
+    }
+
+    /* Links */
+    #termly-code-snippet-support a {
+      color: #C6F24E !important;
+      text-decoration: none !important;
+      font-weight: 500 !important;
+    }
+    #termly-code-snippet-support a:hover { text-decoration: underline !important; }
+
+    /* Termly branding — subtle */
+    #termly-code-snippet-support img,
+    #termly-code-snippet-support svg {
+      opacity: 0.4 !important;
+      filter: grayscale(1) brightness(2.5) !important;
+    }
+
+    /* Buttons base */
+    #termly-code-snippet-support button {
+      border-radius: 9px !important;
+      font-weight: 600 !important;
+      font-size: 13px !important;
+      font-family: 'Hanken Grotesk', system-ui, sans-serif !important;
+      cursor: pointer !important;
+      transition: opacity .15s, transform .1s !important;
+    }
+    #termly-code-snippet-support button:hover {
+      opacity: .85 !important;
+      transform: translateY(-1px) !important;
+    }
+
+    /* Accept → lime */
+    #termly-code-snippet-support [class*="accept"],
+    #termly-code-snippet-support [class*="allow"],
+    #termly-code-snippet-support [class*="agree"] {
+      background: #C6F24E !important;
+      background-color: #C6F24E !important;
+      color: #0A0A0C !important;
+      border: none !important;
+    }
+
+    /* Decline / Preferences → ghost */
+    #termly-code-snippet-support [class*="decline"],
+    #termly-code-snippet-support [class*="pref"],
+    #termly-code-snippet-support [class*="manage"],
+    #termly-code-snippet-support [class*="reject"] {
+      background: rgba(255,255,255,.06) !important;
+      background-color: rgba(255,255,255,.06) !important;
+      color: #9C9CA6 !important;
+      border: 1px solid rgba(255,255,255,.10) !important;
+    }
+
+    /* ── Preferences modal ── */
+    /* Toggle switches: off-state track */
+    #termly-code-snippet-support [role="switch"] {
+      background: rgba(255,255,255,.14) !important;
+    }
+    /* Toggle switches: on-state track */
+    #termly-code-snippet-support [role="switch"][aria-checked="true"] {
+      background: #C6F24E !important;
+    }
+
+    /* Cookie category rows */
+    #termly-code-snippet-support [class*="category"],
+    #termly-code-snippet-support [class*="Category"] {
+      border-bottom: 1px solid rgba(255,255,255,.07) !important;
+    }
+
+    /* ── Light mode ── */
+    [data-theme="light"] #termly-code-snippet-support .t-consentPrompt {
+      background: #FFFFFF !important;
+      background-color: #FFFFFF !important;
+      border-color: rgba(28,24,14,.11) !important;
+      box-shadow: 0 4px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12) !important;
+      color: #211C15 !important;
+    }
+    [data-theme="light"] #termly-code-snippet-support p,
+    [data-theme="light"] #termly-code-snippet-support span,
+    [data-theme="light"] #termly-code-snippet-support div { color: #211C15 !important; }
+    [data-theme="light"] #termly-code-snippet-support p { color: #5C574E !important; }
+    [data-theme="light"] #termly-code-snippet-support a { color: #3F6212 !important; }
+    [data-theme="light"] #termly-code-snippet-support img,
+    [data-theme="light"] #termly-code-snippet-support svg {
+      opacity: 0.35 !important;
+      filter: grayscale(1) brightness(0) !important;
+    }
+    [data-theme="light"] #termly-code-snippet-support [class*="accept"],
+    [data-theme="light"] #termly-code-snippet-support [class*="allow"] {
+      background: #1A1A18 !important;
+      background-color: #1A1A18 !important;
+      color: #FBFBF9 !important;
+    }
+    [data-theme="light"] #termly-code-snippet-support [class*="decline"],
+    [data-theme="light"] #termly-code-snippet-support [class*="pref"],
+    [data-theme="light"] #termly-code-snippet-support [class*="reject"] {
+      background: rgba(28,24,14,.05) !important;
+      background-color: rgba(28,24,14,.05) !important;
+      color: #5C574E !important;
+      border-color: rgba(28,24,14,.14) !important;
+    }
+  </style>
   {% if POSTHOG_KEY %}
   <script>
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureFlagEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
@@ -81,7 +324,7 @@ function dismissAnnouncement(id) {
       <div class="navbar-dropdown-menu" id="admin-dropdown-menu">
         <a href="/admin" class="navbar-dropdown-item{% if request.url.path == '/admin' %} active{% endif %}">Admin home</a>
         <a href="/verify-author" class="navbar-dropdown-item{% if request.url.path == '/verify-author' %} active{% endif %}">Author</a>
-        <a href="/partner/admin" class="navbar-dropdown-item{% if request.url.path == '/partner/admin' %} active{% endif %}">Referrals &amp; Partners</a>
+        <a href="/admin/partners" class="navbar-dropdown-item{% if request.url.path == '/admin/partners' %} active{% endif %}">Referrals &amp; Partners</a>
         <a href="/admin/usage" class="navbar-dropdown-item{% if request.url.path == '/admin/usage' %} active{% endif %}">Usage</a>
         <a href="/admin/users" class="navbar-dropdown-item{% if request.url.path == '/admin/users' %} active{% endif %}">Users</a>
         <a href="/admin/leads" class="navbar-dropdown-item{% if request.url.path == '/admin/leads' %} active{% endif %}">Leads</a>

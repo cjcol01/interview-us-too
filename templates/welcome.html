@@ -18,13 +18,9 @@
     </a>
   </header>
 
-  <main class="ob-main">
-    <div class="ob-intro">
-      <h1>You're in, {{ first_name }}. Here's what it looks like.</h1>
-      <p>A 60-second simulated interview call so you can see InterviewAce in action before you set anything up.</p>
-    </div>
-    <p class="ob-intro" style="margin-top:-10px;"><a href="/onboarding" onclick="return wSkipDemo(event)">Skip the demo - go straight to setup →</a></p>
-  </main>
+  <!-- Hidden until the demo overlay opens — avoids a text flash before JS runs.
+       Stays invisible because the overlay covers the full viewport anyway. -->
+  <main class="ob-main" aria-hidden="true" style="visibility:hidden;position:absolute;"></main>
 
   <!-- The demo is the only place all four ways to get an answer are shown together, and it's
        the one thing here a user can't come back to by accident. Worth one question. -->
@@ -84,5 +80,12 @@
       window.location.href = '/welcome/next';
     };
     openMockInterview(true);
+
+    // When the browser restores this page from bfcache (user presses Back from /welcome/next),
+    // inline scripts don't re-run — so the demo overlay never opens and you see a black page.
+    // pageshow fires on bfcache restores (event.persisted === true), so we re-open it then.
+    window.addEventListener('pageshow', function (e) {
+      if (e.persisted) openMockInterview(true);
+    });
   </script>
 {% endblock %}
