@@ -1185,6 +1185,9 @@ class RegisterRequest(BaseModel):
     username: str
     email: str
     password: str
+    # Optional post-verification redirect, e.g. "/pricing" for demo-CTA signups.
+    # Validated in the endpoint — only relative paths are accepted.
+    next_url: Optional[str] = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -1320,6 +1323,11 @@ async def auth_register(
                       cooldown_msg="Too many attempts — wait a moment before trying again",
                       limit_msg="Too many signups from this connection — try again in a minute",
                       window_limit=25, window_msg="Too many signups from this connection — try again later")
+    # Validate the optional post-verification redirect before it enters the closure and
+    # eventually lands in a verification email link — only relative paths are accepted.
+    _safe_next = body.next_url
+    if _safe_next and (not _safe_next.startswith("/") or _safe_next.startswith("//")):
+        _safe_next = None
     def _register():
         email = body.email.strip().lower()
         username = body.username.strip()
@@ -1359,7 +1367,7 @@ async def auth_register(
             verify_token = secrets.token_urlsafe(32)
             user.verify_token = verify_token
             db.commit()
-            send_verification_email(user.email, verify_token)
+            send_verification_email(user.email, verify_token, next_url=_safe_next)
         db.commit()
         return user
 
@@ -1368,7 +1376,12 @@ async def auth_register(
     track(user.id, "signup", referred=bool(ref))
 
     token = create_token(user.id)
-    response = JSONResponse({"status": "ok", "username": user.username})
+    # When SKIP_EMAIL_VERIFICATION is active the user is already verified, so the client
+    # can navigate straight to next_url rather than parking on /verify-pending.
+    body_data: dict = {"status": "ok", "username": user.username}
+    if SKIP_EMAIL_VERIFICATION and _safe_next:
+        body_data["next"] = _safe_next
+    response = JSONResponse(body_data)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     response.delete_cookie("ref")
     return response
@@ -1689,7 +1702,8 @@ async def resend_verification(request: Request, user: User = Depends(get_current
 
 
 @app.get("/verify")
-def verify_email(token: str, db: Session = Depends(get_db),
+def verify_email(token: str, next: Optional[str] = None,
+                 db: Session = Depends(get_db),
                  current: Optional[User] = Depends(get_optional_user)):
     """Signs the clicking device in, because that device very often isn't the one that signed
     up — people register on a laptop and open their mail on a phone. Without a cookie here the
@@ -1711,7 +1725,11 @@ def verify_email(token: str, db: Session = Depends(get_db),
     user.verify_token = None
     db.commit()
     track(user.id, "email_verified", account_level=user.account_level.value)
-    dest = "/welcome" if user.account_level == AccountLevel.trial else "/app"
+    # Accept a relative-path next param threaded through from the registration source
+    # (e.g. "/pricing" for demo-CTA signups). Reject anything that isn't a clean relative
+    # path to prevent the verification link from being used as an open redirect.
+    safe_next = next if (next and next.startswith("/") and not next.startswith("//") and " " not in next) else None
+    dest = safe_next or ("/welcome" if user.account_level == AccountLevel.trial else "/app")
     response = RedirectResponse(dest, status_code=303)
     response.set_cookie("session", create_token(user.id), httponly=True, samesite="lax",
                         max_age=60 * 60 * 24 * 7)
@@ -2153,29 +2171,66 @@ def index(request: Request, user: User = Depends(require_user), db: Session = De
 
 
 @app.get("/welcome")
-def welcome_page(request: Request, user: User = Depends(require_user)):
-    if not user.email_verified:
-        return RedirectResponse("/verify-pending")
-    if not user.password_set:
-        return RedirectResponse("/finish-signup")
-    if user.account_level != AccountLevel.trial:
-        return RedirectResponse("/app")
-    track(user.id, "welcome_viewed")
+def welcome_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+    if user:
+        if not user.email_verified:
+            return RedirectResponse("/verify-pending")
+        if not user.password_set:
+            return RedirectResponse("/finish-signup")
+        if user.account_level != AccountLevel.trial:
+            return RedirectResponse("/app")
+        track(user.id, "welcome_viewed")
+        hotkeys = _user_hotkeys(user)
+        first_name = (user.full_name or "").split(" ")[0] or "there"
+    else:
+        # Anonymous visitor — show the demo with platform defaults. Empty first_name so
+        # the "Ready to join, {name}?" and "That's the whole loop, {name}." greetings in
+        # _mock_interview.html suppress the name clause (they're guarded by {% if first_name %}).
+        hotkeys = {k: HOTKEY_DEFAULTS[k] for k in ("capture", "audio", "toggle", "replay", "typing")}
+        first_name = ""
+
     return templates.TemplateResponse(request=request, name="welcome.html", context={
-        **_user_hotkeys(user),
+        **hotkeys,
         "dev_build": DEV_BUILD,
-        "first_name": (user.full_name or "").split(" ")[0] or "there",
+        "first_name": first_name,
+        "is_authenticated": user is not None,
     })
 
 
 @app.get("/welcome/next")
-def welcome_next_page(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
+def welcome_next_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+    # from_demo distinguishes users who arrive here after signing in via the demo CTA
+    # (who should land on /pricing) from trial users in the normal post-demo onboarding
+    # flow (who should pick their interview date). Uses alias="from" because `from` is a
+    # Python reserved word and can't be used as a bare parameter name.
+    from_demo: Optional[str] = Query(default=None, alias="from"),
+):
+    # Anonymous visitor → show the demo CTA signup page
+    if user is None:
+        return templates.TemplateResponse(request=request, name="welcome_next_anon.html", context={
+            "dev_build": DEV_BUILD,
+            "google_enabled": GOOGLE_OAUTH_ENABLED,
+            "github_enabled": GITHUB_OAUTH_ENABLED,
+        })
+
     if not user.email_verified:
         return RedirectResponse("/verify-pending")
     if not user.password_set:
         return RedirectResponse("/finish-signup")
-    if user.account_level != AccountLevel.trial:
+
+    # Paid/unlimited users have no business here
+    if user.account_level in (AccountLevel.paid, AccountLevel.unlimited):
         return RedirectResponse("/app")
+
+    # Users who arrived via the demo CTA sign-in flow — route by plan status
+    if from_demo == "demo":
+        track(user.id, "demo_cta_signin")
+        return RedirectResponse("/pricing")
+
+    # Normal trial onboarding flow: interview date question
     if user.interview_date:
         # Already answered — e.g. captured on the mobile lead form and carried onto this
         # account at /claim. Asking again here would just be re-asking the same question.

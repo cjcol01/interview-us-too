@@ -946,3 +946,107 @@ a { color: inherit; text-decoration: none; }
   .ia-eyebrow-dot { animation: none; }
   .demo-cursor { animation: none; opacity: 1; }
 }
+
+/* ===== DEMO: FORCE LIGHT MODE WHEN PAGE IS DARK =====
+   The demo simulates a real macOS/Chrome/Zoom window. On dark pages it looks
+   more convincing — and more readable — rendered in light mode so it reads as
+   an actual bright screen floating in the dark environment.
+   Phone panel intentionally stays dark (it's a separate device). */
+html[data-theme="dark"] .demo-stage {
+  background: #FCFCFD;
+  border-color: rgba(0,0,0,0.14);
+  box-shadow: 0 28px 64px rgba(0,0,0,0.55);
+}
+html[data-theme="dark"] .demo-menubar {
+  background: #E8E8E8;
+  border-bottom-color: rgba(0,0,0,0.1);
+  color: #555;
+}
+html[data-theme="dark"] .demo-menubar-apple { color: #333; }
+html[data-theme="dark"] .demo-chrome {
+  background: #F1F3F4;
+  border-bottom-color: rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] .demo-url {
+  background: rgba(0,0,0,0.07);
+  color: #444;
+}
+html[data-theme="dark"] .demo-url svg { color: #888; }
+html[data-theme="dark"] .demo-body { background: #FFFFFF; }
+
+/* LeetCode scene — light */
+html[data-theme="dark"] .sc-lc-title { color: #1A1A2E; }
+html[data-theme="dark"] .sc-lc-desc { color: #555; }
+html[data-theme="dark"] .sc-lc-example {
+  background: #F3F4F6;
+  border-color: rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] .sc-lc-example pre { color: #666; }
+html[data-theme="dark"] .sc-editor-tabs span {
+  color: #888;
+  background: #EAEBEE;
+  border-color: rgba(0,0,0,0.1);
+}
+html[data-theme="dark"] .sc-editor-tabs span.active {
+  color: #333;
+  background: #F8F9FB;
+  border-color: rgba(0,0,0,0.1);
+}
+html[data-theme="dark"] .sc-editor-stub {
+  color: #333;
+  background: #F8F9FB;
+  border-color: rgba(0,0,0,0.1);
+}
+
+/* Token colours for the light editor stub — VS Code light theme palette.
+   Scoped to .demo-computer so the phone panel tokens stay dark. */
+html[data-theme="dark"] .demo-computer .tok-kw   { color: #AF00DB; }
+html[data-theme="dark"] .demo-computer .tok-fn   { color: #0070C1; }
+html[data-theme="dark"] .demo-computer .tok-num  { color: #098658; }
+html[data-theme="dark"] .demo-computer .tok-cm   { color: #6A9955; }
+html[data-theme="dark"] .demo-computer .tok-str  { color: #A31515; }
+html[data-theme="dark"] .demo-computer .tok-def  { color: #795E26; }
+html[data-theme="dark"] .demo-computer .tok-self { color: #001080; }
+html[data-theme="dark"] .demo-computer .demo-cursor { background: #0070C1; }
+
+/* Capture / hotkey bar — light */
+html[data-theme="dark"] .demo-capture-btn {
+  background: #1A1A2E;
+  color: #FFFFFF;
+}
+html[data-theme="dark"] .demo-hotkey {
+  color: #555;
+  border-color: rgba(0,0,0,0.2);
+}
+html[data-theme="dark"] .demo-badge-easy {
+  color: #1a8c3a;
+  border-color: rgba(26,140,58,0.35);
+}
+html[data-theme="dark"] .demo-intercepted { color: #1a8c3a; }
+
+/* Zoom scenes — light */
+html[data-theme="dark"] .zoom-tile {
+  background: #F0F1F4;
+  border-color: rgba(0,0,0,0.1);
+}
+html[data-theme="dark"] .zoom-tile.speaking { border-color: rgba(26,140,58,0.5); }
+html[data-theme="dark"] .zoom-avatar { color: #1A1A2E; }
+html[data-theme="dark"] .zoom-name,
+html[data-theme="dark"] .zoom-you-label { color: #666; }
+html[data-theme="dark"] .zoom-caption-bar {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.09);
+  color: #444;
+}
+html[data-theme="dark"] .demo-voice-btn,
+html[data-theme="dark"] .demo-replay-btn {
+  background: rgba(0,0,0,0.07);
+  color: #222;
+  border-color: rgba(0,0,0,0.16);
+}
+html[data-theme="dark"] .demo-voice-btn.recording {
+  background: rgba(26,140,58,0.1);
+  border-color: rgba(26,140,58,0.4);
+  color: #1a8c3a;
+}
+html[data-theme="dark"] .demo-voice-hint { color: #999; }

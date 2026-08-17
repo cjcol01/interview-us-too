@@ -108,7 +108,7 @@ FROM_EMAIL       = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
 NOTIFY_EMAIL     = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
 # Physical address shown in email footers — required by CAN-SPAM / PECR.
 # Set this to your registered business address before going live.
-COMPANY_ADDRESS  = os.getenv("COMPANY_ADDRESS", "20 Wenlock Road, London, England, N1 7GU")
+COMPANY_ADDRESS  = os.getenv("COMPANY_ADDRESS", "")
 REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Postgres connection URLs. Railway injects DATABASE_URL automatically when a Postgres service

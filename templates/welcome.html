@@ -53,9 +53,16 @@
     // This path leaves the page without going through miClose(), so it has to record the
     // demo as seen itself — otherwise "skip the demo" means the demo ambushes you on /app
     // instead, which is the opposite of what the user just asked for.
+    // Anonymous visitors: skip goes to /welcome/next (demo CTA) instead of /onboarding,
+    // and there's no tutorial flag to persist on the server.
+    var _wIsAuthenticated = {{ is_authenticated | tojson }};
     async function wConfirmSkipDemo() {
-      try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
-      window.location.href = '/onboarding';
+      if (_wIsAuthenticated) {
+        try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
+        window.location.href = '/onboarding';
+      } else {
+        window.location.href = '/welcome/next';
+      }
     }
 
     window.MI_HOTKEYS = {
@@ -66,17 +73,19 @@
       typing:  '{{ typing }}',
     };
     window.MI_FIRST_NAME = {{ first_name | tojson }};
-    window.MI_FIRST_RUN_CTA_LABEL = 'Start setup →';
+    window.MI_FIRST_RUN_CTA_LABEL = _wIsAuthenticated ? 'Start setup →' : 'Create account →';
     window.MI_SKIP_DONE_SCREEN = true;
     window.MI_ON_FIRST_RUN_FINISH = function () {
-      // Mark the tutorial seen so index.html's initTrial() doesn't replay the simulated
-      // call on first visit to /app after onboarding. Server-side, not localStorage —
-      // onboarding step 4 sends the user to a *different device*, where a per-device flag
-      // is always empty.
-      // Fire-and-forget with keepalive so the POST survives the navigation: awaiting it
-      // would leave the bare /welcome intro page exposed (miClose() has already torn down
-      // the demo overlay) for the length of the round-trip, which flashes up before /next.
-      try { fetch('/api/tutorial/seen', { method: 'POST', keepalive: true }); } catch {}
+      if (_wIsAuthenticated) {
+        // Mark the tutorial seen so index.html's initTrial() doesn't replay the simulated
+        // call on first visit to /app after onboarding. Server-side, not localStorage —
+        // onboarding step 4 sends the user to a *different device*, where a per-device flag
+        // is always empty.
+        // Fire-and-forget with keepalive so the POST survives the navigation: awaiting it
+        // would leave the bare /welcome intro page exposed (miClose() has already torn down
+        // the demo overlay) for the length of the round-trip, which flashes up before /next.
+        try { fetch('/api/tutorial/seen', { method: 'POST', keepalive: true }); } catch {}
+      }
       window.location.href = '/welcome/next';
     };
     openMockInterview(true);

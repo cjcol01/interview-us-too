@@ -352,6 +352,7 @@ let _miIndex = -1;
 let _miAwaitingBeat = null;
 let _miAudioHeld = false;
 let _miListening = false;      // audio beat: the waveform panel is up, working toward the 1.2s minimum
+let _miBeatTimestamps = [];    // wall-clock seconds into the call when each beat first rendered
 let _miListeningStartedAt = 0;
 let _miCallEnded = false; // last question answered — waiting for the user to click Leave
 let _miIsFirstRun = false;
@@ -565,6 +566,7 @@ function miPhoneFocus(on) {
 function miStartCallTimer() {
   clearInterval(_miCallInterval);
   _miCallSecs = 0;
+  _miBeatTimestamps = [];
   miUpdateCallTimer();
   _miCallInterval = setInterval(() => { _miCallSecs++; miUpdateCallTimer(); }, 1000);
 }
@@ -681,6 +683,9 @@ function miResetTileUI() {
 // (advancing forward) and miGoBack (rewinding to replay a question).
 function miRenderBeat(index) {
   const beat = MI_BEATS[index];
+  // Record when this beat first becomes active (only on forward pass, not on rewind) so
+  // the post-demo CTA page can show real elapsed times in the "what you did" recap.
+  if (index >= _miBeatTimestamps.length) _miBeatTimestamps[index] = _miCallSecs;
   miResetTileUI();
   document.getElementById('mi-back-btn').disabled = false;
 
@@ -1017,6 +1022,11 @@ function miFinish() {
   miClearTimers();
   miStopCallTimer();
   _miCallLive = false;
+  // Persist beat timestamps so the post-demo CTA page (/welcome/next) can render real
+  // elapsed times in the "what you did just now" recap without needing a server round-trip.
+  try {
+    sessionStorage.setItem('mi_beat_timestamps', JSON.stringify(_miBeatTimestamps));
+  } catch {}
   if (_miIsFirstRun && window.MI_SKIP_DONE_SCREEN) {
     // /welcome's first run skips the recap card and hands off straight to
     // MI_ON_FIRST_RUN_FINISH — see welcome.html. Deliberately does NOT go through

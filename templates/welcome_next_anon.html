@@ -1,0 +1,800 @@
+{% extends "base.html" %}
+{% block title %}Create your account - InterviewWise{% endblock %}
+{% block head %}
+<style>
+/* ── Tokens ────────────────────────────────────────────────────── */
+:root {
+  --bg:          #0c0c0c;
+  --bg-right:    #111111;
+  --bg-card:     #181818;
+  --bg-field:    #1a1a1a;
+  --border:      rgba(255,255,255,.08);
+  --border-field:rgba(255,255,255,.12);
+  --fg:          #f0f0f0;
+  --fg-muted:    #888888;
+  --fg-subtle:   #444444;
+  --accent:      #b0ff3e;
+  --accent-text: #0c1800;
+  --error:       #ff5f5f;
+  --tab-border:  rgba(255,255,255,.1);
+}
+
+/* explicit dark — body must always have a background */
+body { background: var(--bg); color: var(--fg); }
+
+/* ── Layout ────────────────────────────────────────────────────── */
+.wna-wrap {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  min-height: 100vh;
+}
+
+/* ── LEFT PANEL ───────────────────────────────────────────────── */
+.wna-left {
+  background: var(--bg);
+  padding: 52px 56px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.wna-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid rgba(176,255,62,.35);
+  border-radius: 100px;
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  width: fit-content;
+  margin-bottom: 32px;
+}
+.wna-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.wna-headline {
+  font-size: clamp(2.4rem, 3.6vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -.03em;
+  text-wrap: balance;
+  color: var(--fg);
+  margin: 0 0 20px;
+  max-width: 520px;
+}
+
+.wna-body {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--fg-muted);
+  max-width: 480px;
+  margin: 0 0 44px;
+}
+
+/* ── Recap cards ──────────────────────────────────────────────── */
+.wna-recap-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  margin-bottom: 14px;
+}
+
+.wna-recap-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  max-width: 480px;
+  margin-bottom: 40px;
+}
+
+.wna-recap-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.wna-recap-time {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 34px;
+}
+
+.wna-recap-action {
+  font-size: 13px;
+  color: var(--fg);
+  line-height: 1.3;
+}
+
+/* ── Checkmarks ───────────────────────────────────────────────── */
+.wna-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wna-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+
+.wna-check-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--accent);
+}
+
+/* ── RIGHT PANEL ──────────────────────────────────────────────── */
+.wna-right {
+  background: var(--bg-right);
+  border-left: 1px solid var(--border);
+  padding: 48px 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.wna-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--fg);
+  text-decoration: none;
+  margin-bottom: 36px;
+}
+.wna-logo-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────── */
+.wna-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--tab-border);
+  margin-bottom: 28px;
+}
+
+.wna-tab {
+  background: none;
+  border: none;
+  padding: 10px 0;
+  margin-right: 28px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fg-subtle);
+  cursor: pointer;
+  position: relative;
+  transition: color .15s;
+}
+.wna-tab.active { color: var(--fg); }
+.wna-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* ── Form heading ─────────────────────────────────────────────── */
+.wna-form-heading { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.wna-form-sub { font-size: 13px; color: var(--fg-muted); margin: 0 0 24px; }
+
+/* ── Fields ───────────────────────────────────────────────────── */
+.wna-form { display: flex; flex-direction: column; gap: 14px; }
+
+.wna-field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.wna-field-group { display: flex; flex-direction: column; gap: 5px; }
+
+.wna-field-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+
+.wna-field-input {
+  background: var(--bg-field);
+  border: 1px solid var(--border-field);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--fg);
+  width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color .15s;
+  -webkit-appearance: none;
+}
+.wna-field-input::placeholder { color: var(--fg-subtle); }
+.wna-field-input:focus { border-color: rgba(176,255,62,.4); }
+
+/* password wrap */
+.wna-pw-wrap { position: relative; }
+.wna-pw-wrap .wna-field-input { padding-right: 40px; }
+.wna-pw-toggle {
+  position: absolute;
+  right: 10px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--fg-subtle); padding: 4px;
+  display: flex; align-items: center;
+}
+.wna-pw-toggle:hover { color: var(--fg-muted); }
+.wna-pw-toggle .pw-eye-off { display: none; }
+.wna-pw-toggle.revealed .pw-eye { display: none; }
+.wna-pw-toggle.revealed .pw-eye-off { display: block; }
+
+/* pw requirements */
+.wna-pw-reqs {
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0 2px;
+}
+.wna-pw-reqs.visible { display: flex; }
+.wna-pw-req {
+  font-size: 11px;
+  color: var(--fg-subtle);
+  transition: color .15s;
+}
+.wna-pw-req.met { color: var(--accent); }
+.wna-pw-all-good {
+  display: none;
+  font-size: 11px;
+  color: var(--accent);
+  margin: 4px 0 0;
+}
+.wna-pw-all-good.visible { display: block; }
+
+/* agree checkbox */
+.wna-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  color: var(--fg-muted);
+  line-height: 1.5;
+  cursor: pointer;
+}
+.wna-agree input[type=checkbox] {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.wna-agree a { color: var(--fg-muted); text-decoration: underline; }
+
+/* error */
+.wna-error {
+  font-size: 13px;
+  color: var(--error);
+  min-height: 18px;
+}
+
+/* ── Submit button ────────────────────────────────────────────── */
+.wna-submit {
+  width: 100%;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: none;
+  border-radius: 6px;
+  padding: 13px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  cursor: pointer;
+  transition: opacity .15s, transform .1s;
+}
+.wna-submit:hover { opacity: .9; }
+.wna-submit:active { transform: scale(.99); }
+.wna-submit:disabled { opacity: .4; cursor: default; }
+
+.wna-btn-note {
+  text-align: center;
+  font-size: 11px;
+  color: var(--fg-subtle);
+  margin: 6px 0 0;
+}
+
+/* ── Divider ──────────────────────────────────────────────────── */
+.wna-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--fg-subtle);
+  margin: 4px 0;
+}
+.wna-divider::before, .wna-divider::after {
+  content: ''; flex: 1;
+  height: 1px; background: var(--border);
+}
+
+/* ── OAuth buttons ────────────────────────────────────────────── */
+.wna-oauth {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg-field);
+  border: 1px solid var(--border-field);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg);
+  text-decoration: none;
+  transition: border-color .15s, background .15s;
+}
+.wna-oauth:hover { background: #222; border-color: rgba(255,255,255,.2); }
+
+/* ── Bottom links ─────────────────────────────────────────────── */
+.wna-switch {
+  text-align: center;
+  font-size: 13px;
+  color: var(--fg-muted);
+  margin-top: 16px;
+}
+.wna-switch a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+.wna-switch a:hover { text-decoration: underline; }
+
+.wna-back {
+  display: block;
+  text-align: center;
+  font-size: 12px;
+  color: var(--fg-subtle);
+  text-decoration: none;
+  margin-top: 20px;
+}
+.wna-back:hover { color: var(--fg-muted); }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .wna-wrap {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+  .wna-left {
+    padding: 44px 28px 36px;
+    justify-content: flex-start;
+  }
+  .wna-right {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding: 36px 28px 48px;
+  }
+  .wna-headline { font-size: 2rem; }
+}
+
+@media (max-width: 400px) {
+  .wna-recap-grid { grid-template-columns: 1fr; }
+  .wna-field-row { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wna-wrap">
+
+  <!-- ═══ LEFT — demo recap ════════════════════════════════════════ -->
+  <div class="wna-left">
+
+    <div class="wna-badge">
+      <span class="wna-badge-dot"></span>Demo complete
+    </div>
+
+    <h1 class="wna-headline">The demo was scripted.<br>Your interview won't be.</h1>
+
+    <p class="wna-body">
+      Everything you just pressed works the same on a real call —
+      Zoom, Meet, Teams, HackerRank. Create an account and it's
+      ready before your next one.
+    </p>
+
+    <p class="wna-recap-label">What you did just now</p>
+
+    <div class="wna-recap-grid" id="wnaRecapGrid">
+      <!-- populated by JS from sessionStorage beat timestamps -->
+      <div class="wna-recap-card">
+        <span class="wna-recap-time" id="wnaT0">0:00</span>
+        <span class="wna-recap-action">Sent the shared screen</span>
+      </div>
+      <div class="wna-recap-card">
+        <span class="wna-recap-time" id="wnaT1">—</span>
+        <span class="wna-recap-action">Caught it out loud</span>
+      </div>
+      <div class="wna-recap-card">
+        <span class="wna-recap-time" id="wnaT2">—</span>
+        <span class="wna-recap-action">Replayed 30 seconds</span>
+      </div>
+      <div class="wna-recap-card">
+        <span class="wna-recap-time" id="wnaT3">—</span>
+        <span class="wna-recap-action">Asked privately by typing</span>
+      </div>
+    </div>
+
+    <div class="wna-checks">
+      <div class="wna-check">
+        <svg class="wna-check-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+          <path d="M12.5 4L6 11l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>7 days free — unlimited sessions, unlimited time</span>
+      </div>
+      <div class="wna-check">
+        <svg class="wna-check-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+          <path d="M12.5 4L6 11l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Nothing charged today — cancel before day 7 and pay nothing</span>
+      </div>
+      <div class="wna-check">
+        <svg class="wna-check-icon" width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden="true">
+          <path d="M12.5 4L6 11l-3.5-3.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Prefer no subscription? 3 sessions for £2, one-time</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ RIGHT — auth form ════════════════════════════════════════ -->
+  <div class="wna-right">
+
+    <a class="wna-logo" href="/">
+      <span class="wna-logo-dot"></span>InterviewWise
+    </a>
+
+    <!-- tabs -->
+    <div class="wna-tabs">
+      <button class="wna-tab active" id="wnaTabRegister" onclick="wnaSwitchTab('register')">Create account</button>
+      <button class="wna-tab" id="wnaTabLogin" onclick="wnaSwitchTab('login')">Sign in</button>
+    </div>
+
+    <!-- ── REGISTER PANEL ── -->
+    <div id="wnaPanelRegister">
+      <h2 class="wna-form-heading">Create your account</h2>
+      <p class="wna-form-sub">Next step is picking a plan — the trial starts free.</p>
+
+      <form class="wna-form" id="wnaRegForm" onsubmit="wnaSubmitRegister(event)" novalidate>
+        <div class="wna-field-row">
+          <div class="wna-field-group">
+            <label class="wna-field-label" for="wna-full-name">Full name</label>
+            <input class="wna-field-input" id="wna-full-name" type="text" name="full_name"
+              autocomplete="name" placeholder="Alex Mercer">
+          </div>
+          <div class="wna-field-group">
+            <label class="wna-field-label" for="wna-username">Username</label>
+            <input class="wna-field-input" id="wna-username" type="text" name="username"
+              autocomplete="username" placeholder="alexm"
+              minlength="3" maxlength="32" pattern="[A-Za-z0-9._\-]+">
+          </div>
+        </div>
+
+        <div class="wna-field-group">
+          <label class="wna-field-label" for="wna-email">Email</label>
+          <input class="wna-field-input" id="wna-email" type="email" name="email"
+            autocomplete="email" placeholder="you@example.com">
+        </div>
+
+        <div class="wna-field-group">
+          <label class="wna-field-label" for="wna-password">Password</label>
+          <div class="wna-pw-wrap">
+            <input class="wna-field-input" id="wna-password" type="password" name="password"
+              autocomplete="new-password" placeholder="••••••••••">
+            <button type="button" class="wna-pw-toggle" aria-label="Show password"
+              onclick="wnaTogglePw('wna-password', this)">
+              <svg class="pw-eye" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="pw-eye-off" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <ul class="wna-pw-reqs" id="wna-pw-reqs">
+            <li class="wna-pw-req" data-rule="length">At least 8 characters</li>
+            <li class="wna-pw-req" data-rule="uppercase">One uppercase letter</li>
+            <li class="wna-pw-req" data-rule="lowercase">One lowercase letter</li>
+            <li class="wna-pw-req" data-rule="number">One number</li>
+            <li class="wna-pw-req" data-rule="symbol">One symbol (e.g. !?@#$%)</li>
+          </ul>
+          <p class="wna-pw-all-good" id="wna-pw-all-good">Great password!</p>
+        </div>
+
+        <label class="wna-agree">
+          <input type="checkbox" id="wna-agree">
+          <span>I agree to the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
+        </label>
+
+        <div class="wna-error" id="wna-reg-error"></div>
+
+        <button type="submit" class="wna-submit">Create account →</button>
+        <p class="wna-btn-note">Next: choose your plan · 7 days free</p>
+      </form>
+
+      {% if google_enabled or github_enabled %}
+      <div class="wna-divider" style="margin-top:16px;">or</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        {% if google_enabled %}
+        <a class="wna-oauth" id="wna-google-reg" href="/auth/google?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+          <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.19l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.69A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.69V4.98H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.02l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.98l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </a>
+        {% endif %}
+        {% if github_enabled %}
+        <a class="wna-oauth" id="wna-github-reg" href="/auth/github?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+          <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          Continue with GitHub
+        </a>
+        {% endif %}
+      </div>
+      {% if google_enabled or github_enabled %}
+      <p style="font-size:11px;color:var(--fg-subtle);margin-top:10px;text-align:center;">By continuing above you agree to our <a href="/privacy" style="color:var(--fg-subtle);" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" style="color:var(--fg-subtle);" target="_blank" rel="noopener">Terms</a>.</p>
+      {% endif %}
+      {% endif %}
+
+      <p class="wna-switch">Already have an account?
+        <a href="#" onclick="wnaSwitchTab('login');return false;">Sign in</a>
+      </p>
+    </div>
+
+    <!-- ── SIGN IN PANEL ── -->
+    <div id="wnaPanelLogin" style="display:none;">
+      <h2 class="wna-form-heading">Welcome back</h2>
+      <p class="wna-form-sub">Sign in to pick up where you left off.</p>
+
+      <form class="wna-form" id="wnaLoginForm" onsubmit="wnaSubmitLogin(event)" novalidate>
+        <div class="wna-field-group">
+          <label class="wna-field-label" for="wna-login-id">Username or email</label>
+          <input class="wna-field-input" id="wna-login-id" type="text" name="username"
+            autocomplete="username" placeholder="Username or email">
+        </div>
+        <div class="wna-field-group">
+          <label class="wna-field-label" for="wna-login-pw">Password</label>
+          <div class="wna-pw-wrap">
+            <input class="wna-field-input" id="wna-login-pw" type="password" name="password"
+              autocomplete="current-password" placeholder="••••••••••">
+            <button type="button" class="wna-pw-toggle" aria-label="Show password"
+              onclick="wnaTogglePw('wna-login-pw', this)">
+              <svg class="pw-eye" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="pw-eye-off" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="wna-error" id="wna-login-error"></div>
+        <button type="submit" class="wna-submit">Sign in →</button>
+      </form>
+
+      {% if google_enabled or github_enabled %}
+      <div class="wna-divider" style="margin-top:16px;">or</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+        {% if google_enabled %}
+        <a class="wna-oauth" id="wna-google-login" href="/auth/google?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+          <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.19l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.69A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.69V4.98H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.02l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.98l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+          Continue with Google
+        </a>
+        {% endif %}
+        {% if github_enabled %}
+        <a class="wna-oauth" id="wna-github-login" href="/auth/github?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+          <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          Continue with GitHub
+        </a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <p class="wna-switch">
+        <a href="/forgot-password" style="color:var(--fg-muted);">Forgot your password?</a>
+      </p>
+      <p class="wna-switch">Don't have an account?
+        <a href="#" onclick="wnaSwitchTab('register');return false;">Create one</a>
+      </p>
+    </div>
+
+    <a class="wna-back" href="/welcome">← Watch the demo again</a>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── Beat timestamp recap ────────────────────────────────────────
+  // Reads elapsed call seconds stored by mock_interview.js on demo completion.
+  function fmtSecs(s) {
+    if (typeof s !== 'number') return '—';
+    const m = Math.floor(s / 60);
+    const ss = String(s % 60).padStart(2, '0');
+    return m + ':' + ss;
+  }
+  try {
+    const raw = sessionStorage.getItem('mi_beat_timestamps');
+    if (raw) {
+      const ts = JSON.parse(raw);
+      [0, 1, 2, 3].forEach(function (i) {
+        const el = document.getElementById('wnaT' + i);
+        if (el && typeof ts[i] === 'number') el.textContent = fmtSecs(ts[i]);
+      });
+    }
+  } catch {}
+
+  // ── Tab switching ───────────────────────────────────────────────
+  window.wnaSwitchTab = function (tab) {
+    const isReg = (tab === 'register');
+    document.getElementById('wnaTabRegister').classList.toggle('active', isReg);
+    document.getElementById('wnaTabLogin').classList.toggle('active', !isReg);
+    document.getElementById('wnaPanelRegister').style.display = isReg ? '' : 'none';
+    document.getElementById('wnaPanelLogin').style.display = isReg ? 'none' : '';
+    document.getElementById('wna-reg-error').textContent = '';
+    document.getElementById('wna-login-error').textContent = '';
+  };
+
+  // ── Password reveal ─────────────────────────────────────────────
+  window.wnaTogglePw = function (id, btn) {
+    const inp = document.getElementById(id);
+    const reveal = inp.type === 'password';
+    inp.type = reveal ? 'text' : 'password';
+    btn.classList.toggle('revealed', reveal);
+    btn.setAttribute('aria-pressed', reveal ? 'true' : 'false');
+    btn.setAttribute('aria-label', reveal ? 'Hide password' : 'Show password');
+  };
+
+  // ── Password strength ───────────────────────────────────────────
+  const PW_RULES = {
+    length:    p => p.length >= 8,
+    uppercase: p => /[A-Z]/.test(p),
+    lowercase: p => /[a-z]/.test(p),
+    number:    p => /\d/.test(p),
+    symbol:    p => /[^A-Za-z0-9]/.test(p),
+  };
+  document.getElementById('wna-password').addEventListener('input', function (e) {
+    const val = e.target.value;
+    const hasVal = val.length > 0;
+    const allMet = hasVal && Object.values(PW_RULES).every(fn => fn(val));
+    const reqs = document.getElementById('wna-pw-reqs');
+    const good = document.getElementById('wna-pw-all-good');
+    reqs.classList.toggle('visible', hasVal && !allMet);
+    good.classList.toggle('visible', allMet);
+    reqs.querySelectorAll('.wna-pw-req').forEach(function (li) {
+      li.classList.toggle('met', PW_RULES[li.dataset.rule](val));
+    });
+  });
+
+  // ── Validation ──────────────────────────────────────────────────
+  const USERNAME_RE = /^[A-Za-z0-9._-]+$/;
+
+  function validateRegister(d) {
+    if (!d.full_name) return 'Full name is required.';
+    if (!d.username) return 'Username is required.';
+    if (d.username.length < 3) return 'Username must be at least 3 characters.';
+    if (d.username.length > 32) return 'Username must be 32 characters or fewer.';
+    if (!USERNAME_RE.test(d.username)) return 'Usernames can only use letters, numbers, and . - _';
+    if (!d.email) return 'Email is required.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) return 'Enter a valid email address.';
+    if (!d.password) return 'Password is required.';
+    if (!Object.values(PW_RULES).every(fn => fn(d.password))) return 'Password does not meet the requirements above.';
+    if (!document.getElementById('wna-agree').checked) return 'You must agree to the Privacy Policy and Terms.';
+    return null;
+  }
+
+  function validateLogin(d) {
+    if (!d.username) return 'Enter your username or email.';
+    if (!d.password) return 'Password is required.';
+    return null;
+  }
+
+  // ── Register submit ─────────────────────────────────────────────
+  window.wnaSubmitRegister = async function (e) {
+    e.preventDefault();
+    const btn = document.querySelector('#wnaRegForm button[type=submit]');
+    const errEl = document.getElementById('wna-reg-error');
+    const data = {
+      full_name: document.getElementById('wna-full-name').value.trim(),
+      username: document.getElementById('wna-username').value.trim(),
+      email: document.getElementById('wna-email').value.trim(),
+      password: document.getElementById('wna-password').value,
+      // Thread the post-verification destination through the verification email
+      next_url: '/pricing',
+    };
+    const err = validateRegister(data);
+    if (err) { errEl.textContent = err; return; }
+    btn.disabled = true;
+    btn.textContent = 'Creating account…';
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        errEl.textContent = json.detail || 'Something went wrong.';
+        btn.disabled = false;
+        btn.textContent = 'Create account →';
+      } else {
+        // json.next is only set when SKIP_EMAIL_VERIFICATION is active (dev). In
+        // production the user needs to verify their email first; the verification
+        // link already contains next=/pricing so they land there after clicking it.
+        window.location.href = json.next || '/verify-pending';
+      }
+    } catch (ex) {
+      errEl.textContent = 'Network error: ' + ex.message;
+      btn.disabled = false;
+      btn.textContent = 'Create account →';
+    }
+  };
+
+  // ── Login submit ────────────────────────────────────────────────
+  window.wnaSubmitLogin = async function (e) {
+    e.preventDefault();
+    const btn = document.querySelector('#wnaLoginForm button[type=submit]');
+    const errEl = document.getElementById('wna-login-error');
+    const data = {
+      username: document.getElementById('wna-login-id').value.trim(),
+      password: document.getElementById('wna-login-pw').value,
+    };
+    const err = validateLogin(data);
+    if (err) { errEl.textContent = err; return; }
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    errEl.textContent = '';
+    try {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        errEl.textContent = json.detail || 'Something went wrong.';
+        btn.disabled = false;
+        btn.textContent = 'Sign in →';
+      } else {
+        // /welcome/next?from=demo routes trial users to /pricing and paid users to /app
+        window.location.href = '/welcome/next?from=demo';
+      }
+    } catch (ex) {
+      errEl.textContent = 'Network error: ' + ex.message;
+      btn.disabled = false;
+      btn.textContent = 'Sign in →';
+    }
+  };
+
+  // ── Open on sign-in tab if ?tab=login ───────────────────────────
+  if (new URLSearchParams(location.search).get('tab') === 'login') {
+    wnaSwitchTab('login');
+  }
+})();
+</script>
+{% endblock %}

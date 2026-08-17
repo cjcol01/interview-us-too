@@ -1,3 +1,5 @@
+import urllib.parse
+
 import resend
 
 from analytics import logger
@@ -188,8 +190,13 @@ def _email_html(
 # User-facing transactional emails
 # ---------------------------------------------------------------------------
 
-def send_verification_email(to_email: str, token: str) -> None:
+def send_verification_email(to_email: str, token: str, next_url: str | None = None) -> None:
     url = f"{BASE_URL}/verify?token={token}"
+    # Thread a post-verification redirect through the email link so users who sign up from
+    # a specific landing context (e.g. the demo CTA) land where they expect, not on /welcome.
+    # Only allow relative paths to prevent open-redirect via a crafted registration.
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        url += "&next=" + urllib.parse.quote(next_url, safe="")
     logger.info("[email] verify link for %s: %s", to_email, url)
 
     if not RESEND_API_KEY or RESEND_API_KEY == _PLACEHOLDER:

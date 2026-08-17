@@ -2,7 +2,8 @@
 
 ## immediately
 - [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
-- [ ] change demo in dark mode to light colours
+- [x] change demo in dark mode to light colours
+- [ ] move onboarding to after users sign up from pricing. offer it subtly if theyre not sold yet, perhaps on pricing page. ensure everyone gets a 10 min free setup session on first use
 
 
 ## Now
