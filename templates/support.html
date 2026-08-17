@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Support - InterviewAce{% endblock %}
+{% block title %}Support - InterviewWise{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/support.css">
   <script src="/static/js/ext_probe.js"></script>{% endblock %}
 {% block content %}
@@ -175,7 +175,7 @@
         <p class="issue-why">Managed or work Chrome profiles often block installs that aren't on an approved list, and Chrome frequently hides a newly installed extension behind the puzzle-piece icon instead of pinning it to the toolbar.</p>
         <ol class="issue-fix">
           <li>Confirm you're using Chrome or another Chromium browser - Safari and Firefox aren't supported (yet!).</li>
-          <li>Click the puzzle-piece icon in the toolbar and pin InterviewAce so it's always visible.</li>
+          <li>Click the puzzle-piece icon in the toolbar and pin InterviewWise so it's always visible.</li>
           <li>If a work laptop blocks the install, try a personal Chrome profile, or use the <a href="/install-manual">manual install</a> instead.</li>
         </ol>
       </div>
@@ -196,7 +196,7 @@
       <div class="issue-body">
         <p class="issue-why">This means the extension isn't responding on this tab at all - different from "not connected", where it responds fine but just isn't linked to your account yet. It's almost always a permission or setup issue, easy to fix below.</p>
         <ol class="issue-fix">
-          <li>Open <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions')" title="Click to copy - paste into your address bar">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar) and confirm InterviewAce is toggled on, not just installed.</li>
+          <li>Open <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions')" title="Click to copy - paste into your address bar">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar) and confirm InterviewWise is toggled on, not just installed.</li>
           <li>Click "Details" on the extension and check "Site access" - set it to "On all sites".</li>
           <li>If you're in an Incognito or Guest window, extensions don't run there unless "Allow in Incognito" is switched on for it.</li>
           <li>Do a full reload of the tab - click the reload button in your browser's toolbar <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> (not just re-running the check below) - permission changes only apply to newly loaded tabs.</li>
@@ -439,7 +439,7 @@
       btn.textContent = 'Not detected - try again';
       setTimeout(reset, 2200);
     }, 2500);
-    document.addEventListener('interview-ace:connected', () => {
+    document.addEventListener('interview-wise:connected', () => {
       clearTimeout(timeout);
       btn.textContent = '✓ Connected!';
       _extConnectHold = true; // keep the button visible so the message above is readable
@@ -450,7 +450,7 @@
         _updateExtCheck(); // now let the row hide the button if it's genuinely connected
       }, 1500);
     }, { once: true });
-    document.dispatchEvent(new CustomEvent('interview-ace:connect', {
+    document.dispatchEvent(new CustomEvent('interview-wise:connect', {
       detail: { token: {{ api_token|tojson }}, serverUrl: window.location.origin }
     }));
   }
@@ -555,11 +555,11 @@
   // already ran once.
   let _micSettingsUrl = null;
   let _micSettingsSeen = false;
-  document.addEventListener('interview-ace:mic-settings-link-result', (e) => {
+  document.addEventListener('interview-wise:mic-settings-link-result', (e) => {
     _micSettingsSeen = true;
     _micSettingsUrl = e.detail && e.detail.url;
   });
-  IAExtProbe.retryDispatch('interview-ace:mic-settings-link', () => _micSettingsSeen);
+  IAExtProbe.retryDispatch('interview-wise:mic-settings-link', () => _micSettingsSeen);
 
   function copyMicSettingsLink(el) {
     if (_micSettingsUrl) { copyChromeUrl(el, _micSettingsUrl); return; }
@@ -580,12 +580,12 @@
       label.textContent = original;
       copyChromeUrl(el, _micSettingsUrl);
     };
-    document.addEventListener('interview-ace:mic-settings-link-result', onResult, { once: true });
-    IAExtProbe.retryDispatch('interview-ace:mic-settings-link', () => answered);
+    document.addEventListener('interview-wise:mic-settings-link-result', onResult, { once: true });
+    IAExtProbe.retryDispatch('interview-wise:mic-settings-link', () => answered);
     setTimeout(() => {
       if (answered) return;
       answered = true;
-      document.removeEventListener('interview-ace:mic-settings-link-result', onResult);
+      document.removeEventListener('interview-wise:mic-settings-link-result', onResult);
       label.textContent = 'Extension not detected - install it first';
       el.classList.add('copy-chip-warn');
       setTimeout(() => { label.textContent = original; el.classList.remove('copy-chip-warn'); }, 2200);

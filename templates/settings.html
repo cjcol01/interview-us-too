@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings - InterviewAce{% endblock %}
+{% block title %}Settings - InterviewWise{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/settings.css">
   <script src="/static/js/ext_probe.js"></script>
   <!-- highlight.js for the live response preview's code block. Same @highlightjs/cdn-assets
@@ -595,7 +595,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2.2">
                   <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <p>You have no sessions left. Top up to continue using InterviewAce in your next interview.</p>
+                <p>You have no sessions left. Top up to continue using InterviewWise in your next interview.</p>
               </div>
               {% endif %}
               <p class="card-row-desc">Nothing to cancel - session packs are one-off purchases, so you won't be charged again. Your sessions never expire.</p>
@@ -947,7 +947,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-ace:replay', { detail: { enabled, seconds } }));
+          document.dispatchEvent(new CustomEvent('interview-wise:replay', { detail: { enabled, seconds } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -977,7 +977,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-ace:typing-preview', { detail: { enabled } }));
+          document.dispatchEvent(new CustomEvent('interview-wise:typing-preview', { detail: { enabled } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -1005,7 +1005,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-ace:passthrough', { detail: { enabled } }));
+          document.dispatchEvent(new CustomEvent('interview-wise:passthrough', { detail: { enabled } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -1104,7 +1104,7 @@
           body: JSON.stringify(_hotkeys),
         });
         if (resp.ok) {
-          document.dispatchEvent(new CustomEvent('interview-ace:hotkeys', { detail: _hotkeys }));
+          document.dispatchEvent(new CustomEvent('interview-wise:hotkeys', { detail: _hotkeys }));
           hkStatus('Saved - active in all open tabs.', 'var(--accent)');
         } else {
           hkStatus('Failed to save.', 'var(--danger)');
@@ -1129,17 +1129,17 @@
     function _retryConnectDispatch(isSeen) {
       let attempts = 0;
       const detail = { token: '{{ api_token }}', serverUrl: window.location.origin };
-      document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
       const timer = setInterval(() => {
         if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
-        document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+        document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
       }, 200);
       return timer;
     }
 
     // Detection is the shared read-only probe (/static/js/ext_probe.js), the same one
     // /support and /app use. This used to detect the extension by firing
-    // `interview-ace:connect` on page load — but that event WRITES the token into extension
+    // `interview-wise:connect` on page load — but that event WRITES the token into extension
     // storage, so merely opening Settings repointed the extension at this page's origin.
     // It also only ever asked once, which is why the banner kept claiming "connected" long
     // after the extension had been disabled or removed. The probe re-asks on a timer and on
@@ -1176,7 +1176,7 @@
         status.style.color = 'var(--danger)';
         document.getElementById('fallback-details').open = true;
       }, 1800);
-      document.addEventListener('interview-ace:connected', () => {
+      document.addEventListener('interview-wise:connected', () => {
         connected = true;
         clearTimeout(timeout);
         showConnected();

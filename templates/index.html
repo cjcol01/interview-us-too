@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}InterviewAce{% endblock %}
+{% block title %}InterviewWise{% endblock %}
 {% block head %}
   <!-- marked pinned to a major (was unpinned → latest, a breakage risk). highlight.js MUST be the
        @highlightjs/cdn-assets browser bundle: the plain highlight.js@11/lib/* files are CommonJS
@@ -63,6 +63,7 @@
        session is about to start. Hidden once dismissed; can be turned off in Settings.) -->
   <div id="session-warn-overlay" class="session-warn-overlay" style="display:none" aria-modal="true" role="alertdialog" aria-labelledby="session-warn-title">
     <div class="session-warn-modal">
+      <button class="session-warn-close" onclick="sessionWarnCancel()" aria-label="Cancel">✕</button>
       <div class="session-warn-icon">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f5a623" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -79,24 +80,34 @@
   </div>
   {% endif %}
   <script>
-    // _maybeShowSessionWarn is always defined so the 'working' SSE handler never
-    // throws a ReferenceError (which would silently kill the rest of that handler).
-    // It's a no-op when the overlay doesn't exist (non-paid users / warning disabled).
-    function _maybeShowSessionWarn() {
+    // _showSessionWarn is always defined so the session_warn SSE handler never
+    // throws a ReferenceError.  No-op when the overlay doesn't exist (non-paid
+    // users and users who have disabled the warning).
+    function _showSessionWarn() {
       var overlay = document.getElementById('session-warn-overlay');
-      if (!overlay) return;
-      if (sessionStorage.getItem('sessionWarnSeen')) return;
-      overlay.style.display = '';
+      if (overlay) overlay.style.display = '';
     }
 
     function sessionWarnDismiss() {
+      // "I'm ready" — close the modal immediately, then fire the confirm in the
+      // background.  The AI response streams in via SSE just like a normal capture,
+      // so there's no reason to block the dismissal on the full round-trip.
       var overlay = document.getElementById('session-warn-overlay');
       if (overlay) overlay.style.display = 'none';
-      sessionStorage.setItem('sessionWarnSeen', '1');
+      fetch('/api/capture/confirm', { method: 'POST' })
+        .catch(e => console.error('[session-warn] confirm error', e));
+    }
+
+    function sessionWarnCancel() {
+      // ✕ corner button — close the modal and abandon the pending capture.
+      // The server-side pending_capture key expires on its own (5-min TTL); no
+      // server call needed.  A new capture by the user will overwrite it anyway.
+      var overlay = document.getElementById('session-warn-overlay');
+      if (overlay) overlay.style.display = 'none';
     }
 
     function sessionWarnDisable() {
-      // Turn off the reminder in settings so it never shows again, then dismiss.
+      // "Don't remind me again" — turn the reminder off in settings, then confirm.
       fetch('/api/settings/session-warning', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -513,7 +524,6 @@ The team actively read these and work on issues found."></textarea>
           const data = JSON.parse(e.data);
           console.debug('[sse]', data.type);
           if (data.type === 'working') {
-            _maybeShowSessionWarn();
             _noteCapture();
             _streamBuffer = '';
             _historyIdx = 0;
@@ -635,6 +645,8 @@ The team actively read these and work on issues found."></textarea>
             badgeEl.textContent = 'typed';
             badgeEl.className = 'typed';
             if (data.analysis) { _pushHistory({ analysis: data.analysis, transcription: data.input, timestamp: data.timestamp, type: 'typed' }); _iaBump(); }
+          } else if (data.type === 'session_warn') {
+            _showSessionWarn();
           } else if (data.type === 'ext_status') {
             if (!_localExtConnected) _applyExtStatus(data);
           }
@@ -801,12 +813,12 @@ The team actively read these and work on issues found."></textarea>
       document.getElementById('session-warn-bar').classList.remove('visible');
       document.getElementById('session-over-overlay').classList.add('visible');
       _iaHideButton();
-      document.dispatchEvent(new CustomEvent('interview-ace:suppress-hotkeys', { detail: { suppress: true } }));
+      document.dispatchEvent(new CustomEvent('interview-wise:suppress-hotkeys', { detail: { suppress: true } }));
     }
 
     function sessionOverStartNew() {
       document.getElementById('session-over-overlay').classList.remove('visible');
-      document.dispatchEvent(new CustomEvent('interview-ace:suppress-hotkeys', { detail: { suppress: false } }));
+      document.dispatchEvent(new CustomEvent('interview-wise:suppress-hotkeys', { detail: { suppress: false } }));
     }
 
     async function initPaidSession() {
@@ -898,7 +910,7 @@ The team actively read these and work on issues found."></textarea>
       }
     }
 
-    document.addEventListener('interview-ace:replay-status', (e) => _applyReplayStatus(e.detail));
+    document.addEventListener('interview-wise:replay-status', (e) => _applyReplayStatus(e.detail));
 
     // ── Generic alert light (hk-status-alert) ────────────────────────────────
     // One catch-all status light that stays hidden until something needs attention,
@@ -1045,7 +1057,7 @@ The team actively read these and work on issues found."></textarea>
       }
     }
     // tabTitle only rides along on the raw event, not through the probe's state.
-    document.addEventListener('interview-ace:replay-status', (e) => _applyReplayDot(e.detail));
+    document.addEventListener('interview-wise:replay-status', (e) => _applyReplayDot(e.detail));
 
     // Detection is the shared probe (/static/js/ext_probe.js) — same code as /support and
     // Settings. It re-asks on a timer and on focus, so a dot can't keep reporting an
@@ -1076,7 +1088,7 @@ The team actively read these and work on issues found."></textarea>
       if (s.mic === 'granted') {
         _setDot('mic', 'ok', 'Microphone permission granted.');
       } else if (s.mic === 'denied') {
-        _setDot('mic', 'bad', "Microphone permission blocked - allow it for InterviewAce in your browser's site settings, then reload this page.");
+        _setDot('mic', 'bad', "Microphone permission blocked - allow it for InterviewWise in your browser's site settings, then reload this page.");
       } else if (s.mic === 'error') {
         _setDot('mic', 'bad', 'Microphone isn’t working - check that a microphone is connected and permission is allowed, then try again.');
       } else if (s.mic === 'unknown' || s.mic === null) {

@@ -103,9 +103,12 @@ AUTHOR_PASSWORD = os.getenv("AUTHOR_PASSWORD", "")
 # literal here names the one account worth attacking. Unset, there is no cookie-based admin
 # and no Basic-auth match either, so /admin and friends are simply unreachable (fail closed).
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "")
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
-FROM_EMAIL     = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
-NOTIFY_EMAIL   = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
+RESEND_API_KEY   = os.getenv("RESEND_API_KEY", "")
+FROM_EMAIL       = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+NOTIFY_EMAIL     = os.getenv("NOTIFY_EMAIL", "cjcoleman267@gmail.com")
+# Physical address shown in email footers — required by CAN-SPAM / PECR.
+# Set this to your registered business address before going live.
+COMPANY_ADDRESS  = os.getenv("COMPANY_ADDRESS", "20 Wenlock Road, London, England, N1 7GU")
 REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
 # Postgres connection URLs. Railway injects DATABASE_URL automatically when a Postgres service
@@ -128,11 +131,11 @@ LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"
 # and served two ways: same-origin (SIDELOAD_ZIP_URL default) and via jsDelivr's CDN fronting
 # the public GitHub repo, which stays reachable even if our own server is what's struggling.
 # jsDelivr caches @main aggressively — after updating the zip, purge with a GET to
-# https://purge.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interviewace-extension.zip
+# https://purge.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interview-wise-extension.zip
 SIDELOAD_ENABLED = os.getenv("SIDELOAD_ENABLED", "0") == "1"
 SIDELOAD_ZIP_URL = os.getenv(
     "SIDELOAD_ZIP_URL",
-    "https://cdn.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interviewace-extension.zip",
+    "https://cdn.jsdelivr.net/gh/cjcol01/interview-us-too@main/static/extension/interview-wise-extension.zip",
 )
 
 # 32-char Chrome Web Store item ID of the published extension (the last path segment of its

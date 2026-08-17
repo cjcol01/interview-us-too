@@ -1,4 +1,4 @@
-# InterviewAce — Pre-Deployment Roadmap
+# InterviewWise — Pre-Deployment Roadmap
 
 > Work top-to-bottom. Blockers and security must be done before going live.
 > Use `[x]` when done, `[!]` if it needs a note.
@@ -44,9 +44,9 @@
 
 ## 🌐 Domain & Email
 
-- [ ] Buy a domain (e.g. `interviewace.co`)
+- [ ] Buy a domain (e.g. `interview-wise.co`)
 - [ ] Point domain DNS to host
-- [ ] Set up professional support email (e.g. `support@interviewace.co`) via Resend, Cloudflare, or Google Workspace
+- [ ] Set up professional support email (e.g. `support@interview-wise.co`) via Resend, Cloudflare, or Google Workspace
 - [ ] Update `BASE_URL` and `FROM_EMAIL` in `.env` once live
 
 ---

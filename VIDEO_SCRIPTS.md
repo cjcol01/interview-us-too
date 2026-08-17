@@ -16,11 +16,11 @@ Every one of these is visible on camera. Filming over them means re-shooting lat
 
 | # | Issue | Where | What to do |
 |---|-------|-------|------------|
-| B1 | Chrome Web Store link is a placeholder: `.../webstore/detail/interviewace/placeholder` | `templates/onboarding.html:55` | Either publish and swap the real URL, or film the install video on the sideload path only (V3) and shoot V2 from step 2 onward |
-| B2 | Extension's display name is **"Interview Assistant"**, but onboarding/support tell the user to look for **"InterviewAce"** | `extension/manifest.json` name vs `templates/onboarding.html:105`, `templates/cancel_confirm.html` chrome mock | Rename in the manifest, or accept it and make sure narration/captions say what Chrome actually shows. Chrome's puzzle menu is on screen in V2, V3 and V5 |
+| B1 | Chrome Web Store link is a placeholder: `.../webstore/detail/interview-wise/placeholder` | `templates/onboarding.html:55` | Either publish and swap the real URL, or film the install video on the sideload path only (V3) and shoot V2 from step 2 onward |
+| B2 | Extension's display name is **"Interview Assistant"**, but onboarding/support tell the user to look for **"InterviewWise"** | `extension/manifest.json` name vs `templates/onboarding.html:105`, `templates/cancel_confirm.html` chrome mock | Rename in the manifest, or accept it and make sure narration/captions say what Chrome actually shows. Chrome's puzzle menu is on screen in V2, V3 and V5 |
 | B3 | ~~Landing claims "replay the last **15 seconds**"; the DB default is **10s**~~ — no longer true: `models.py:70` now defaults `replay_seconds` to **15**, matching the copy. Older accounts may still sit at 10 | `templates/landing.html:384` & `:217` vs `models.py:70` | Nothing to fix. Just confirm the recording account reads 15s in Settings → Capture & replay (the seeded accounts are set to 15) |
 | B4 | FAQ tells users to "click **Start session**" — no such button exists. Paid sessions start automatically on the first capture | `templates/faq.html:135` vs `server.py:4781` (`_account_bookkeeping`) | Fix the FAQ copy first. Do not demo a button that isn't there |
-| B5 | Trustpilot link is `trustpilot.com/review/interviewace.example` | `templates/cancel_confirm.html` (got-job panel) | Swap for the real review URL before the cancel video (V6) shows that panel |
+| B5 | Trustpilot link is `trustpilot.com/review/interview-wise.example` | `templates/cancel_confirm.html` (got-job panel) | Swap for the real review URL before the cancel video (V6) shows that panel |
 | B6 | Landing already embeds a YouTube video (`WhBbMlNWlnU`) | `templates/landing.html:409` | Confirm whether that's a placeholder. V1 is what replaces it |
 | B7 | `/install-manual` 404s unless `SIDELOAD_ENABLED=1` | `server.py:2458` | Set `SIDELOAD_ENABLED=1` in the recording env, or V3 can't be filmed at all |
 
@@ -273,7 +273,7 @@ Follow the five cards on `templates/install_manual.html` exactly, in order.
 | # | Shot | Notes |
 |---|------|-------|
 | 1 | `/install-manual` hero, then click **Download .zip** | Show the download landing in the tray. Also point at "Trouble downloading? Try the mirror" — the primary is a CDN, the mirror is same-origin (`server.py:2465`) |
-| 2 | Unzip it | Show the `interviewace-extension` folder appearing. **Say the folder must stay put** — Chrome loads from that path (card 1) |
+| 2 | Unzip it | Show the `interview-wise-extension` folder appearing. **Say the folder must stay put** — Chrome loads from that path (card 1) |
 | 3 | Copy `chrome://extensions` from the copy-chip, paste into the address bar | The page explains Chrome blocks direct links to it — show the click-to-copy working |
 | 4 | Toggle **Developer mode** on (top right) | **Hold on Chrome's yellow warning banner for a full 2 seconds.** Caption it with the page's own line: Chrome shows this for every extension installed outside the Web Store. Skipping past this is what makes it look shady |
 | 5 | **Load unpacked** → select the folder | Extension appears in the list immediately, no restart |
@@ -425,7 +425,7 @@ broken a take before.
 
 **Browser**
 
-- [ ] Only the InterviewAce extension installed, and it's pinned.
+- [ ] Only the InterviewWise extension installed, and it's pinned.
 - [ ] Extension **armed** (popup reads ON) — otherwise every hotkey silently does nothing and you
       won't notice until playback.
 - [ ] All tabs you'll capture on were opened **after** the extension was installed/updated (content

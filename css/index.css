@@ -944,7 +944,23 @@ main {
   max-width: 400px;
   width: 100%;
   text-align: center;
+  position: relative;
 }
+.session-warn-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: color .15s, background .15s;
+}
+.session-warn-close:hover { color: var(--text-1); background: rgba(255,255,255,.06); }
 .session-warn-icon {
   width: 48px;
   height: 48px;

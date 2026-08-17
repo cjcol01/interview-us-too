@@ -1,7 +1,9 @@
 # TODO
 
 ## immediately
-- [ ] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
+- [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
+- [ ] change demo in dark mode to light colours
+
 
 ## Now
 - [ ] add log file for errors on /admin to railway. check why they werent showing
@@ -81,7 +83,7 @@
 - [x] sitemap + robots.txt
 - [x] welcome/next (and /onboarding) navbar is black on light mode, black done take me in button, do we use black buttons on light mode? check all navbars are the correct colour on all pages
 - [x] referral should reduce price for all cards
-- [x] You're in, CJ. Here's what it looks like. A 60-second simulated interview call so you can see InterviewAce in action before you set anything up. ensure this page never shows up, why do we even need it, can it be removed.
+- [x] You're in, CJ. Here's what it looks like. A 60-second simulated interview call so you can see InterviewWise in action before you set anything up. ensure this page never shows up, why do we even need it, can it be removed.
 - [x] £15 £10 / month after. thats consusing and misleading. should say £10 first month/ remove referral code applied to account cjcol12 so i can test again
 - [x] add this as normal note in style of rest of page (Your keystrokes reach your dashboard as you type)
 - [x] syntax highlighting on the landing demo — the old highlighter was four chained `.replace()`es over already-marked-up HTML (keywords inside strings got coloured, and the phone code stayed flat grey for the whole stream then snapped into colour on the last character). Replaced with a single-pass tokeniser in landing.html covering comments, strings, numbers, keywords, builtins, `self` and def/class names; it now highlights *as* it types, and the fake LeetCode editor on the laptop screen goes through the same function instead of being monochrome. New `.tok-str/.tok-def/.tok-self` colours in landing.css
@@ -89,7 +91,7 @@
 - [x] Esc cancels typing mode — buffer discarded, nothing sent, no session spent. New `typing-cancel` message from content.js → background.js clears the badge, drops any queued preview frame and pushes an empty preview so the half-typed question doesn't sit on the phone looking like it's still coming. Mentioned in the settings copy and the onboarding typing explainer
 - [x] empty audio / instant replay no longer sends gobbledegook — silence doesn't transcribe to `""`, it transcribes to a hallucinated "Thank you." / "you" / "Thanks for watching!" / subtitle credits, which the AI then confidently answers. `_transcript_has_no_speech` in server.py drops a transcript built only from filler words (≤8 words, all in the list), and /api/audio-capture returns `{"status": "no-speech"}` with a "didn't catch anything" message on the phone instead of calling the AI. Note: the live end-to-end audio test's fixture was a one-word "Hello" clip — exactly what this drops — so it's been replaced with `interview_question.wav` (a real spoken question)
 - [x] typing preview note restyled — was the page's only boxed inset callout, which made one ordinary caveat shout louder than the settings around it. Now a plain second `card-row-desc` under the toggle, same pattern as the app-theme row (`.card-row-note` deleted). Also fixed the "you wont have any visual indication your typing" line
-- [x] after paying, a button to add your context — /billing/success now offers "Add your CV & interview context" (→ /settings#context) under the "Open InterviewAce" CTA, with a line on why it's worth the minute
+- [x] after paying, a button to add your context — /billing/success now offers "Add your CV & interview context" (→ /settings#context) under the "Open InterviewWise" CTA, with a line on why it's worth the minute
 - [x] referral redemption on the payments page — /pricing now carries the "Have a referral code?" box (same form as settings, `source=pricing` so it returns to /pricing rather than dumping the user in settings mid-purchase), shown only while a code can still be redeemed and replaced by a "£5 off applied at checkout" confirmation once it is
 
 - [x] center pricing info on landing when user is trial or sessions — pure CSS: `.ia-plan:only-child` in landing.css makes a lone pricing card span both grid columns and centre (max-width 480px, auto margins) instead of sitting in the left column. Both cards still show for trial (kept intentionally); only the single-card case (sessions user sees Unlimited only) is affected.
@@ -99,7 +101,7 @@
 - [x] improve admin page with billing state, error rate, resend failures, rate limit headroom, Sideload/CDN fallback reachability — new "Metrics" section on /admin/health: DB disk usage (main + WAL/SHM), billing summary (active subs / session users / low-session users / pending cancellations), resend email failures + HTTP 5xx error rate (rolling 24h Redis counters), per-endpoint rate-limit activity vs configured limits, and a new Sideload CDN/mirror reachability deep check. Backup time data skipped — no backup mechanism exists yet to report on (see OPS_PLAN.md)
 - [x] trial-end page navbar now uses the standard show_navbar layout (auth-state links) instead of its own custom header
 - [x] verified trial-expiry -> "subscription required" flow end to end (server + extension popup + monitor page all already wired; full test suite green)
-- [x] reworded pricing page stat so "4-6 months" reads as avg. job-search length, not an InterviewAce commitment (added "cancel anytime" framing elsewhere)
+- [x] reworded pricing page stat so "4-6 months" reads as avg. job-search length, not an InterviewWise commitment (added "cancel anytime" framing elsewhere)
 - [x] added scrolling social-proof testimonial bar to landing page (placeholder reviews, labeled "Early access feedback" — swap for real beta-tester reviews before public launch)
 - [x] do i want db in new place?
 - [x] get ssh working into server

@@ -1,4 +1,4 @@
-# InterviewAce — Feature Inventory
+# InterviewWise — Feature Inventory
 
 Technical reference for the author. Every claim links to a source file.
 Not marketing copy — incomplete and janky bits are called out plainly.
@@ -110,7 +110,7 @@ Not marketing copy — incomplete and janky bits are called out plainly.
 - `manifest.json` — MV3, permissions: `activeTab`, `storage`, `tabs`, `scripting`, `offscreen`. Host `<all_urls>`.
 - `popup.html` / `popup.js` / `popup.css` — server URL + token entry, complexity stepper, ON/OFF toggle (with confirm modal), mic-permission button, hotkey footer.
 - `background.js` — service worker: `doCapture` via `chrome.tabs.captureVisibleTab`, audio start/stop orchestration, REC/ERR badge via `OffscreenCanvas`, polls `/api/me` on load.
-- `content.js` — keydown listener, hotkey matcher, `interview-ace:connect` custom event (lets onboarding page push token+URL into extension storage).
+- `content.js` — keydown listener, hotkey matcher, `interview-wise:connect` custom event (lets onboarding page push token+URL into extension storage).
 - `offscreen.html` / `offscreen.js` — minimal MV3 offscreen doc holding `MediaRecorder`.
 - `grant-mic.html` / `grant-mic.js` — standalone tab that fires `getUserMedia` to trigger the mic permission prompt, then closes itself.
 

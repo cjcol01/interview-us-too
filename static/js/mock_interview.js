@@ -628,7 +628,7 @@ function miResetCallState() {
   miAnswerControls().forEach(el => el.classList.remove('mi-answer-locked'));
 }
 
-// A real InterviewAce extension installed in this browser listens for the same hotkeys the
+// A real InterviewWise extension installed in this browser listens for the same hotkeys the
 // demo uses. Rather than force it disabled (which left no normal way to turn it back on
 // mid-demo), the call blocks those specific keystrokes from ever reaching its content-script
 // listener in the first place — see the window-capture keydown/keyup listeners below. The

@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Manual install - InterviewAce{% endblock %}
+{% block title %}Manual install - InterviewWise{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/install_manual.css">{% endblock %}
 {% block content %}
 <main class="im-main">
 
   <div class="im-intro">
     <p class="im-eyebrow">Direct install</p>
-    <h1>Install InterviewAce without the Chrome Web Store</h1>
+    <h1>Install InterviewWise without the Chrome Web Store</h1>
     <p>If the Web Store listing is ever down for review or unavailable, you can still install the
        exact same extension directly. It takes about a minute and only needs to be done once - the
        last step detects itself automatically.</p>
@@ -39,7 +39,7 @@
         <p class="im-step-state" id="im-state-2" hidden></p>
         <div class="im-step-inner">
           <p>Extract the downloaded zip anywhere on your computer - a folder called
-             <code>interviewace-extension</code> will appear. Keep that folder where it is; Chrome
+             <code>interview-wise-extension</code> will appear. Keep that folder where it is; Chrome
              reads the extension directly from it, so don't delete it after installing.</p>
           <button type="button" class="im-done-btn" onclick="imComplete(2)">Done - it's unzipped →</button>
         </div>
@@ -88,7 +88,7 @@
         <p class="im-step-state" id="im-state-5" hidden></p>
         <div class="im-step-inner">
           <p>Click <strong>Load unpacked</strong> (top-left) and select the
-             <code>interviewace-extension</code> folder you unzipped in step 2. The extension
+             <code>interview-wise-extension</code> folder you unzipped in step 2. The extension
              installs immediately - no restart needed.</p>
           <div class="im-detect">
             <span class="im-detect-led warn" id="im-detect-led"></span>
@@ -264,7 +264,7 @@
 
   // ── Step 5: live extension detection ────────────────────────────────────────
   // content.js matches <all_urls>, so the moment Chrome loads the unpacked extension it starts
-  // answering interview-ace:ping on this very page. We poll until it does, then flash step 5 done.
+  // answering interview-wise:ping on this very page. We poll until it does, then flash step 5 done.
   // The poll runs regardless of which step is open: a returning user who already has it installed
   // is carried straight to "Continue", and someone who finishes Load unpacked early is caught even
   // if they never clicked through steps 2-4.
@@ -296,8 +296,8 @@
     }
   }
 
-  document.addEventListener('interview-ace:pong', imMarkInstalled, { once: true });
-  function imPing() { document.dispatchEvent(new CustomEvent('interview-ace:ping')); }
+  document.addEventListener('interview-wise:pong', imMarkInstalled, { once: true });
+  function imPing() { document.dispatchEvent(new CustomEvent('interview-wise:ping')); }
   _pingTimer = setInterval(imPing, 1500);
   imPing();   // probe immediately for the already-installed case
 

@@ -1,4 +1,4 @@
-"""Packages extension/ into static/extension/interviewace-extension.zip for the
+"""Packages extension/ into static/extension/interview-wise-extension.zip for the
 manual-install fallback page (/install-manual, gated by SIDELOAD_ENABLED).
 
 Run this after any change to extension/ and commit the resulting zip — it's
@@ -12,7 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / "extension"
-OUT_PATH = ROOT / "static" / "extension" / "interviewace-extension.zip"
+OUT_PATH = ROOT / "static" / "extension" / "interview-wise-extension.zip"
 
 
 def build():
@@ -20,7 +20,7 @@ def build():
     files = sorted(p for p in SRC_DIR.rglob("*") if p.is_file())
     with zipfile.ZipFile(OUT_PATH, "w", zipfile.ZIP_DEFLATED) as zf:
         for path in files:
-            zf.write(path, arcname=str(Path("interviewace-extension") / path.relative_to(SRC_DIR)))
+            zf.write(path, arcname=str(Path("interview-wise-extension") / path.relative_to(SRC_DIR)))
     print(f"Wrote {OUT_PATH} ({len(files)} files, {OUT_PATH.stat().st_size / 1024:.1f} KB)")
 
 

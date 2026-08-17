@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Get started - InterviewAce{% endblock %}
+{% block title %}Get started - InterviewWise{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/css/onboarding.css">
   <link rel="stylesheet" href="/css/mock_interview.css">
@@ -33,7 +33,7 @@
     <div class="warning-modal">
       <div class="wm-icon">⚠️</div>
       <h3>This is a test run, not an interview</h3>
-      <p>Your test run lasts <strong>10 minutes</strong> - far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewAce in real interviews once you're on a full plan and comfortable with the tool.</p>
+      <p>Your test run lasts <strong>10 minutes</strong> - far too short for a real interview. It's designed so you can test the setup and see how it works, not to use in a live session.<br><br>Only use InterviewWise in real interviews once you're on a full plan and comfortable with the tool.</p>
       <div class="wm-actions">
         <button id="wm-confirm" onclick="confirmStart()">Got it - start test run</button>
         <button id="wm-cancel" onclick="closeWarning()">Cancel</button>
@@ -46,7 +46,7 @@
     <div class="warning-modal">
       <div class="wm-icon">🔌</div>
       <h3>Extension not detected</h3>
-      <p>InterviewAce relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio - it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
+      <p>InterviewWise relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio - it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
       <div class="wm-actions">
         <button class="wm-confirm-btn" onclick="closeExtWarning()">Go connect it</button>
         <button class="wm-cancel-btn" onclick="continueWithoutExtension()">Continue anyway</button>
@@ -72,7 +72,7 @@
 
   <header class="ob-header">
     <a class="ob-logo" href="/">
-      <span class="ob-logo-dot"></span>InterviewAce
+      <span class="ob-logo-dot"></span>InterviewWise
     </a>
     <a href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
   </header>
@@ -100,7 +100,7 @@
         <p class="ob-step-state" id="ob-state-1" hidden></p>
         <div class="ob-step-inner">
           <p>Adds a silent background listener to Chrome or Edge. It stays completely invisible during your interview.</p>
-          <a href="https://chrome.google.com/webstore/detail/interviewace/placeholder" target="_blank"
+          <a href="https://chrome.google.com/webstore/detail/interview-wise/placeholder" target="_blank"
              class="ob-install-btn" onclick="obInstallClicked()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
               <polyline points="8 17 12 21 16 17"/>
@@ -152,7 +152,7 @@
 
         <div id="connect-manual" class="ob-connect-manual" style="display:none;">
           <p>Open this page in the same browser where you installed the extension, then click below to link it manually.</p>
-          <p class="ob-manual-hint">Tip: pin it - click the puzzle-piece icon in Chrome's toolbar, find InterviewAce, then click the pin so you can see at a glance that it's running.</p>
+          <p class="ob-manual-hint">Tip: pin it - click the puzzle-piece icon in Chrome's toolbar, find InterviewWise, then click the pin so you can see at a glance that it's running.</p>
           <div class="ob-connect-wrap">
             <button id="connect-btn" class="ob-connect-btn" onclick="connectExtension()">Connect Extension</button>
             <p id="connect-status" class="ob-connect-status"></p>
@@ -227,7 +227,7 @@
             <li>Switch to the tab you want to lock to. <strong>Take the meeting in your
                 browser</strong>, not the Zoom or Teams desktop app - a lock can only hear a single tab.</li>
             <li>Click the <strong>puzzle-piece icon</strong> in Chrome's toolbar, then
-                <strong>InterviewAce</strong>. Hit the pin to keep it in the toolbar.</li>
+                <strong>InterviewWise</strong>. Hit the pin to keep it in the toolbar.</li>
             <li>Press <strong>Lock to tab</strong>.</li>
           </ol>
           <div class="ob-mic-state">
@@ -260,7 +260,7 @@
         <div id="advanced-section" class="ob-manual-section">
           <div class="ob-feature-callout">
             <div class="ob-fc-title">🔁 Instant replay - lock to your tab first</div>
-            <p>Before your interview, click the <strong>InterviewAce extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis - no re-recording needed.</p>
+            <p>Before your interview, click the <strong>InterviewWise extension icon</strong> while on the tab you want to share audio from (normally your meeting tab) and press <strong>Lock to tab</strong>. This continuously buffers audio from that tab. During the interview, press the replay hotkey to instantly send the last few seconds for AI analysis - no re-recording needed.</p>
           </div>
 
           <div class="ob-feature-callout">
@@ -393,10 +393,10 @@
     function _retryConnectDispatch(isSeen) {
       let attempts = 0;
       const detail = { token: '{{ api_token }}', serverUrl: '{{ base_url }}' };
-      document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+      document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
       const timer = setInterval(() => {
         if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
-        document.dispatchEvent(new CustomEvent('interview-ace:connect', { detail }));
+        document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
       }, 200);
       return timer;
     }
@@ -405,7 +405,7 @@
     // step 2's connect rail) ────────────────────────────────────────────────
     let _extensionConnected = false;
     const _extWaiters = [];
-    document.addEventListener('interview-ace:connected', () => {
+    document.addEventListener('interview-wise:connected', () => {
       _extensionConnected = true;
       // splice(0) both drains and empties, so a second event can't resolve anyone twice.
       _extWaiters.splice(0).forEach((resolve) => resolve(true));
@@ -619,7 +619,7 @@
       msg.classList.add('is-checking');
 
       let settled = false;
-      document.addEventListener('interview-ace:pong', function () {
+      document.addEventListener('interview-wise:pong', function () {
         if (settled) return;
         settled = true;
         msg.classList.remove('is-waiting', 'is-checking');
@@ -627,7 +627,7 @@
         msg.textContent = 'Waiting for you to come back from the Web Store…';
         obComplete(1);
       }, { once: true });
-      document.dispatchEvent(new CustomEvent('interview-ace:ping'));
+      document.dispatchEvent(new CustomEvent('interview-wise:ping'));
 
       setTimeout(() => {
         if (settled) return;
@@ -665,7 +665,7 @@
       setConnectRail('ready', 'ok');
       if (advance) obGoTo(3); else obRender();
     }
-    document.addEventListener('interview-ace:connected', obSyncFromExtension);
+    document.addEventListener('interview-wise:connected', obSyncFromExtension);
 
     // ── Step 2: the connect rail ────────────────────────────────────────────
     function setConnectRail(stage, state) {
@@ -719,7 +719,7 @@
     // Content script signals this when its extension context has been invalidated — normally
     // caused by an extension update while this tab was open (Chrome doesn't auto-reinject).
     // A page reload gives the tab a fresh content-script context.
-    document.addEventListener('interview-ace:ext-stale', () => {
+    document.addEventListener('interview-wise:ext-stale', () => {
       _extStale = true;
       obShowStaleReload();
     }, { once: true });
@@ -744,8 +744,8 @@
       if (_extStale || _checkExtAlivePending || _awaitingInstallReturn) return;
       _checkExtAlivePending = true;
       let resolved = false;
-      document.addEventListener('interview-ace:pong', () => { resolved = true; }, { once: true });
-      document.dispatchEvent(new CustomEvent('interview-ace:ping'));
+      document.addEventListener('interview-wise:pong', () => { resolved = true; }, { once: true });
+      document.dispatchEvent(new CustomEvent('interview-wise:ping'));
       setTimeout(() => {
         _checkExtAlivePending = false;
         if (_extStale) return;
@@ -779,7 +779,7 @@
       btn.hidden = state === 'ok';
     }
 
-    document.addEventListener('interview-ace:mic-status', (e) => {
+    document.addEventListener('interview-wise:mic-status', (e) => {
       _micSeen = true;
       const state = (e.detail && e.detail.state) || 'prompt';
       if (state === 'granted') {
@@ -813,10 +813,10 @@
       // can take a few seconds to wake from idle before it can answer check-mic-permission,
       // so we retry for up to ~5s rather than the short window obRetryDispatch uses.
       let _micAttempts = 0;
-      document.dispatchEvent(new CustomEvent('interview-ace:mic-check'));
+      document.dispatchEvent(new CustomEvent('interview-wise:mic-check'));
       const _micTimer = setInterval(() => {
         if (_micSeen || ++_micAttempts >= 15) { clearInterval(_micTimer); return; }
-        document.dispatchEvent(new CustomEvent('interview-ace:mic-check'));
+        document.dispatchEvent(new CustomEvent('interview-wise:mic-check'));
       }, 200);
       // Show a message if nothing has come back yet — but only blame the extension being
       // absent if it genuinely isn't connected; if it is connected, we're just waiting on
@@ -846,7 +846,7 @@
       const btn = document.getElementById('ob-mic-btn');
       btn.disabled = true;
       btn.textContent = 'Opening permission tab…';
-      document.dispatchEvent(new CustomEvent('interview-ace:mic-grant'));
+      document.dispatchEvent(new CustomEvent('interview-wise:mic-grant'));
       setTimeout(() => { btn.disabled = false; btn.textContent = 'Allow microphone access'; }, 2500);
     }
 
@@ -857,14 +857,14 @@
       if (_awaitingMicReturn || _obDone.has(2)) {
         _awaitingMicReturn = false;
         _micSeen = false;
-        obRetryDispatch('interview-ace:mic-check', () => _micSeen);
+        obRetryDispatch('interview-wise:mic-check', () => _micSeen);
       }
     });
 
     function obCopyMicSettings(btn) {
       // chrome:// URLs can't be navigated to from a page, and the extension id isn't readable
       // from here — content.js hands the URL back so it can be pasted.
-      document.addEventListener('interview-ace:mic-settings-link-result', (e) => {
+      document.addEventListener('interview-wise:mic-settings-link-result', (e) => {
         navigator.clipboard.writeText(e.detail.url).then(() => {
           const orig = btn.textContent;
           btn.textContent = 'Copied - paste in a new tab';
@@ -872,7 +872,7 @@
           setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2200);
         });
       }, { once: true });
-      document.dispatchEvent(new CustomEvent('interview-ace:mic-settings-link'));
+      document.dispatchEvent(new CustomEvent('interview-wise:mic-settings-link'));
     }
 
     // Step 4 can't arm replay itself — that needs chrome.tabCapture on a tab the extension has
@@ -880,7 +880,7 @@
     // result, which is also the confirmation the user needs on the day.
     let _replayArmedOnce = false;
 
-    document.addEventListener('interview-ace:replay-status', (e) => {
+    document.addEventListener('interview-wise:replay-status', (e) => {
       const state = (e.detail && e.detail.state) || 'idle';
       const led = document.getElementById('ob-replay-led');
       const msg = document.getElementById('ob-replay-msg');
@@ -940,7 +940,7 @@
         document.getElementById('manual-section').classList.add('open');
       }, 1800);
 
-      document.addEventListener('interview-ace:connected', () => {
+      document.addEventListener('interview-wise:connected', () => {
         connected = true;
         clearTimeout(timeout);
         btn.disabled = false;
@@ -984,7 +984,7 @@
       btn.textContent = _passthrough ? 'On' : 'Off';
       btn.classList.toggle('active', _passthrough);
       _applyPassthroughDesc();
-      document.dispatchEvent(new CustomEvent('interview-ace:passthrough', { detail: { enabled: _passthrough } }));
+      document.dispatchEvent(new CustomEvent('interview-wise:passthrough', { detail: { enabled: _passthrough } }));
     }
     _applyPassthroughDesc();
 
@@ -1113,7 +1113,7 @@
     }
 
     async function confirmStart() {
-      document.dispatchEvent(new CustomEvent('interview-ace:enable'));
+      document.dispatchEvent(new CustomEvent('interview-wise:enable'));
       await fetch('/api/trial/start', { method: 'POST' }).catch(() => {});
       window.location.href = '/app';
     }

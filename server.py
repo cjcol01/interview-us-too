@@ -1520,7 +1520,7 @@ async def _github_exchange_claims(code: str) -> dict:
     """Exchanges an OAuth authorization code for the caller's GitHub identity. Split out as
     its own function (rather than inlined in the callback route) so tests can monkeypatch it
     instead of hitting GitHub's real API."""
-    headers = {"Accept": "application/vnd.github+json", "User-Agent": "InterviewAce"}
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": "InterviewWise"}
     async with httpx.AsyncClient(timeout=10) as client:
         token_resp = await client.post(
             "https://github.com/login/oauth/access_token",
@@ -2678,7 +2678,7 @@ def install_manual_page(
 ):
     if not SIDELOAD_ENABLED:
         raise HTTPException(status_code=404)
-    same_origin_zip_url = f"{BASE_URL}/static/extension/interviewace-extension.zip"
+    same_origin_zip_url = f"{BASE_URL}/static/extension/interview-wise-extension.zip"
     return templates.TemplateResponse(request=request, name="install_manual.html", context={
         "show_navbar": True,
         "zip_url": SIDELOAD_ZIP_URL,
@@ -3334,7 +3334,7 @@ def admin_leads_export(
 
     stamp = datetime.utcnow().strftime("%Y%m%d-%H%M")
     return StreamingResponse(_rows(), media_type="text/csv; charset=utf-8", headers={
-        "Content-Disposition": f'attachment; filename="interviewace-leads-{stamp}.csv"',
+        "Content-Disposition": f'attachment; filename="interview-wise-leads-{stamp}.csv"',
         "Cache-Control": "no-store",
         "X-Robots-Tag": "noindex, nofollow",
     })
@@ -3963,7 +3963,7 @@ def _check_sideload() -> dict:
         return {"ok": None, "detail": "sideload page disabled (SIDELOAD_ENABLED=0)", "latency_ms": None}
     try:
         cdn = requests.head(SIDELOAD_ZIP_URL, timeout=8, allow_redirects=True)
-        mirror = requests.head(f"{BASE_URL}/static/extension/interviewace-extension.zip", timeout=8, allow_redirects=True)
+        mirror = requests.head(f"{BASE_URL}/static/extension/interview-wise-extension.zip", timeout=8, allow_redirects=True)
         ok = cdn.status_code < 400 and mirror.status_code < 400
         return {
             "ok": ok,
@@ -4331,11 +4331,11 @@ async def sitemap_xml():
 @app.get("/llms.txt", include_in_schema=False)
 async def llms_txt():
     content = """\
-# InterviewAce
+# InterviewWise
 
 > AI-powered silent co-pilot for technical job interviews. Watches your screen, listens to your interviewer, and streams working solutions to your phone in seconds — invisible to monitoring software.
 
-InterviewAce is a Chrome extension paired with a web dashboard. It is designed for software engineering candidates sitting regular and technical interviews (LeetCode-style coding problems, system design, behavioural questions). The AI assistant analyses the problem in context and unlike competitors, allows users to upload personal info (CV, company context, behavioural questions) which it uses to provide customised answers and returns concise, language-matched solutions with time and space complexity.
+InterviewWise is a Chrome extension paired with a web dashboard. It is designed for software engineering candidates sitting regular and technical interviews (LeetCode-style coding problems, system design, behavioural questions). The AI assistant analyses the problem in context and unlike competitors, allows users to upload personal info (CV, company context, behavioural questions) which it uses to provide customised answers and returns concise, language-matched solutions with time and space complexity.
 
 ## Features
 
@@ -4356,7 +4356,7 @@ InterviewAce is a Chrome extension paired with a web dashboard. It is designed f
 
 ## Usage policy
 
-Content on this site may be used to answer questions about InterviewAce and its features. Do not represent this content as your own product or service. Do not use it to train models without permission.
+Content on this site may be used to answer questions about InterviewWise and its features. Do not represent this content as your own product or service. Do not use it to train models without permission.
 """
     return Response(content=content, media_type="text/plain")
 
@@ -5102,6 +5102,36 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
                       cooldown_msg="Capturing too fast — wait 5 seconds between captures",
                       limit_msg="Capture limit reached — you can capture up to 6 times per minute",
                       window_limit=15, window_msg="Capture limit reached — you can capture up to 15 times per 5 minutes")
+    # Save screenshot to disk before session bookkeeping so the confirm endpoint
+    # can read it back by user ID without needing a re-upload.
+    img_b64 = body.image
+    if "," in img_b64:
+        img_b64 = img_b64.split(",", 1)[1]
+    (SCREENSHOTS_DIR / f"{user.id}.png").write_bytes(base64.b64decode(img_b64))
+
+    key = _capture_key(user.id)
+    capture_id = await r.hincrby(key, "capture_id", 1)
+    await r.hset(key, "monitor", body.monitor)
+
+    # Intercept before session creation for paid users with the warning enabled.
+    # No AI call (and no session deduction) until the user clicks "I'm ready".
+    if user.session_start_warning and user.account_level == AccountLevel.paid:
+        def _has_active_session_cap():
+            now = datetime.utcnow()
+            return db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+        if not await run_in_threadpool(_has_active_session_cap):
+            await r.set(f"user:{user.id}:pending_capture", json.dumps({
+                "type": "screenshot",
+                "capture_id": capture_id,
+                "monitor": body.monitor,
+            }), ex=300)
+            await broadcast(r, user.id, "session_warn", {"sessions_remaining": user.sessions_remaining})
+            return {"status": "ok", "session_warn": True}
+
     def _account_bookkeeping():
         _record_usage(db, user.id, "capture")
         created = False
@@ -5133,15 +5163,6 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
             "seconds_remaining": int(SESSION_DURATION.total_seconds()),
         })
 
-    img_b64 = body.image
-    if "," in img_b64:
-        img_b64 = img_b64.split(",", 1)[1]
-
-    (SCREENSHOTS_DIR / f"{user.id}.png").write_bytes(base64.b64decode(img_b64))
-
-    key = _capture_key(user.id)
-    capture_id = await r.hincrby(key, "capture_id", 1)
-    await r.hset(key, "monitor", body.monitor)
     await broadcast(r, user.id, "working", {"capture_id": capture_id, "monitor": body.monitor})
 
     style      = _user_response_style(user)
@@ -5159,6 +5180,139 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     await broadcast(r, user.id, "capture", state)
     track(user.id, "capture_submitted", complexity=complexity, comment_level=comments)
     return {"status": "ok", "capture_id": capture_id}
+
+
+@app.post("/api/capture/confirm")
+async def api_capture_confirm(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Resume a capture that was held behind the session-start warning modal.
+
+    Called from the dashboard (cookie auth) when the user clicks "I'm ready".
+    Retrieves the pending capture from Redis (TTL 5 min) and runs it exactly as
+    the original capture endpoint would have — bookkeeping, SSE broadcast, AI call.
+    """
+    r = request.app.state.redis
+    pending_key = f"user:{user.id}:pending_capture"
+    raw = await r.get(pending_key)
+    if not raw:
+        raise HTTPException(status_code=404, detail="No pending capture — it may have expired")
+    await r.delete(pending_key)
+    pending = json.loads(raw)
+    capture_type = pending["type"]
+
+    # Shared bookkeeping for screenshot and text captures (audio doesn't create sessions).
+    def _account_bookkeeping(usage_type: str = "capture"):
+        _record_usage(db, user.id, usage_type)
+        created = False
+        session_expires_at = None
+        if user.account_level == AccountLevel.paid:
+            now = datetime.utcnow()
+            active = db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+            if not active:
+                if user.sessions_remaining <= 0:
+                    user.account_level = AccountLevel.free
+                    db.commit()
+                    raise HTTPException(status_code=403, detail="sessions_exhausted")
+                user.sessions_remaining -= 1
+                db.commit()
+            session, created = _get_or_create_session(db, user.id)
+            if created:
+                session_expires_at = session.expires_at.isoformat()
+        return created, session_expires_at
+
+    if capture_type == "screenshot":
+        capture_id = pending["capture_id"]
+        monitor    = pending["monitor"]
+
+        created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
+        if created:
+            await _clear_history(r, user.id)
+            await broadcast(r, user.id, "session_started", {
+                "expires_at": session_expires_at,
+                "seconds_remaining": int(SESSION_DURATION.total_seconds()),
+            })
+
+        key = _capture_key(user.id)
+        await r.hset(key, "monitor", monitor)
+        await broadcast(r, user.id, "working", {"capture_id": capture_id, "monitor": monitor})
+
+        # Screenshot was already written to disk before the warn; read it back for the AI call.
+        img_b64 = base64.b64encode((SCREENSHOTS_DIR / f"{user.id}.png").read_bytes()).decode()
+
+        style      = _user_response_style(user)
+        complexity = await get_complexity(r, user.id)
+        comments   = await get_comment_level(r, user.id)
+        prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
+
+        history   = await _load_history_messages(r, user.id)
+        full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id, history=history)
+        await _append_history(r, user.id, "screenshot", SCREENSHOT_PLACEHOLDER, full_text, user.account_level)
+
+        ts = time.strftime("%H:%M:%S")
+        await r.hset(key, mapping={"analysis": full_text, "timestamp": ts})
+        state = await get_capture_state(r, user.id)
+        await broadcast(r, user.id, "capture", state)
+        track(user.id, "capture_submitted", complexity=complexity, comment_level=comments)
+        return {"status": "ok", "capture_id": capture_id}
+
+    elif capture_type == "text":
+        text = pending["text"]
+
+        created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
+        if created:
+            await _clear_history(r, user.id)
+            await broadcast(r, user.id, "session_started", {
+                "expires_at": session_expires_at,
+                "seconds_remaining": int(SESSION_DURATION.total_seconds()),
+            })
+
+        await broadcast(r, user.id, "typing-working", {"text": text})
+
+        style      = _user_response_style(user)
+        complexity = await get_complexity(r, user.id)
+        comments   = await get_comment_level(r, user.id)
+        prompt = AI_PROMPT + INPUT_MODE_PROMPT["text"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + f"\n\nTyped input: {text}" + RESPONSE_STYLE_SUFFIX[style]
+
+        history   = await _load_history_messages(r, user.id)
+        full_text = await _stream_ai_response(r, user.id, prompt, history=history)
+        await _append_history(r, user.id, "text", text, full_text, user.account_level)
+
+        await broadcast(r, user.id, "typing-analysis", {
+            "input": text,
+            "analysis": full_text,
+            "timestamp": time.strftime("%H:%M:%S"),
+        })
+        track(user.id, "text_capture_submitted", complexity=complexity, comment_level=comments)
+        return {"status": "ok"}
+
+    elif capture_type == "audio":
+        transcription_text = pending["transcript"]
+        mode               = pending["mode"]
+
+        style      = _user_response_style(user)
+        complexity = await get_complexity(r, user.id)
+        comments   = await get_comment_level(r, user.id)
+        input_label = (f"\n\nTranscript of the last {user.replay_seconds} seconds of call audio: {transcription_text}"
+                       if mode == "replay" else
+                       f"\n\nThe interviewer said: {transcription_text}")
+        prompt = AI_PROMPT + INPUT_MODE_PROMPT[mode] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + input_label + RESPONSE_STYLE_SUFFIX[style]
+
+        history   = await _load_history_messages(r, user.id)
+        full_text = await _stream_ai_response(r, user.id, prompt, history=history)
+        await _append_history(r, user.id, mode, transcription_text, full_text, user.account_level)
+
+        await broadcast(r, user.id, "audio-analysis", {
+            "transcription": transcription_text,
+            "analysis": full_text,
+            "timestamp": time.strftime("%H:%M:%S"),
+        })
+        track(user.id, "audio_capture_submitted", source=mode, complexity=complexity, comment_level=comments)
+        return {"status": "ok"}
+
+    raise HTTPException(status_code=400, detail="Unknown pending capture type")
 
 
 class TypingPreviewRequest(BaseModel):
@@ -5194,6 +5348,24 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
                       cooldown_msg="Sending too fast — wait 5 seconds between submissions",
                       limit_msg="Limit reached — you can submit up to 6 times per minute",
                       window_limit=15, window_msg="Limit reached — you can submit up to 15 times per 5 minutes")
+
+    # Intercept before session creation for paid users with the warning enabled.
+    if user.session_start_warning and user.account_level == AccountLevel.paid:
+        def _has_active_session_txt():
+            now = datetime.utcnow()
+            return db.query(InterviewSession).filter(
+                InterviewSession.user_id == user.id,
+                InterviewSession.expires_at > now,
+                InterviewSession.ended_at == None,  # noqa: E711
+            ).first()
+        if not await run_in_threadpool(_has_active_session_txt):
+            await r.set(f"user:{user.id}:pending_capture", json.dumps({
+                "type": "text",
+                "text": body.text,
+            }), ex=300)
+            await broadcast(r, user.id, "session_warn", {"sessions_remaining": user.sessions_remaining})
+            return {"status": "ok", "session_warn": True}
+
     def _account_bookkeeping():
         _record_usage(db, user.id, "capture")
         created = False
@@ -5308,6 +5480,25 @@ async def api_audio_capture(
             return {"status": "no-speech"}
 
         await broadcast(r, user.id, "audio-transcribed", {"transcription": transcription_text})
+
+        # Intercept before the AI call for paid users with the warning enabled.
+        # Transcription has already run (cost already spent); only the analysis is held.
+        if user.session_start_warning and user.account_level == AccountLevel.paid:
+            def _has_active_session_aud():
+                now = datetime.utcnow()
+                return db.query(InterviewSession).filter(
+                    InterviewSession.user_id == user.id,
+                    InterviewSession.expires_at > now,
+                    InterviewSession.ended_at == None,  # noqa: E711
+                ).first()
+            if not await run_in_threadpool(_has_active_session_aud):
+                await r.set(f"user:{user.id}:pending_capture", json.dumps({
+                    "type": "audio",
+                    "transcript": transcription_text,
+                    "mode": mode,
+                }), ex=300)
+                await broadcast(r, user.id, "session_warn", {"sessions_remaining": user.sessions_remaining})
+                return {"status": "ok", "session_warn": True}
 
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
@@ -5764,7 +5955,7 @@ def billing_cancel(request: Request, user: User = Depends(get_current_user)):
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
         "hotkey_typing":  hk["typing"],
-        "offer_eligible": user.sub_invoice_paid and not user.retention_offer_claimed,
+        "offer_eligible": user.sub_invoice_paid and not user.retention_offer_claimed and bool(user.stripe_sub_id),
     })
 
 

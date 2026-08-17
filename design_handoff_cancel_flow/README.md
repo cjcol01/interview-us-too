@@ -1,4 +1,4 @@
-# Handoff: Cancel Subscription Flow (InterviewAce)
+# Handoff: Cancel Subscription Flow (InterviewWise)
 
 ## Overview
 A single-page cancellation flow that replaces the previous "Cancel?" confirm page. It does three jobs, in order:
@@ -33,7 +33,7 @@ Single scrolling page, dark theme only (matches the rest of the authenticated ap
 - Root: `background #0A0A0C`, `color #ECECEE`, `font-family 'Hanken Grotesk'`, `line-height 1.6`, `min-height 100vh`, antialiased.
 - **Header**: flex row, `gap 14px`, `padding 18px max(28px, 4vw)`, bottom border `1px solid rgba(255,255,255,.07)`.
   - Back button: 32×32, `radius 8px`, `1px solid rgba(255,255,255,.12)`, chevron-left icon 17px, color `#9C9CA6`. Hover → border `rgba(255,255,255,.16)`, color `#ECECEE`. Links to Settings.
-  - Wordmark: 9×9 square `#C6F24E` with `box-shadow 0 0 8px #C6F24E`, then "InterviewAce" in Space Grotesk 600 / 17px / `-0.02em` / `#F4F4F6`. `gap 9px`.
+  - Wordmark: 9×9 square `#C6F24E` with `box-shadow 0 0 8px #C6F24E`, then "InterviewWise" in Space Grotesk 600 / 17px / `-0.02em` / `#F4F4F6`. `gap 9px`.
 - **Main column**: `max-width 600px`, centered, `padding 56px max(28px,4vw) 96px`, `display flex; flex-direction column; gap 16px`.
 - **Confetti canvas**: `position fixed; inset 0; pointer-events none; z-index 60`.
 
@@ -110,13 +110,13 @@ Options (value → label, in order):
   - Toolbar strip (`padding 8px 9px`, bottom hairline): fake URL field `#0A0A0C` / hairline border / `radius 6px` / mono 9.5px `#54545C` "leetcode.com"; 22×22 puzzle-slot button with accent border `rgba(198,242,78,.45)`, `rgba(198,242,78,.08)` fill and a 2×2 grid of 4px `#C6F24E` squares; 22×22 solid `#C6F24E` badge with mono 9px `#0A0A0C` "IA".
   - Dropdown body (`padding 9px 9px 10px`): mono 9px `.16em` uppercase `#54545C` "Extensions"; highlighted row (`rgba(198,242,78,.06)` bg, accent border, `radius 7px`, `padding 7px 8px`) with 18×18 `#C6F24E` "IA" tile, 12px `#ECECEE` "Interview Assistant", and a **filled** accent pin icon; a second dimmed row (`opacity .35`) with grey placeholder bars and an outline pin.
   - Caption under the mock: 5px accent dot + mono 9.5px `.12em` uppercase `#54545C` "Pinned & active".
-- Founder note: 36×36 `radius 9px` avatar tile (`rgba(198,242,78,.06)` bg, accent border, mono 12px `#C6F24E` "CJ") beside 13.5px `#9C9CA6` copy, lead sentence in `#ECECEE`: "**If none of that helps, I want to know.** Hi, I'm CJ, I built InterviewAce. I check these messages every day. Tell me what happened and I'll look into it within 1 day."
+- Founder note: 36×36 `radius 9px` avatar tile (`rgba(198,242,78,.06)` bg, accent border, mono 12px `#C6F24E` "CJ") beside 13.5px `#9C9CA6` copy, lead sentence in `#ECECEE`: "**If none of that helps, I want to know.** Hi, I'm CJ, I built InterviewWise. I check these messages every day. Tell me what happened and I'll look into it within 1 day."
 - Textarea, placeholder "What went wrong? (optional)".
 
 *e. `missing_feature` / `other` — founder note card* (`#0C0C0F`, hairline border)
 - Same CJ avatar tile + note:
-  - `missing_feature` — "Hi, I'm CJ — I built InterviewAce. I check these messages every day. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the next 5 days." Placeholder: "What were you looking for? (optional)"
-  - `other` — "Hi, I'm CJ — I built InterviewAce. I check these messages every day. Feel free to share anything — I read every message." Placeholder: "Anything you'd like to share? (optional)"
+  - `missing_feature` — "Hi, I'm CJ — I built InterviewWise. I check these messages every day. If something would've made this work for you, let me know. If it makes sense for everyone, I'll ship it in the next 5 days." Placeholder: "What were you looking for? (optional)"
+  - `other` — "Hi, I'm CJ — I built InterviewWise. I check these messages every day. Feel free to share anything — I read every message." Placeholder: "Anything you'd like to share? (optional)"
 
 **Textarea style** (both cases): full width, `min-height 92px`, `resize vertical`, 14px Hanken Grotesk, `line-height 1.6`, `color #ECECEE`, `background #0A0A0C`, `1px solid rgba(255,255,255,.07)`, `radius 10px`, `padding 12px 14px`, `outline none`; focus border `rgba(198,242,78,.28)`; placeholder `#67676F`.
 
@@ -176,4 +176,4 @@ None external. All icons are inline SVG (chevron-left, pin) or CSS shapes (puzzl
 ## Files
 - `Cancel Confirm v2.dc.html` — the design reference (open in a browser)
 - `support.js` — prototype runtime only; do not port
-- Project root `CLAUDE.md` and `design_handoff_landing/README.md` — the wider InterviewAce design system this page follows
+- Project root `CLAUDE.md` and `design_handoff_landing/README.md` — the wider InterviewWise design system this page follows

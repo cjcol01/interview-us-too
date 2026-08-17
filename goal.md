@@ -6,7 +6,7 @@ Generate marketing stunt concepts with genuine viral potential for a small UK bu
 
 ## Business context
 
-- **Business:** InterviewAce
+- **Business:** InterviewWise
 - **What it sells:** Chrome extension giving real-time AI assistance during job interviews. Subscription SaaS, Stripe billing.
 - **Audience:** Job seekers, English-speaking, global. Skews early-career and tech. Reached largely through paid social, so assets must survive Meta and TikTok ad review.
 - **Named competitors:** Cluely (primary), Final Round AI, Interview Coder. Cluely is itself a stunt-marketing company, which means out-executing them on spectacle is contested ground but beating them on verifiable substance is open ground. Their documented security incident is a matter of public record and is fair comparative material if stated accurately.

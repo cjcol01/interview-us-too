@@ -25,6 +25,10 @@ def make_user(db, account_level=AccountLevel.trial, *, with_code=True, stripe_id
         password_hash=hash_password("testpass123"),
         account_level=account_level,
         api_token=_sec.token_urlsafe(32),
+        # Disable the session-start warning for test users so capture tests
+        # can exercise the bookkeeping/AI path directly.  Tests that cover the
+        # warn flow set u.session_start_warning = True after calling make_user.
+        session_start_warning=False,
     )
     if stripe_id is not None:
         u.stripe_customer_id = stripe_id

@@ -1,8 +1,8 @@
 // Map server wire codes / details to human-readable messages. Never surface raw enums.
 const ERROR_MESSAGES = {
-  sessions_exhausted:       'No sessions remaining — visit InterviewAce to top up.',
-  trial_expired:            'Trial expired — visit InterviewAce to continue.',
-  'Subscription required':  'Your plan has ended — visit InterviewAce to upgrade.',
+  sessions_exhausted:       'No sessions remaining — visit InterviewWise to top up.',
+  trial_expired:            'Trial expired — visit InterviewWise to continue.',
+  'Subscription required':  'Your plan has ended — visit InterviewWise to upgrade.',
 };
 
 function friendlyError(status, detail) {
@@ -136,7 +136,7 @@ async function openGrantMicTab() {
     if (tab.windowId) chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   } else {
     chrome.tabs.create({ url }).catch((e) => {
-      console.error('[InterviewAce] openGrantMicTab: tabs.create failed', e);
+      console.error('[InterviewWise] openGrantMicTab: tabs.create failed', e);
     });
   }
 }

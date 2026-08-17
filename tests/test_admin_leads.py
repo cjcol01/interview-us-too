@@ -127,7 +127,7 @@ def register(test, skip, client):
             r = client.get("/admin/leads/export.csv", cookies={"session": token})
             assert r.status_code == 200
             assert "attachment" in r.headers.get("content-disposition", "")
-            assert "interviewace-leads-" in r.headers.get("content-disposition", "")
+            assert "interview-wise-leads-" in r.headers.get("content-disposition", "")
 
             rows = list(csv.reader(io.StringIO(r.text)))
             header = rows[0]

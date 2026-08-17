@@ -1,4 +1,4 @@
-console.log('[InterviewAce] content.js loaded — build-check-2026-07-30');
+console.log('[InterviewWise] content.js loaded — build-check-2026-07-30');
 
 if (window._iaceAbort) window._iaceAbort.abort();
 const ac = new AbortController();
@@ -11,13 +11,13 @@ window._iaceAbort = ac;
 try {
   void chrome.runtime.id;
 } catch {
-  document.dispatchEvent(new CustomEvent('interview-ace:ext-stale'));
-  throw new Error('[InterviewAce] Extension context invalidated — reload the page to reconnect.');
+  document.dispatchEvent(new CustomEvent('interview-wise:ext-stale'));
+  throw new Error('[InterviewWise] Extension context invalidated — reload the page to reconnect.');
 }
 
 function _checkExtContext() {
   try { void chrome.runtime.id; } catch {
-    document.dispatchEvent(new CustomEvent('interview-ace:ext-stale'));
+    document.dispatchEvent(new CustomEvent('interview-wise:ext-stale'));
   }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkExtContext(); }, { signal: ac.signal });
@@ -59,7 +59,7 @@ function showRateLimitToast(message) {
 
 const _onMessage = (msg) => {
   if (msg.type === 'toggled') {
-    document.dispatchEvent(new CustomEvent('interview-ace:toggled', { detail: { enabled: msg.enabled } }));
+    document.dispatchEvent(new CustomEvent('interview-wise:toggled', { detail: { enabled: msg.enabled } }));
   } else if (msg.type === 'show-disabled') {
     showDisabledToast();
   } else if (msg.type === 'show-rate-limit') {
@@ -71,20 +71,20 @@ const _onMessage = (msg) => {
 chrome.runtime.onMessage.addListener(_onMessage);
 ac.signal.addEventListener('abort', () => chrome.runtime.onMessage.removeListener(_onMessage));
 
-document.addEventListener('interview-ace:hotkeys', (e) => {
+document.addEventListener('interview-wise:hotkeys', (e) => {
   const { capture, audio, toggle, replay, typing } = e.detail;
   chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle, hotkey_replay: replay, hotkey_typing: typing });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:passthrough', (e) => {
+document.addEventListener('interview-wise:passthrough', (e) => {
   chrome.storage.local.set({ typing_passthrough: e.detail.enabled });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:typing-preview', (e) => {
+document.addEventListener('interview-wise:typing-preview', (e) => {
   chrome.storage.local.set({ typing_preview: e.detail.enabled });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:replay', (e) => {
+document.addEventListener('interview-wise:replay', (e) => {
   const { enabled, seconds } = e.detail;
   chrome.storage.local.set({ replay_enabled: enabled, replay_seconds: seconds });
 }, { signal: ac.signal });
@@ -100,36 +100,36 @@ if (window.location.pathname.startsWith('/app') || window.location.pathname.star
     || window.location.pathname.startsWith('/onboarding')) {
   chrome.storage.local.get(['replay_status', 'mic_status', 'enabled'], ({ replay_status, mic_status, enabled }) => {
     if (replay_status) {
-      document.dispatchEvent(new CustomEvent('interview-ace:replay-status', { detail: replay_status }));
+      document.dispatchEvent(new CustomEvent('interview-wise:replay-status', { detail: replay_status }));
     }
     if (mic_status) {
-      document.dispatchEvent(new CustomEvent('interview-ace:mic-status', { detail: mic_status }));
+      document.dispatchEvent(new CustomEvent('interview-wise:mic-status', { detail: mic_status }));
     }
-    document.dispatchEvent(new CustomEvent('interview-ace:enabled-status', { detail: { enabled: enabled ?? false } }));
+    document.dispatchEvent(new CustomEvent('interview-wise:enabled-status', { detail: { enabled: enabled ?? false } }));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes.replay_status?.newValue) {
-      document.dispatchEvent(new CustomEvent('interview-ace:replay-status', {
+      document.dispatchEvent(new CustomEvent('interview-wise:replay-status', {
         detail: changes.replay_status.newValue,
       }));
     }
     if (changes.mic_status?.newValue) {
-      document.dispatchEvent(new CustomEvent('interview-ace:mic-status', {
+      document.dispatchEvent(new CustomEvent('interview-wise:mic-status', {
         detail: changes.mic_status.newValue,
       }));
     }
     if (changes.enabled?.newValue !== undefined) {
-      document.dispatchEvent(new CustomEvent('interview-ace:enabled-status', {
+      document.dispatchEvent(new CustomEvent('interview-wise:enabled-status', {
         detail: { enabled: changes.enabled.newValue },
       }));
     }
   });
 }
 
-// Read-only presence/link check — unlike interview-ace:connect, never writes to storage,
+// Read-only presence/link check — unlike interview-wise:connect, never writes to storage,
 // so it's safe to fire from any page without risking clobbering a real stored token.
-document.addEventListener('interview-ace:ping', () => {
+document.addEventListener('interview-wise:ping', () => {
   chrome.storage.local.get(['server_url', 'api_token'], ({ server_url, api_token }) => {
     // Deliberately not checking server_url === window.location.origin: captures always
     // go to the stored server_url regardless of which host the current tab is on (e.g.
@@ -137,11 +137,11 @@ document.addEventListener('interview-ace:ping', () => {
     // an exact match here just produced false "not connected" reports.
     const linked = !!(server_url && api_token);
     const version = chrome.runtime.getManifest().version;
-    document.dispatchEvent(new CustomEvent('interview-ace:pong', { detail: { linked, version } }));
+    document.dispatchEvent(new CustomEvent('interview-wise:pong', { detail: { linked, version } }));
   });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:mic-check', () => {
+document.addEventListener('interview-wise:mic-check', () => {
   chrome.runtime.sendMessage({ type: 'check-mic-permission' });
 }, { signal: ac.signal });
 
@@ -149,7 +149,7 @@ document.addEventListener('interview-ace:mic-check', () => {
 // show a permission prompt, so asking for the permission means opening grant-mic.html as a real
 // tab. Until this existed the only way to reach that prompt was to fail a real capture, i.e. to
 // find out your mic was blocked by pressing the hotkey mid-interview.
-document.addEventListener('interview-ace:mic-grant', () => {
+document.addEventListener('interview-wise:mic-grant', () => {
   chrome.storage.local.set({ _open_mic_grant_ts: Date.now() });
 }, { signal: ac.signal });
 
@@ -158,17 +158,17 @@ document.addEventListener('interview-ace:mic-grant', () => {
 // by the support page's "Mic silent" card to link straight to the right settings entry instead
 // of the generic microphone list, where it'd show up as an unlabeled chrome-extension:// origin
 // among ordinary websites.
-document.addEventListener('interview-ace:mic-settings-link', () => {
+document.addEventListener('interview-wise:mic-settings-link', () => {
   const url = 'chrome://settings/content/siteDetails?site='
     + encodeURIComponent('chrome-extension://' + chrome.runtime.id + '/');
-  document.dispatchEvent(new CustomEvent('interview-ace:mic-settings-link-result', { detail: { url } }));
+  document.dispatchEvent(new CustomEvent('interview-wise:mic-settings-link-result', { detail: { url } }));
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:enable', () => {
+document.addEventListener('interview-wise:enable', () => {
   chrome.runtime.sendMessage({ type: 'force-enable' });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-ace:connect', (e) => {
+document.addEventListener('interview-wise:connect', (e) => {
   const { token, serverUrl } = e.detail;
   chrome.storage.local.set({ api_token: token, server_url: serverUrl }, () => {
     // The background service worker only pulls account settings (replay,
@@ -177,7 +177,7 @@ document.addEventListener('interview-ace:connect', (e) => {
     // to sync now that one actually exists, or those settings stay empty
     // until the service worker happens to restart for an unrelated reason.
     chrome.runtime.sendMessage({ type: 'sync-account' });
-    document.dispatchEvent(new CustomEvent('interview-ace:connected'));
+    document.dispatchEvent(new CustomEvent('interview-wise:connected'));
   });
 }, { signal: ac.signal });
 
@@ -191,7 +191,7 @@ let _passthrough = true;
 let _enabled = false;
 let _hotkeysSuppressed = false;
 
-document.addEventListener('interview-ace:suppress-hotkeys', (e) => {
+document.addEventListener('interview-wise:suppress-hotkeys', (e) => {
   _hotkeysSuppressed = !!e.detail?.suppress;
 });
 

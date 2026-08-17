@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">{% endblock %}
-  <title>{% block title %}InterviewAce{% endblock %}</title>
+  <title>{% block title %}InterviewWise{% endblock %}</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="InterviewAce">
+  <meta name="apple-mobile-web-app-title" content="InterviewWise">
   <meta name="theme-color" content="#0a0a0c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -297,7 +297,7 @@ function dismissAnnouncement(id) {
 {% endif %}
 {% if show_navbar %}
 <nav class="navbar" id="navbar">
-  <a href="{{ '/app' if user else '/' }}" class="navbar-logo">InterviewAce</a>
+  <a href="{{ '/app' if user else '/' }}" class="navbar-logo">InterviewWise</a>
   {% if not user and show_landing_links %}
   <div class="navbar-center-links">
     <a href="#how">How it works</a>

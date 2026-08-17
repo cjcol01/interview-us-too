@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Partner Dashboard - InterviewAce{% endblock %}
+{% block title %}Partner Dashboard - InterviewWise{% endblock %}
 {% block head %}<link rel="stylesheet" href="/css/partner_dashboard.css">{% endblock %}
 {% block content %}
 
@@ -31,7 +31,7 @@
           id="ref-link"
           type="text"
           readonly
-          value="https://interviewace.co/r/{{ referral_code }}"
+          value="https://interview-wise.co/r/{{ referral_code }}"
         >
         <button class="copy-btn" id="copy-btn" onclick="copyLink()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -41,13 +41,13 @@
         </button>
       </div>
       <div class="share-row">
-        <a class="share-btn" href="mailto:?subject=Get%20£5%20off%20InterviewAce&body=Hey%2C%20thought%20you%27d%20find%20this%20useful%20for%20interviews%3A%20https%3A%2F%2Finterviewace.co%2Fr%2F{{ referral_code }}">
+        <a class="share-btn" href="mailto:?subject=Get%20£5%20off%20InterviewWise&body=Hey%2C%20thought%20you%27d%20find%20this%20useful%20for%20interviews%3A%20https%3A%2F%2Finterview-wise.co%2Fr%2F{{ referral_code }}">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
           </svg>
           Email
         </a>
-        <a class="share-btn" href="https://wa.me/?text=Hey%2C%20get%20£5%20off%20InterviewAce%3A%20https%3A%2F%2Finterviewace.co%2Fr%2F{{ referral_code }}" target="_blank" rel="noopener">
+        <a class="share-btn" href="https://wa.me/?text=Hey%2C%20get%20£5%20off%20InterviewWise%3A%20https%3A%2F%2Finterview-wise.co%2Fr%2F{{ referral_code }}" target="_blank" rel="noopener">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
           </svg>
@@ -287,7 +287,7 @@
       const link = document.getElementById('ref-link').value;
       if (navigator.share) {
         navigator.share({
-          title: 'InterviewAce - Ace your interviews',
+          title: 'InterviewWise - Ace your interviews',
           text: 'Get £5 off your first full payment with this link:',
           url: link,
         });

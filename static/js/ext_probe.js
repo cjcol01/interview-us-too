@@ -9,8 +9,8 @@
  * What it does NOT do: render. Pages subscribe and draw their own UI from the state, since
  * a dot, a check row and a connection banner want different words for the same facts.
  *
- * Transport is the content script's read-only DOM events — `interview-ace:ping` answered by
- * `interview-ace:pong`. Never `interview-ace:connect`: that one WRITES the token into
+ * Transport is the content script's read-only DOM events — `interview-wise:ping` answered by
+ * `interview-wise:pong`. Never `interview-wise:connect`: that one WRITES the token into
  * extension storage, so using it as a presence check silently repoints the extension at
  * whatever origin the page happens to be served from.
  *
@@ -62,7 +62,7 @@
     return timer;
   }
 
-  document.addEventListener('interview-ace:pong', (e) => {
+  document.addEventListener('interview-wise:pong', (e) => {
     pongSeen = true;
     clearTimeout(extTimer);
     state.detected = true;
@@ -71,19 +71,19 @@
     emit();
   });
 
-  document.addEventListener('interview-ace:enabled-status', (e) => {
+  document.addEventListener('interview-wise:enabled-status', (e) => {
     state.enabled = !!(e.detail && e.detail.enabled);
     emit();
   });
 
-  document.addEventListener('interview-ace:mic-status', (e) => {
+  document.addEventListener('interview-wise:mic-status', (e) => {
     micSeen = true;
     clearTimeout(micTimer);
     state.mic = (e.detail && e.detail.state) || 'unknown';
     emit();
   });
 
-  document.addEventListener('interview-ace:replay-status', (e) => {
+  document.addEventListener('interview-wise:replay-status', (e) => {
     state.replay = (e.detail && e.detail.state) || null;
     emit();
   });
@@ -91,7 +91,7 @@
   // Extension reloaded/updated while this tab was open: the content script's context is
   // dead, so nothing here can reach it until the page is reloaded. Report it rather than
   // waiting for a probe to time out.
-  document.addEventListener('interview-ace:ext-stale', () => {
+  document.addEventListener('interview-wise:ext-stale', () => {
     state.detected = false;
     state.linked = false;
     emit();
@@ -114,11 +114,11 @@
       state.mic = 'unknown';
       emit();
     }, ANSWER_MS);
-    retryDispatch('interview-ace:ping', () => pongSeen);
+    retryDispatch('interview-wise:ping', () => pongSeen);
     // Mic permission is never pushed on its own — unlike ext/enabled state, nothing writes
     // to storage when the browser-level permission changes. It only ever arrives in answer
     // to an explicit ask, which is why a page that asks once shows a stale value forever.
-    retryDispatch('interview-ace:mic-check', () => micSeen);
+    retryDispatch('interview-wise:mic-check', () => micSeen);
   }
 
   window.IAExtProbe = {
