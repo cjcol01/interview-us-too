@@ -1,0 +1,119 @@
+{% if show_demo_intro %}
+{# Demo-intro modal — appears on top of the walkthrough overlay on first visit after signup.
+   Backdrop blurs the mock interview UI behind it so users see what they're about to enter.
+   Sits at z-index 1000, above the mock-interview-overlay (z-index 200). #}
+<div class="di-backdrop" id="di-backdrop" role="dialog" aria-modal="true" aria-labelledby="di-heading">
+  <div class="di-card">
+    <p class="di-kicker">DEMO MODE</p>
+    <h2 class="di-heading" id="di-heading">Watch how it works before your first real interview.</h2>
+    <p class="di-lead">Alex asks four questions and you answer them with InterviewAce.</p>
+    <ul class="di-bullets" role="list">
+      <li class="di-bullet">
+        <span class="di-bullet-icon" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </span>
+        <span>Ninety seconds, start to finish</span>
+      </li>
+      <li class="di-bullet">
+        <span class="di-bullet-icon" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.564 14.558a3 3 0 1 1-4.122-4.121M2 2l20 20"/><path d="M20 20H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 .819-.175m2.879-2.801A2 2 0 0 1 10.004 4h3.993a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v7.344"/></svg>
+        </span>
+        <span>Your camera and mic stay off</span>
+      </li>
+      <li class="di-bullet">
+        <span class="di-bullet-icon" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V22H4V12"/><path d="M22 7H2v5h20V7z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+        </span>
+        <span>Won't touch your trial time</span>
+      </li>
+    </ul>
+    <div class="di-actions">
+      <button class="di-btn-primary" id="di-start" type="button">Start the demo →</button>
+      <button class="di-btn-skip" id="di-skip" type="button">Skip for now</button>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var backdrop  = document.getElementById('di-backdrop');
+  var startBtn  = document.getElementById('di-start');
+  var skipBtn   = document.getElementById('di-skip');
+  var heading   = document.getElementById('di-heading');
+  var isAuth    = typeof _wIsAuthenticated !== 'undefined' && _wIsAuthenticated;
+  var nextUrl   = typeof _wNextUrl !== 'undefined' ? _wNextUrl : '';
+
+  // Heading gets programmatic focus only — not in tab order.
+  heading.setAttribute('tabindex', '-1');
+
+  // Lock body scroll while the modal is open.
+  document.body.style.overflow = 'hidden';
+
+  // Move focus into the modal after the first paint so screen readers announce the dialog.
+  requestAnimationFrame(function () { heading.focus(); });
+
+  // Focus trap: cycle between the two action buttons.
+  var focusable = [startBtn, skipBtn];
+
+  function markSeen() {
+    // Fire-and-forget; if the user isn't authenticated there's no session to mark, and
+    // that's fine — anon visitors always see the modal (no persistent identity to gate on).
+    if (isAuth) {
+      try { fetch('/api/demo-intro/seen', { method: 'POST', keepalive: true }); } catch (_) {}
+    }
+  }
+
+  function dismiss(action) {
+    markSeen();
+    backdrop.remove();
+    document.body.style.overflow = '';
+
+    if (action === 'skip') {
+      // Route to the dashboard (or the validated next_url if one was passed in).
+      window.location.href = nextUrl || '/app';
+      return;
+    }
+
+    // 'start': the call screen is already visible behind the backdrop (frozen); now
+    // actually start the call. miJoinCall() is a global from mock_interview.js.
+    if (typeof miJoinCall === 'function') miJoinCall();
+
+    // Return focus to the call's close button so keyboard users can navigate.
+    var closeX = document.querySelector('.mi-close-x');
+    if (closeX) closeX.focus();
+  }
+
+  startBtn.addEventListener('click', function () { dismiss('start'); });
+  skipBtn.addEventListener('click',  function () { dismiss('skip');  });
+
+  // Backdrop click outside the card = start the demo (not skip — clicking away
+  // shouldn't redirect the user off the page).
+  backdrop.addEventListener('click', function (e) {
+    if (e.target === backdrop) dismiss('start');
+  });
+
+  // Keyboard: Escape = start the demo for the same reason.
+  document.addEventListener('keydown', function handler(e) {
+    if (e.key === 'Escape') {
+      document.removeEventListener('keydown', handler);
+      dismiss('start');
+      return;
+    }
+    if (e.key === 'Tab' && backdrop.isConnected) {
+      var first = focusable[0];
+      var last  = focusable[focusable.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first || document.activeElement === heading) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+  });
+}());
+</script>
+{% endif %}

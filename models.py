@@ -49,6 +49,9 @@ class User(Base):
     reset_token_expiry = Column(DateTime, nullable=True)
     setup_complete     = Column(Boolean, default=False, nullable=False)
     welcome_seen       = Column(Boolean, default=False, nullable=False)
+    # Prevents the "DEMO MODE" intro modal from showing on repeat visits. Server-side for
+    # the same reason as tutorial_seen: a new device must not replay the gate.
+    demo_intro_seen    = Column(Boolean, default=False, nullable=False, server_default="0")
     # Deliberately server-side, not localStorage: onboarding's whole point is to move the
     # user to a second device, and a per-device flag means the phone replays the mock call
     # instead of showing the "Start 10-minute trial" button step 4 promised them.

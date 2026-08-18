@@ -264,7 +264,7 @@
 
   // ── Step 5: live extension detection ────────────────────────────────────────
   // content.js matches <all_urls>, so the moment Chrome loads the unpacked extension it starts
-  // answering interview-wise:ping on this very page. We poll until it does, then flash step 5 done.
+  // answering scap:ping on this very page. We poll until it does, then flash step 5 done.
   // The poll runs regardless of which step is open: a returning user who already has it installed
   // is carried straight to "Continue", and someone who finishes Load unpacked early is caught even
   // if they never clicked through steps 2-4.
@@ -296,8 +296,8 @@
     }
   }
 
-  document.addEventListener('interview-wise:pong', imMarkInstalled, { once: true });
-  function imPing() { document.dispatchEvent(new CustomEvent('interview-wise:ping')); }
+  document.addEventListener('scap:pong', imMarkInstalled, { once: true });
+  function imPing() { document.dispatchEvent(new CustomEvent('scap:ping')); }
   _pingTimer = setInterval(imPing, 1500);
   imPing();   // probe immediately for the already-installed case
 

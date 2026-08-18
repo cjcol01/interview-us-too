@@ -36,6 +36,14 @@ body { background: var(--bg); color: var(--fg); }
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* Sticky so it doesn't shift when the right panel grows (e.g. password requirements
+     appearing). The right panel may scroll; the left stays put. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  align-self: start;
 }
 
 .wna-badge {
@@ -385,6 +393,62 @@ body { background: var(--bg); color: var(--fg); }
 }
 .wna-back:hover { color: var(--fg-muted); }
 
+/* ── Interview date pills ─────────────────────────────────────── */
+.wna-date-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.wna-date-opt {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: var(--fg-subtle);
+}
+.wna-date-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.wna-date-pill {
+  background: var(--bg-field);
+  border: 1px solid var(--border-field);
+  border-radius: 100px;
+  color: var(--fg);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 14px;
+  transition: border-color .15s, transform .12s, box-shadow .12s;
+}
+.wna-date-pill:hover { border-color: rgba(176,255,62,.4); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+.wna-date-pill.active { border-color: var(--accent); color: var(--accent); }
+.wna-date-pill-muted { color: var(--fg-subtle); }
+.wna-date-pill-muted:hover { color: var(--fg); }
+.wna-date-pill-muted.active { color: var(--accent); }
+.wna-date-input {
+  background: var(--bg-field);
+  border: 1px solid var(--border-field);
+  border-radius: 6px;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  margin-top: 6px;
+  padding: 7px 10px;
+  width: 100%;
+  box-sizing: border-box;
+  color-scheme: dark;
+}
+.wna-date-input:focus { border-color: rgba(176,255,62,.4); outline: none; }
+[data-theme="light"] .wna-date-input { color-scheme: light; }
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .wna-wrap {
@@ -488,7 +552,11 @@ body { background: var(--bg); color: var(--fg); }
     <!-- ── REGISTER PANEL ── -->
     <div id="wnaPanelRegister">
       <h2 class="wna-form-heading">Create your account</h2>
-      <p class="wna-form-sub">Next step is picking a plan — the trial starts free.</p>
+      {% if next_url and '/billing/checkout' in next_url %}
+      <p class="wna-form-sub">Almost there — create an account to complete your purchase.</p>
+      {% else %}
+      <p class="wna-form-sub">Next: a 10-minute test run — no card needed.</p>
+      {% endif %}
 
       <form class="wna-form" id="wnaRegForm" onsubmit="wnaSubmitRegister(event)" novalidate>
         <div class="wna-field-row">
@@ -532,6 +600,22 @@ body { background: var(--bg); color: var(--fg); }
           <p class="wna-pw-all-good" id="wna-pw-all-good">Great password!</p>
         </div>
 
+        <!-- Interview date — optional, captured here at the highest-intent moment.
+             Logged-in trial users who come through OAuth or /claim won't see this form,
+             so that gap is accepted and tracked as a follow-up (see plan §Follow-up). -->
+        <div class="wna-field-group" id="wna-date-group">
+          <span class="wna-date-label">Interview date <span class="wna-date-opt">OPTIONAL</span></span>
+          <div class="wna-date-pills">
+            <button type="button" class="wna-date-pill" data-choice="tomorrow">Tomorrow</button>
+            <button type="button" class="wna-date-pill" data-choice="soon">This week</button>
+            <button type="button" class="wna-date-pill" data-choice="next_week">Next week</button>
+            <button type="button" class="wna-date-pill" data-choice="custom">Pick a date</button>
+            <button type="button" class="wna-date-pill wna-date-pill-muted" data-choice="unknown">Still looking</button>
+          </div>
+          <input type="date" id="wna-date-input" class="wna-date-input" style="display:none;"
+            onfocus="if(this.showPicker)try{this.showPicker()}catch{}">
+        </div>
+
         <label class="wna-agree">
           <input type="checkbox" id="wna-agree">
           <span>I agree to the <a href="/privacy" target="_blank" rel="noopener">Privacy Policy</a> and <a href="#" target="_blank" rel="noopener">Terms and Conditions</a></span>
@@ -540,20 +624,24 @@ body { background: var(--bg); color: var(--fg); }
         <div class="wna-error" id="wna-reg-error"></div>
 
         <button type="submit" class="wna-submit">Create account →</button>
-        <p class="wna-btn-note">Next: choose your plan · 7 days free</p>
+        {% if next_url and '/billing/checkout' in next_url %}
+        <p class="wna-btn-note">Verify email → complete checkout</p>
+        {% else %}
+        <p class="wna-btn-note">Next: 10-minute test run · no card</p>
+        {% endif %}
       </form>
 
       {% if google_enabled or github_enabled %}
       <div class="wna-divider" style="margin-top:16px;">or</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
         {% if google_enabled %}
-        <a class="wna-oauth" id="wna-google-reg" href="/auth/google?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+        <a class="wna-oauth" id="wna-google-reg" href="/auth/google?next={{ (next_url or '/onboarding') | urlencode }}">
           <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.19l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.69A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.69V4.98H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.02l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.98l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
           Continue with Google
         </a>
         {% endif %}
         {% if github_enabled %}
-        <a class="wna-oauth" id="wna-github-reg" href="/auth/github?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+        <a class="wna-oauth" id="wna-github-reg" href="/auth/github?next={{ (next_url or '/onboarding') | urlencode }}">
           <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           Continue with GitHub
         </a>
@@ -600,13 +688,13 @@ body { background: var(--bg); color: var(--fg); }
       <div class="wna-divider" style="margin-top:16px;">or</div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
         {% if google_enabled %}
-        <a class="wna-oauth" id="wna-google-login" href="/auth/google?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+        <a class="wna-oauth" id="wna-google-login" href="/auth/google?next={{ (next_url or '/onboarding') | urlencode }}">
           <svg viewBox="0 0 18 18" width="17" height="17" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.71v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.61z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.19l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.69A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.16.28-1.69V4.98H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.02l2.97-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.98l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
           Continue with Google
         </a>
         {% endif %}
         {% if github_enabled %}
-        <a class="wna-oauth" id="wna-github-login" href="/auth/github?next=%2Fwelcome%2Fnext%3Ffrom%3Ddemo">
+        <a class="wna-oauth" id="wna-github-login" href="/auth/github?next={{ (next_url or '/onboarding') | urlencode }}">
           <svg viewBox="0 0 16 16" width="17" height="17" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
           Continue with GitHub
         </a>
@@ -629,6 +717,9 @@ body { background: var(--bg); color: var(--fg); }
 
 <script>
 (function () {
+  // Server-validated post-verification destination, or empty string for the default (/onboarding).
+  var WNA_NEXT_URL = {{ (next_url or '') | tojson }};
+
   // ── Beat timestamp recap ────────────────────────────────────────
   // Reads elapsed call seconds stored by mock_interview.js on demo completion.
   function fmtSecs(s) {
@@ -713,6 +804,71 @@ body { background: var(--bg); color: var(--fg); }
     return null;
   }
 
+  // ── Interview date pill init ────────────────────────────────────
+  (function () {
+    var pills = document.querySelectorAll('.wna-date-pill');
+    var soonPill = document.querySelector('.wna-date-pill[data-choice="soon"]');
+    var customPill = document.querySelector('.wna-date-pill[data-choice="custom"]');
+    var dateInput = document.getElementById('wna-date-input');
+    window._wnaInterviewDate = null; // "YYYY-MM-DD" or null
+
+    function addDays(n) {
+      var d = new Date();
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() + n);
+      return d;
+    }
+    function toISO(d) {
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+    function fmtShort(d) {
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+    }
+    function selectPill(pill) {
+      pills.forEach(function (p) { p.classList.remove('active'); });
+      pill.classList.add('active');
+    }
+
+    // Substitute the real date into the "soon" pill.
+    soonPill.textContent = fmtShort(addDays(2));
+    document.querySelector('.wna-date-pill[data-choice="next_week"]').textContent = fmtShort(addDays(7));
+
+    // Default to day-after-tomorrow so the row never looks unchosen.
+    window._wnaInterviewDate = toISO(addDays(2));
+    selectPill(soonPill);
+
+    pills.forEach(function (pill) {
+      pill.addEventListener('click', function () {
+        var choice = pill.dataset.choice;
+        if (choice === 'custom') {
+          dateInput.style.display = 'block';
+          dateInput.min = toISO(addDays(0));
+          requestAnimationFrame(function () {
+            if (dateInput.showPicker) { try { dateInput.showPicker(); } catch (e) {} }
+            dateInput.focus();
+          });
+          return;
+        }
+        dateInput.style.display = 'none';
+        if (choice === 'tomorrow')  window._wnaInterviewDate = toISO(addDays(1));
+        else if (choice === 'soon') window._wnaInterviewDate = toISO(addDays(2));
+        else if (choice === 'next_week') window._wnaInterviewDate = toISO(addDays(7));
+        else if (choice === 'unknown')  window._wnaInterviewDate = toISO(addDays(7));
+        selectPill(pill);
+      });
+    });
+
+    dateInput.addEventListener('change', function () {
+      if (!dateInput.value) return;
+      window._wnaInterviewDate = dateInput.value;
+      customPill.textContent = fmtShort(new Date(dateInput.value + 'T00:00:00'));
+      selectPill(customPill);
+    });
+  })();
+
   // ── Register submit ─────────────────────────────────────────────
   window.wnaSubmitRegister = async function (e) {
     e.preventDefault();
@@ -723,8 +879,11 @@ body { background: var(--bg); color: var(--fg); }
       username: document.getElementById('wna-username').value.trim(),
       email: document.getElementById('wna-email').value.trim(),
       password: document.getElementById('wna-password').value,
-      // Thread the post-verification destination through the verification email
-      next_url: '/pricing',
+      // Thread the post-verification destination through the verification email.
+      // Empty string means the server will use its default (/onboarding).
+      next_url: WNA_NEXT_URL || null,
+      // Optional — captures intent at the highest-intensity moment.
+      interview_date: window._wnaInterviewDate || null,
     };
     const err = validateRegister(data);
     if (err) { errEl.textContent = err; return; }
@@ -745,7 +904,7 @@ body { background: var(--bg); color: var(--fg); }
       } else {
         // json.next is only set when SKIP_EMAIL_VERIFICATION is active (dev). In
         // production the user needs to verify their email first; the verification
-        // link already contains next=/pricing so they land there after clicking it.
+        // link already contains next_url so they land there after clicking it.
         window.location.href = json.next || '/verify-pending';
       }
     } catch (ex) {
@@ -781,8 +940,9 @@ body { background: var(--bg); color: var(--fg); }
         btn.disabled = false;
         btn.textContent = 'Sign in →';
       } else {
-        // /welcome/next?from=demo routes trial users to /pricing and paid users to /app
-        window.location.href = '/welcome/next?from=demo';
+        // Existing users go directly to next_url (they skip onboarding) or /app.
+        // /welcome/next?next=X will then flip welcome_seen and redirect them on.
+        window.location.href = WNA_NEXT_URL || '/app';
       }
     } catch (ex) {
       errEl.textContent = 'Network error: ' + ex.message;

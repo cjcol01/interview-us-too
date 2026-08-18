@@ -352,6 +352,11 @@ The team actively read these and work on issues found."></textarea>
       </div>
       <div class="hk-ref-list">
         <div class="hk-ref-row">
+          <span class="hk-ref-label">Toggle on/off</span>
+          <span class="hk-ref-desc">Tap - turn every hotkey on or off</span>
+          <span class="hk-ref-key" id="hkref-toggle"></span>
+        </div>
+        <div class="hk-ref-row">
           <span class="hk-ref-label">Screen capture</span>
           <span class="hk-ref-desc">Tap - screenshot what's on screen</span>
           <span class="hk-ref-key" id="hkref-capture"></span>
@@ -370,11 +375,6 @@ The team actively read these and work on issues found."></textarea>
           <span class="hk-ref-label">Typing mode</span>
           <span class="hk-ref-desc">Tap to type, Enter or tap again to send</span>
           <span class="hk-ref-key" id="hkref-typing"></span>
-        </div>
-        <div class="hk-ref-row">
-          <span class="hk-ref-label">Toggle on/off</span>
-          <span class="hk-ref-desc">Tap - turn every hotkey on or off</span>
-          <span class="hk-ref-key" id="hkref-toggle"></span>
         </div>
       </div>
       <a href="/settings#hotkeys" class="hk-ref-edit">Edit hotkeys →</a>
@@ -662,6 +662,12 @@ The team actively read these and work on issues found."></textarea>
     }
 
 
+    // Open all links rendered by marked in a new tab.
+    marked.use({ renderer: { link({ href, title, text }) {
+      const t = title ? ` title="${title}"` : '';
+      return `<a href="${href}"${t} target="_blank" rel="noopener noreferrer">${text}</a>`;
+    }}});
+
     // marked dropped its `highlight` option in v5 (the CDN pulls v15+), so highlighting is a
     // post-parse pass instead: highlight.js walks the rendered <pre><code> blocks. marked tags
     // each with `language-xxx` (default langPrefix) which hljs uses to pick the grammar; unknown
@@ -813,12 +819,12 @@ The team actively read these and work on issues found."></textarea>
       document.getElementById('session-warn-bar').classList.remove('visible');
       document.getElementById('session-over-overlay').classList.add('visible');
       _iaHideButton();
-      document.dispatchEvent(new CustomEvent('interview-wise:suppress-hotkeys', { detail: { suppress: true } }));
+      document.dispatchEvent(new CustomEvent('scap:suppress-hotkeys', { detail: { suppress: true } }));
     }
 
     function sessionOverStartNew() {
       document.getElementById('session-over-overlay').classList.remove('visible');
-      document.dispatchEvent(new CustomEvent('interview-wise:suppress-hotkeys', { detail: { suppress: false } }));
+      document.dispatchEvent(new CustomEvent('scap:suppress-hotkeys', { detail: { suppress: false } }));
     }
 
     async function initPaidSession() {
@@ -900,7 +906,7 @@ The team actively read these and work on issues found."></textarea>
       } else if (status.state === 'stream-ended') {
         _replayBadge.innerHTML =
           '<span class="rb-err">replay lost</span>' +
-          '<span class="rb-hint">re-lock via extensiono</span>';
+          '<span class="rb-hint">re-lock via extension</span>';
       } else if (status.state === 'error') {
         _replayBadge.innerHTML =
           '<span class="rb-err">replay error</span>' +
@@ -910,7 +916,7 @@ The team actively read these and work on issues found."></textarea>
       }
     }
 
-    document.addEventListener('interview-wise:replay-status', (e) => _applyReplayStatus(e.detail));
+    document.addEventListener('scap:replay-status', (e) => _applyReplayStatus(e.detail));
 
     // ── Generic alert light (hk-status-alert) ────────────────────────────────
     // One catch-all status light that stays hidden until something needs attention,
@@ -1057,7 +1063,7 @@ The team actively read these and work on issues found."></textarea>
       }
     }
     // tabTitle only rides along on the raw event, not through the probe's state.
-    document.addEventListener('interview-wise:replay-status', (e) => _applyReplayDot(e.detail));
+    document.addEventListener('scap:replay-status', (e) => _applyReplayDot(e.detail));
 
     // Detection is the shared probe (/static/js/ext_probe.js) — same code as /support and
     // Settings. It re-asks on a timer and on focus, so a dot can't keep reporting an

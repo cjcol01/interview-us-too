@@ -4,15 +4,14 @@ const COMMENT_LEVEL_DESC = { 1: 'Low', 2: 'High', 3: 'Every line' };
 document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('version-label').textContent = 'V' + chrome.runtime.getManifest().version;
 
-  const { server_url, api_token, complexity, comment_level, response_style, last_capture, last_error, enabled,
+  const { api_token, complexity, comment_level, response_style, last_capture, last_error, enabled,
           hotkey_capture, is_unlimited,
           replay_enabled, replay_seconds } =
-    await chrome.storage.local.get(['server_url', 'api_token', 'complexity', 'comment_level', 'response_style',
+    await chrome.storage.local.get(['api_token', 'complexity', 'comment_level', 'response_style',
                                     'last_capture', 'last_error', 'enabled',
                                     'hotkey_capture', 'is_unlimited',
                                     'replay_enabled', 'replay_seconds']);
 
-  const serverInput   = document.getElementById('server_url');
   const tokenInput    = document.getElementById('api_token');
   const toggleBtn     = document.getElementById('toggle_token');
   const complexityVal = document.getElementById('complexity_val');
@@ -30,8 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const confirmOk       = document.getElementById('confirm-ok');
   const confirmCancel   = document.getElementById('confirm-cancel');
 
-  if (server_url) serverInput.value = server_url;
-  if (api_token)  tokenInput.value  = api_token;
+  if (api_token) tokenInput.value = api_token;
 
   let isEnabled = enabled ?? false;
 
@@ -48,7 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!isEnabled) {
       confirmBody.textContent = is_unlimited
         ? ''
-        : 'Turning this on starts using a session as soon as you use any hotkey — toggle it off between interviews to avoid using one by accident.';
+        : 'Turning this on starts using a session as soon as you use any hotkey — toggle it off between uses to avoid wasting one.';
       confirmOk.textContent = is_unlimited ? 'Yes' : 'Got it, turn on';
       confirmOverlay.classList.remove('hidden');
     } else {
@@ -106,12 +104,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   // real right now and we show an accurate connection message.
   if (last_capture) {
     showStatus(`Last capture: ${last_capture}`);
-  } else if (!api_token || !server_url) {
-    showStatus('Configure server URL and token below', true);
+  } else if (!api_token) {
+    showStatus('Paste your API token below', true);
   }
 
-  if (last_error && api_token && server_url) {
-    revalidateError(server_url, api_token, last_error);
+  if (last_error && api_token) {
+    const { server_url: url } = await chrome.storage.local.get(['server_url']);
+    revalidateError(url, api_token, last_error);
   }
 
   toggleBtn.addEventListener('click', () => {
@@ -137,13 +136,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   saveBtn.addEventListener('click', async () => {
-    const url = serverInput.value.trim().replace(/\/$/, '');
     const tok = tokenInput.value.trim();
+    if (!tok) { showStatus('API token is required', true); return; }
 
-    if (!url) { showStatus('Server URL is required', true); return; }
-    if (!tok)  { showStatus('API token is required', true); return; }
-
-    await chrome.storage.local.set({ server_url: url, api_token: tok, complexity: comp, comment_level: cmt, last_error: '' });
+    const { server_url: url } = await chrome.storage.local.get(['server_url']);
+    await chrome.storage.local.set({ api_token: tok, complexity: comp, comment_level: cmt, last_error: '' });
 
     const prevLabel = saveBtn.textContent;
     saveBtn.textContent = 'Saved ✓';
@@ -195,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyStyleUI(style);
       await chrome.storage.local.set({ response_style: style });
       const { server_url: url, api_token: tok } = await chrome.storage.local.get(['server_url', 'api_token']);
-      if (!url || !tok) return;
+      if (!tok) return;
       try {
         await fetch(`${url}/api/settings/style`, {
           method: 'POST',
@@ -357,9 +354,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (changes.last_disabled_press) {
       chrome.storage.local.get(['hotkey_toggle', 'hotkey_capture'], (r) => {
         // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync.
-        const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+0';
+        const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+1';
         const capture = r.hotkey_capture || 'Ctrl+Shift+6';
-        showStatus(`Interview assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
+        showStatus(`Assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
       });
     }
   });
@@ -388,7 +385,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // (e.g. opening Settings) re-syncs account settings down from the server.
   function syncReplayWindowToServer(secs) {
     chrome.storage.local.get(['server_url', 'api_token'], ({ server_url: url, api_token: tok }) => {
-      if (!url || !tok) return;
+      if (!tok) return;
       fetch(`${url}/api/settings/replay-window`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${tok}`, 'Content-Type': 'application/json' },

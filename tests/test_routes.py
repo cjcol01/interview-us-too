@@ -380,23 +380,17 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
-    # -- /welcome/next (post-demo full page) -----------------------------------
+    # -- /welcome/next (universal register page) --------------------------------
 
-    def test_welcome_next_renders_for_trial_user():
-        token, uname = make_cookie(AccountLevel.trial)
-        db = SessionLocal()
-        try:
-            u = db.query(User).filter(User.username == uname).first()
-            u.email_verified = True
-            db.commit()
-            r = client.get("/welcome/next", cookies={"session": token})
-            assert r.status_code == 200
-            assert "What we don" in r.text
-        finally:
-            db.close()
-            delete_by_name(uname)
+    def test_welcome_next_renders_for_anon():
+        """Anonymous visitors get the register form."""
+        r = client.get("/welcome/next")
+        assert r.status_code == 200
+        # welcome_next_anon.html contains the register form
+        assert "register" in r.text.lower() or "password" in r.text.lower()
 
-    def test_welcome_next_redirects_non_trial_to_app():
+    def test_welcome_next_authenticated_redirects_to_app():
+        """Verified authenticated users are redirected to /app (or validated next)."""
         token, uname = make_cookie(AccountLevel.paid)
         db = SessionLocal()
         try:
@@ -410,6 +404,41 @@ def register(test, skip, client):
             db.close()
             delete_by_name(uname)
 
+    def test_welcome_next_authenticated_honours_safe_next():
+        """Validated relative next= is used as the redirect destination."""
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            r = client.get("/welcome/next?next=/pricing", cookies={"session": token}, follow_redirects=False)
+            assert r.status_code in (302, 303, 307)
+            assert "/pricing" in r.headers.get("location", "")
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_welcome_next_rejects_absolute_next():
+        """Absolute or protocol-relative next= values are ignored (open-redirect guard)."""
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            for bad in ("https://evil.com", "//evil.com"):
+                r = client.get(
+                    f"/welcome/next?next={bad}",
+                    cookies={"session": token},
+                    follow_redirects=False,
+                )
+                loc = r.headers.get("location", "")
+                assert "evil.com" not in loc, f"open redirect for next={bad!r}: {loc!r}"
+        finally:
+            db.close()
+            delete_by_name(uname)
+
     def test_welcome_next_redirects_unverified_to_verify_pending():
         token, uname = make_cookie(AccountLevel.trial)
         try:
@@ -419,42 +448,48 @@ def register(test, skip, client):
         finally:
             delete_by_name(uname)
 
-    def test_save_interview_date_persists_and_resets_reminder_flag():
-        token, uname = make_cookie(AccountLevel.trial)
+    def test_register_persists_interview_date():
+        """interview_date supplied at register is saved on the new User."""
+        import secrets as _s
+        uname = "test_reg_date_" + _s.token_hex(4)
         db = SessionLocal()
         try:
+            r = client.post("/auth/register", json={
+                "username": uname,
+                "full_name": "Test User",
+                "email": f"{uname}@example.com",
+                "password": "Passw0rd!",
+                "interview_date": "2099-03-15",
+            })
+            assert r.status_code == 200, r.text
             u = db.query(User).filter(User.username == uname).first()
-            u.email_verified = True
-            u.interview_reminder_sent = True
-            db.commit()
-            r = client.post(
-                "/api/welcome/interview-date",
-                data={"interview_date": "2099-01-15"},
-                cookies={"session": token},
-            )
-            assert r.status_code == 200
-            db.refresh(u)
-            assert u.interview_date.isoformat() == "2099-01-15"
-            assert u.interview_reminder_sent is False
+            assert u is not None
+            assert u.interview_date is not None
+            assert u.interview_date.isoformat() == "2099-03-15"
         finally:
             db.close()
             delete_by_name(uname)
 
-    def test_save_interview_date_rejects_bad_format():
-        token, uname = make_cookie(AccountLevel.trial)
+    def test_register_ignores_malformed_interview_date():
+        """A bad date string never blocks registration — it's silently ignored."""
+        import secrets as _s
+        uname = "test_reg_baddate_" + _s.token_hex(4)
+        db = SessionLocal()
         try:
-            r = client.post(
-                "/api/welcome/interview-date",
-                data={"interview_date": "not-a-date"},
-                cookies={"session": token},
-            )
-            assert r.status_code == 400
+            r = client.post("/auth/register", json={
+                "username": uname,
+                "full_name": "Test User",
+                "email": f"{uname}@example.com",
+                "password": "Passw0rd!",
+                "interview_date": "not-a-date",
+            })
+            assert r.status_code == 200, r.text
+            u = db.query(User).filter(User.username == uname).first()
+            assert u is not None
+            assert u.interview_date is None
         finally:
+            db.close()
             delete_by_name(uname)
-
-    def test_save_interview_date_requires_auth():
-        r = client.post("/api/welcome/interview-date", data={"interview_date": "2099-01-15"})
-        assert r.status_code == 401
 
     # -- Interview reminder scheduler -------------------------------------------
 
@@ -620,12 +655,13 @@ def register(test, skip, client):
     test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
     test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
     test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)
-    test("/welcome/next renders for trial user",                test_welcome_next_renders_for_trial_user)
-    test("/welcome/next redirects non-trial to /app",           test_welcome_next_redirects_non_trial_to_app)
+    test("/welcome/next renders register form for anon",         test_welcome_next_renders_for_anon)
+    test("/welcome/next auth → redirects to /app",               test_welcome_next_authenticated_redirects_to_app)
+    test("/welcome/next auth + safe next → honours next",        test_welcome_next_authenticated_honours_safe_next)
+    test("/welcome/next rejects absolute next (open-redirect)",  test_welcome_next_rejects_absolute_next)
     test("/welcome/next redirects unverified to /verify-pending", test_welcome_next_redirects_unverified_to_verify_pending)
-    test("Save interview date persists + resets reminder flag", test_save_interview_date_persists_and_resets_reminder_flag)
-    test("Save interview date rejects bad format",              test_save_interview_date_rejects_bad_format)
-    test("Save interview date requires auth",                   test_save_interview_date_requires_auth)
+    test("Register persists interview_date",                     test_register_persists_interview_date)
+    test("Register ignores malformed interview_date",            test_register_ignores_malformed_interview_date)
     test("_send_due_interview_reminders sends + marks sent",   test_send_due_interview_reminders_sends_and_marks_sent)
     test("_send_due_interview_reminders skips already-sent",   test_send_due_interview_reminders_skips_already_sent)
     test("/verify-pending renders for unverified user",       test_verify_pending_renders_for_unverified)

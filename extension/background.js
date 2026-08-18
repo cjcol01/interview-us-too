@@ -136,7 +136,7 @@ async function openGrantMicTab() {
     if (tab.windowId) chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   } else {
     chrome.tabs.create({ url }).catch((e) => {
-      console.error('[InterviewWise] openGrantMicTab: tabs.create failed', e);
+      console.error('[scap] openGrantMicTab: tabs.create failed', e);
     });
   }
 }
@@ -158,7 +158,7 @@ async function handleToggle(senderTabId) {
   await chrome.storage.local.set({ enabled: next });
   // Push immediately. Same-browser pages hear this via storage.onChanged, but the phone
   // dashboard only knows what the server knows — without this it shows the old state until
-  // the 30s heartbeat catches up, which is exactly the dot you check before an interview.
+  // the next 30s heartbeat tick.
   sendExtStatus();
   // Re-probe the mic too. Reading mic_status from storage only helps if something ever
   // wrote it — a device that has never run a check reports 'unknown' forever, and the
@@ -171,26 +171,12 @@ async function handleToggle(senderTabId) {
   }
 }
 
-function makeIconImageData(size, enabled) {
-  const canvas = new OffscreenCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-  const r = Math.round(size * 0.2);
-  ctx.fillStyle = '#1e1e1e';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, size, size, r);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, Math.round(size * 0.3), 0, Math.PI * 2);
-  ctx.fillStyle = enabled ? '#4a8c55' : '#8c4a4a';
-  ctx.fill();
-  return ctx.getImageData(0, 0, size, size);
-}
-
 function updateIcon(enabled) {
+  const s = enabled ? 'on' : 'off';
   chrome.action.setIcon({
-    imageData: {
-      16: makeIconImageData(16, enabled),
-      32: makeIconImageData(32, enabled),
+    path: {
+      16: `icons/16-${s}.png`,
+      32: `icons/32-${s}.png`,
     },
   }).catch(() => {});
 }
@@ -691,7 +677,7 @@ async function handleReplayTrigger(senderTabId) {
   const form = new FormData();
   form.append('audio', new Blob([bytes], { type: mimeType }), 'recording.webm');
   // Marks this as a retroactive tab-audio slice rather than a mic recording, so the server
-  // prompts for truncated, multi-speaker input instead of one clean interviewer question.
+  // uses the appropriate prompt for truncated, multi-speaker audio.
   form.append('source', 'replay');
   try {
     await fetch(`${server_url}/api/audio-capture`, {
@@ -735,20 +721,43 @@ chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'local' && changes._open_mic_grant_ts) openGrantMicTab();
 });
 
-chrome.runtime.onInstalled.addListener(async ({ reason }) => {
-  if (reason === 'install' || reason === 'update') {
-    const tabs = await chrome.tabs.query({});
-    for (const tab of tabs) {
-      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) continue;
-      chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] }).catch(() => {});
-    }
+
+// One-time migration: when hotkey defaults change (bump HOTKEY_VERSION), clear any
+// cached hotkey values from storage so stale defaults don't override the new ones.
+// fetchAccountLevel() repopulates from the server; until it returns, code defaults apply.
+const HOTKEY_VERSION = 3;
+async function migrateHotkeys() {
+  const { hotkey_version } = await chrome.storage.local.get(['hotkey_version']);
+  if (hotkey_version === HOTKEY_VERSION) return;
+  await chrome.storage.local.remove([
+    'hotkey_capture', 'hotkey_audio', 'hotkey_toggle', 'hotkey_replay', 'hotkey_typing',
+  ]);
+  await chrome.storage.local.set({ hotkey_version: HOTKEY_VERSION });
+}
+// Seed the prod server URL on first install. For local dev, override via DevTools console:
+//   chrome.storage.local.set({ server_url: 'http://127.0.0.1:8000' })
+chrome.storage.local.get(['server_url'], ({ server_url }) => {
+  if (!server_url) {
+    chrome.storage.local.set({ server_url: 'https://interview-wise.com' });
   }
 });
 
-fetchAccountLevel();
+migrateHotkeys().then(() => fetchAccountLevel());
 
 // Broadcast initial ext status to the server so all connected devices (e.g. mobile)
 // see the correct dot states immediately on load, then keep it fresh via heartbeat.
+// Heartbeat only starts when credentials are configured — no pings before the user
+// has set up the extension.
+let _heartbeatId = null;
+function ensureHeartbeat() {
+  if (_heartbeatId) return;
+  chrome.storage.local.get(['server_url', 'api_token'], ({ server_url, api_token }) => {
+    if (server_url && api_token && !_heartbeatId) {
+      _heartbeatId = setInterval(sendExtStatus, 30_000);
+    }
+  });
+}
+
 chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status }) => {
   _extEnabled = !!enabled;
   if (mic_status?.state) _micState = mic_status.state;
@@ -756,5 +765,10 @@ chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status 
   // Nothing has ever established a mic state on this device, so no amount of reading
   // storage will produce one — ask once, or the dashboard shows "unknown" indefinitely.
   if (!mic_status?.state || mic_status.state === 'unknown') checkMicPermission();
+  ensureHeartbeat();
 });
-setInterval(sendExtStatus, 30_000);
+
+// Also start the heartbeat when the token is saved for the first time after install
+chrome.storage.onChanged.addListener((changes) => {
+  if (changes.api_token) ensureHeartbeat();
+});

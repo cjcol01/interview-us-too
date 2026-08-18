@@ -518,6 +518,34 @@ function openMockInterview(isFirstRun) {
   miBuildRecap();
   miShowScreen('mi-greenroom');
   document.getElementById('mock-interview-overlay').classList.add('visible');
+  if (window.MI_SHOW_SKIP_NUDGE) miSkipNudgeInit();
+}
+
+// ── Idle-skip nudge (only on /welcome where MI_SHOW_SKIP_NUDGE is set) ───────────────────────
+// Shows the skip button immediately and, after 5 s of no pointer/key activity,
+// reveals the ".mi-skip-nudge" callout. Resets the idle timer on any interaction and
+// hides the nudge, so it doesn't hover persistently over the demo mid-playback.
+var _miNudgeTimer = null;
+function miSkipNudgeInit() {
+  var skipBtn  = document.getElementById('mi-skip-btn');
+  var nudgeEl  = document.getElementById('mi-skip-nudge');
+  if (!skipBtn || !nudgeEl) return;
+  skipBtn.hidden = false;
+
+  function arm() {
+    clearTimeout(_miNudgeTimer);
+    _miNudgeTimer = setTimeout(function () { nudgeEl.hidden = false; }, 5000);
+  }
+  function reset() {
+    if (!nudgeEl.hidden) return; // already showing — leave it up, don't flicker
+    clearTimeout(_miNudgeTimer);
+    arm();
+  }
+
+  arm();
+  ['pointermove', 'pointerdown', 'keydown'].forEach(function (ev) {
+    document.addEventListener(ev, reset, { passive: true });
+  });
 }
 
 function miBuildRecap() {

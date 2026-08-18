@@ -1,16 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Interview Assistant",
+  "name": "Smart Screen Assistant",
   "version": "1.1",
-  "description": "Capture your screen and get AI analysis on your phone.",
-  "permissions": ["activeTab", "storage", "tabs", "scripting", "offscreen", "tabCapture"],
+  "description": "Capture your screen or audio on any browser tab and get instant AI analysis and feedback.",
+  "permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture"],
   "host_permissions": ["<all_urls>"],
+  "icons": { "16": "icons/16.png", "48": "icons/48.png", "128": "icons/128.png" },
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Interview Assistant"
+    "default_title": "Smart Screen Assistant"
   },
   "content_scripts": [{
     "matches": ["<all_urls>"],

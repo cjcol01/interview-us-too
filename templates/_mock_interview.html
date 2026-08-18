@@ -2,6 +2,13 @@
 <div id="mock-interview-overlay">
   <div class="mi-stage">
     <button class="mi-close-x" onclick="miClose()" aria-label="Close">&times;</button>
+    <!-- Persistent skip button, visible on every screen. Only shown on /welcome where
+         MI_SHOW_SKIP_NUDGE is set — on /app the ×-button serves the "close" role and a
+         "Skip demo" label would be confusing. JS makes it visible in miSkipNudgeInit(). -->
+    <button class="mi-skip-btn" id="mi-skip-btn" onclick="miClose()" hidden>Skip demo →</button>
+    <!-- Idle nudge that appears after ~5 s of no pointer/key activity. Also gated on
+         MI_SHOW_SKIP_NUDGE so it never shows on the /app replay. -->
+    <div class="mi-skip-nudge" id="mi-skip-nudge" onclick="miClose()" hidden>In a hurry? Skip straight to sign-up →</div>
 
     <!-- Lobby (green room) -->
     <div class="mi-screen mi-lobby" id="mi-greenroom">
@@ -26,7 +33,7 @@
             <div class="mi-gr-item"><span class="mi-gr-item-icon">📎</span><span>You can save your own context in Settings - company, role, or interview style - so real answers are tailored to you.</span></div>
           </div>
           <button class="mi-btn-primary" onclick="miJoinCall()">Play the demo →</button>
-          <button class="mi-btn-ghost" onclick="miClose()">Skip for now</button>
+          <button class="mi-btn-ghost" onclick="miClose()">Skip the demo →</button>
           <div class="mi-presence">
             <span class="mi-presence-avatar">A<span class="mi-presence-dot"></span></span>
             Alex is already in the call

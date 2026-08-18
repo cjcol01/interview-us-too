@@ -72,7 +72,19 @@ def init_db():
         finally:
             _db.close()
         if _tracked:
-            _alembic.upgrade(_alembic_cfg, "head")
+            # Wrap in a try/except so a migration that can't acquire its DDL lock (e.g.
+            # active SSE connections blocking ALTER TABLE) causes a startup warning rather
+            # than an infinite crash-restart loop. The migration's own lock_timeout means
+            # it will fail after at most ~15 s; server code uses getattr fallbacks so it
+            # keeps working with the column absent. The migration retries on next boot.
+            try:
+                _alembic.upgrade(_alembic_cfg, "head")
+            except Exception as _mig_err:
+                import logging as _logging
+                _logging.getLogger(__name__).warning(
+                    "[db] Alembic migration failed — server will start without it and retry "
+                    "on next restart. Error: %s", _mig_err
+                )
         else:
             # Fresh or pre-Alembic DB — stamp at head so future migrations apply from here.
             _alembic.stamp(_alembic_cfg, "head")

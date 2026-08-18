@@ -4,6 +4,13 @@
 - [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
 - [x] change demo in dark mode to light colours
 - [ ] move onboarding to after users sign up from pricing. offer it subtly if theyre not sold yet, perhaps on pricing page. ensure everyone gets a 10 min free setup session on first use
+- [ ] change scroll bars on /welcome demo to smaller ones
+- [ ] check sideloading windows, private repo issues with sideloading
+- [ ] add informational ai responses to trial (e.g. you sent a picture of interview wise. swap to a coding problem like leetcode/twosum and press the hotkey on that page.)
+- [ ] MIC status light a bit unreliable still
+- [ ] lets users go back to onboarding from support/ settings
+- [ ] If skip onboarding, prompt users to go back to it after payment
+- [ ] check card details saved copy, os intercepted, undetectable language
 
 
 ## Now

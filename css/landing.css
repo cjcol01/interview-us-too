@@ -938,6 +938,11 @@ a { color: inherit; text-decoration: none; }
   .ia-footer-links { padding-right: 116px; }
 }
 
+@media (max-width: 380px) {
+  /* Speed buttons would wrap to a second row — hide them rather than show them orphaned. */
+  .demo-speed-btn { display: none; }
+}
+
 /* ===== REDUCED MOTION ===== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -951,20 +956,21 @@ a { color: inherit; text-decoration: none; }
    The demo simulates a real macOS/Chrome/Zoom window. On dark pages it looks
    more convincing — and more readable — rendered in light mode so it reads as
    an actual bright screen floating in the dark environment.
-   Phone panel intentionally stays dark (it's a separate device). */
+   The phone panel mirrors this treatment — white body, dark text — so both
+   devices read as real bright screens against the dark page background. */
 html[data-theme="dark"] .demo-stage {
-  background: #FCFCFD;
+  background: #FAF8F3;
   border-color: rgba(0,0,0,0.14);
   box-shadow: 0 28px 64px rgba(0,0,0,0.55);
 }
 html[data-theme="dark"] .demo-menubar {
-  background: #E8E8E8;
+  background: #ECE9E2;
   border-bottom-color: rgba(0,0,0,0.1);
   color: #555;
 }
 html[data-theme="dark"] .demo-menubar-apple { color: #333; }
 html[data-theme="dark"] .demo-chrome {
-  background: #F1F3F4;
+  background: #F1EEE8;
   border-bottom-color: rgba(0,0,0,0.08);
 }
 html[data-theme="dark"] .demo-url {
@@ -972,29 +978,29 @@ html[data-theme="dark"] .demo-url {
   color: #444;
 }
 html[data-theme="dark"] .demo-url svg { color: #888; }
-html[data-theme="dark"] .demo-body { background: #FFFFFF; }
+html[data-theme="dark"] .demo-body { background: #F8F5EF; }
 
 /* LeetCode scene — light */
 html[data-theme="dark"] .sc-lc-title { color: #1A1A2E; }
 html[data-theme="dark"] .sc-lc-desc { color: #555; }
 html[data-theme="dark"] .sc-lc-example {
-  background: #F3F4F6;
+  background: #EFECE6;
   border-color: rgba(0,0,0,0.08);
 }
 html[data-theme="dark"] .sc-lc-example pre { color: #666; }
 html[data-theme="dark"] .sc-editor-tabs span {
   color: #888;
-  background: #EAEBEE;
+  background: #E8E5DE;
   border-color: rgba(0,0,0,0.1);
 }
 html[data-theme="dark"] .sc-editor-tabs span.active {
   color: #333;
-  background: #F8F9FB;
+  background: #F4F1EB;
   border-color: rgba(0,0,0,0.1);
 }
 html[data-theme="dark"] .sc-editor-stub {
   color: #333;
-  background: #F8F9FB;
+  background: #F4F1EB;
   border-color: rgba(0,0,0,0.1);
 }
 
@@ -1026,7 +1032,7 @@ html[data-theme="dark"] .demo-intercepted { color: #1a8c3a; }
 
 /* Zoom scenes — light */
 html[data-theme="dark"] .zoom-tile {
-  background: #F0F1F4;
+  background: #EDEAE4;
   border-color: rgba(0,0,0,0.1);
 }
 html[data-theme="dark"] .zoom-tile.speaking { border-color: rgba(26,140,58,0.5); }
@@ -1050,3 +1056,59 @@ html[data-theme="dark"] .demo-voice-btn.recording {
   color: #1a8c3a;
 }
 html[data-theme="dark"] .demo-voice-hint { color: #999; }
+
+/* Phone panel — white device in dark mode, matching the laptop's light treatment */
+html[data-theme="dark"] .phone-frame {
+  background: #F8F5EF;
+  border-color: #2A2826;
+  box-shadow: 0 32px 72px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] .phone-status-bar { color: #3C3C43; }
+html[data-theme="dark"] .phone-signal-bar { background: #3C3C43; }
+html[data-theme="dark"] .phone-home-bar { background: rgba(0,0,0,0.18); }
+html[data-theme="dark"] .phone-idle { color: #8E8E93; }
+html[data-theme="dark"] .phone-idle-icon { color: #AEAEB2; }
+html[data-theme="dark"] .phone-recording-label,
+html[data-theme="dark"] .phone-capturing-label { color: #1C1C1E; }
+html[data-theme="dark"] .phone-recording-hint { color: #8E8E93; }
+html[data-theme="dark"] .phone-analyzing-label { color: #6C6C70; }
+html[data-theme="dark"] .phone-code,
+html[data-theme="dark"] .phone-prose { color: #1C1C1E; }
+html[data-theme="dark"] .phone-context-note {
+  color: #6C6C70;
+  background: rgba(0,0,0,0.04);
+}
+html[data-theme="dark"] .phone-toast {
+  color: #1C1712;
+  background: rgba(248,245,239,0.97);
+  border-color: rgba(0,0,0,0.1);
+}
+html[data-theme="dark"] .phone-toast::after {
+  border-top-color: rgba(248,245,239,0.97);
+}
+/* Olive green replaces acid green on the now-light phone */
+html[data-theme="dark"] .phone-capturing-dot { background: #4D7C0F; }
+html[data-theme="dark"] .phone-wave-bar { background: #4D7C0F; }
+html[data-theme="dark"] .phone-waveform-replay .phone-wave-bar { background: rgba(77,124,15,0.45); }
+html[data-theme="dark"] .phone-spinner {
+  border-color: rgba(77,124,15,0.15);
+  border-top-color: #4D7C0F;
+}
+html[data-theme="dark"] .phone-answer-dot {
+  background: #4D7C0F;
+  box-shadow: 0 0 6px rgba(77,124,15,0.5);
+}
+html[data-theme="dark"] .phone-answer-label { color: #3F6212; }
+html[data-theme="dark"] .phone-badge {
+  color: #3F6212;
+  border-color: rgba(63,98,18,0.30);
+}
+
+/* Token colours for the light phone — VS Code light theme, same as the laptop */
+html[data-theme="dark"] .demo-phone-panel .tok-kw   { color: #AF00DB; }
+html[data-theme="dark"] .demo-phone-panel .tok-fn   { color: #0070C1; }
+html[data-theme="dark"] .demo-phone-panel .tok-num  { color: #098658; }
+html[data-theme="dark"] .demo-phone-panel .tok-cm   { color: #6A9955; }
+html[data-theme="dark"] .demo-phone-panel .tok-str  { color: #A31515; }
+html[data-theme="dark"] .demo-phone-panel .tok-def  { color: #795E26; }
+html[data-theme="dark"] .demo-phone-panel .tok-self { color: #001080; }

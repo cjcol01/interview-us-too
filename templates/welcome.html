@@ -10,6 +10,15 @@
   <script src="https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11/highlight.min.js"></script>
   <link rel="stylesheet" href="/css/onboarding.css">
   <link rel="stylesheet" href="/css/mock_interview.css">
+  <style>
+    /* /welcome hides the × and persistent "Skip demo →" button — the idle nudge
+       ("In a hurry?") is kept because it appears only after a delay and gives
+       impatient users a low-key out without cluttering the call chrome. */
+    #mock-interview-overlay .mi-close-x,
+    #mock-interview-overlay .mi-skip-btn { display: none !important; }
+    /* Nudge sits top-right now that the skip button above it is gone. */
+    #mock-interview-overlay .mi-skip-nudge { top: 16px; right: 16px; pointer-events: auto; cursor: pointer; }
+  </style>
 {% endblock %}
 {% block content %}
   <header class="ob-header">
@@ -22,48 +31,12 @@
        Stays invisible because the overlay covers the full viewport anyway. -->
   <main class="ob-main" aria-hidden="true" style="visibility:hidden;position:absolute;"></main>
 
-  <!-- The demo is the only place all four ways to get an answer are shown together, and it's
-       the one thing here a user can't come back to by accident. Worth one question. -->
-  <div id="skip-demo-confirm" class="ob-confirm-overlay">
-    <div class="ob-confirm-box">
-      <p class="ob-confirm-title">Skip the demo?</p>
-      <p class="ob-confirm-body">It runs for 60 seconds and it's the <strong>only</strong> place you'll see all four
-        ways to get an answer before you're in a real interview. It doesn't use any of your test-run time - and if
-        you skip, there's a link back to it on the setup page.</p>
-      <div class="ob-confirm-actions">
-        <button type="button" class="wm-cancel-btn" onclick="wConfirmSkipDemo()">Skip anyway</button>
-        <button type="button" class="wm-confirm-btn" onclick="wCloseSkipConfirm()">Watch it</button>
-      </div>
-    </div>
-  </div>
-
   {% include "_mock_interview.html" %}
   <script src="/static/js/mock_interview.js"></script>
   <script>
-    function wSkipDemo(e) {
-      e.preventDefault();
-      document.getElementById('skip-demo-confirm').classList.add('visible');
-      return false;
-    }
-
-    function wCloseSkipConfirm() {
-      document.getElementById('skip-demo-confirm').classList.remove('visible');
-    }
-
-    // This path leaves the page without going through miClose(), so it has to record the
-    // demo as seen itself — otherwise "skip the demo" means the demo ambushes you on /app
-    // instead, which is the opposite of what the user just asked for.
-    // Anonymous visitors: skip goes to /welcome/next (demo CTA) instead of /onboarding,
-    // and there's no tutorial flag to persist on the server.
     var _wIsAuthenticated = {{ is_authenticated | tojson }};
-    async function wConfirmSkipDemo() {
-      if (_wIsAuthenticated) {
-        try { await fetch('/api/tutorial/seen', { method: 'POST' }); } catch {}
-        window.location.href = '/onboarding';
-      } else {
-        window.location.href = '/welcome/next';
-      }
-    }
+    // Server-validated relative path forwarded through the demo. Empty string means default.
+    var _wNextUrl = {{ next_url | tojson }};
 
     window.MI_HOTKEYS = {
       capture: '{{ capture }}',
@@ -75,6 +48,9 @@
     window.MI_FIRST_NAME = {{ first_name | tojson }};
     window.MI_FIRST_RUN_CTA_LABEL = _wIsAuthenticated ? 'Start setup →' : 'Create account →';
     window.MI_SKIP_DONE_SCREEN = true;
+    // Arm the idle skip nudge: this is /welcome (the demo page), not the /app "How it works"
+    // replay, so encouraging skipping is the right call for impatient users.
+    window.MI_SHOW_SKIP_NUDGE = true;
     window.MI_ON_FIRST_RUN_FINISH = function () {
       if (_wIsAuthenticated) {
         // Mark the tutorial seen so index.html's initTrial() doesn't replay the simulated
@@ -86,15 +62,37 @@
         // the demo overlay) for the length of the round-trip, which flashes up before /next.
         try { fetch('/api/tutorial/seen', { method: 'POST', keepalive: true }); } catch {}
       }
-      window.location.href = '/welcome/next';
+      var dest = '/welcome/next';
+      if (_wNextUrl) dest += '?next=' + encodeURIComponent(_wNextUrl);
+      window.location.href = dest;
     };
-    openMockInterview(true);
+    // Skip the lobby ("Ready to join?") entirely — go straight to the call screen.
+    // openMockInterview sets up internal state and makes the overlay visible; miShowScreen
+    // then jumps past mi-greenroom to mi-call so the blurred backdrop behind the intro
+    // modal shows the actual call UI, not the pre-call waiting room.
+    function _wOpenToCall() {
+      openMockInterview(true);
+      miShowScreen('mi-call');
+    }
+    _wOpenToCall();
+
+    {% if not show_demo_intro %}
+    // No intro modal — start the call immediately.
+    miJoinCall();
+    {% endif %}
 
     // When the browser restores this page from bfcache (user presses Back from /welcome/next),
     // inline scripts don't re-run — so the demo overlay never opens and you see a black page.
     // pageshow fires on bfcache restores (event.persisted === true), so we re-open it then.
     window.addEventListener('pageshow', function (e) {
-      if (e.persisted) openMockInterview(true);
+      if (e.persisted) {
+        _wOpenToCall();
+        {% if not show_demo_intro %}miJoinCall();{% endif %}
+      }
     });
   </script>
+  {# Demo-intro modal — rendered after the script block so _wIsAuthenticated/_wNextUrl are
+     already defined when the modal's inline handler runs. The walkthrough is already open
+     (openMockInterview called above); the modal appears on top and blurs it. #}
+  {% include "partials/_demo_intro_modal.html" %}
 {% endblock %}

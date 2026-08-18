@@ -1,8 +1,8 @@
-console.log('[InterviewWise] content.js loaded — build-check-2026-07-30');
+// Screen capture + AI analysis content script
 
-if (window._iaceAbort) window._iaceAbort.abort();
+if (window._scapCtrl) window._scapCtrl.abort();
 const ac = new AbortController();
-window._iaceAbort = ac;
+window._scapCtrl = ac;
 
 // If the extension context has been invalidated (e.g. after an extension update while
 // this tab was open), every chrome.* call below would throw synchronously, meaning no
@@ -11,13 +11,13 @@ window._iaceAbort = ac;
 try {
   void chrome.runtime.id;
 } catch {
-  document.dispatchEvent(new CustomEvent('interview-wise:ext-stale'));
-  throw new Error('[InterviewWise] Extension context invalidated — reload the page to reconnect.');
+  document.dispatchEvent(new CustomEvent('scap:ext-stale'));
+  throw new Error('[scap] Extension context invalidated — reload the page to reconnect.');
 }
 
 function _checkExtContext() {
   try { void chrome.runtime.id; } catch {
-    document.dispatchEvent(new CustomEvent('interview-wise:ext-stale'));
+    document.dispatchEvent(new CustomEvent('scap:ext-stale'));
   }
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) _checkExtContext(); }, { signal: ac.signal });
@@ -25,9 +25,9 @@ window.addEventListener('focus', _checkExtContext, { signal: ac.signal });
 
 function showDisabledToast() {
   if (!window.location.pathname.startsWith('/app')) return;
-  document.getElementById('_iace_disabled_toast')?.remove();
+  document.getElementById('_scap_disabled_toast')?.remove();
   const el = document.createElement('div');
-  el.id = '_iace_disabled_toast';
+  el.id = '_scap_disabled_toast';
   el.textContent = `Extension is disabled — press ${_hotkeys.toggle} to enable`;
   Object.assign(el.style, {
     position: 'fixed', bottom: '24px', right: '24px', zIndex: '2147483647',
@@ -41,7 +41,7 @@ function showDisabledToast() {
 
 function showRateLimitToast(message) {
   if (!window.location.pathname.startsWith('/app')) return;
-  const id = '_iace_ratelimit_toast';
+  const id = '_scap_ratelimit_toast';
   const existing = document.getElementById(id);
   if (existing) { existing.textContent = message; return; }
   const el = document.createElement('div');
@@ -59,7 +59,7 @@ function showRateLimitToast(message) {
 
 const _onMessage = (msg) => {
   if (msg.type === 'toggled') {
-    document.dispatchEvent(new CustomEvent('interview-wise:toggled', { detail: { enabled: msg.enabled } }));
+    document.dispatchEvent(new CustomEvent('scap:toggled', { detail: { enabled: msg.enabled } }));
   } else if (msg.type === 'show-disabled') {
     showDisabledToast();
   } else if (msg.type === 'show-rate-limit') {
@@ -71,20 +71,20 @@ const _onMessage = (msg) => {
 chrome.runtime.onMessage.addListener(_onMessage);
 ac.signal.addEventListener('abort', () => chrome.runtime.onMessage.removeListener(_onMessage));
 
-document.addEventListener('interview-wise:hotkeys', (e) => {
+document.addEventListener('scap:hotkeys', (e) => {
   const { capture, audio, toggle, replay, typing } = e.detail;
   chrome.storage.local.set({ hotkey_capture: capture, hotkey_audio: audio, hotkey_toggle: toggle, hotkey_replay: replay, hotkey_typing: typing });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:passthrough', (e) => {
+document.addEventListener('scap:passthrough', (e) => {
   chrome.storage.local.set({ typing_passthrough: e.detail.enabled });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:typing-preview', (e) => {
+document.addEventListener('scap:typing-preview', (e) => {
   chrome.storage.local.set({ typing_preview: e.detail.enabled });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:replay', (e) => {
+document.addEventListener('scap:replay', (e) => {
   const { enabled, seconds } = e.detail;
   chrome.storage.local.set({ replay_enabled: enabled, replay_seconds: seconds });
 }, { signal: ac.signal });
@@ -100,36 +100,36 @@ if (window.location.pathname.startsWith('/app') || window.location.pathname.star
     || window.location.pathname.startsWith('/onboarding')) {
   chrome.storage.local.get(['replay_status', 'mic_status', 'enabled'], ({ replay_status, mic_status, enabled }) => {
     if (replay_status) {
-      document.dispatchEvent(new CustomEvent('interview-wise:replay-status', { detail: replay_status }));
+      document.dispatchEvent(new CustomEvent('scap:replay-status', { detail: replay_status }));
     }
     if (mic_status) {
-      document.dispatchEvent(new CustomEvent('interview-wise:mic-status', { detail: mic_status }));
+      document.dispatchEvent(new CustomEvent('scap:mic-status', { detail: mic_status }));
     }
-    document.dispatchEvent(new CustomEvent('interview-wise:enabled-status', { detail: { enabled: enabled ?? false } }));
+    document.dispatchEvent(new CustomEvent('scap:enabled-status', { detail: { enabled: enabled ?? false } }));
   });
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes.replay_status?.newValue) {
-      document.dispatchEvent(new CustomEvent('interview-wise:replay-status', {
+      document.dispatchEvent(new CustomEvent('scap:replay-status', {
         detail: changes.replay_status.newValue,
       }));
     }
     if (changes.mic_status?.newValue) {
-      document.dispatchEvent(new CustomEvent('interview-wise:mic-status', {
+      document.dispatchEvent(new CustomEvent('scap:mic-status', {
         detail: changes.mic_status.newValue,
       }));
     }
     if (changes.enabled?.newValue !== undefined) {
-      document.dispatchEvent(new CustomEvent('interview-wise:enabled-status', {
+      document.dispatchEvent(new CustomEvent('scap:enabled-status', {
         detail: { enabled: changes.enabled.newValue },
       }));
     }
   });
 }
 
-// Read-only presence/link check — unlike interview-wise:connect, never writes to storage,
+// Read-only presence/link check — unlike scap:connect, never writes to storage,
 // so it's safe to fire from any page without risking clobbering a real stored token.
-document.addEventListener('interview-wise:ping', () => {
+document.addEventListener('scap:ping', () => {
   chrome.storage.local.get(['server_url', 'api_token'], ({ server_url, api_token }) => {
     // Deliberately not checking server_url === window.location.origin: captures always
     // go to the stored server_url regardless of which host the current tab is on (e.g.
@@ -137,19 +137,19 @@ document.addEventListener('interview-wise:ping', () => {
     // an exact match here just produced false "not connected" reports.
     const linked = !!(server_url && api_token);
     const version = chrome.runtime.getManifest().version;
-    document.dispatchEvent(new CustomEvent('interview-wise:pong', { detail: { linked, version } }));
+    document.dispatchEvent(new CustomEvent('scap:pong', { detail: { linked, version } }));
   });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:mic-check', () => {
+document.addEventListener('scap:mic-check', () => {
   chrome.runtime.sendMessage({ type: 'check-mic-permission' });
 }, { signal: ac.signal });
 
 // Distinct from mic-check, which only *queries* — the offscreen document is headless and can't
 // show a permission prompt, so asking for the permission means opening grant-mic.html as a real
 // tab. Until this existed the only way to reach that prompt was to fail a real capture, i.e. to
-// find out your mic was blocked by pressing the hotkey mid-interview.
-document.addEventListener('interview-wise:mic-grant', () => {
+// find out your mic was blocked by pressing the hotkey during active use.
+document.addEventListener('scap:mic-grant', () => {
   chrome.storage.local.set({ _open_mic_grant_ts: Date.now() });
 }, { signal: ac.signal });
 
@@ -158,32 +158,47 @@ document.addEventListener('interview-wise:mic-grant', () => {
 // by the support page's "Mic silent" card to link straight to the right settings entry instead
 // of the generic microphone list, where it'd show up as an unlabeled chrome-extension:// origin
 // among ordinary websites.
-document.addEventListener('interview-wise:mic-settings-link', () => {
+document.addEventListener('scap:mic-settings-link', () => {
   const url = 'chrome://settings/content/siteDetails?site='
     + encodeURIComponent('chrome-extension://' + chrome.runtime.id + '/');
-  document.dispatchEvent(new CustomEvent('interview-wise:mic-settings-link-result', { detail: { url } }));
+  document.dispatchEvent(new CustomEvent('scap:mic-settings-link-result', { detail: { url } }));
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:enable', () => {
-  chrome.runtime.sendMessage({ type: 'force-enable' });
+document.addEventListener('scap:enable', () => {
+  // Only honour enable requests from the stored server's own origin — any arbitrary
+  // page can dispatch DOM events, so without this check a malicious site could
+  // silently arm the extension while the user is browsing elsewhere.
+  chrome.storage.local.get(['server_url'], ({ server_url }) => {
+    if (!server_url) return;
+    try { if (new URL(server_url).origin !== window.location.origin) return; } catch { return; }
+    chrome.runtime.sendMessage({ type: 'force-enable' });
+  });
 }, { signal: ac.signal });
 
-document.addEventListener('interview-wise:connect', (e) => {
+document.addEventListener('scap:connect', (e) => {
   const { token, serverUrl } = e.detail;
-  chrome.storage.local.set({ api_token: token, server_url: serverUrl }, () => {
-    // The background service worker only pulls account settings (replay,
-    // hotkeys, complexity, etc.) from the server once, at its own startup —
-    // which happens before a fresh install has a token to sync with. Ask it
-    // to sync now that one actually exists, or those settings stay empty
-    // until the service worker happens to restart for an unrelated reason.
-    chrome.runtime.sendMessage({ type: 'sync-account' });
-    document.dispatchEvent(new CustomEvent('interview-wise:connected'));
+  // Origin guard: if a server is already stored, only the page at that origin may
+  // update credentials. First-time installs (nothing stored yet) are allowed through
+  // so the onboarding flow can set the token without the user already being connected.
+  chrome.storage.local.get(['server_url'], ({ server_url }) => {
+    if (server_url) {
+      try { if (new URL(server_url).origin !== window.location.origin) return; } catch { return; }
+    }
+    chrome.storage.local.set({ api_token: token, server_url: serverUrl }, () => {
+      // The background service worker only pulls account settings (replay,
+      // hotkeys, complexity, etc.) from the server once, at its own startup —
+      // which happens before a fresh install has a token to sync with. Ask it
+      // to sync now that one actually exists, or those settings stay empty
+      // until the service worker happens to restart for an unrelated reason.
+      chrome.runtime.sendMessage({ type: 'sync-account' });
+      document.dispatchEvent(new CustomEvent('scap:connected'));
+    });
   });
 }, { signal: ac.signal });
 
 // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync. Overwritten by the user's own bindings
 // once they arrive from the server; these only apply until then.
-const _hotkeys = { capture: 'Ctrl+Shift+6', audio: 'Ctrl+Shift+7', replay: 'Ctrl+Shift+8', typing: 'Ctrl+Shift+9', toggle: 'Ctrl+Shift+0' };
+const _hotkeys = { toggle: 'Ctrl+Shift+1', capture: 'Ctrl+Shift+6', audio: 'Ctrl+Shift+7', replay: 'Ctrl+Shift+8', typing: 'Ctrl+Shift+9' };
 let _audioRecording = false;
 let _typingActive = false;
 let _typingBuffer = '';
@@ -191,7 +206,7 @@ let _passthrough = true;
 let _enabled = false;
 let _hotkeysSuppressed = false;
 
-document.addEventListener('interview-wise:suppress-hotkeys', (e) => {
+document.addEventListener('scap:suppress-hotkeys', (e) => {
   _hotkeysSuppressed = !!e.detail?.suppress;
 });
 
@@ -248,14 +263,21 @@ function matchesHotkey(e, hotkey) {
     && e.code     === h.code;
 }
 
+// TYPING MODE NOTE: this listener intercepts keystrokes only when the user has manually
+// activated typing mode via the typing hotkey (_typingActive === true). In all other
+// states every keystroke passes through completely unobserved. capture:true is required
+// so the extension's own toggle hotkey works even on pages that call stopPropagation
+// on keydown (e.g. browser-based code editors).
 document.addEventListener('keydown', (e) => {
-  // The toggle hotkey always works, even while disabled — otherwise there'd be no keyboard
-  // way back on. Checked before the typing-buffer branch below since that would otherwise
-  // swallow every keystroke, toggle included, whenever typing mode happens to be active.
-  if (!_typingActive && matchesHotkey(e, _hotkeys.toggle)) {
+  // The toggle hotkey always works, even while disabled or in typing mode — otherwise
+  // there'd be no keyboard way back on. Checked before the typing-buffer branch below
+  // so it can't be swallowed by the typing handler. Toggling also exits typing mode
+  // since turning the extension off should clean up all active state.
+  if (matchesHotkey(e, _hotkeys.toggle)) {
     if (e.repeat) return;
     e.preventDefault();
     e.stopPropagation();
+    if (_typingActive) _typingActive = false;
     chrome.runtime.sendMessage({ type: 'toggle' });
     return;
   }
@@ -297,7 +319,7 @@ document.addEventListener('keydown', (e) => {
       chrome.runtime.sendMessage({ type: 'typing-submit', text });
       return;
     }
-    // Escape abandons the capture — buffer discarded, nothing sent, no session spent. The
+    // Escape abandons the capture — buffer discarded, nothing sent. The
     // way out when you start typing and think better of it mid-question.
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -319,8 +341,8 @@ document.addEventListener('keydown', (e) => {
   chrome.runtime.sendMessage({ type: 'typing-preview', text: _typingBuffer }).catch(() => {});
     if (!_passthrough) { e.preventDefault(); e.stopPropagation(); }
     // Passthrough deliberately lets keystrokes reach the page, but Space's page default is
-    // "scroll down a screen" whenever focus isn't in a text field — so typing a question with
-    // the editor unfocused walked the interview page down the screen a paragraph per word.
+    // "scroll down a screen" whenever focus isn't in a text field — so typing with
+    // the editor unfocused would scroll the page down a paragraph per word.
     // Swallow only that default; the character is already in the buffer either way.
     else if (e.code === 'Space' && !typesIntoTarget(e.target) && !typesIntoTarget(document.activeElement)) e.preventDefault();
     return;

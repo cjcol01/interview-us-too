@@ -736,43 +736,6 @@ def register(test, skip, client):
                 cleanup(db, u)
             db.close()
 
-    # ---------------------------------------------------------------------
-    # interview_date carried from the lead form onto the claimed account
-    # ---------------------------------------------------------------------
-
-    def test_welcome_next_skipped_when_interview_date_already_set():
-        """A date captured on the mobile lead form (or set any other way before this page
-        is ever reached) means /welcome/next has nothing left to ask."""
-        db = SessionLocal()
-        u = None
-        try:
-            u = make_user(db, AccountLevel.trial)
-            u.email_verified = True
-            u.interview_date = (datetime.utcnow() + timedelta(days=3)).date()
-            db.commit()
-            token = create_token(u.id)
-            r = client.get("/welcome/next", cookies={"session": token}, follow_redirects=False)
-            assert r.headers.get("location") == "/onboarding"
-        finally:
-            if u:
-                cleanup(db, u)
-            db.close()
-
-    def test_welcome_next_renders_when_interview_date_not_set():
-        db = SessionLocal()
-        u = None
-        try:
-            u = make_user(db, AccountLevel.trial)
-            u.email_verified = True
-            db.commit()
-            token = create_token(u.id)
-            r = client.get("/welcome/next", cookies={"session": token}, follow_redirects=False)
-            assert r.status_code == 200
-        finally:
-            if u:
-                cleanup(db, u)
-            db.close()
-
     def test_claim_interview_date_triggers_existing_reminder_job():
         """Proves the whole chain end to end: a date captured at /api/install-link, carried
         onto the User at /claim, is picked up by the SAME sweep (_send_due_interview_reminders)
@@ -861,8 +824,6 @@ def register(test, skip, client):
     test("POST /api/finish-signup: blank name rejected",                 test_finish_signup_blank_name_rejected)
     test("POST /api/finish-signup: full chain claim -> app -> welcome",  test_finish_signup_success_completes_the_full_chain)
     test("POST /auth/reset-password also satisfies the password gate",  test_reset_password_also_satisfies_the_gate)
-    test("GET /welcome/next skipped when interview_date already set",   test_welcome_next_skipped_when_interview_date_already_set)
-    test("GET /welcome/next renders when interview_date not set",       test_welcome_next_renders_when_interview_date_not_set)
     test("Claimed interview_date reaches the existing reminder job",    test_claim_interview_date_triggers_existing_reminder_job)
     test("GET /: landing page contains the mobile lead-capture form",    test_landing_page_has_lead_form)
     test("GET /: ia_attr cookie set once, first touch wins",             test_landing_sets_attribution_cookie_first_touch_only)

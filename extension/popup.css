@@ -29,7 +29,7 @@ body {
   border-radius: 14px;
   background: var(--bg);
   color: var(--text-1);
-  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 13px;
 }
 
@@ -60,7 +60,7 @@ body {
 }
 
 .wordmark {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.01em;
@@ -68,7 +68,7 @@ body {
 }
 
 .version {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 10px;
   letter-spacing: 0.08em;
   color: var(--text-3);
@@ -99,7 +99,7 @@ body {
 }
 
 label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -107,7 +107,7 @@ label {
 }
 
 .mono-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -166,14 +166,14 @@ label {
 }
 
 .arm-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 600;
   font-size: 15px;
   color: var(--text-1);
 }
 
 .arm-sub {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--text-3);
@@ -182,7 +182,7 @@ label {
 .arm-btn.on .arm-sub { color: var(--text-2); }
 
 .arm-state {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-weight: 600;
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -213,12 +213,12 @@ input, select {
 input:focus, select:focus { border-color: rgba(198,242,78,0.4); }
 
 .mono-input {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 12px;
 }
 
 .accent-text { color: var(--accent); }
-.accent-text::placeholder { color: var(--text-3); font-family: 'Hanken Grotesk', sans-serif; }
+.accent-text::placeholder { color: var(--text-3); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
 
 .input-row {
   display: flex;
@@ -249,7 +249,7 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2367676F'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 11px center;
-  font-family: 'Hanken Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
@@ -258,7 +258,7 @@ select {
   border-radius: 11px;
   padding: 11px 16px;
   font-size: 13px;
-  font-family: 'Hanken Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
   border: 1px solid transparent;
@@ -330,7 +330,7 @@ select {
 #complexity_val {
   min-width: 20px;
   text-align: center;
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-weight: 600;
   font-size: 19px;
   color: var(--accent);
@@ -365,7 +365,7 @@ select {
 /* ── Status line ────────────────────────────────────────────────────────── */
 
 .status {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 10.5px;
   color: var(--text-3);
   min-height: 2px;
@@ -400,7 +400,7 @@ select {
 }
 
 .confirm-title {
-  font-family: 'Space Grotesk', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
@@ -424,7 +424,7 @@ kbd {
   border: 1px solid var(--line-strong);
   border-radius: 4px;
   padding: 1px 5px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 11px;
   color: var(--text-2);
 }
@@ -501,7 +501,7 @@ kbd {
 }
 
 .badge {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 9.5px;
   letter-spacing: 0.08em;
   padding: 3px 9px;
@@ -527,7 +527,7 @@ kbd {
 .replay-window-row { margin-top: -2px; }
 
 .mono-readout {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 11px;
   color: var(--accent);
 }
@@ -571,7 +571,7 @@ kbd {
 
 .locked-tab-label {
   flex: none;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 11px;
   color: var(--text-3);
   white-space: nowrap;
@@ -580,7 +580,7 @@ kbd {
 .locked-tab-name {
   flex: 1;
   min-width: 0;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: ui-monospace, Menlo, Consolas, 'Courier New', monospace;
   font-size: 11px;
   color: var(--text-2);
   white-space: nowrap;

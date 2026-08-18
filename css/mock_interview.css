@@ -55,6 +55,40 @@
 }
 .mi-close-x:hover { color: #F4F4F6; border-color: rgba(255,255,255,0.24); }
 
+/* Persistent "Skip demo →" text button. Pinned just left of the ×, only shown when
+   MI_SHOW_SKIP_NUDGE is active (i.e. on /welcome, not on /app). */
+.mi-skip-btn {
+  position: absolute;
+  top: 18px; right: 60px;
+  background: none;
+  border: none;
+  color: #9C9CA6;
+  cursor: pointer;
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 13px;
+  padding: 4px 8px;
+  transition: color .15s;
+  z-index: 30;
+}
+.mi-skip-btn:hover { color: #F4F4F6; }
+
+/* Idle nudge — appears after 5 s of inactivity as a non-modal callout. */
+.mi-skip-nudge {
+  position: absolute;
+  top: 54px; right: 16px;
+  background: rgba(10,10,12,0.88);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: #C6F24E;
+  font-family: 'Hanken Grotesk', system-ui, sans-serif;
+  font-size: 12.5px;
+  padding: 8px 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 30;
+  animation: mi-fade .25s ease both;
+}
+
 .mi-screen { display: none; width: 100%; height: 100%; }
 .mi-screen.active { display: flex; }
 
@@ -1112,4 +1146,150 @@
 @keyframes mi-cur-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .mi-avatar-ring, .mi-tile-chip-wave i, .mi-you-live-dot, .mi-idle-dot, .mi-sending-dot, .mi-cursor { animation: none !important; }
+}
+
+
+/* ===== Demo-intro modal (/welcome first-visit gate) ===== */
+/* Sits above the mock-interview-overlay (z-index 200); blurs the walkthrough behind it. */
+.di-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(6, 6, 8, 0.4);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.di-card {
+  width: 520px;
+  max-width: 100%;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 34px 36px;
+  box-shadow: 0 40px 90px rgba(0, 0, 0, 0.6);
+}
+
+.di-kicker {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+
+.di-heading {
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  margin: 0 0 14px;
+}
+.di-heading:focus { outline: none; }
+
+.di-lead {
+  font-size: 15px;
+  color: var(--text-2);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+
+.di-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.di-bullet {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14.5px;
+  color: var(--text);
+  line-height: 1.4;
+}
+
+.di-bullet-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+}
+
+.di-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.di-btn-primary {
+  flex: 1;
+  padding: 13px 24px;
+  background: #C6F24E;
+  color: #0A0A0C;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.di-btn-primary:hover { background: #d0f561; }
+.di-btn-primary:focus-visible {
+  outline: 2px solid #C6F24E;
+  outline-offset: 3px;
+}
+
+.di-btn-skip {
+  font-size: 14px;
+  color: var(--text-3);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+.di-btn-skip:hover { color: var(--text-2); }
+.di-btn-skip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Entrance animation — skip if the user prefers reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .di-backdrop {
+    animation: di-fade-in 0.15s ease both;
+  }
+  .di-card {
+    animation: di-slide-up 0.2s ease both;
+  }
+}
+@keyframes di-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes di-slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
 }

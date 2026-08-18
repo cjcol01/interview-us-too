@@ -439,7 +439,7 @@
       btn.textContent = 'Not detected - try again';
       setTimeout(reset, 2200);
     }, 2500);
-    document.addEventListener('interview-wise:connected', () => {
+    document.addEventListener('scap:connected', () => {
       clearTimeout(timeout);
       btn.textContent = '✓ Connected!';
       _extConnectHold = true; // keep the button visible so the message above is readable
@@ -450,7 +450,7 @@
         _updateExtCheck(); // now let the row hide the button if it's genuinely connected
       }, 1500);
     }, { once: true });
-    document.dispatchEvent(new CustomEvent('interview-wise:connect', {
+    document.dispatchEvent(new CustomEvent('scap:connect', {
       detail: { token: {{ api_token|tojson }}, serverUrl: window.location.origin }
     }));
   }
@@ -555,11 +555,11 @@
   // already ran once.
   let _micSettingsUrl = null;
   let _micSettingsSeen = false;
-  document.addEventListener('interview-wise:mic-settings-link-result', (e) => {
+  document.addEventListener('scap:mic-settings-link-result', (e) => {
     _micSettingsSeen = true;
     _micSettingsUrl = e.detail && e.detail.url;
   });
-  IAExtProbe.retryDispatch('interview-wise:mic-settings-link', () => _micSettingsSeen);
+  IAExtProbe.retryDispatch('scap:mic-settings-link', () => _micSettingsSeen);
 
   function copyMicSettingsLink(el) {
     if (_micSettingsUrl) { copyChromeUrl(el, _micSettingsUrl); return; }
@@ -580,12 +580,12 @@
       label.textContent = original;
       copyChromeUrl(el, _micSettingsUrl);
     };
-    document.addEventListener('interview-wise:mic-settings-link-result', onResult, { once: true });
-    IAExtProbe.retryDispatch('interview-wise:mic-settings-link', () => answered);
+    document.addEventListener('scap:mic-settings-link-result', onResult, { once: true });
+    IAExtProbe.retryDispatch('scap:mic-settings-link', () => answered);
     setTimeout(() => {
       if (answered) return;
       answered = true;
-      document.removeEventListener('interview-wise:mic-settings-link-result', onResult);
+      document.removeEventListener('scap:mic-settings-link-result', onResult);
       label.textContent = 'Extension not detected - install it first';
       el.classList.add('copy-chip-warn');
       setTimeout(() => { label.textContent = original; el.classList.remove('copy-chip-warn'); }, 2200);

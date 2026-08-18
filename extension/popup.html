@@ -3,16 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>InterviewWise</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="popup.css">
+<link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div id="confirm-overlay" class="confirm-overlay hidden">
     <div class="confirm-box">
       <p class="confirm-title">Start a session?</p>
-      <p class="confirm-body" id="confirm-body">Turning this on starts using a session as soon as you use any hotkey — toggle it off between interviews to avoid using one by accident.</p>
+      <p class="confirm-body" id="confirm-body">Turning this on starts using a session as soon as you use any hotkey — toggle it off between uses to avoid wasting one.</p>
       <div class="confirm-actions">
         <button id="confirm-cancel" class="btn ghost">Cancel</button>
         <button id="confirm-ok" class="btn accent">Got it, turn on</button>
@@ -37,11 +34,6 @@
       </span>
       <span class="arm-state">OFF</span>
     </button>
-
-    <div class="field">
-      <label for="server_url">Server URL</label>
-      <input type="url" id="server_url" class="mono-input" placeholder="https://yourdomain.com" spellcheck="false">
-    </div>
 
     <div class="field">
       <label for="api_token">API Token</label>

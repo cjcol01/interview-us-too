@@ -184,6 +184,17 @@ def _purge_stale_leads() -> int:
         db.close()
 
 
+def _parse_iso_date(s: Optional[str]):
+    """Parse a YYYY-MM-DD string into a date. Returns None on any failure — callers use this
+    for optional fields that must never block a request over a bad value."""
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.strip(), "%Y-%m-%d").date()
+    except (ValueError, AttributeError):
+        return None
+
+
 def _send_due_interview_reminders() -> int:
     """Email anyone whose interview_date is tomorrow and who hasn't been reminded yet.
     Runs in a thread from the background loop started in lifespan(); also called directly
@@ -474,7 +485,19 @@ def _transcript_has_no_speech(text: str) -> bool:
     if not words:
         return True
     # Long enough and it's real speech even if every word looks like filler ("yes, yes, yes...").
-    return len(words) <= _TRANSCRIPT_FILLER_MAX_WORDS and all(w in _TRANSCRIPT_FILLER_WORDS for w in words)
+    if len(words) > _TRANSCRIPT_FILLER_MAX_WORDS:
+        return False
+    # Short all-filler transcripts (English hallucinations like "Thank you.", subtitles, etc.).
+    if all(w in _TRANSCRIPT_FILLER_WORDS for w in words):
+        return True
+    # Very short transcripts where a significant share of characters is non-ASCII — e.g. "嘿。"
+    # in Chinese, Arabic, Devanagari, etc. — are almost certainly silence hallucinations.
+    # The prompt anchors the model to English, but this is the backstop for ideogram scripts.
+    stripped = text.strip()
+    non_ascii = sum(1 for c in stripped if not c.isascii() and not c.isspace())
+    if len(words) <= 3 and non_ascii > 0 and non_ascii / max(len(stripped), 1) > 0.25:
+        return True
+    return False
 
 
 SESSION_DURATION = timedelta(hours=1, minutes=30)
@@ -528,6 +551,21 @@ INPUT_MODE_PROMPT: dict[str, str] = {
     "replay":     "\n\nThe text below is a transcript of the last several seconds of meeting audio, captured retroactively because the candidate missed or didn't catch something. Unlike a deliberate recording it will start and end mid-sentence and may contain more than one speaker, including the candidate. Find the most recent question or request directed at the candidate and answer that. Ignore the candidate's own speech except as context for what's already been said. If the slice contains no question at all, say so in one short line rather than inventing one.",
 }
 
+# Appended to the screenshot prompt for trial users only. If they accidentally capture their
+# own InterviewWise setup page (or any non-problem site) during their 10-minute test run,
+# redirect them to an actual coding problem rather than trying to "help" with the product UI.
+_TRIAL_SCREENSHOT_NOTE = (
+    "\n\nONE EXTRA RULE FOR THIS SESSION: Look at the screenshot carefully. If it shows "
+    "the InterviewWise website (the product they are currently trialling — dashboard, "
+    "onboarding, landing page, settings, or any page at the same domain), OR if it shows "
+    "any other website or app that is clearly NOT a coding problem or technical interview "
+    "question, respond with ONLY this message — no analysis, no code, nothing else:\n\n"
+    "\"Looks like you're still on the setup page — swap over to a real coding problem to "
+    "try the hotkey properly! 👉 [LeetCode — Two Sum](https://leetcode.com/problems/two-sum/) "
+    "is a good starting point. Open it, then press your capture hotkey when the problem is "
+    "on screen. That's what the 10-minute test run is for!\""
+)
+
 
 class HotkeySettings(BaseModel):
     capture: str
@@ -543,7 +581,7 @@ class HotkeySettings(BaseModel):
 # their own keys has them stored and is unaffected.
 # Duplicated, unavoidably, in extension/content.js, extension/popup.js and templates/settings.html
 # (the extension can't import from here) — keep all four in sync.
-HOTKEY_DEFAULTS = {"capture": "Ctrl+Shift+6", "audio": "Ctrl+Shift+7", "replay": "Ctrl+Shift+8", "typing": "Ctrl+Shift+9", "toggle": "Ctrl+Shift+0"}
+HOTKEY_DEFAULTS = {"toggle": "Ctrl+Shift+1", "capture": "Ctrl+Shift+6", "audio": "Ctrl+Shift+7", "replay": "Ctrl+Shift+8", "typing": "Ctrl+Shift+9"}
 
 REPLAY_SECONDS_MIN = 10
 REPLAY_SECONDS_MAX = 30
@@ -1185,9 +1223,12 @@ class RegisterRequest(BaseModel):
     username: str
     email: str
     password: str
-    # Optional post-verification redirect, e.g. "/pricing" for demo-CTA signups.
+    # Optional post-verification redirect, e.g. "/billing/checkout?plan=sessions".
     # Validated in the endpoint — only relative paths are accepted.
     next_url: Optional[str] = None
+    # Optional interview date captured in the register form. "YYYY-MM-DD" — parsed leniently
+    # so a bad value never blocks a signup (same contract as InstallLinkRequest.interview_date).
+    interview_date: Optional[str] = None
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -1328,6 +1369,9 @@ async def auth_register(
     _safe_next = body.next_url
     if _safe_next and (not _safe_next.startswith("/") or _safe_next.startswith("//")):
         _safe_next = None
+    # Parse the optional interview date now, outside the DB closure, so any value error is
+    # dropped here rather than mid-transaction. Bad values are silently ignored.
+    _interview_date = _parse_iso_date(body.interview_date)
     def _register():
         email = body.email.strip().lower()
         username = body.username.strip()
@@ -1348,6 +1392,7 @@ async def auth_register(
             full_name=body.full_name,
             password_hash=hash_password(body.password),
             account_level=AccountLevel.trial,
+            interview_date=_interview_date,
         )
         db.add(user)
         db.commit()
@@ -1522,7 +1567,10 @@ async def auth_google_callback(
         track(user.id, "login", method="google")
 
     token = create_token(user.id)
-    response = RedirectResponse(next_url or "/app", status_code=303)
+    # Validate the stashed next_url before redirecting — it came from a query param the
+    # caller supplied, and blindly following it would be an open redirect.
+    _safe_next = next_url if (next_url and next_url.startswith("/") and not next_url.startswith("//")) else None
+    response = RedirectResponse(_safe_next or "/app", status_code=303)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     if ref:
         response.delete_cookie("ref")
@@ -1675,7 +1723,10 @@ async def auth_github_callback(
         track(user.id, "login", method="github")
 
     token = create_token(user.id)
-    response = RedirectResponse(next_url or "/app", status_code=303)
+    # Validate the stashed next_url before redirecting — it came from a query param the
+    # caller supplied, and blindly following it would be an open redirect.
+    _safe_next = next_url if (next_url and next_url.startswith("/") and not next_url.startswith("//")) else None
+    response = RedirectResponse(_safe_next or "/app", status_code=303)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     if ref:
         response.delete_cookie("ref")
@@ -1855,12 +1906,7 @@ async def install_link(
                       window_limit=3, window_seconds=600,
                       window_msg="Too many requests for this email — try again in a few minutes")
 
-    parsed_date = None
-    if body.interview_date:
-        try:
-            parsed_date = datetime.strptime(body.interview_date, "%Y-%m-%d").date()
-        except ValueError:
-            parsed_date = None  # optional field — never lose the lead over a bad date
+    parsed_date = _parse_iso_date(body.interview_date)  # optional — never lose the lead over a bad date
 
     client_ip = _client_ip(request)
     attribution = _attribution_json(ia_attr)
@@ -2171,7 +2217,11 @@ def index(request: Request, user: User = Depends(require_user), db: Session = De
 
 
 @app.get("/welcome")
-def welcome_page(request: Request, user: Optional[User] = Depends(get_optional_user)):
+def welcome_page(request: Request, user: Optional[User] = Depends(get_optional_user),
+                 next: Optional[str] = None):
+    # Validate the caller-supplied destination so the demo can thread it all the way through
+    # to /welcome/next without creating an open redirect via the query string.
+    _safe_next = next if (next and next.startswith("/") and not next.startswith("//")) else None
     if user:
         if not user.email_verified:
             return RedirectResponse("/verify-pending")
@@ -2189,11 +2239,22 @@ def welcome_page(request: Request, user: Optional[User] = Depends(get_optional_u
         hotkeys = {k: HOTKEY_DEFAULTS[k] for k in ("capture", "audio", "toggle", "replay", "typing")}
         first_name = ""
 
+    # Show the "DEMO MODE" intro modal to: (a) any anon visitor, or (b) auth'd users who
+    # haven't seen it yet. The flag is set by POST /api/demo-intro/seen when the modal is
+    # dismissed, so it never shows again on a different device.
+    # getattr fallback: if the migration hasn't applied yet (startup timed out on first
+    # attempt and the server restarted before the column landed), treat as unseen rather
+    # than crashing. The migration will retry on next startup.
+    show_demo_intro = (user is None) or (not getattr(user, "demo_intro_seen", False))
+
     return templates.TemplateResponse(request=request, name="welcome.html", context={
         **hotkeys,
         "dev_build": DEV_BUILD,
         "first_name": first_name,
         "is_authenticated": user is not None,
+        # Passed to JS so skip/finish handlers can forward it to /welcome/next.
+        "next_url": _safe_next or "",
+        "show_demo_intro": show_demo_intro,
     })
 
 
@@ -2202,18 +2263,19 @@ def welcome_next_page(
     request: Request,
     user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db),
-    # from_demo distinguishes users who arrive here after signing in via the demo CTA
-    # (who should land on /pricing) from trial users in the normal post-demo onboarding
-    # flow (who should pick their interview date). Uses alias="from" because `from` is a
-    # Python reserved word and can't be used as a bare parameter name.
-    from_demo: Optional[str] = Query(default=None, alias="from"),
+    next: Optional[str] = None,
 ):
-    # Anonymous visitor → show the demo CTA signup page
+    # Validate the destination so it can't be used as an open redirect.
+    _safe_next = next if (next and next.startswith("/") and not next.startswith("//")) else None
+
+    # Anonymous visitor → show the register/sign-in page, carrying the validated destination
+    # through to the form's submit handler and OAuth links.
     if user is None:
         return templates.TemplateResponse(request=request, name="welcome_next_anon.html", context={
             "dev_build": DEV_BUILD,
             "google_enabled": GOOGLE_OAUTH_ENABLED,
             "github_enabled": GITHUB_OAUTH_ENABLED,
+            "next_url": _safe_next or "/onboarding",
         })
 
     if not user.email_verified:
@@ -2221,45 +2283,13 @@ def welcome_next_page(
     if not user.password_set:
         return RedirectResponse("/finish-signup")
 
-    # Paid/unlimited users have no business here
-    if user.account_level in (AccountLevel.paid, AccountLevel.unlimited):
-        return RedirectResponse("/app")
-
-    # Users who arrived via the demo CTA sign-in flow — route by plan status
-    if from_demo == "demo":
-        track(user.id, "demo_cta_signin")
-        return RedirectResponse("/pricing")
-
-    # Normal trial onboarding flow: interview date question
-    if user.interview_date:
-        # Already answered — e.g. captured on the mobile lead form and carried onto this
-        # account at /claim. Asking again here would just be re-asking the same question.
-        return RedirectResponse("/onboarding")
-    track(user.id, "welcome_next_viewed")
-    return templates.TemplateResponse(request=request, name="welcome_next.html", context={
-        "dev_build": DEV_BUILD,
-        "interview_date": user.interview_date.isoformat() if user.interview_date else "",
-    })
-
-
-@app.post("/api/welcome/interview-date")
-def save_interview_date(
-    interview_date: str = Form(""),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    interview_date = (interview_date or "").strip()
-    if interview_date:
-        try:
-            parsed = datetime.strptime(interview_date, "%Y-%m-%d").date()
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid date")
-        if parsed != user.interview_date:
-            user.interview_date = parsed
-            user.interview_reminder_sent = False
+    # Authenticated users have already passed the demo (landing here is how they get past it).
+    # Flip welcome_seen so /app won't loop them back into the demo, then send them on.
+    if not user.welcome_seen:
+        user.welcome_seen = True
         db.commit()
-        track(user.id, "welcome_interview_date_saved")
-    return {"status": "ok"}
+    track(user.id, "welcome_next_viewed")
+    return RedirectResponse(_safe_next or "/app")
 
 
 class SessionFeedbackRequest(BaseModel):
@@ -5038,6 +5068,20 @@ def tutorial_seen(user: User = Depends(get_current_user), db: Session = Depends(
     return {"status": "ok"}
 
 
+@app.post("/api/demo-intro/seen")
+def demo_intro_seen(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Marks the 'DEMO MODE' intro modal as seen so it never reappears (any device).
+    Called fire-and-forget by the modal's dismiss handler on /welcome — both 'Start the
+    demo' and 'Skip for now' paths. Idempotent."""
+    if not getattr(user, "demo_intro_seen", False):
+        try:
+            user.demo_intro_seen = True
+            db.commit()
+        except Exception:
+            db.rollback()  # column not yet landed; silently ignore
+    return {"status": "ok"}
+
+
 @app.post("/api/onboarding/mobile-link")
 async def onboarding_mobile_link(request: Request, user: User = Depends(get_current_user)):
     r = request.app.state.redis
@@ -5223,7 +5267,8 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     style      = _user_response_style(user)
     complexity = await get_complexity(r, user.id)
     comments   = await get_comment_level(r, user.id)
-    prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
+    trial_note = _TRIAL_SCREENSHOT_NOTE if user.account_level == AccountLevel.trial else ""
+    prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + trial_note + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
 
     history = await _load_history_messages(r, user.id)
     full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id, history=history)
@@ -5300,7 +5345,8 @@ async def api_capture_confirm(request: Request, user: User = Depends(get_current
         style      = _user_response_style(user)
         complexity = await get_complexity(r, user.id)
         comments   = await get_comment_level(r, user.id)
-        prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
+        trial_note = _TRIAL_SCREENSHOT_NOTE if user.account_level == AccountLevel.trial else ""
+        prompt = AI_PROMPT + INPUT_MODE_PROMPT["screenshot"] + trial_note + _context_suffix(user, db) + COMPLEXITY_SUFFIX[complexity] + COMMENT_LEVEL_SUFFIX[comments] + RESPONSE_STYLE_SUFFIX[style]
 
         history   = await _load_history_messages(r, user.id)
         full_text = await _stream_ai_response(r, user.id, prompt, img_b64=img_b64, capture_id=capture_id, history=history)
@@ -5516,6 +5562,12 @@ async def api_audio_capture(
                     openai_client.audio.transcriptions.create,
                     model="gpt-4o-transcribe",
                     file=f,
+                    # Anchor to English hesitation speech. Whisper-family models hallucinate
+                    # plausible-sounding words in random languages over near-silence; an English
+                    # prompt suppresses cross-language artefacts ("Kolejny", "C'est bon", etc.)
+                    # without distorting real content. temperature=0 further reduces creativity.
+                    prompt="Uh, hmm...",
+                    temperature=0,
                 )
             transcription_text = transcript.text
         except Exception as transcribe_exc:

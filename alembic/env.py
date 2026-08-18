@@ -34,10 +34,17 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations against a live DB connection."""
+    # lock_timeout via connect_args/options fires at the libpq level — before any
+    # transaction begins — so it's immune to SQLAlchemy autobegin / SAVEPOINT interactions
+    # that can silently swallow a SET statement issued on the connection object.
+    # 10 000 ms = 10 s: if ALTER TABLE can't get its ACCESS EXCLUSIVE LOCK in that window
+    # (e.g. active SSE sessions on the production server are holding transactions open),
+    # Postgres raises LockNotAvailable and database.py catches it so startup continues.
     connectable = engine_from_config(
         {"sqlalchemy.url": DATABASE_URL},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,  # each migration run gets its own connection, no pool needed
+        connect_args={"options": "-c lock_timeout=10000"},
     )
     with connectable.connect() as connection:
         context.configure(

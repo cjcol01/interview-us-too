@@ -408,6 +408,16 @@
           <div class="settings-card">
             <div class="hk-row">
               <div class="hk-info">
+                <span class="hk-dot" id="hk-dot-toggle"></span>
+                <span class="hk-label">Toggle on/off</span>
+              </div>
+              <div class="hk-ctrl">
+                <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
+                <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
+              </div>
+            </div>
+            <div class="hk-row">
+              <div class="hk-info">
                 <span class="hk-dot" id="hk-dot-capture"></span>
                 <span class="hk-label">Screen capture</span>
               </div>
@@ -424,16 +434,6 @@
               <div class="hk-ctrl">
                 <button class="hotkey-btn" id="hk-audio" onclick="recordHotkey('audio', this)">{{ hotkey_audio }}</button>
                 <button class="hotkey-reset" onclick="resetHotkey('audio')">reset</button>
-              </div>
-            </div>
-            <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-toggle"></span>
-                <span class="hk-label">Toggle on/off</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
               </div>
             </div>
             <div class="hk-row">
@@ -947,7 +947,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-wise:replay', { detail: { enabled, seconds } }));
+          document.dispatchEvent(new CustomEvent('scap:replay', { detail: { enabled, seconds } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -977,7 +977,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-wise:typing-preview', { detail: { enabled } }));
+          document.dispatchEvent(new CustomEvent('scap:typing-preview', { detail: { enabled } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -1005,7 +1005,7 @@
         if (resp.ok) {
           statusEl.textContent = 'Saved.';
           statusEl.style.color = 'var(--accent)';
-          document.dispatchEvent(new CustomEvent('interview-wise:passthrough', { detail: { enabled } }));
+          document.dispatchEvent(new CustomEvent('scap:passthrough', { detail: { enabled } }));
         } else {
           statusEl.textContent = 'Failed to save.';
           statusEl.style.color = 'var(--danger)';
@@ -1104,7 +1104,7 @@
           body: JSON.stringify(_hotkeys),
         });
         if (resp.ok) {
-          document.dispatchEvent(new CustomEvent('interview-wise:hotkeys', { detail: _hotkeys }));
+          document.dispatchEvent(new CustomEvent('scap:hotkeys', { detail: _hotkeys }));
           hkStatus('Saved - active in all open tabs.', 'var(--accent)');
         } else {
           hkStatus('Failed to save.', 'var(--danger)');
@@ -1129,17 +1129,17 @@
     function _retryConnectDispatch(isSeen) {
       let attempts = 0;
       const detail = { token: '{{ api_token }}', serverUrl: window.location.origin };
-      document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
+      document.dispatchEvent(new CustomEvent('scap:connect', { detail }));
       const timer = setInterval(() => {
         if (isSeen() || ++attempts >= 6) { clearInterval(timer); return; }
-        document.dispatchEvent(new CustomEvent('interview-wise:connect', { detail }));
+        document.dispatchEvent(new CustomEvent('scap:connect', { detail }));
       }, 200);
       return timer;
     }
 
     // Detection is the shared read-only probe (/static/js/ext_probe.js), the same one
     // /support and /app use. This used to detect the extension by firing
-    // `interview-wise:connect` on page load — but that event WRITES the token into extension
+    // `scap:connect` on page load — but that event WRITES the token into extension
     // storage, so merely opening Settings repointed the extension at this page's origin.
     // It also only ever asked once, which is why the banner kept claiming "connected" long
     // after the extension had been disabled or removed. The probe re-asks on a timer and on
@@ -1176,7 +1176,7 @@
         status.style.color = 'var(--danger)';
         document.getElementById('fallback-details').open = true;
       }, 1800);
-      document.addEventListener('interview-wise:connected', () => {
+      document.addEventListener('scap:connected', () => {
         connected = true;
         clearTimeout(timeout);
         showConnected();

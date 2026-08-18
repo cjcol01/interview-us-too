@@ -223,8 +223,7 @@
 }
 .ob-step-alt:hover { color: var(--text-1); }
 .ob-step-alt:focus-visible,
-.ob-qr-refresh-btn:focus-visible,
-.ob-start-here-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.ob-qr-refresh-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .ob-step-body p.ob-await-return {
   font-family: 'JetBrains Mono', monospace;
@@ -301,7 +300,7 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  margin: 10px 0;
+  margin: 8px 0 4px;
 }
 .ob-mic-led {
   position: relative;
@@ -712,44 +711,89 @@ kbd {
 .ob-moved-btn:hover { background: rgba(198,242,78,.1); }
 .ob-moved-btn:disabled { opacity: .5; cursor: default; }
 
-.ob-post-moved {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+/* ── Bottom subscribe link (below final card) ── */
+.ob-bottom-subscribe {
+  text-align: center;
+  padding: 18px 0 8px;
 }
-.ob-post-moved-ok {
-  font-size: 14px;
+
+/* ── Header escape hatch ── */
+.ob-header-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.ob-subscribe-link {
+  font-size: 13px;
   color: var(--accent);
-  line-height: 1.5;
+  text-decoration: none;
+  opacity: .85;
+  transition: opacity .15s;
 }
-.ob-post-moved-ok strong { color: var(--accent); }
-.ob-post-moved-hint {
-  font-size: 12.5px;
-  color: var(--text-3);
-  line-height: 1.4;
-}
-/* Always-visible secondary option under the full-width "I'm on my phone" button, so it's
-   centred beneath it rather than left-aligned as it was when it lived inside the
-   post-moved flex column. */
-.ob-start-here-row {
-  display: flex;
-  justify-content: center;
+.ob-subscribe-link:hover { opacity: 1; }
+
+/* ── Card sub-steps (audio card: mic + replay) ── */
+.ob-substep + .ob-substep {
+  border-top: 1px solid var(--border-1);
   margin-top: 10px;
+  padding-top: 10px;
 }
-.ob-start-here-btn {
+.ob-subhead {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 0 0 10px;
+}
+
+/* ── QR nudge aside in card 3 ── */
+.ob-qr-nudge {
+  border-top: 1px solid var(--border-1);
+  border-bottom: 1px solid var(--border-1);
+  margin-top: 12px;
+  margin-bottom: 14px;
+  padding: 12px 0;
+}
+.ob-qr-nudge-toggle {
   background: none;
   border: none;
-  color: var(--text-3);
+  padding: 0;
   cursor: pointer;
   font-family: 'Hanken Grotesk', sans-serif;
-  font-size: 13px;
-  padding: 0;
-  text-align: center;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   transition: color .15s;
+  width: 100%;
+  text-align: center;
 }
-.ob-start-here-btn:hover { color: var(--text-1); }
+.ob-qr-nudge-toggle:hover { color: var(--text-2); }
+.ob-qr-chevron {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-block;
+  transition: transform .2s;
+  color: var(--text-3);
+}
+.ob-qr-toggle-open .ob-qr-chevron { transform: rotate(90deg); }
+.ob-qr-body { padding-top: 12px; }
+.ob-qr-nudge-head {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 0 0 6px;
+}
+.ob-qr-nudge-body {
+  font-size: 12.5px;
+  color: var(--text-3);
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
 
 /* ── Trial warning modal ── */
 #warning-overlay {
