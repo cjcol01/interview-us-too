@@ -1,19 +1,16 @@
 # TODO
 
 ## immediately
-- [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
-- [x] change demo in dark mode to light colours
-- [ ] move onboarding to after users sign up from pricing. offer it subtly if theyre not sold yet, perhaps on pricing page. ensure everyone gets a 10 min free setup session on first use
-- [ ] change scroll bars on /welcome demo to smaller ones
-- [ ] check sideloading windows, private repo issues with sideloading
-- [ ] add informational ai responses to trial (e.g. you sent a picture of interview wise. swap to a coding problem like leetcode/twosum and press the hotkey on that page.)
+- [ ] check sideloading on windows, private repo issues with sideloading
 - [ ] MIC status light a bit unreliable still
-- [ ] lets users go back to onboarding from support/ settings
-- [ ] If skip onboarding, prompt users to go back to it after payment
+- [x] lets users go back to onboarding from support/ settings
+- [x] If skip onboarding, prompt users to go back to it after payment
+- [ ] check onboarding skip, payment confirmation on mobile, do we want to let them go back to trial
 - [ ] check card details saved copy, os intercepted, undetectable language
-
+- [ ] add FAQ and Support card for new typing mode setup.
 
 ## Now
+- [ ] move onboarding to after users sign up from pricing. offer it subtly if theyre not sold yet, perhaps on pricing page. ensure everyone gets a 10 min free setup session on first use
 - [ ] add log file for errors on /admin to railway. check why they werent showing
 - [x]  Cloudflare Access for admin pages at cdn level
 - [ ] add switch to mobile button followed by QR popup on onboarding. mention to test it like your in an interview try on you phone, but make it clear they dont have to
@@ -27,7 +24,7 @@
 - [ ] change all to interview-wise. 
 - [x] Set up SPF, DKIM, DMARC in Cloudflare for Google Workspace, and verify interview-wise.com in Resend — fixes outbound email going to junk.
 - [ ] stripe CC setup
-- [ ] make the demo easier to watch, sign up after complete
+- [x] make the demo easier to watch, sign up after complete
 - [ ] cancel page revamp, text and maybe some visual. (mostly done - check)
 - [ ] create videos for support, install, sideload, landing
 - [ ] setup check before real interview without starting session. 
@@ -79,6 +76,10 @@
 
 
 ## Done
+- [x] add informational ai responses to trial (e.g. you sent a picture of interview wise. swap to a coding problem like leetcode/twosum and press the hotkey on that page.)
+- [x] change scroll bars on /welcome demo to smaller ones
+- [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
+- [x] change demo in dark mode to light colours
 - [x] make send to ai button more clear to click on (more jumping or glowing or something)
 - [x] move all admin pages to /admin (not /partner/admin etc) so theyre caught by cloudflare access rule. except verify author
 - [x] add a link from settings to let you go back to onboarding. ensure it works with any db states, like trial_complete or similar

@@ -50,6 +50,16 @@
   line-height: 1.6;
 }
 
+.support-setup-link {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+.support-setup-link:hover { text-decoration: underline; }
+
 /* ── System check panel ── */
 .check-card {
   background: var(--card);

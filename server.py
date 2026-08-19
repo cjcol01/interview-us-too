@@ -2383,8 +2383,20 @@ def onboarding_page(
         db.commit()
     _ensure_api_token(user, db)
     track(user.id, "onboarding_viewed")
+    # Paid/unlimited users — and trial users who've already burned their run — get the same
+    # three setup cards without any of the trial framing: no "start your 10-minute test run"
+    # CTA (POST /api/trial/start would 400 for them), no "this is a test run, not an
+    # interview" warning, no upsell to a trial they can't start. Mirrors the two conditions
+    # trial_start itself rejects on, so the button never promises something the API refuses.
+    trial_available = user.account_level == AccountLevel.trial and not db.query(
+        InterviewSession.id
+    ).filter(InterviewSession.user_id == user.id).first()
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="onboarding.html", context={
+        "trial_available": trial_available,
+        # The trial upsell points at /pricing, which is meaningless once they're on a plan.
+        # Same levels the navbar hides its Pricing link for.
+        "show_trial_upsell": user.account_level in (AccountLevel.free, AccountLevel.trial),
         "api_token": user.api_token,
         "base_url": BASE_URL,
         "hotkey_capture": hk["capture"],

@@ -11,6 +11,12 @@
   <link rel="stylesheet" href="/css/onboarding.css">
   <link rel="stylesheet" href="/css/mock_interview.css">
   <style>
+    /* The demo overlay is fixed and fills the viewport, and this page's own content is
+       hidden, so /welcome never scrolls. global.css keeps a scrollbar gutter permanently
+       reserved on <html> (scrollbar-gutter: stable, to stop other pages jittering); here
+       that gutter only shaves ~15px off the right of the call UI for a bar that can never
+       appear, so this page opts out. */
+    html { scrollbar-gutter: auto; overflow: hidden; }
     /* /welcome hides the × and persistent "Skip demo →" button — the idle nudge
        ("In a hurry?") is kept because it appears only after a delay and gives
        impatient users a low-key out without cluttering the call chrome. */

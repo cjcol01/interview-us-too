@@ -191,6 +191,27 @@
   border-left-color: var(--accent);
 }
 
+/* Setup guide — a real navigation link, not a scroll-to-section button, so it sits
+   apart from the nav list above and picks up the accent on hover. */
+.sidebar-setup-link {
+  display: block;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-decoration: none;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.sidebar-setup-link:hover {
+  color: var(--accent);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
 /* Sign out */
 .sidebar-signout {
   width: 100%;
@@ -894,6 +915,9 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
     border-left-color: transparent;
   }
   .sidebar-signout { display: none; }
+  /* Stays visible on mobile (unlike Sign out, which the navbar menu already covers) —
+     it's the only route back to setup from here. Full-width under the scrolling nav row. */
+  .sidebar-setup-link { width: 100%; text-align: center; margin: 10px 0 0; }
   .response-grid { grid-template-columns: 1fr; }
   .response-preview { position: static; }
   .referral-promo-card { flex-direction: column; align-items: flex-start; }

@@ -70,6 +70,12 @@
           <button class="sidebar-nav-btn"         data-section="billing"    onclick="sidebarScroll('billing')">Billing &amp; referral</button>
         </nav>
 
+        {# Route back to the setup guide. The nav buttons above only scroll within this page,
+           and /onboarding has its own chrome with no navbar, so without this a user who left
+           setup for Settings has no way back to it. Section 4 (Extension) links there too;
+           this one is reachable without hunting for that section. #}
+        <a href="/onboarding" class="sidebar-setup-link">Setup guide &rarr;</a>
+
         <!-- Sign out -->
         <form action="/auth/logout" method="post" style="margin-top:auto;">
           <button type="submit" class="sidebar-signout">Sign out</button>

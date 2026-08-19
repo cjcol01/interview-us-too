@@ -28,7 +28,10 @@
     };
   </script>
 
-  <!-- Trial-only warning modal -->
+  {# Trial-only warning modal. Genuinely trial-only now: a paid user has no 10-minute cap
+     and is already "on a full plan", so both paragraphs read as false to them. obProceed()
+     skips straight to confirmStart() when this isn't rendered. #}
+  {% if trial_available %}
   <div id="warning-overlay">
     <div class="warning-modal">
       <div class="wm-icon">⚠️</div>
@@ -40,13 +43,14 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <!-- Extension-not-detected warning modal -->
   <div id="ext-warning-overlay">
     <div class="warning-modal">
       <div class="wm-icon">🔌</div>
       <h3>Extension not detected</h3>
-      <p>InterviewWise relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio - it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your test run or interview until it is.</p>
+      <p>InterviewWise relies on the browser extension running <strong>on this computer</strong> to capture your screen and audio - it doesn't run on your phone. We haven't detected it connected yet, so nothing will happen during your {% if trial_available %}test run or {% endif %}interview until it is.</p>
       <div class="wm-actions">
         <button class="wm-confirm-btn" onclick="closeExtWarning()">Go connect it</button>
         <button class="wm-cancel-btn" onclick="continueWithoutExtension()">Continue anyway</button>
@@ -61,8 +65,9 @@
     <div class="ob-confirm-box">
       <p class="ob-confirm-title">Skip setup for now?</p>
       <p class="ob-confirm-body">The browser extension is what captures your screen and audio - without it,
-        <strong>nothing reaches your phone during an interview</strong>. Skipping doesn't cost you any of your
-        test run, and you can come back here from your dashboard whenever you like.</p>
+        <strong>nothing reaches your phone during an interview</strong>. Skipping doesn't cost you
+        {% if trial_available %}any of your test run{% else %}a session{% endif %}, and you can come back
+        here from your dashboard whenever you like.</p>
       <div class="ob-confirm-actions">
         <button type="button" class="wm-cancel-btn" onclick="obConfirmSkipSetup()">Skip anyway</button>
         <button type="button" class="wm-confirm-btn" onclick="obCloseSkipConfirm()">Keep setting up</button>
@@ -75,17 +80,25 @@
       <span class="ob-logo-dot"></span>InterviewWise
     </a>
     <div class="ob-header-links">
-      <!-- Escape hatch for users who are already sold — no navbar on this page, so this
-           is the only route to pricing other than completing the trial. -->
-      <a href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
+      {# Escape hatch for users who are already sold — no navbar on this page, so this
+         is the only route to pricing other than completing the trial. Hidden once they're
+         on a plan: there's no trial left to start and /pricing has nothing to offer them. #}
+      {% if show_trial_upsell %}
+      <a href="/pricing" class="ob-subscribe-link" onclick="return obSkipToPricing(event)">Already convinced? Start your 7-day free trial now →</a>
+      {% endif %}
       <a href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
     </div>
   </header>
 
   <main class="ob-main">
     <div class="ob-intro">
+      {% if trial_available %}
       <h1>You're in. Let's get set up.</h1>
       <p>A few quick steps, then your 10-minute test run begins. No card required.</p>
+      {% else %}
+      <h1>Let's get you set up.</h1>
+      <p>A few quick steps - run through them on any machine you'll be interviewing from.</p>
+      {% endif %}
       <!-- Skipping or leaving the demo on /welcome used to be one-way: there was no route back
            to it from here. Not a first run — that would fire MI_ON_FIRST_RUN_FINISH and navigate
            the user off this page. /app carries the same escape hatch in its header. -->
@@ -243,7 +256,7 @@
     <div class="ob-step-card is-locked" id="ob-step-3" data-step="3">
       <div class="ob-step-num">3</div>
       <div class="ob-step-body">
-        <h2>Open a coding challenge and start your test run</h2>
+        <h2>Open a coding challenge and {% if trial_available %}start your test run{% else %}try it out{% endif %}</h2>
         <p class="ob-step-state" id="ob-state-3" hidden></p>
         <div class="ob-step-inner">
           <p>Visit any of these platforms and open a practice problem as if it's a real interview.</p>
@@ -293,15 +306,24 @@
             </div>
           </div>
 
-          <!-- Primary trial CTA — the extension-presence warning is now here (was iMoved). -->
+          {# Primary CTA — the extension-presence warning is now here (was iMoved). Both
+             branches end at confirmStart(), which already falls back to /api/setup/complete
+             when /api/trial/start 400s; only the promise made by the label changes. #}
+          {% if trial_available %}
           <button class="ob-moved-btn" onclick="startTrial()">Start 10-minute test run</button>
           <p class="ob-manual-hint" style="text-align:center;margin-top:6px;">Runs on this computer, or on the phone you just scanned to.</p>
+          {% else %}
+          <button class="ob-moved-btn" onclick="startTrial()">Finish setup →</button>
+          <p class="ob-manual-hint" style="text-align:center;margin-top:6px;">Takes you to your dashboard - keep it open on this computer or your phone during an interview.</p>
+          {% endif %}
         </div>
       </div>
     </div>
+  {% if show_trial_upsell %}
   <div class="ob-bottom-subscribe">
-    <a href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
+    <a href="/pricing" class="ob-subscribe-link" onclick="return obSkipToPricing(event)">Already convinced? Start your 7-day free trial now →</a>
   </div>
+  {% endif %}
   </main>
 
   <div id="theme-switcher">
@@ -346,6 +368,20 @@
     async function obConfirmSkipSetup() {
       try { await fetch('/api/setup/complete?skipped=true', { method: 'POST' }); } catch {}
       window.location.href = '/app';
+    }
+
+    // "Already convinced?" — they're buying instead of test-driving, so this skips both the
+    // setup steps and the 10-minute run. It has to clear setup_complete like any other skip,
+    // or a trial user who looks at /pricing and doesn't buy gets bounced straight back here
+    // by /app's gate, with the same three cards they just chose to leave. No confirm dialog:
+    // unlike "Skip setup" this isn't abandonment, and one click is the point of the link.
+    // keepalive so the POST survives the navigation on the next line — awaiting it would sit
+    // on an unresponsive link for a round-trip.
+    function obSkipToPricing(e) {
+      e.preventDefault();
+      try { fetch('/api/setup/complete?skipped=true', { method: 'POST', keepalive: true }); } catch {}
+      window.location.href = '/pricing';
+      return false;
     }
 
     // The content script injects at document_idle, which can run *after*
@@ -1107,19 +1143,29 @@
       document.getElementById('ext-warning-overlay').classList.remove('visible');
     }
 
+    // False for paid/unlimited users and for a trial that's already been used — the
+    // "this is a test run, not an interview" modal isn't rendered for them, so there is
+    // nothing to confirm and the CTA goes straight through to confirmStart().
+    const _trialAvailable = {{ trial_available | tojson }};
+
     function startTrial() {
       if (!_extensionConnected) {
         // Warn, but give an escape — a no-extension run is worse UX, not invalid.
         document.getElementById('ext-warning-overlay').classList.add('visible');
         return;
       }
+      obProceed();
+    }
+
+    function obProceed() {
+      if (!_trialAvailable) { confirmStart(); return; }
       document.getElementById('warning-overlay').classList.add('visible');
     }
 
     function continueWithoutExtension() {
       closeExtWarning();
       // Fall through to the normal confirm flow.
-      document.getElementById('warning-overlay').classList.add('visible');
+      obProceed();
     }
 
     function closeWarning() {

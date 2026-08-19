@@ -342,6 +342,71 @@ def register(test, skip, client):
             db.close()
             delete_by_name(uname)
 
+    def test_onboarding_hides_trial_framing_for_paid():
+        """A paid user revisiting setup gets no 10-minute-test-run CTA, no
+        'this is a test run' warning, and no upsell to a trial they can't start."""
+        from models import User
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            html = client.get("/onboarding", cookies={"session": token}).text
+            assert "Start 10-minute test run" not in html
+            assert "This is a test run, not an interview" not in html
+            assert "Start your 7-day free trial now" not in html
+            assert "Finish setup" in html
+            assert "const _trialAvailable = false" in html
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_onboarding_keeps_trial_framing_for_trial():
+        """The unused-trial path is untouched: CTA, warning modal and upsell all render."""
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            html = client.get("/onboarding", cookies={"session": token}).text
+            assert "Start 10-minute test run" in html
+            assert "This is a test run, not an interview" in html
+            assert "Start your 7-day free trial now" in html
+            assert "const _trialAvailable = true" in html
+            # The upsell is a real skip — it clears the setup gate on the way to /pricing,
+            # so /app can't bounce them back into onboarding afterwards.
+            assert "obSkipToPricing" in html
+            assert "/api/setup/complete?skipped=true" in html
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_billing_success_ships_setup_prompt():
+        """The Stripe return page probes for the extension and carries both CTA sets:
+        the setup prompt for users who skipped onboarding, the CV nudge for the rest."""
+        from models import User
+        token, uname = make_cookie(AccountLevel.paid)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            db.commit()
+            html = client.get("/billing/success", cookies={"session": token}).text
+            assert "/static/js/ext_probe.js" in html
+            assert "_probe.start()" in html
+            assert "Set up the extension" in html
+            assert "/onboarding" in html
+            assert "Add your CV & interview context" in html
+            # Phone variant: no extension is possible there, so the CV nudge takes the
+            # green slot and setup becomes a do-it-on-your-computer note.
+            assert "finish setup on the machine" in html
+        finally:
+            db.close()
+            delete_by_name(uname)
+
     # -- /welcome ---------------------------------------------------------------
 
     def test_welcome_renders_for_trial_user():
@@ -652,6 +717,9 @@ def register(test, skip, client):
     test("/onboarding renders for trial user",                test_onboarding_renders_for_trial_user)
     test("/onboarding generates api_token if missing",        test_onboarding_generates_api_token_if_missing)
     test("/onboarding accessible for non-trial users",        test_onboarding_accessible_for_non_trial_users)
+    test("/onboarding hides trial framing for paid",          test_onboarding_hides_trial_framing_for_paid)
+    test("/onboarding keeps trial framing for trial",         test_onboarding_keeps_trial_framing_for_trial)
+    test("/billing/success carries extension setup prompt",   test_billing_success_ships_setup_prompt)
     test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
     test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
     test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)

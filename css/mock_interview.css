@@ -12,6 +12,30 @@
 }
 #mock-interview-overlay.visible { display: block; }
 
+/* Slim scrollbars inside the demo. Chrome's default 15px gutter is wide enough that on the
+   phone panel — the narrowest scrolling column — it visibly shrinks the readable answer
+   text, so every scroller in the overlay gets a thin, dark-on-dark bar instead. Both the
+   standard properties and the -webkit-* pseudo-elements are set: Firefox only honours the
+   former, and `scrollbar-width: thin` alone gives no colour control in Chrome. */
+#mock-interview-overlay *,
+#mock-interview-overlay {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#mock-interview-overlay ::-webkit-scrollbar,
+#mock-interview-overlay::-webkit-scrollbar { width: 7px; height: 7px; }
+#mock-interview-overlay ::-webkit-scrollbar-track,
+#mock-interview-overlay::-webkit-scrollbar-track { background: transparent; }
+#mock-interview-overlay ::-webkit-scrollbar-thumb,
+#mock-interview-overlay::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 4px;
+}
+#mock-interview-overlay ::-webkit-scrollbar-thumb:hover,
+#mock-interview-overlay::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+#mock-interview-overlay ::-webkit-scrollbar-corner,
+#mock-interview-overlay::-webkit-scrollbar-corner { background: transparent; }
+
 #mock-interview-overlay kbd {
   font-family: 'JetBrains Mono', monospace;
   font-size: 11px;

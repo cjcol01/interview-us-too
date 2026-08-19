@@ -9,6 +9,11 @@
     <p class="support-kicker">SOS · Support &amp; troubleshooting</p>
     <h1>Something not working?</h1>
     <p class="support-sub">Run a quick system check, or jump straight to a fix for one of the issues below.</p>
+    {# Signed-in only: /onboarding requires auth, and this page is public. The setup guide has
+       no navbar of its own, so this is the way back to it once someone lands here. #}
+    {% if user %}
+    <a href="/onboarding" class="support-setup-link">Back to the setup guide &rarr;</a>
+    {% endif %}
   </header>
 
   <!-- ══ System check panel ══════════════════════════════════════ -->

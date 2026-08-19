@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Payment - InterviewWise{% endblock %}
 {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0">{% endblock %}
-{% block head %}<link rel="stylesheet" href="/css/billing_success.css">{% endblock %}
+{% block head %}<link rel="stylesheet" href="/css/billing_success.css">
+  {# Drives the success screen's CTA choice: someone who skipped onboarding arrives here with
+     no extension, and the dashboard is useless to them until they install it. #}
+  <script src="/static/js/ext_probe.js"></script>{% endblock %}
 {% block content %}
   <div class="bs-wrap">
     <div class="bs-glow" aria-hidden="true"></div>
@@ -24,6 +27,14 @@
 
     let attempts = 0;
     const MAX = 20;
+
+    // Start asking straight away — the probe needs up to 1.5s to conclude "not there", and
+    // the billing poll usually takes at least that long, so the answer is normally ready by
+    // the time the success screen renders.
+    // Guarded: this page confirms a payment, and a blocked or 404'd ext_probe.js must not
+    // take the poll down with it. No probe just means the default (already-set-up) buttons.
+    const _probe = window.IAExtProbe || null;
+    if (_probe) _probe.start();
 
     async function poll() {
       try {
@@ -66,24 +77,90 @@
       } else {
         body.innerHTML = `<strong>${sessions} session${sessions !== 1 ? 's' : ''}</strong> added to your account. Each session lasts 1.5 hours.`;
       }
-      const btn = document.createElement('a');
-      btn.href = '/app';
-      btn.className = 'bs-btn bs-btn-outline';
-      btn.textContent = 'Open InterviewWise';
-      card.appendChild(btn);
+      const actions = document.createElement('div');
+      actions.className = 'bs-actions';
+      actions.id = 'bs-actions';
+      card.appendChild(actions);
 
-      // CV context: the single highest-value action before a first interview.
-      // Answers get noticeably better once the AI has their CV and target company.
-      const ctx = document.createElement('a');
-      ctx.href = '/settings#context';
-      ctx.className = 'bs-btn';
-      ctx.textContent = 'Add your CV & interview context →';
-      card.appendChild(ctx);
+      // Fires immediately with whatever the probe already knows, then again on every
+      // re-probe — including the focus re-probe when they come back from the Web Store,
+      // which swaps the setup CTA out for the normal one without a reload.
+      if (_probe) _probe.subscribe(renderActions);
+      else renderActions({ detected: null, linked: null });
+    }
 
-      const ctxNote = document.createElement('p');
-      ctxNote.className = 'bs-note';
-      ctxNote.textContent = 'Takes a minute, and every answer comes back tailored to you.';
-      card.appendChild(ctxNote);
+    // Chrome and Safari on phones have no extension support at all, so the probe there
+    // always reports "not installed" and always will — offering "Set up the extension" is
+    // asking for something the device cannot do. iPadOS Safari claims to be a Mac, hence the
+    // touch-points check.
+    function _isMobile() {
+      if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') {
+        return navigator.userAgentData.mobile;
+      }
+      if (/Android|iPhone|iPod|iPad|Mobile/i.test(navigator.userAgent)) return true;
+      return /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    }
+
+    // 'ready' | 'setup' | 'later'. `detected === null` (still asking) resolves to 'ready':
+    // showing the normal buttons and swapping them a moment later beats flashing "set up
+    // the extension" at someone who already has it.
+    let _shownVariant = null;
+
+    function _variantFor(ext) {
+      // Installed AND holding an account token. Either half missing and nothing they do in
+      // an interview reaches the dashboard, which is the thing they just paid for.
+      const needsSetup = ext.detected === false || (ext.detected === true && ext.linked === false);
+      if (!needsSetup) return 'ready';
+      return _isMobile() ? 'later' : 'setup';
+    }
+
+    function renderActions(ext) {
+      const actions = document.getElementById('bs-actions');
+      if (!actions) return;
+      const variant = _variantFor(ext);
+      if (variant === _shownVariant) return;
+      _shownVariant = variant;
+      actions.innerHTML = '';
+
+      // Every variant keeps the dashboard reachable, and the green primary sits at the
+      // bottom as the default action — only which action earns that slot changes.
+      actions.appendChild(_link('/app', 'bs-btn bs-btn-outline', 'Open InterviewWise'));
+
+      if (variant === 'setup') {
+        // Setup outranks the CV nudge on a machine that can actually do it: context makes
+        // answers better, the extension is what makes them exist at all.
+        actions.appendChild(_link('/onboarding', 'bs-btn', 'Set up the extension →'));
+        actions.appendChild(_note('Takes about a minute. Without it, nothing reaches your dashboard '
+          + 'during an interview. You can <a href="/settings#context">add your CV &amp; interview '
+          + 'context</a> after.'));
+        return;
+      }
+
+      // CV context: the single highest-value action before a first interview, and on a phone
+      // it's the only one of the two they can actually complete right now.
+      actions.appendChild(_link('/settings#context', 'bs-btn', 'Add your CV & interview context →'));
+      if (variant === 'later') {
+        actions.appendChild(_note('Takes a minute, and every answer comes back tailored to you. '
+          + 'The extension only runs on a computer - finish setup on the machine you\'ll interview '
+          + 'from, where the <a href="/onboarding">setup guide</a> is waiting.'));
+      } else {
+        actions.appendChild(_note('Takes a minute, and every answer comes back tailored to you.'));
+      }
+    }
+
+    function _link(href, cls, text) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.className = cls;
+      a.textContent = text;
+      return a;
+    }
+
+    function _note(html) {
+      const p = document.createElement('p');
+      p.className = 'bs-note';
+      p.innerHTML = html;
+      return p;
     }
 
     function showDeclined() {
