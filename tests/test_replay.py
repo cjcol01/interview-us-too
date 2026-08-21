@@ -235,39 +235,15 @@ def register(test, skip, client):
             cleanup(db, u)
             db.close()
 
-    # ── 4. POST /api/settings/hotkeys accepts replay field ───────────────────
+    # ── 4. POST /api/settings/hotkeys was removed ────────────────────────────
+    # Hotkeys are now managed via manifest commands / chrome://extensions/shortcuts.
 
-    def test_hotkeys_with_replay_field_persists():
-        db = SessionLocal()
-        try:
-            u = make_user(db, AccountLevel.trial)
-            token = create_token(u.id)
-            r = client.post(
-                "/api/settings/hotkeys",
-                json={"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3", "replay": "Ctrl+Alt+R", "typing": "Ctrl+Shift+5"},
-                cookies={"session": token},
-            )
-            assert r.status_code == 200
-            db.refresh(u)
-            assert u.hotkey_replay == "Ctrl+Alt+R"
-        finally:
-            cleanup(db, u)
-            db.close()
-
-    def test_hotkeys_without_replay_is_422():
-        db = SessionLocal()
-        try:
-            u = make_user(db, AccountLevel.trial)
-            token = create_token(u.id)
-            r = client.post(
-                "/api/settings/hotkeys",
-                json={"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3"},
-                cookies={"session": token},
-            )
-            assert r.status_code == 422
-        finally:
-            cleanup(db, u)
-            db.close()
+    def test_settings_hotkeys_endpoint_gone():
+        r = client.post(
+            "/api/settings/hotkeys",
+            json={"capture": "Ctrl+1", "audio": "Ctrl+2", "toggle": "Ctrl+3", "replay": "Ctrl+Alt+R", "typing": "Ctrl+Shift+5"},
+        )
+        assert r.status_code in (404, 405)
 
     # ── 5. /api/me shape includes replay ─────────────────────────────────────
 
@@ -281,8 +257,7 @@ def register(test, skip, client):
             assert "replay" in body
             assert body["replay"]["enabled"] is True
             assert body["replay"]["seconds"] == 15
-            assert "replay" in body["hotkeys"]
-            assert body["hotkeys"]["replay"] == HOTKEY_DEFAULTS["replay"]
+            assert "hotkeys" not in body  # hotkeys removed from /api/me
         finally:
             cleanup(db, u)
             db.close()
@@ -327,8 +302,7 @@ def register(test, skip, client):
     test("POST /api/settings/replay-window requires Bearer",      test_replay_window_bearer_requires_auth)
     test("POST /api/settings/replay-window: seconds=9 → 422",     test_replay_window_bearer_rejects_below_min)
     test("POST /api/settings/replay-window: seconds=31 → 422",    test_replay_window_bearer_rejects_above_max)
-    test("POST /api/settings/hotkeys: replay field persists",     test_hotkeys_with_replay_field_persists)
-    test("POST /api/settings/hotkeys: omitting replay → 422",     test_hotkeys_without_replay_is_422)
+    test("POST /api/settings/hotkeys endpoint gone (404/405)",    test_settings_hotkeys_endpoint_gone)
     test("/api/me includes replay defaults",                      test_api_me_includes_replay_defaults)
     test("/api/me reflects saved replay settings",                test_api_me_reflects_saved_replay)
     test("POST /api/settings/replay requires session auth",       test_replay_requires_auth)

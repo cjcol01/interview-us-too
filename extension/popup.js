@@ -1,7 +1,7 @@
 const COMPLEXITY_DESC = { 1: 'Concise hint', 2: 'Full solution', 3: 'Optimal + trade-offs' };
 const COMMENT_LEVEL_DESC = { 1: 'Low', 2: 'High', 3: 'Every line' };
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async function onDomContentLoaded() {
   document.getElementById('version-label').textContent = 'V' + chrome.runtime.getManifest().version;
 
   const { api_token, complexity, comment_level, response_style, last_capture, last_error, enabled,
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   applyEnabledState();
 
-  enabledBtn.addEventListener('click', () => {
+  const onToggleEnabledClick = () => {
     if (!isEnabled) {
       confirmBody.textContent = is_unlimited
         ? ''
@@ -54,18 +54,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       chrome.storage.local.set({ enabled: false });
       applyEnabledState();
     }
-  });
+  };
+  enabledBtn.addEventListener('click', onToggleEnabledClick);
 
-  confirmOk.addEventListener('click', async () => {
+  const onConfirmOkClick = async () => {
     confirmOverlay.classList.add('hidden');
     isEnabled = true;
     await chrome.storage.local.set({ enabled: true });
     applyEnabledState();
-  });
+  };
+  confirmOk.addEventListener('click', onConfirmOkClick);
 
-  confirmCancel.addEventListener('click', () => {
+  const onConfirmCancelClick = () => {
     confirmOverlay.classList.add('hidden');
-  });
+  };
+  confirmCancel.addEventListener('click', onConfirmCancelClick);
 
   let comp = complexity ?? 2;
   complexityVal.textContent = comp;
@@ -94,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ? 'Token invalid or expired — re-check your API token below'
         : storedError, true);
     } catch {
-      showStatus('Can’t reach the server — check the URL below and your connection', true);
+      showStatus('Can't reach the server — check the URL below and your connection', true);
     }
   }
 
@@ -113,29 +116,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     revalidateError(url, api_token, last_error);
   }
 
-  toggleBtn.addEventListener('click', () => {
+  const onToggleTokenVisibilityClick = () => {
     const show = tokenInput.type === 'password';
     tokenInput.type = show ? 'text' : 'password';
     toggleBtn.innerHTML = show ? '&#9673;' : '&#9678;';
-  });
+  };
+  toggleBtn.addEventListener('click', onToggleTokenVisibilityClick);
 
-  document.getElementById('complexity_down').addEventListener('click', () => {
+  const onComplexityDecrement = () => {
     if (comp > 1) { comp--; complexityVal.textContent = comp; complexityDesc.textContent = COMPLEXITY_DESC[comp]; }
-  });
+  };
+  document.getElementById('complexity_down').addEventListener('click', onComplexityDecrement);
 
-  document.getElementById('complexity_up').addEventListener('click', () => {
+  const onComplexityIncrement = () => {
     if (comp < 3) { comp++; complexityVal.textContent = comp; complexityDesc.textContent = COMPLEXITY_DESC[comp]; }
-  });
+  };
+  document.getElementById('complexity_up').addEventListener('click', onComplexityIncrement);
 
-  document.getElementById('comment_level_down').addEventListener('click', () => {
+  const onCommentLevelDecrement = () => {
     if (cmt > 1) { cmt--; commentVal.textContent = cmt; commentDesc.textContent = COMMENT_LEVEL_DESC[cmt]; }
-  });
+  };
+  document.getElementById('comment_level_down').addEventListener('click', onCommentLevelDecrement);
 
-  document.getElementById('comment_level_up').addEventListener('click', () => {
+  const onCommentLevelIncrement = () => {
     if (cmt < 3) { cmt++; commentVal.textContent = cmt; commentDesc.textContent = COMMENT_LEVEL_DESC[cmt]; }
-  });
+  };
+  document.getElementById('comment_level_up').addEventListener('click', onCommentLevelIncrement);
 
-  saveBtn.addEventListener('click', async () => {
+  const onSaveSettingsClick = async () => {
     const tok = tokenInput.value.trim();
     if (!tok) { showStatus('API token is required', true); return; }
 
@@ -144,7 +152,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const prevLabel = saveBtn.textContent;
     saveBtn.textContent = 'Saved ✓';
-    setTimeout(() => { saveBtn.textContent = prevLabel; }, 1600);
+    const restoreSaveBtnLabel = () => { saveBtn.textContent = prevLabel; };
+    setTimeout(restoreSaveBtnLabel, 1600);
 
     statusEl.textContent = last_capture ? `Last capture: ${last_capture}` : '';
     statusEl.className = 'status ok';
@@ -173,7 +182,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         body: JSON.stringify({ value: cmt }),
       });
     } catch {}
-  });
+  };
+  saveBtn.addEventListener('click', onSaveSettingsClick);
 
   // ── Response style pills ───────────────────────────────────────────────────
   const stylePills = document.querySelectorAll('.pill');
@@ -184,8 +194,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   applyStyleUI(activeStyle);
 
-  stylePills.forEach(pill => {
-    pill.addEventListener('click', async () => {
+  const attachStylePillListener = pill => {
+    const onStylePillClick = async () => {
       const style = pill.dataset.style;
       if (style === activeStyle) return;
       activeStyle = style;
@@ -200,8 +210,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           body: JSON.stringify({ style }),
         });
       } catch {}
-    });
-  });
+    };
+    pill.addEventListener('click', onStylePillClick);
+  };
+  stylePills.forEach(attachStylePillListener);
 
   const grantMicBtn  = document.getElementById('grant_mic');
   const micSelect    = document.getElementById('mic-select');
@@ -283,13 +295,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function populateMicDevices(selectedId) {
     const inputs = await enumerateDevices();
     micSelect.innerHTML = '<option value="">Default microphone</option>';
-    inputs.forEach((d, i) => {
+    const appendMicOption = (d, i) => {
       const opt = document.createElement('option');
       opt.value       = d.deviceId;
       opt.textContent = d.label || `Microphone ${i + 1}`;
       if (d.deviceId === selectedId) opt.selected = true;
       micSelect.appendChild(opt);
-    });
+    };
+    inputs.forEach(appendMicOption);
   }
 
   async function initMicSection() {
@@ -317,30 +330,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  micTestBtn.addEventListener('click', async () => {
+  const onMicTestClick = async () => {
     if (_mic.testing) {
       stopMicPreview();
     } else {
       const { mic_device_id } = await chrome.storage.local.get(['mic_device_id']);
       await startMicPreview(mic_device_id || null);
     }
-  });
+  };
+  micTestBtn.addEventListener('click', onMicTestClick);
 
-  micSelect.addEventListener('change', async () => {
+  const onMicDeviceChange = async () => {
     const deviceId = micSelect.value || '';
     await chrome.storage.local.set({ mic_device_id: deviceId });
     if (_mic.testing) await startMicPreview(deviceId || null);
-  });
+  };
+  micSelect.addEventListener('change', onMicDeviceChange);
 
-  grantMicBtn.addEventListener('click', () => {
+  const onGrantMicClick = () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('grant-mic.html') });
-  });
+  };
+  grantMicBtn.addEventListener('click', onGrantMicClick);
 
   window.addEventListener('unload', stopMicPreview);
 
   initMicSection();
 
-  chrome.storage.onChanged.addListener((changes) => {
+  const onStorageChangedForStatus = (changes) => {
     if (changes.last_capture) showStatus(`Last capture: ${changes.last_capture.newValue}`);
     if (changes.last_error?.newValue) showStatus(changes.last_error.newValue, true);
     if (changes.enabled !== undefined) {
@@ -352,14 +368,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (changes.last_disabled_press) {
-      chrome.storage.local.get(['hotkey_toggle', 'hotkey_capture'], (r) => {
+      chrome.storage.local.get(['hotkey_toggle', 'hotkey_capture'], function onHotkeySettingsLoaded(r) {
         // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync.
         const toggle  = r.hotkey_toggle  || 'Ctrl+Shift+1';
         const capture = r.hotkey_capture || 'Ctrl+Shift+6';
         showStatus(`Assistant not started. Press ${toggle} to start, then ${capture} to capture.`, true);
       });
     }
-  });
+  };
+  chrome.storage.onChanged.addListener(onStorageChangedForStatus);
 
   // ── Replay section ────────────────────────────────────────────────────────
   const replaySection   = document.getElementById('replay-section');
@@ -384,7 +401,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // change would live only in chrome.storage.local and get clobbered the next time anything
   // (e.g. opening Settings) re-syncs account settings down from the server.
   function syncReplayWindowToServer(secs) {
-    chrome.storage.local.get(['server_url', 'api_token'], ({ server_url: url, api_token: tok }) => {
+    chrome.storage.local.get(['server_url', 'api_token'], function onReplayWindowSettingsLoaded({ server_url: url, api_token: tok }) {
       if (!tok) return;
       fetch(`${url}/api/settings/replay-window`, {
         method: 'POST',
@@ -406,7 +423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Live-update if the setting changes while the popup happens to be open
   // (e.g. toggled on Settings in another tab) — otherwise this only ever
   // reflects whatever was true the moment the popup was opened.
-  chrome.storage.onChanged.addListener((changes, area) => {
+  const onStorageChangedForReplay = (changes, area) => {
     if (area !== 'local') return;
     if (changes.replay_enabled) {
       replaySection.style.display = changes.replay_enabled.newValue ? 'flex' : 'none';
@@ -414,20 +431,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (changes.replay_seconds) {
       updateReplayWindowUI(changes.replay_seconds.newValue || 15);
     }
-  });
+  };
+  chrome.storage.onChanged.addListener(onStorageChangedForReplay);
 
   // 'input' fires continuously while dragging — keep local storage current (background.js
   // reads it fresh whenever the lock button is pressed) without hammering the server.
-  replaySlider.addEventListener('input', () => {
+  const onReplaySliderInput = () => {
     const clamped = updateReplayWindowUI(replaySlider.value);
     chrome.storage.local.set({ replay_seconds: clamped });
-  });
+  };
+  replaySlider.addEventListener('input', onReplaySliderInput);
 
   // 'change' fires once the drag settles — that's when it's worth a network round trip.
-  replaySlider.addEventListener('change', () => {
+  const onReplaySliderChange = () => {
     const clamped = updateReplayWindowUI(replaySlider.value);
     syncReplayWindowToServer(clamped);
-  });
+  };
+  replaySlider.addEventListener('change', onReplaySliderChange);
 
   function applyReplayStatus(status) {
     if (!status) return;
@@ -462,23 +482,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Restore persisted status (local is accessible from both popup and content scripts)
-  chrome.storage.local.get(['replay_status'], ({ replay_status }) => {
+  chrome.storage.local.get(['replay_status'], function onReplayStatusLoaded({ replay_status }) {
     applyReplayStatus(replay_status);
   });
 
   // Live updates from background
-  chrome.runtime.onMessage.addListener((msg) => {
+  const onRuntimeMessage = (msg) => {
     if (msg.type === 'replay-status') applyReplayStatus(msg);
-  });
+  };
+  chrome.runtime.onMessage.addListener(onRuntimeMessage);
 
-  lockBtn.addEventListener('click', async () => {
+  const onLockReplayTabClick = async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (!tab) return;
     const { replay_seconds: secs } = await chrome.storage.local.get(['replay_seconds']);
     chrome.runtime.sendMessage({ type: 'replay-lock', tabId: tab.id, windowSec: secs || 10 });
-  });
+  };
+  lockBtn.addEventListener('click', onLockReplayTabClick);
 
-  unlockBtn.addEventListener('click', () => {
+  const onUnlockReplayTabClick = () => {
     chrome.runtime.sendMessage({ type: 'replay-unlock' });
-  });
+  };
+  unlockBtn.addEventListener('click', onUnlockReplayTabClick);
 });

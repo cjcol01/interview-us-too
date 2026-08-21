@@ -11,14 +11,15 @@ def register(test, skip, client):
     # ── Typing hotkey defaults ───────────────────────────────────────────────
 
     def test_typing_hotkey_default():
+        # Hotkeys are now static defaults (manifest commands); /api/me no longer returns them.
+        # Test that _user_hotkeys always returns the correct default regardless of user state.
         db = SessionLocal()
         try:
             u = make_user(db, AccountLevel.trial)
-            assert u.hotkey_typing is None
             assert _user_hotkeys(u)["typing"] == HOTKEY_DEFAULTS["typing"]
             r = client.get("/api/me", headers={"Authorization": f"Bearer {u.api_token}"})
             assert r.status_code == 200
-            assert r.json()["hotkeys"]["typing"] == HOTKEY_DEFAULTS["typing"]
+            assert "hotkeys" not in r.json()
         finally:
             cleanup(db, u)
             db.close()

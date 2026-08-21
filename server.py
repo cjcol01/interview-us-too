@@ -567,20 +567,9 @@ _TRIAL_SCREENSHOT_NOTE = (
 )
 
 
-class HotkeySettings(BaseModel):
-    capture: str
-    audio:   str
-    toggle:  str
-    replay:  str
-    typing:  str
-
-
-# Laid out so the five keys run 6-7-8-9-0 left to right in the order you'd reach for them.
-# The `hotkey_*` columns are nullable and NULL means "use the default" (see _user_hotkeys), so
-# changing these moves every user who never set their own — which is intended. Anyone who picked
-# their own keys has them stored and is unaffected.
-# Duplicated, unavoidably, in extension/content.js, extension/popup.js and templates/settings.html
-# (the extension can't import from here) — keep all four in sync.
+# Default hotkeys — defined in extension/manifest.json commands; users can rebind at
+# chrome://extensions/shortcuts. Kept here so templates can show the defaults as a reference.
+# Duplicated in manifest.json — keep both in sync.
 HOTKEY_DEFAULTS = {"toggle": "Ctrl+Shift+1", "capture": "Ctrl+Shift+6", "audio": "Ctrl+Shift+7", "replay": "Ctrl+Shift+8", "typing": "Ctrl+Shift+9"}
 
 REPLAY_SECONDS_MIN = 10
@@ -842,14 +831,10 @@ async def _compress_context_text(raw: str, max_chars: int = CONTEXT_TEXT_MAX_LEN
     return name, text
 
 
-def _user_hotkeys(user) -> dict:
-    return {
-        "capture": user.hotkey_capture or HOTKEY_DEFAULTS["capture"],
-        "audio":   user.hotkey_audio   or HOTKEY_DEFAULTS["audio"],
-        "toggle":  user.hotkey_toggle  or HOTKEY_DEFAULTS["toggle"],
-        "replay":  user.hotkey_replay  or HOTKEY_DEFAULTS["replay"],
-        "typing":  user.hotkey_typing  or HOTKEY_DEFAULTS["typing"],
-    }
+def _user_hotkeys(user=None) -> dict:
+    # Hotkeys are now managed via manifest commands / chrome://extensions/shortcuts.
+    # User-stored customisations in the DB are no longer applied — always return defaults.
+    return dict(HOTKEY_DEFAULTS)
 
 
 def _user_response_style(user) -> ResponseStyle:
@@ -5641,7 +5626,6 @@ async def api_me(request: Request, user: User = Depends(get_user_by_token)):
     r = request.app.state.redis
     return {
         "account_level": user.account_level.value,
-        "hotkeys": _user_hotkeys(user),
         "typing_passthrough": user.typing_passthrough,
         "typing_preview": user.typing_preview,
         "replay": {"enabled": user.replay_enabled, "seconds": user.replay_seconds},
@@ -5683,16 +5667,6 @@ def set_style_token(data: ResponseStyleRequest, user: User = Depends(get_user_by
     db.commit()
     return {"status": "ok", "style": data.style.value}
 
-
-@app.post("/api/settings/hotkeys")
-def save_hotkeys(data: HotkeySettings, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    user.hotkey_capture = data.capture
-    user.hotkey_audio   = data.audio
-    user.hotkey_toggle  = data.toggle
-    user.hotkey_replay  = data.replay
-    user.hotkey_typing  = data.typing
-    db.commit()
-    return {"status": "ok"}
 
 
 class PassthroughSetting(BaseModel):

@@ -11,8 +11,9 @@
 - [ ] lets users go back to onboarding from support/ settings
 - [ ] If skip onboarding, prompt users to go back to it after payment
 - [ ] check card details saved copy, os intercepted, undetectable language
-
-
+- [ ] set up a Google tag https://analytics.google.com/analytics/web/?authuser=1#/a405487187p551032623/admin/streams/table/15478129816?isInitialSetup=true
+- [ ] make larger font on web store images
+- [ ] cookie blocked by dark mode flag on landing
 ## Now
 - [ ] add log file for errors on /admin to railway. check why they werent showing
 - [x]  Cloudflare Access for admin pages at cdn level

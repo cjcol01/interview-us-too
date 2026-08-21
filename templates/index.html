@@ -363,7 +363,7 @@ The team actively read these and work on issues found."></textarea>
         </div>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Voice capture</span>
-          <span class="hk-ref-desc">Hold - send yours or the interviewer's question</span>
+          <span class="hk-ref-desc">Press to start/stop — sends yours or the interviewer's question</span>
           <span class="hk-ref-key" id="hkref-audio"></span>
         </div>
         <div class="hk-ref-row">
@@ -374,7 +374,7 @@ The team actively read these and work on issues found."></textarea>
         <div class="hk-ref-row">
           <span class="hk-ref-label">Typing mode</span>
           <span class="hk-ref-desc">Tap to type, Enter or tap again to send</span>
-          <span class="hk-ref-key" id="hkref-typing"></span>
+          <span class="hk-ref-key" id="hkref-typing"><span id="hkref-typing-notset" style="font-size:12px;color:var(--text-3);font-weight:normal;letter-spacing:0;">Not set — <span class="hk-copy-chip" onclick="copyExtShortcutsUrl()" title="Click to copy — paste into a new tab"><span class="hk-copy-chip-label">set in shortcuts</span><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></span></span>
         </div>
       </div>
       <a href="/settings#hotkeys" class="hk-ref-edit">Edit hotkeys →</a>
@@ -819,12 +819,10 @@ The team actively read these and work on issues found."></textarea>
       document.getElementById('session-warn-bar').classList.remove('visible');
       document.getElementById('session-over-overlay').classList.add('visible');
       _iaHideButton();
-      document.dispatchEvent(new CustomEvent('scap:suppress-hotkeys', { detail: { suppress: true } }));
     }
 
     function sessionOverStartNew() {
       document.getElementById('session-over-overlay').classList.remove('visible');
-      document.dispatchEvent(new CustomEvent('scap:suppress-hotkeys', { detail: { suppress: false } }));
     }
 
     async function initPaidSession() {
@@ -863,6 +861,29 @@ The team actively read these and work on issues found."></textarea>
 
     const _serverHotkeys = window.MI_HOTKEYS;
 
+    function copyExtShortcutsUrl() {
+      const url = 'chrome://extensions/shortcuts';
+      const labelEl = document.querySelector('.hk-copy-chip-label');
+      const orig = labelEl ? labelEl.textContent : '';
+      const _show = () => {
+        if (labelEl) labelEl.textContent = 'Copied! paste into a new tab';
+        setTimeout(() => { if (labelEl) labelEl.textContent = orig; }, 4000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(_show).catch(() => _extFallback(url, _show));
+      } else {
+        _extFallback(url, _show);
+      }
+    }
+    function _extFallback(text, cb) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { if (document.execCommand('copy')) cb(); } finally { document.body.removeChild(ta); }
+    }
+
     function renderHotkey(hotkey) {
       const isMac = /Mac/.test(navigator.platform);
       return hotkey.split('+').map(part => {
@@ -880,11 +901,53 @@ The team actively read these and work on issues found."></textarea>
       set('hkref-capture', hk.capture);
       set('hkref-audio', hk.audio);
       set('hkref-replay', hk.replay);
-      set('hkref-typing', hk.typing);
       set('hkref-toggle', hk.toggle);
+      // typing has no default shortcut — row is static HTML
     }
 
     applyHotkeys(_serverHotkeys);
+
+    // ── Real shortcuts from extension (overrides server defaults) ──────────
+    (function() {
+      const CMD_TO_REF = {
+        'arm':     'hkref-toggle',
+        'capture': 'hkref-capture',
+        'mic':     'hkref-audio',
+        'replay':  'hkref-replay',
+      };
+      document.addEventListener('scap:hotkeys', e => {
+        e.detail.forEach(c => {
+          const id = CMD_TO_REF[c.name];
+          if (!id || !c.shortcut) return;
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = renderHotkey(c.shortcut);
+        });
+        // Also update the disabled-toast and hint with live values
+        const byName = {};
+        e.detail.forEach(c => { byName[c.name] = c.shortcut; });
+        if (byName['arm']) {
+          const el = document.getElementById('disabled-toast-toggle');
+          if (el) el.innerHTML = renderHotkey(byName['arm']);
+        }
+        if (byName['capture']) {
+          const el = document.getElementById('disabled-toast-capture');
+          if (el) el.innerHTML = renderHotkey(byName['capture']);
+        }
+        if (byName['mic']) {
+          const hintKbd = document.getElementById('hint-kbd');
+          const isMac = /Mac/.test(navigator.platform);
+          if (hintKbd) hintKbd.textContent = isMac ? byName['mic'].replace('Ctrl', 'Cmd') : byName['mic'];
+        }
+        // Typing: show key badge when assigned, hide "Not set" chip otherwise
+        const typingEl = document.getElementById('hkref-typing');
+        const notsetEl = document.getElementById('hkref-typing-notset');
+        if (typingEl && byName['typing']) {
+          typingEl.innerHTML = renderHotkey(byName['typing']);
+        } else if (notsetEl) {
+          notsetEl.style.display = '';
+        }
+      });
+    })();
 
     connect();
     initTrial();

@@ -18,14 +18,15 @@ const _replay = {
 };
 
 // ── Message router ────────────────────────────────────────────────────────────
-chrome.runtime.onMessage.addListener((msg) => {
+const routeOffscreenMessage = (msg) => {
   if      (msg.type === 'start-recording')      startMicRecording(msg.deviceId);
   else if (msg.type === 'stop-recording')       stopMicRecording();
   else if (msg.type === 'replay-stream-id')     startReplay(msg.streamId, msg.windowSec, msg.epochMs);
   else if (msg.type === 'replay-slice')         handleReplaySlice(msg.requestId, msg.windowSec);
   else if (msg.type === 'replay-disarm')        disarmReplay();
   else if (msg.type === 'query-mic-permission') queryMicPermission();
-});
+};
+chrome.runtime.onMessage.addListener(routeOffscreenMessage);
 
 // ── Mic permission check (passive — never prompts) ────────────────────────────
 async function queryMicPermission() {
@@ -54,14 +55,14 @@ async function startMicRecording(deviceId) {
   _mic.chunks = [];
   _mic.recorder = new MediaRecorder(_mic.stream, { mimeType: 'audio/webm;codecs=opus' });
 
-  _mic.recorder.ondataavailable = (e) => {
+  _mic.recorder.ondataavailable = function onMicDataAvailable(e) {
     if (e.data.size > 0) _mic.chunks.push(e.data);
   };
 
-  _mic.recorder.onstop = () => {
+  _mic.recorder.onstop = function onMicStop() {
     const blob = new Blob(_mic.chunks, { type: 'audio/webm' });
     const reader = new FileReader();
-    reader.onloadend = () => {
+    reader.onloadend = function sendMicAudioData() {
       const base64 = reader.result.split(',')[1];
       chrome.runtime.sendMessage({ type: 'audio-data', base64, mimeType: 'audio/webm' });
     };
@@ -112,14 +113,16 @@ async function startReplay(streamId, windowSec, epochMs) {
   // Detect stream death (tab refresh, close, or navigation)
   const track = _replay.stream.getAudioTracks()[0];
   if (track) {
-    track.addEventListener('ended', () => {
-      chrome.runtime.sendMessage({ type: 'replay-stream-ended' }).catch(() => {});
-    });
+    const onReplayTrackEnded = () => {
+      chrome.runtime.sendMessage({ type: 'replay-stream-ended' }).catch(function suppressNoRecipientError() {});
+    };
+    track.addEventListener('ended', onReplayTrackEnded);
   }
 
   // Keep the service worker alive while replay is armed
   _keepAlivePort = chrome.runtime.connect({ name: 'replay-keepalive' });
-  _keepAlivePort.onDisconnect.addListener(() => { _keepAlivePort = null; });
+  const onKeepAliveDisconnect = () => { _keepAlivePort = null; };
+  _keepAlivePort.onDisconnect.addListener(onKeepAliveDisconnect);
 
   _startReplayEpoch();
   chrome.runtime.sendMessage({ type: 'replay-armed' });
@@ -133,7 +136,7 @@ function _startReplayEpoch() {
   _replay.recorder = new MediaRecorder(_replay.stream, { mimeType: 'audio/webm;codecs=opus' });
   let isFirst = true;
 
-  _replay.recorder.ondataavailable = (e) => {
+  _replay.recorder.ondataavailable = function onReplayDataAvailable(e) {
     if (e.data.size === 0) return;
     if (isFirst) {
       // First chunk = WebM init segment + first timeslice — store as epoch header
@@ -144,7 +147,7 @@ function _startReplayEpoch() {
     }
   };
 
-  _replay.recorder.onstop = () => {
+  _replay.recorder.onstop = function onReplayEpochStop() {
     clearTimeout(_replay.rotateTimer);
     _replay.rotateTimer = null;
     if (_replay.disarming) {
@@ -157,11 +160,12 @@ function _startReplayEpoch() {
   _replay.recorder.start(250);
 
   // Rotate epoch every epochMs to keep epochs self-contained
-  _replay.rotateTimer = setTimeout(() => {
+  const rotateReplayEpoch = () => {
     if (_replay.recorder && _replay.recorder.state !== 'inactive') {
       _replay.recorder.stop();
     }
-  }, _replay.epochMs);
+  };
+  _replay.rotateTimer = setTimeout(rotateReplayEpoch, _replay.epochMs);
 }
 
 function handleReplaySlice(requestId, windowSec) {
@@ -197,7 +201,7 @@ function handleReplaySlice(requestId, windowSec) {
 
   const blob = new Blob(blobs, { type: 'audio/webm' });
   const reader = new FileReader();
-  reader.onloadend = () => {
+  reader.onloadend = function sendReplaySliceResult() {
     const base64 = reader.result.split(',')[1];
     chrome.runtime.sendMessage({ type: 'replay-slice-result', requestId, base64, mimeType: 'audio/webm' });
   };
@@ -223,7 +227,7 @@ function _replayCleanup() {
   _replay.rotateTimer = null;
   _replay.disarming   = false;
   if (_replay.src)    { _replay.src.disconnect(); _replay.src = null; }
-  if (_replay.ctx)    { _replay.ctx.close().catch(() => {}); _replay.ctx = null; }
+  if (_replay.ctx)    { _replay.ctx.close().catch(function suppressAudioContextCloseError() {}); _replay.ctx = null; }
   if (_replay.stream) { _replay.stream.getTracks().forEach(t => t.stop()); _replay.stream = null; }
 }
 

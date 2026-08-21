@@ -609,8 +609,8 @@ def register(test, skip, client):
             assert r.status_code == 200
             body = r.json()
             assert body["account_level"] == AccountLevel.trial.value
-            assert "hotkeys" in body
-            assert "capture" in body["hotkeys"]
+            # Hotkeys removed from /api/me — now managed via manifest commands.
+            assert "hotkeys" not in body
         finally:
             db.close()
             delete_by_name(uname)
@@ -668,7 +668,7 @@ def register(test, skip, client):
     test("/verify-pending redirects verified user to /app",   test_verify_pending_redirects_verified_user)
     test("Resend verification ok for unverified user",        test_resend_verification_ok_for_unverified)
     test("Resend verification 400 for already verified",      test_resend_verification_400_for_already_verified)
-    test("/api/me returns account_level + hotkeys",           test_api_me_returns_account_level_and_hotkeys)
+    test("/api/me returns account_level (hotkeys removed)",   test_api_me_returns_account_level_and_hotkeys)
 
     # -- GET /verify (email verification) ------------------------------------
 

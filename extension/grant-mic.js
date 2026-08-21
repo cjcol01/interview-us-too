@@ -16,7 +16,7 @@ function requestMic() {
   statusEl.className = 'status';
 
   navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-    .then(stream => {
+    .then(function onMicGranted(stream) {
       stream.getTracks().forEach(t => t.stop());
       deniedHelp.classList.add('hidden');
       statusEl.textContent = 'Permission granted — you can close this tab.';
@@ -26,9 +26,9 @@ function requestMic() {
       // and it means any open /onboarding or /app tab flips to "granted" while this tab is
       // still on screen instead of only once it regains focus.
       chrome.runtime.sendMessage({ type: 'mic-permission-result', state: 'granted' });
-      setTimeout(() => window.close(), 1500);
+      setTimeout(function closeTabAfterDelay() { window.close(); }, 1500);
     })
-    .catch(e => {
+    .catch(function onMicDenied(e) {
       statusEl.textContent = 'Denied: ' + e.message;
       statusEl.className = 'status err';
       // Blocked outright (vs. e.g. no mic device found) — this is almost always because the
@@ -48,29 +48,31 @@ retryBtn.addEventListener('click', requestMic);
 // remember to click "Refresh" after fixing the setting in chrome://settings. Scoped to only
 // fire while the denied-help flow is showing, so it doesn't re-prompt after success (the tab
 // is already closing) or spam getUserMedia on every tab switch for unrelated error types.
-document.addEventListener('visibilitychange', () => {
+function handleVisibilityChange() {
   if (document.visibilityState === 'visible' && !deniedHelp.classList.contains('hidden')) {
     requestMic();
   }
-});
+}
+document.addEventListener('visibilitychange', handleVisibilityChange);
 
 // chrome:// URLs can't be linked to directly from a page — Chrome silently refuses to
 // navigate to them — so this is copy-to-clipboard instead of a real <a href>.
 const settingsUrl = 'chrome://settings/content/siteDetails?site='
   + encodeURIComponent('chrome-extension://' + chrome.runtime.id + '/');
 
-copyBtn.addEventListener('click', () => {
-  navigator.clipboard.writeText(settingsUrl).then(() => {
+function handleCopyClick() {
+  navigator.clipboard.writeText(settingsUrl).then(function onCopySuccess() {
     const original = copyBtn.textContent;
     copyBtn.textContent = '✓ Copied — paste into a new tab';
     copyBtn.classList.add('copied');
-    setTimeout(() => { copyBtn.textContent = original; copyBtn.classList.remove('copied'); }, 2000);
+    setTimeout(function restoreCopyButton() { copyBtn.textContent = original; copyBtn.classList.remove('copied'); }, 2000);
   });
-});
+}
+copyBtn.addEventListener('click', handleCopyClick);
 
 // server_url is only known once the extension's been connected to an account — if this fires
 // before that (unlikely, but possible on a very fresh install) the link just stays hidden.
-chrome.storage.local.get(['server_url'], ({ server_url }) => {
+chrome.storage.local.get(['server_url'], function onServerUrlLoaded({ server_url }) {
   if (!server_url) return;
   const supportLink = document.getElementById('support-link');
   supportLink.href = server_url.replace(/\/$/, '') + '/support#issue-1';

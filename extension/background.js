@@ -22,15 +22,8 @@ async function fetchAccountLevel() {
     if (resp.ok) {
       const data = await resp.json();
       await chrome.storage.local.set({ is_unlimited: data.account_level === 'unlimited' });
-      if (data.hotkeys) {
-        await chrome.storage.local.set({
-          hotkey_capture: data.hotkeys.capture,
-          hotkey_audio:   data.hotkeys.audio,
-          hotkey_toggle:  data.hotkeys.toggle,
-          hotkey_replay:  data.hotkeys.replay,
-          hotkey_typing:  data.hotkeys.typing,
-        });
-      }
+      // Hotkeys are now managed via chrome://extensions/shortcuts (manifest commands).
+      // We no longer sync them from the server.
       if (data.typing_passthrough != null) await chrome.storage.local.set({ typing_passthrough: data.typing_passthrough });
       if (data.typing_preview != null) await chrome.storage.local.set({ typing_preview: data.typing_preview });
       if (data.replay) {
@@ -130,12 +123,12 @@ async function openGrantMicTab() {
   } catch {}
   if (existing.length) {
     const tab = existing[0];
-    chrome.tabs.update(tab.id, { active: true }).catch(() => {
+    chrome.tabs.update(tab.id, { active: true }).catch(function fallbackCreateGrantTab() {
       chrome.tabs.create({ url }).catch(() => {});
     });
     if (tab.windowId) chrome.windows.update(tab.windowId, { focused: true }).catch(() => {});
   } else {
-    chrome.tabs.create({ url }).catch((e) => {
+    chrome.tabs.create({ url }).catch(function logGrantTabCreateError(e) {
       console.error('[scap] openGrantMicTab: tabs.create failed', e);
     });
   }
@@ -181,13 +174,15 @@ function updateIcon(enabled) {
   }).catch(() => {});
 }
 
-chrome.storage.onChanged.addListener((changes) => {
+function handleEnabledStorageChange(changes) {
   if (changes.enabled !== undefined) {
     updateIcon(changes.enabled.newValue ?? false);
   }
-});
+}
+chrome.storage.onChanged.addListener(handleEnabledStorageChange);
 
-chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?? false));
+const initializeIcon = ({ enabled }) => updateIcon(enabled ?? false);
+chrome.storage.local.get(['enabled']).then(initializeIcon);
 
 // ---------------------------------------------------------------------------
 // Audio capture (hold the audio hotkey to record, release to send)
@@ -196,6 +191,11 @@ chrome.storage.local.get(['enabled']).then(({ enabled }) => updateIcon(enabled ?
 let _audioActive = false;
 let _stopPending = false;
 let _offscreenReadyResolve = null;
+let _micHoldTimer = null;  // timer ID for hold-to-talk release detection (see mic command handler)
+
+// Shared deferred-promise executor: stores the resolve fn so the 'offscreen-ready'
+// message handler can fulfill the promise once the document signals it is ready.
+function captureOffscreenReady(resolve) { _offscreenReadyResolve = resolve; }
 
 let _micState    = 'unknown';
 let _replayState = 'idle';
@@ -241,13 +241,15 @@ const _replayPending = {};   // requestId → resolve fn
 // survives an SW restart, so 'armed'/'arming' left in storage would be a lie.
 // But preserve terminal 'stream-ended'/'error' states: those drive the "replay
 // lost" warning that tells the user to re-lock from the extension popup.
-chrome.storage.local.get(['replay_status']).then(({ replay_status }) => {
+function clearStaleReplayStatus({ replay_status }) {
   const state = replay_status?.state;
   if (state === 'stream-ended' || state === 'error') return;
   chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
-}).catch(() => {
+}
+function resetReplayStatusOnReadError() {
   chrome.storage.local.set({ replay_status: { state: 'idle' } }).catch(() => {});
-});
+}
+chrome.storage.local.get(['replay_status']).then(clearStaleReplayStatus).catch(resetReplayStatusOnReadError);
 
 function maybeCloseOffscreen() {
   if (!_replayArmed && !_audioActive) {
@@ -279,8 +281,13 @@ function handleStreamDeath() {
 // Message router
 // ---------------------------------------------------------------------------
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
-  if (msg.type === 'capture') {
+function routeMessage(msg, sender, sendResponse) {
+  if (msg.type === 'get-commands') {
+    const onCommandsFetched = (cmds) => sendResponse(cmds);
+    const sendEmptyCommandsOnError = () => sendResponse([]);
+    chrome.commands.getAll().then(onCommandsFetched).catch(sendEmptyCommandsOnError);
+    return true; // keep channel open for async response
+  } else if (msg.type === 'capture') {
     handleCapture();
   } else if (msg.type === 'toggle') {
     handleToggle(sender.tab?.id);
@@ -306,7 +313,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     _stopPending = false;
     chrome.action.setBadgeText({ text: 'ERR' });
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
-    setTimeout(() => chrome.action.setBadgeText({ text: '' }), 2000);
+    setTimeout(function clearErrorBadge() { chrome.action.setBadgeText({ text: '' }); }, 2000);
     chrome.storage.local.set({ mic_status: { state: 'error', message: msg.error } }).catch(() => {});
     if (msg.errorName === 'NotAllowedError') openGrantMicTab();
     maybeCloseOffscreen();
@@ -332,9 +339,10 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   } else if (msg.type === 'replay-armed') {
     _replayArmed = true;
     if (_replayTabId) {
-      chrome.tabs.get(_replayTabId, (tab) => {
+      const onReplayTabFetched = (tab) => {
         broadcastReplayStatus('armed', { tabTitle: tab?.title || 'Unknown tab' });
-      });
+      };
+      chrome.tabs.get(_replayTabId, onReplayTabFetched);
     } else {
       broadcastReplayStatus('armed');
     }
@@ -351,7 +359,8 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
     fetchAccountLevel();
   }
   return false;
-});
+}
+chrome.runtime.onMessage.addListener(routeMessage);
 
 // ---------------------------------------------------------------------------
 // Mic recording handlers (unchanged logic, maybeCloseOffscreen replaces unconditional close)
@@ -377,7 +386,7 @@ async function handleAudioStart() {
   });
 
   if (existing.length === 0) {
-    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    const readyPromise = new Promise(captureOffscreenReady);
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: ['USER_MEDIA'],
@@ -386,7 +395,12 @@ async function handleAudioStart() {
     await readyPromise;
   }
 
-  if (_stopPending) {
+  // Guard against a race where handleAudioStop fired while the offscreen doc was
+  // being created: it takes the main path (clears _audioActive, sends stop — which
+  // is dropped because there was no offscreen yet) without setting _stopPending.
+  // Checking !_audioActive catches that case; _stopPending catches the inverse
+  // (stop fired before _audioActive was set, i.e. the very-fast-release path).
+  if (_stopPending || !_audioActive) {
     _stopPending = false;
     _audioActive = false;
     maybeCloseOffscreen();
@@ -394,7 +408,7 @@ async function handleAudioStart() {
   }
 
   const { mic_device_id } = await chrome.storage.local.get(['mic_device_id']);
-  chrome.runtime.sendMessage({ type: 'start-recording', deviceId: mic_device_id || null });
+  chrome.runtime.sendMessage({ type: 'start-recording', deviceId: mic_device_id || null }).catch(() => {});
   chrome.action.setBadgeText({ text: 'REC' });
   chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
 }
@@ -403,7 +417,7 @@ async function handleAudioStop() {
   if (!_audioActive) { _stopPending = true; return; }
   _audioActive = false;
   chrome.action.setBadgeText({ text: '' });
-  chrome.runtime.sendMessage({ type: 'stop-recording' });
+  chrome.runtime.sendMessage({ type: 'stop-recording' }).catch(() => {});
 }
 
 // ── Passive mic-permission check (for the /app status dot) ─────────────────────
@@ -420,7 +434,7 @@ async function checkMicPermission() {
     documentUrls: [chrome.runtime.getURL('offscreen.html')],
   });
   if (existing.length === 0) {
-    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    const readyPromise = new Promise(captureOffscreenReady);
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: ['USER_MEDIA'],
@@ -428,7 +442,7 @@ async function checkMicPermission() {
     });
     await readyPromise;
   }
-  chrome.runtime.sendMessage({ type: 'query-mic-permission' });
+  chrome.runtime.sendMessage({ type: 'query-mic-permission' }).catch(() => {});
   } finally {
     _micCheckInProgress = false;
   }
@@ -495,13 +509,14 @@ function queueTypingPreview(text) {
   _previewText = text;
   if (_previewTimer) return;
   const wait = Math.max(0, TYPING_PREVIEW_MS - (Date.now() - _previewLastSent));
-  _previewTimer = setTimeout(() => {
+  function flushTypingPreview() {
     _previewTimer = null;
     const pending = _previewText;
     _previewText = null;
     _previewLastSent = Date.now();
     sendTypingPreview(pending);
-  }, wait);
+  }
+  _previewTimer = setTimeout(flushTypingPreview, wait);
 }
 
 async function sendTypingPreview(text) {
@@ -610,7 +625,7 @@ async function handleReplayLock(tabId, windowSec) {
   }
 
   if (needCreate) {
-    const readyPromise = new Promise(resolve => { _offscreenReadyResolve = resolve; });
+    const readyPromise = new Promise(captureOffscreenReady);
     await chrome.offscreen.createDocument({
       url: 'offscreen.html',
       reasons: ['USER_MEDIA'],
@@ -630,7 +645,7 @@ async function handleReplayLock(tabId, windowSec) {
     return;
   }
 
-  chrome.runtime.sendMessage({ type: 'replay-stream-id', streamId, windowSec, epochMs: 60_000 });
+  chrome.runtime.sendMessage({ type: 'replay-stream-id', streamId, windowSec, epochMs: 60_000 }).catch(() => {});
 }
 
 async function handleReplayUnlock() {
@@ -656,9 +671,10 @@ async function handleReplayTrigger(senderTabId) {
   const windowSec = replay_seconds || _replayWindowSec;
 
   const requestId = Math.random().toString(36).slice(2);
-  const dataPromise = new Promise(resolve => { _replayPending[requestId] = resolve; });
+  function captureReplaySliceResolve(resolve) { _replayPending[requestId] = resolve; }
+  const dataPromise = new Promise(captureReplaySliceResolve);
 
-  chrome.runtime.sendMessage({ type: 'replay-slice', requestId, windowSec });
+  chrome.runtime.sendMessage({ type: 'replay-slice', requestId, windowSec }).catch(() => {});
 
   const { base64, mimeType } = await dataPromise;
   if (!base64) {
@@ -691,19 +707,22 @@ async function handleReplayTrigger(senderTabId) {
 }
 
 // Hold the SW alive while the offscreen doc has an open port
-chrome.runtime.onConnect.addListener((port) => {
+function onKeepalivePortDisconnect() {}
+function handlePortConnect(port) {
   if (port.name === 'replay-keepalive') {
-    port.onDisconnect.addListener(() => {});
+    port.onDisconnect.addListener(onKeepalivePortDisconnect);
   }
-});
+}
+chrome.runtime.onConnect.addListener(handlePortConnect);
 
 // Detect locked tab being closed
-chrome.tabs.onRemoved.addListener((tabId) => {
+function handleTabRemoved(tabId) {
   if (tabId === _replayTabId) handleStreamDeath();
-});
+}
+chrome.tabs.onRemoved.addListener(handleTabRemoved);
 
 // Detect locked tab navigating to a different origin (privacy guard)
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+function handleTabUpdated(tabId, changeInfo, tab) {
   if (tabId !== _replayTabId || !_replayArmed) return;
   if (changeInfo.status !== 'loading') return;
   try {
@@ -712,20 +731,21 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const newOrigin = new URL(currentUrl).origin;
     if (_replayTabOrigin && newOrigin !== _replayTabOrigin) handleStreamDeath();
   } catch {}
-});
+}
+chrome.tabs.onUpdated.addListener(handleTabUpdated);
 
 // Storage-based trigger for opening the mic-grant tab from content scripts.
 // More reliable than sendMessage because storage writes always wake the service worker,
 // whereas sendMessage can be silently dropped during a sleep/wake transition.
-chrome.storage.onChanged.addListener((changes, area) => {
+function handleMicGrantStorageSignal(changes, area) {
   if (area === 'local' && changes._open_mic_grant_ts) openGrantMicTab();
-});
+}
+chrome.storage.onChanged.addListener(handleMicGrantStorageSignal);
 
 
-// One-time migration: when hotkey defaults change (bump HOTKEY_VERSION), clear any
-// cached hotkey values from storage so stale defaults don't override the new ones.
-// fetchAccountLevel() repopulates from the server; until it returns, code defaults apply.
-const HOTKEY_VERSION = 3;
+// One-time migration: v4 removes server-synced hotkeys (now managed via manifest commands /
+// chrome://extensions/shortcuts). Clear any stale hotkey_* keys left over from v1-v3.
+const HOTKEY_VERSION = 4;
 async function migrateHotkeys() {
   const { hotkey_version } = await chrome.storage.local.get(['hotkey_version']);
   if (hotkey_version === HOTKEY_VERSION) return;
@@ -734,15 +754,63 @@ async function migrateHotkeys() {
   ]);
   await chrome.storage.local.set({ hotkey_version: HOTKEY_VERSION });
 }
+
+// ---------------------------------------------------------------------------
+// Manifest command listener — replaces content-script keydown detection.
+// Hotkeys are defined in manifest.json and configured by users at
+// chrome://extensions/shortcuts. Commands grant activeTab on press, so
+// captureVisibleTab works without <all_urls> host permission.
+// ---------------------------------------------------------------------------
+
+// _execute_action is handled by Chrome itself — it opens the popup (clicking the icon).
+// All hotkey commands are intercepted here; toggle now has its own named command so
+// Ctrl+Shift+1 toggles directly without opening the popup.
+function clearMicDebounce() { _micHoldTimer = null; handleAudioStop(); }
+async function handleCommand(command) {
+  if (command === 'arm') {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    handleToggle(tab?.id);
+  } else if (command === 'capture') {
+    handleCapture();
+  } else if (command === 'mic') {
+    // Hold-to-talk: hold the key to record, release to send.
+    // chrome.commands has no keyup event, so release is inferred from the key-repeat
+    // stream: Chrome fires onCommand ~10×/sec while the key is held. Each fire resets
+    // a 300ms timer; when the fires stop (key released), the timer expires and stops
+    // recording. First fire starts recording and arms the timer.
+    if (_audioActive) {
+      // Key still held — push the release timer forward.
+      clearTimeout(_micHoldTimer);
+      _micHoldTimer = setTimeout(clearMicDebounce, 300);
+    } else {
+      // First press — arm the release timer then start recording.
+      _micHoldTimer = setTimeout(clearMicDebounce, 300);
+      handleAudioStart();
+    }
+  } else if (command === 'replay') {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    handleReplayTrigger(tab?.id);
+  } else if (command === 'typing') {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (tab?.id) {
+      // Content script (interview-wise.com only) owns the typing buffer — tell it to toggle.
+      chrome.tabs.sendMessage(tab.id, { type: 'typing-command' }).catch(() => {});
+    }
+  }
+}
+chrome.commands.onCommand.addListener(handleCommand);
+
 // Seed the prod server URL on first install. For local dev, override via DevTools console:
 //   chrome.storage.local.set({ server_url: 'http://127.0.0.1:8000' })
-chrome.storage.local.get(['server_url'], ({ server_url }) => {
+function seedServerUrl({ server_url }) {
   if (!server_url) {
     chrome.storage.local.set({ server_url: 'https://interview-wise.com' });
   }
-});
+}
+chrome.storage.local.get(['server_url'], seedServerUrl);
 
-migrateHotkeys().then(() => fetchAccountLevel());
+const onHotkeysMigrated = () => fetchAccountLevel();
+migrateHotkeys().then(onHotkeysMigrated);
 
 // Broadcast initial ext status to the server so all connected devices (e.g. mobile)
 // see the correct dot states immediately on load, then keep it fresh via heartbeat.
@@ -751,14 +819,15 @@ migrateHotkeys().then(() => fetchAccountLevel());
 let _heartbeatId = null;
 function ensureHeartbeat() {
   if (_heartbeatId) return;
-  chrome.storage.local.get(['server_url', 'api_token'], ({ server_url, api_token }) => {
+  function startHeartbeatIfConfigured({ server_url, api_token }) {
     if (server_url && api_token && !_heartbeatId) {
       _heartbeatId = setInterval(sendExtStatus, 30_000);
     }
-  });
+  }
+  chrome.storage.local.get(['server_url', 'api_token'], startHeartbeatIfConfigured);
 }
 
-chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status }) => {
+function onInitialStateLoaded({ enabled, mic_status }) {
   _extEnabled = !!enabled;
   if (mic_status?.state) _micState = mic_status.state;
   sendExtStatus();
@@ -766,9 +835,11 @@ chrome.storage.local.get(['enabled', 'mic_status']).then(({ enabled, mic_status 
   // storage will produce one — ask once, or the dashboard shows "unknown" indefinitely.
   if (!mic_status?.state || mic_status.state === 'unknown') checkMicPermission();
   ensureHeartbeat();
-});
+}
+chrome.storage.local.get(['enabled', 'mic_status']).then(onInitialStateLoaded);
 
 // Also start the heartbeat when the token is saved for the first time after install
-chrome.storage.onChanged.addListener((changes) => {
+function handleApiTokenStorageChange(changes) {
   if (changes.api_token) ensureHeartbeat();
-});
+}
+chrome.storage.onChanged.addListener(handleApiTokenStorageChange);

@@ -406,55 +406,32 @@
           {% endif %}
 
           <div class="settings-card">
-            <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-toggle"></span>
-                <span class="hk-label">Toggle on/off</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-toggle" onclick="recordHotkey('toggle', this)">{{ hotkey_toggle }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('toggle')">reset</button>
-              </div>
+            <div class="card-row-title" style="margin-bottom:4px;">Shortcuts</div>
+            <div class="card-row-desc" style="margin-bottom:2px;">To change or assign a shortcut, copy this address and paste it into a new tab:</div>
+            <div class="hk-copy-row" onclick="copyShortcutsUrl(this)" title="Click to copy - paste into a new tab">
+              <code>chrome://extensions/shortcuts</code>
+              <button type="button" class="hk-copy-btn">Copy</button>
             </div>
             <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-capture"></span>
-                <span class="hk-label">Screen capture</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-capture" onclick="recordHotkey('capture', this)">{{ hotkey_capture }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('capture')">reset</button>
-              </div>
+              <span class="hk-label">Toggle on/off</span>
+              <span class="hotkey-btn" id="hk-toggle" style="cursor:default" data-hk="{{ hotkey_toggle }}">{{ hotkey_toggle }}</span>
             </div>
             <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-audio"></span>
-                <span class="hk-label">Voice capture</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-audio" onclick="recordHotkey('audio', this)">{{ hotkey_audio }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('audio')">reset</button>
-              </div>
+              <span class="hk-label">Screen capture</span>
+              <span class="hotkey-btn" id="hk-capture" style="cursor:default" data-hk="{{ hotkey_capture }}">{{ hotkey_capture }}</span>
             </div>
             <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-replay"></span>
-                <span class="hk-label">Instant replay</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-replay" onclick="recordHotkey('replay', this)">{{ hotkey_replay }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('replay')">reset</button>
-              </div>
+              <span class="hk-label">Voice capture</span>
+              <span class="hotkey-btn" id="hk-audio" style="cursor:default" data-hk="{{ hotkey_audio }}">{{ hotkey_audio }}</span>
             </div>
             <div class="hk-row">
-              <div class="hk-info">
-                <span class="hk-dot" id="hk-dot-typing"></span>
-                <span class="hk-label">Typing mode</span>
-              </div>
-              <div class="hk-ctrl">
-                <button class="hotkey-btn" id="hk-typing" onclick="recordHotkey('typing', this)">{{ hotkey_typing }}</button>
-                <button class="hotkey-reset" onclick="resetHotkey('typing')">reset</button>
-              </div>
+              <span class="hk-label">Instant replay</span>
+              <span class="hotkey-btn" id="hk-replay" style="cursor:default" data-hk="{{ hotkey_replay }}">{{ hotkey_replay }}</span>
+            </div>
+            <div class="hk-row">
+              <span class="hk-label">Typing mode</span>
+              <span class="hotkey-btn" id="hk-typing" style="cursor:default;display:none"></span>
+              <span id="hk-typing-notset" style="font-size:12.5px;color:var(--text-3);">Not set — <span class="copy-chip" onclick="copyShortcutsUrl(document.querySelector('.hk-copy-row'))" title="Click to copy the shortcuts page address">set in shortcuts<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:3px;vertical-align:-1px"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span></span>
             </div>
           </div>
         </section>
@@ -1029,94 +1006,97 @@
       });
     }
 
-    // ── Hotkey recording ───────────────────────────────────────────
-    const _hotkeys = {
-      capture: '{{ hotkey_capture }}',
-      audio:   '{{ hotkey_audio }}',
-      toggle:  '{{ hotkey_toggle }}',
-      replay:  '{{ hotkey_replay }}',
-      typing:  '{{ hotkey_typing }}',
-    };
-    // Mirrors HOTKEY_DEFAULTS in server.py — keep in sync (drives the "Reset to defaults" button).
-    const _defaults = { capture: 'Ctrl+Shift+6', audio: 'Ctrl+Shift+7', replay: 'Ctrl+Shift+8', typing: 'Ctrl+Shift+9', toggle: 'Ctrl+Shift+0' };
-    let _recording = null;
-
-    function recordHotkey(action, btn) {
-      if (_recording) {
-        _recording.btn.textContent = _hotkeys[_recording.action];
-        _recording.btn.classList.remove('recording');
+    // ── Shortcuts copy-row ─────────────────────────────────────────
+    function copyShortcutsUrl(row) {
+      const text = row.querySelector('code').textContent.trim();
+      const btn  = row.querySelector('.hk-copy-btn');
+      const orig = btn.textContent;
+      const _show = () => {
+        btn.textContent = 'Copied! paste into a new tab';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 4000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(_show).catch(() => _fallback(text, _show));
+      } else {
+        _fallback(text, _show);
       }
-      _recording = { action, btn };
-      btn.textContent = 'Press keys…';
-      btn.classList.add('recording');
+    }
+    function _fallback(text, cb) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { if (document.execCommand('copy')) cb(); } finally { document.body.removeChild(ta); }
     }
 
-    function resetHotkey(action) {
-      if (_hotkeys[action] === _defaults[action]) return;
-      _hotkeys[action] = _defaults[action];
-      document.getElementById('hk-' + action).textContent = _defaults[action];
-      saveHotkeys();
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (!_recording) return;
-      if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
-      e.preventDefault();
-      if (e.key === 'Escape') {
-        _recording.btn.textContent = _hotkeys[_recording.action];
-        _recording.btn.classList.remove('recording');
-        _recording = null;
-        return;
-      }
-      if (!e.ctrlKey && !e.metaKey && !e.altKey) return;
-      const digitMatch = e.code.match(/^Digit(\d)$/);
-      const letterMatch = e.code.match(/^Key([A-Z])$/);
-      if (!digitMatch && !letterMatch) return;
-      const key = digitMatch ? digitMatch[1] : letterMatch[1];
-      const parts = [];
-      if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
-      if (e.shiftKey) parts.push('Shift');
-      if (e.altKey)   parts.push('Alt');
-      parts.push(key);
-      const hotkey = parts.join('+');
-      _hotkeys[_recording.action] = hotkey;
-      _recording.btn.textContent = hotkey;
-      _recording.btn.classList.remove('recording');
-      _recording = null;
-      saveHotkeys();
-    }, true);
-
-    // The status line is optional markup — the save must still go through without it.
-    function hkStatus(text, color) {
-      const el = document.getElementById('hk-status');
-      if (!el) return;
-      el.style.display = 'block';
-      el.style.color = color;
-      el.textContent = text;
-    }
-
-    async function saveHotkeys() {
-      hkStatus('Saving…', 'var(--text-3)');
-      try {
-        const resp = await fetch('/api/settings/hotkeys', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(_hotkeys),
+    // ── Real shortcuts from extension via chrome.commands.getAll() ──
+    // Overrides the server-rendered defaults with whatever Chrome actually has assigned
+    // (respects user customisations). Falls back silently if extension isn't present.
+    (function() {
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+                 || navigator.userAgentData?.platform === 'macOS';
+      const CMD_TO_ID = {
+        'arm':     'hk-toggle',
+        'capture': 'hk-capture',
+        'mic':     'hk-audio',
+        'replay':  'hk-replay',
+      };
+      function applyExtHotkeys(cmds) {
+        cmds.forEach(c => {
+          const id = CMD_TO_ID[c.name];
+          if (!id || !c.shortcut) return;
+          const el = document.getElementById(id);
+          if (!el) return;
+          const display = isMac ? c.shortcut.replace(/\bCtrl\b/g, 'Cmd') : c.shortcut;
+          el.textContent = display;
+          el.dataset.hk  = c.shortcut;
         });
-        if (resp.ok) {
-          document.dispatchEvent(new CustomEvent('scap:hotkeys', { detail: _hotkeys }));
-          hkStatus('Saved - active in all open tabs.', 'var(--accent)');
-        } else {
-          hkStatus('Failed to save.', 'var(--danger)');
+        // Typing mode: show key badge when assigned, "Not set" text otherwise
+        const typingCmd = cmds.find(c => c.name === 'typing');
+        const keyEl     = document.getElementById('hk-typing');
+        const notsetEl  = document.getElementById('hk-typing-notset');
+        if (keyEl && notsetEl) {
+          if (typingCmd?.shortcut) {
+            const display = isMac ? typingCmd.shortcut.replace(/\bCtrl\b/g, 'Cmd') : typingCmd.shortcut;
+            keyEl.textContent = display;
+            keyEl.dataset.hk  = typingCmd.shortcut;
+            keyEl.style.display   = '';
+            notsetEl.style.display = 'none';
+          } else {
+            keyEl.style.display   = 'none';
+            notsetEl.style.display = '';
+          }
         }
-        setTimeout(() => {
-          const el = document.getElementById('hk-status');
-          if (el) el.style.display = 'none';
-        }, 3000);
-      } catch {
-        hkStatus('Network error.', 'var(--danger)');
       }
-    }
+      document.addEventListener('scap:hotkeys', e => applyExtHotkeys(e.detail));
+      // Request on load (content script fires _sendHotkeysToPPage automatically,
+      // but dispatch a manual request too in case the timing varies).
+      document.dispatchEvent(new CustomEvent('scap:get-hotkeys'));
+
+      // Re-request when the user returns to this tab — the most common reason to
+      // leave is to open chrome://extensions/shortcuts and set the typing hotkey,
+      // so the row should update as soon as they tab back without needing a reload.
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) document.dispatchEvent(new CustomEvent('scap:get-hotkeys'));
+      });
+      window.addEventListener('focus', () => {
+        document.dispatchEvent(new CustomEvent('scap:get-hotkeys'));
+      });
+    })();
+
+    // ── Mac: show Cmd instead of Ctrl in shortcut labels ──────────
+    // Chrome extension commands: Ctrl in the manifest = ⌘ Command on Mac.
+    // Applied to server-rendered defaults; real values handled above.
+    (function() {
+      const isMac = /Mac|iPhone|iPad|iPod/.test(navigator.platform)
+                 || navigator.userAgentData?.platform === 'macOS';
+      if (!isMac) return;
+      document.querySelectorAll('[data-hk]').forEach(el => {
+        el.textContent = el.dataset.hk.replace(/\bCtrl\b/g, 'Cmd');
+      });
+    })();
   </script>
 
   <script>

@@ -1466,3 +1466,21 @@ main {
   #mobile-exit-btn { display: inline-flex; }
   #interview-done-btn { display: none !important; }
 }
+
+/* ── Typing-mode "Not set" copy chip (hotkey panel) ── */
+.hk-copy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  vertical-align: middle;
+}
+.hk-copy-chip:hover { border-color: var(--accent); }
+.hk-copy-chip svg { flex: none; opacity: .7; }

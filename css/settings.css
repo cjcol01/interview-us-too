@@ -539,6 +539,44 @@
 }
 .hotkey-reset:hover { color: var(--text-1); }
 
+/* ── Shortcuts copy-row (chrome://extensions/shortcuts) ── */
+.hk-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 16px;
+  cursor: pointer;
+}
+.hk-copy-row code {
+  flex: 1;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--card-inset);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 12px;
+  transition: border-color .15s;
+  user-select: none;
+}
+.hk-copy-row:hover code { border-color: var(--accent-line); }
+.hk-copy-btn {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 6px;
+  color: var(--accent);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background .15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.hk-copy-btn:hover { background: rgba(198,242,78,.12); }
+.hk-copy-btn.copied { background: rgba(198,242,78,.18); }
+
 /* ── Extension ── */
 .ext-connected {
   display: flex;
@@ -967,3 +1005,21 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 }
 [data-theme="light"] .ctx-date-input { color-scheme: light; }
 .ctx-date-input:focus { border-color: var(--accent); }
+
+/* ── "Not set" copy chip in the hotkeys section ── */
+.copy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  vertical-align: middle;
+}
+.copy-chip:hover { border-color: var(--accent); }
+.copy-chip svg { flex: none; opacity: .7; }
