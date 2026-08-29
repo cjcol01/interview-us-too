@@ -111,8 +111,14 @@
     }, ANSWER_MS);
     micTimer = setTimeout(() => {
       if (micSeen) return;
-      state.mic = 'unknown';
-      emit();
+      // Only downgrade to 'unknown' if we've never received a mic answer at all
+      // (state.mic === null). If the extension is present and we already have a
+      // known good state, keep it rather than flipping the dot gray because the
+      // async check (offscreen recreation + permissions query) ran over 1500ms.
+      if (state.mic === null) {
+        state.mic = 'unknown';
+        emit();
+      }
     }, ANSWER_MS);
     retryDispatch('scap:ping', () => pongSeen);
     // Mic permission is never pushed on its own — unlike ext/enabled state, nothing writes
