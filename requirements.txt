@@ -1,5 +1,5 @@
-anthropic
-openai
+anthropic==1.2.0
+openai==3.6.0
 resend
 sqlalchemy>=2.0
 psycopg2-binary

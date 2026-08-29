@@ -38,26 +38,42 @@
   //                          MutationObserver catches it rather than the
   //                          initial interval.
   (function () {
-    var isDark = document.documentElement.dataset.theme !== 'light';
-    var bg     = isDark ? '#111114' : '#ffffff';
-    var bgSub  = isDark ? '#19191D' : '#F4F4F2';  // subtler surface for inner sections
-    var border = isDark ? '1px solid rgba(255,255,255,.11)' : '1px solid rgba(28,24,14,.11)';
-    var shadow = isDark
-      ? '0 0 0 1px rgba(255,255,255,.04) inset, 0 4px 6px rgba(0,0,0,.3), 0 24px 64px rgba(0,0,0,.7)'
-      : '0 4px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12)';
-
     function set(el, prop, val) { el.style.setProperty(prop, val, 'important'); }
+
+    // Read current theme at call time so theme-swaps are always reflected.
+    function getColors() {
+      var dark = document.documentElement.dataset.theme !== 'light';
+      return {
+        isDark:        dark,
+        bg:            dark ? '#111114'                         : '#ffffff',
+        border:        dark ? '1px solid rgba(255,255,255,.11)' : '1px solid rgba(28,24,14,.11)',
+        shadow:        dark
+          ? '0 0 0 1px rgba(255,255,255,.04) inset, 0 4px 6px rgba(0,0,0,.3), 0 24px 64px rgba(0,0,0,.7)'
+          : '0 4px 6px rgba(0,0,0,.06), 0 20px 50px rgba(0,0,0,.12)',
+        textPrimary:   dark ? '#ECECEE'                    : '#211C15',
+        textSecondary: dark ? '#9C9CA6'                    : '#5C574E',
+        linkColor:     dark ? '#C6F24E'                    : '#3F6212',
+        dividerColor:  dark ? 'rgba(255,255,255,.07)'      : 'rgba(28,24,14,.09)',
+        toggleOff:     dark ? 'rgba(255,255,255,.14)'      : 'rgba(28,24,14,.14)',
+        btnAcceptBg:   dark ? '#C6F24E'                    : '#1A1A18',
+        btnAcceptFg:   dark ? '#0A0A0C'                    : '#FBFBF9',
+        btnGhostBg:    dark ? 'rgba(255,255,255,.06)'      : 'rgba(28,24,14,.05)',
+        btnGhostFg:    dark ? '#9C9CA6'                    : '#5C574E',
+        btnGhostBd:    dark ? 'rgba(255,255,255,.10)'      : 'rgba(28,24,14,.14)',
+      };
+    }
 
     // ── Banner ──────────────────────────────────────────────────────────────
     function applyBannerTheme() {
       var card = document.querySelector('#termly-code-snippet-support .t-consentPrompt');
       if (!card) return false;
 
-      set(card, 'background',       bg);
-      set(card, 'background-color', bg);
-      set(card, 'border',           border);
+      var c = getColors();
+      set(card, 'background',       c.bg);
+      set(card, 'background-color', c.bg);
+      set(card, 'border',           c.border);
       set(card, 'border-radius',    '16px');
-      set(card, 'box-shadow',       shadow);
+      set(card, 'box-shadow',       c.shadow);
 
       // Strip only inner divs that Termly gave an explicit inline background
       // (the button-wrapper box). querySelectorAll is descendants-only.
@@ -73,54 +89,162 @@
     }
 
     // ── Preferences modal ───────────────────────────────────────────────────
-    // Termly renders the preference centre inside #termly-code-snippet-support
-    // (or directly under <body>) when the user clicks "Preferences".
-    // We try several known selectors so this survives Termly class renames.
-    function applyPrefsTheme() {
-      var root = document.querySelector('#termly-code-snippet-support') || document.body;
+    // Termly renders the preference centre as a React tree inside
+    // #termly-code-snippet-support when the user clicks "Preferences".
+    // All class names are hashed — [role="alertdialog"] is the stable selector.
 
-      // Panel selectors (add more if Termly renames their classes)
-      var panel = root.querySelector('[class*="t-preference_center"]') ||
-                  root.querySelector('[class*="preference_center"]')   ||
-                  root.querySelector('[class*="t-preferences-panel"]') ||
-                  root.querySelector('[role="dialog"]:not(.t-consentPrompt)');
-      if (!panel) return;
-
-      set(panel, 'background',       bg);
-      set(panel, 'background-color', bg);
-      set(panel, 'border',           border);
-      set(panel, 'border-radius',    '16px');
-      set(panel, 'box-shadow',       shadow);
-
-      // Section headers / alternating rows inside the prefs panel often have
-      // inline background. Wipe wrappers but leave toggle-switch track elements.
-      panel.querySelectorAll('div[style*="background"], section[style*="background"]').forEach(function (el) {
-        if (el.matches('[role="switch"]')) return;  // preserve toggle tracks
-        set(el, 'background',       'transparent');
-        set(el, 'background-color', 'transparent');
-        set(el, 'border',           'none');
-        set(el, 'box-shadow',       'none');
-      });
-
-      // Backdrop / overlay that appears behind the panel
-      var backdrop = panel.parentElement && panel.parentElement.previousElementSibling;
-      if (backdrop && backdrop !== panel) {
-        set(backdrop, 'background', isDark ? 'rgba(0,0,0,.75)' : 'rgba(0,0,0,.45)');
-        set(backdrop, 'backdrop-filter', 'blur(4px)');
+    // Injected <style> tag — updated on every applyPrefsTheme() call and
+    // re-appended to <head> last, so it always wins the cascade.
+    var _prefStyle = null;
+    function _setPrefStyle(css) {
+      if (!_prefStyle) {
+        _prefStyle = document.createElement('style');
+        _prefStyle.id = 'iw-termly-prefs';
       }
+      _prefStyle.textContent = css;
+      // Re-append on every call so our tag is always the LAST stylesheet in
+      // <head>. Termly injects its React CSS bundle dynamically after our IIFE
+      // runs, pushing our rules earlier in the cascade. appendChild() on an
+      // already-mounted element moves it — no duplicate is created.
+      document.head.appendChild(_prefStyle);
+    }
+
+    function applyPrefsTheme() {
+      var c = getColors();
+      var font = "'Hanken Grotesk', system-ui, sans-serif";
+
+      // Strategy: override Termly's own CSS custom properties on the theme wrapper
+      // (direct child of #termly-code-snippet-support). Termly sets those vars as
+      // non-!important inline styles, so our !important author-stylesheet rule wins.
+      // [role="alertdialog"] is a stable, unhashed selector for the modal box.
+      // The backdrop is the PARENT of the modal (structure: backdrop > alertdialog),
+      // so --termly-theme-mask-background on the wrapper propagates into the backdrop.
+      _setPrefStyle([
+        // ── CSS custom property overrides ──────────────────────────────────────
+        // Termly's compiled CSS reads these vars for modal bg, text, buttons, mask.
+        // Targeting > div catches the theme wrapper without relying on hashed classes.
+        '#termly-code-snippet-support > div {',
+        '  --termly-theme-background-color: '        + c.bg          + ' !important;',
+        '  --termly-theme-color: '                   + c.textPrimary + ' !important;',
+        '  --termly-theme-button-background-color: ' + c.btnAcceptBg + ' !important;',
+        '  --termly-theme-button-text-color: '       + c.btnAcceptFg + ' !important;',
+        '  --termly-theme-mask-background: rgba(0,0,0,.55) !important;',
+        '}',
+
+        // ── Modal box — belt-and-braces via stable role attribute ──────────────
+        '#termly-code-snippet-support [role="alertdialog"] {',
+        '  background: '       + c.bg          + ' !important;',
+        '  background-color: ' + c.bg          + ' !important;',
+        '  color: '            + c.textPrimary + ' !important;',
+        '  border: '           + c.border      + ' !important;',
+        '  border-radius: 16px !important;',
+        '  box-shadow: '       + c.shadow      + ' !important;',
+        '  font-family: '      + font          + ' !important;',
+        '}',
+
+        // Text elements
+        '#termly-code-snippet-support [role="alertdialog"] p,',
+        '#termly-code-snippet-support [role="alertdialog"] h1,',
+        '#termly-code-snippet-support [role="alertdialog"] h2,',
+        '#termly-code-snippet-support [role="alertdialog"] h3,',
+        '#termly-code-snippet-support [role="alertdialog"] span,',
+        '#termly-code-snippet-support [role="alertdialog"] label,',
+        '#termly-code-snippet-support [role="alertdialog"] div {',
+        '  color: '       + c.textPrimary + ' !important;',
+        '  font-family: ' + font          + ' !important;',
+        '}',
+
+        // Links
+        '#termly-code-snippet-support [role="alertdialog"] a { color: ' + c.linkColor + ' !important; }',
+
+        // Dividers
+        '#termly-code-snippet-support [role="alertdialog"] [style*="border"] {',
+        '  border-color: ' + c.dividerColor + ' !important;',
+        '}',
+
+        // Toggle track (off)
+        '#termly-code-snippet-support [role="alertdialog"] [role="switch"] {',
+        '  background: '       + c.toggleOff + ' !important;',
+        '  background-color: ' + c.toggleOff + ' !important;',
+        '}',
+        // Toggle track (on)
+        '#termly-code-snippet-support [role="alertdialog"] [role="switch"][aria-checked="true"] {',
+        '  background: #C6F24E !important; background-color: #C6F24E !important;',
+        '}',
+        // Toggle thumb — white pill inside the track
+        '#termly-code-snippet-support [role="alertdialog"] [role="switch"] > span,',
+        '#termly-code-snippet-support [role="alertdialog"] [role="switch"] > div {',
+        '  background: #fff !important; background-color: #fff !important;',
+        '}',
+
+        // SVG icons — transparent background so they sit on the modal bg
+        '#termly-code-snippet-support [role="alertdialog"] svg,',
+        '#termly-code-snippet-support [role="alertdialog"] svg * {',
+        '  background: transparent !important; background-color: transparent !important;',
+        '  fill: currentColor !important;',
+        '}',
+
+        // Ghost buttons (secondary)
+        '#termly-code-snippet-support [role="alertdialog"] button {',
+        '  background: '       + c.btnGhostBg + ' !important;',
+        '  background-color: ' + c.btnGhostBg + ' !important;',
+        '  color: '            + c.btnGhostFg + ' !important;',
+        '  border: 1px solid ' + c.btnGhostBd + ' !important;',
+        '  border-radius: 9px !important; font-weight: 600 !important;',
+        '}',
+        // Primary "Accept" button — Termly marks it with an inline background
+        '#termly-code-snippet-support [role="alertdialog"] button[style*="background"] {',
+        '  background: '       + c.btnAcceptBg + ' !important;',
+        '  background-color: ' + c.btnAcceptBg + ' !important;',
+        '  color: '            + c.btnAcceptFg + ' !important;',
+        '  border: none !important;',
+        '}',
+      ].join('\n'));
     }
 
     // ── Boot ────────────────────────────────────────────────────────────────
-    // Poll until the banner is found, then switch to MutationObserver for the
-    // preferences modal (which only appears on user interaction).
+
+    // Inject prefs CSS immediately — no need to wait for the modal to open.
+    // The style tag is created now and stays in <head> permanently, always
+    // being re-appended to last position by _setPrefStyle on every call.
+    applyPrefsTheme();
+
+    var _schedulePrefs = (function () {
+      var pending = false;
+      return function () {
+        if (pending) return;
+        pending = true;
+        // rAF + setTimeout lets Termly finish its own paint before we override.
+        requestAnimationFrame(function () {
+          setTimeout(function () { pending = false; applyPrefsTheme(); }, 0);
+        });
+      };
+    }());
+
+    // Poll until the banner is found.
     var tries = 0;
     var t = setInterval(function () {
       if (applyBannerTheme() || ++tries > 60) {
         clearInterval(t);
-        var obs = new MutationObserver(function () { applyPrefsTheme(); });
-        obs.observe(document.body, { childList: true, subtree: true });
+
+        // Watch body for Termly re-renders (modal open/close, style changes).
+        // Each callback re-appends our style tag to last position so it always
+        // wins the cascade regardless of when Termly injects its own sheets.
+        var obs = new MutationObserver(function () { _schedulePrefs(); });
+        obs.observe(document.body, {
+          childList:  true,
+          subtree:    true,
+          attributes: true,
+          attributeFilter: ['class', 'style'],
+        });
       }
     }, 100);
+
+    // Re-theme both surfaces whenever the user swaps the theme toggle.
+    new MutationObserver(function () {
+      applyBannerTheme();
+      _schedulePrefs();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   }());
   </script>
   <style>

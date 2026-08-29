@@ -637,6 +637,20 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
   </div>
 </footer>
 
+<!-- Cookie banner: anchor it just above the theme-switcher pill.
+     The switcher pill is ~40px tall at bottom:24px → banner sits at bottom:76px.
+     These override Termly's own inline positioning with !important. -->
+<style>
+  #termly-code-snippet-support .t-consentPrompt {
+    bottom: 76px !important;
+    right:  24px !important;
+    left:   auto !important;
+    top:    auto !important;
+    max-width: 360px !important;
+    width:  auto !important;
+  }
+</style>
+
 <!-- Theme switcher -->
 <style>
   #theme-switcher {

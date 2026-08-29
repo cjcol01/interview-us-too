@@ -13,7 +13,17 @@
 - [ ] check card details saved copy, os intercepted, undetectable language
 - [ ] set up a Google tag https://analytics.google.com/analytics/web/?authuser=1#/a405487187p551032623/admin/streams/table/15478129816?isInitialSetup=true
 - [ ] make larger font on web store images
-- [ ] cookie blocked by dark mode flag on landing
+- [ ] cookie blocked by dark mode flag on landing, move both up
+- [ ] dd sameAs links in your homepage Organization schema pointing at all your social profiles
+- [ ] create some posts for socials
+- [ ] create demo video for social/ yt
+- [ ] fill in all demo pages
+- [ ] create a linktree equivalent on website for better analytics
+- [ ] ![alt text]({83D36E37-D96D-4FD8-978F-BA1C158C3DC9}.png) - DDG search shows interview-wise.com instead of Interview Wise
+- [ ] innacurrate microphone warning after a few seconds. 
+- [ ] add support card for typing being unset. 
+- [ ] add support for all states explaining fix, ctrl shift 1 to turn on etc
+
 ## Now
 - [ ] add log file for errors on /admin to railway. check why they werent showing
 - [x]  Cloudflare Access for admin pages at cdn level
