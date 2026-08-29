@@ -341,6 +341,10 @@ The team actively read these and work on issues found."></textarea>
             <span class="hk-status-led neutral"></span>Replay
             <span class="hk-status-tip" id="hk-status-tip-replay">Checking instant replay…</span>
           </button>
+          <button type="button" class="hk-status-dot" id="hk-status-typing" aria-label="Typing mode status">
+            <span class="hk-status-led neutral"></span>Type
+            <span class="hk-status-tip" id="hk-status-tip-typing">Checking typing shortcut…</span>
+          </button>
           <!-- Generic alert light — hidden until something needs attention (no sessions,
                subscription ending, rate limited, etc). Hover/tap for detail. Which conditions
                reach this light is controlled by ALERT_CONFIG in the script below. -->
@@ -946,6 +950,13 @@ The team actively read these and work on issues found."></textarea>
         } else if (notsetEl) {
           notsetEl.style.display = '';
         }
+        // Typing status dot — warn when no shortcut is assigned
+        if (byName['typing']) {
+          _setDot('typing', 'ok', 'Typing mode ready — press ' + byName['typing'] + ' to start typing, Enter or press again to send.');
+        } else {
+          _setDot('typing', 'warn', 'Typing hotkey not set — open chrome://extensions/shortcuts to assign one, then reload this page.');
+          _setSupportBounce(true);
+        }
       });
     })();
 
@@ -1145,11 +1156,13 @@ The team actively read these and work on issues found."></textarea>
         _localExtConnected = false;   // had one, lost it — hand the dots back to SSE
         _extLinked = false;
         _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
+        _setDot('typing', 'neutral', 'Connect the extension to check typing mode.');
         _setSupportBounce(true);
       } else if (s.detected === false && !_pongSeen) {
         // Never had a local extension. Say so, but only until a remote ext_status arrives —
         // _applyExtStatus clears this timeout-equivalent by taking over the dots.
         _setDot('ext', 'bad', 'Extension not detected - install it from the Chrome Web Store, then connect it in Settings → Extension.');
+        _setDot('typing', 'neutral', 'Connect the extension to check typing mode.');
         _setSupportBounce(true);
       }
 

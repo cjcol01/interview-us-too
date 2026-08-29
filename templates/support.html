@@ -48,19 +48,6 @@
         </div>
       </div>
 
-      <div class="check-row unknown" id="check-phone" data-issue="6">
-        <div class="check-icon-tile">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/>
-          </svg>
-        </div>
-        <div class="check-info">
-          <div class="check-label">Phone link</div>
-          <div class="check-status" id="check-phone-status">Checking…</div>
-        </div>
-        <a class="check-fix-link" href="#issue-6" onclick="openIssue(6); return false;">See fix →</a>
-      </div>
-
       <div class="check-row unknown" id="check-mic" data-issue="1">
         <div class="check-icon-tile">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -87,6 +74,20 @@
         <a class="check-fix-link" href="#issue-2" onclick="openIssue(2); return false;">See fix →</a>
       </div>
 
+      <div class="check-row unknown" id="check-typing" data-issue="10">
+        <div class="check-icon-tile">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="14" x="2" y="5" rx="2"/><path d="M6 9h.01M10 9h.01M14 9h.01M18 9h.01M8 13h.01M12 13h.01M16 13h.01M7 17h10"/>
+          </svg>
+        </div>
+        <div class="check-info">
+          <div class="check-label">Typing mode</div>
+          <div class="check-status" id="check-typing-status">Checking…</div>
+        </div>
+        <a class="check-fix-link" id="check-typing-fix" href="#issue-10" onclick="openIssue(10); return false;">See fix →</a>
+      </div>
+
+
     </div>
   </section>
 
@@ -99,7 +100,7 @@
       <button class="filter-pill" data-filter="Delivery" onclick="setFilter('Delivery')">Delivery</button>
       <button class="filter-pill" data-filter="Capture" onclick="setFilter('Capture')">Capture</button>
     </div>
-    <div class="filter-count" id="filter-count">9 articles</div>
+    <div class="filter-count" id="filter-count">10 articles</div>
   </div>
 
   <!-- ══ Accordion ═══════════════════════════════════════════════ -->
@@ -324,6 +325,34 @@
       </div>
     </div>
 
+    <div class="issue-item" data-category="Capture" id="issue-10">
+      <button class="issue-row" onclick="toggleIssue(10)">
+        <span class="issue-num">10</span>
+        <span class="issue-main">
+          <span class="issue-title-row">
+            <span class="issue-title">Typing mode not working</span>
+            <span class="issue-pill">Capture</span>
+          </span>
+          <span class="issue-symptom">Typing mode does nothing — no overlay, no preview, no answer sent when you press Enter.</span>
+        </span>
+        <svg class="issue-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="issue-body">
+        <p class="issue-why">Unlike the other hotkeys, typing mode has <strong>no default shortcut</strong>, as Chrome extensions are only allowed 4 defaults. You have to set it yourself once in Chrome's shortcut manager before it will respond to anything.</p>
+        <ol class="issue-fix">
+          <li>
+            Open Chrome's keyboard shortcuts page — copy the link below and paste it directly into your address bar:
+            <span class="copy-chip" onclick="copyChromeUrl(this, 'chrome://extensions/shortcuts')" title="Click to copy — paste into your address bar">chrome://extensions/shortcuts<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+          </li>
+          <li>Find <strong>Smart Screen Assistant</strong> in the list and look for the <strong>Typing mode</strong> row (it will say "Not set").</li>
+          <li>Click the pencil icon next to it and press the key combo you want — something like <kbd>Ctrl+Shift+9</kbd> works well and won't conflict with most pages.</li>
+          <li>Reload any tab where you want to use typing mode</li>
+          <li>Confirm the assistant is on</li>
+          <li>Look at the System check at the top of this page, or check the <a href="/app#hotkey-reference">dashboard hotkey card</a> — the Type dot should turn green once a shortcut is assigned and the extension responds.</li>
+        </ol>
+      </div>
+    </div>
+
   </div>
 
   <!-- ══ Still stuck CTA ═════════════════════════════════════════ -->
@@ -337,7 +366,7 @@
 
 <script>
   // ── Diagnostics (real signals, mirrors /app's status dots) ──────────────
-  let _diag = { ext: 'unknown', phone: 'unknown', mic: 'unknown', replay: 'unknown' };
+  let _diag = { ext: 'unknown', mic: 'unknown', replay: 'unknown', typing: 'unknown' };
   let _replayLast = null;
   let _settled = false;
 
@@ -363,9 +392,9 @@
     const link = document.getElementById('stuck-btn');
     const lines = [
       'Browser extension: ' + document.getElementById('check-ext-status').textContent,
-      'Phone link: ' + document.getElementById('check-phone-status').textContent,
       'Microphone: ' + document.getElementById('check-mic-status').textContent,
       'Instant replay: ' + document.getElementById('check-replay-status').textContent,
+      'Typing mode: ' + document.getElementById('check-typing-status').textContent,
     ];
     const body = 'Diagnostics snapshot:\n' + lines.join('\n') + '\n\nWhat happened:\n';
     link.href = '/contact?dept=support';
@@ -405,9 +434,6 @@
     }
   }
 
-  // Extension + phone link share the same read-only ping/pong — the phone
-  // reaches the dashboard the same way the extension does (same account,
-  // no separate pairing), so a broken extension link means neither works.
   let _extLinked = null;
   let _extEnabled = null;
   function _updateExtCheck() {
@@ -423,7 +449,6 @@
       _setCheck('ext', 'ok', 'Connected' + (version ? ' · v' + version : ''));
       _setExtFixState('ok');
     }
-    _setCheck('phone', _extLinked ? 'ok' : 'bad', _extLinked ? 'Reachable · same account' : "Won't receive answers");
   }
 
   let _extVersion = null;
@@ -473,9 +498,9 @@
     if (s.detected === false) {
       _setCheck('ext', 'bad', 'Not detected');
       _setExtFixState('not-detected');
-      // Phone and replay depend on the extension — keep them neutral (unknown) rather
-      // than red when the extension simply isn't installed yet.
-      _setCheck('phone', 'unknown', 'Install the extension to check');
+      // Phone, replay, and typing depend on the extension — keep them neutral (unknown)
+      // rather than red when the extension simply isn't installed yet.
+      _setCheck('typing', 'unknown', 'Install the extension to check');
     } else if (s.detected) {
       _extLinked = s.linked;
       _extEnabled = s.enabled;
@@ -495,6 +520,18 @@
 
   // _applyReplayCheck() not called on init — state is null until the probe responds, which
   // would immediately show orange. The subscribe callback above handles the first real result.
+
+  // Drive the typing check row from live hotkey data posted by the extension.
+  document.addEventListener('scap:hotkeys', (e) => {
+    const byName = {};
+    e.detail.forEach(c => { byName[c.name] = c.shortcut; });
+    if (byName['typing']) {
+      _setCheck('typing', 'ok', 'Shortcut set — ' + byName['typing']);
+    } else {
+      _setCheck('typing', 'warn', 'Not set — assign one at chrome://extensions/shortcuts');
+    }
+  });
+
   _updateStuckMailto();
   IAExtProbe.start();
 

@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "Smart Screen Assistant [DEV]",
+  "version": "1.2",
+  "description": "Capture your screen or audio on any browser tab and get instant AI analysis and feedback.",
+  "_dev": true,
+  "permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture"],
+  "host_permissions": [
+    "https://interview-wise.com/*",
+    "http://127.0.0.1:*/*",
+    "http://localhost:*/*"
+  ],
+  "commands": {
+    "arm":     { "suggested_key": { "default": "Alt+Shift+1" }, "description": "Toggle on/off" },
+    "capture": { "suggested_key": { "default": "Alt+Shift+6" }, "description": "Capture screen" },
+    "mic":     { "suggested_key": { "default": "Alt+Shift+7" }, "description": "Hold to record voice" },
+    "replay":  { "suggested_key": { "default": "Alt+Shift+8" }, "description": "Send instant replay" },
+    "typing":  { "description": "Toggle typing mode" }
+  },
+  "icons": { "16": "icons/16-on-dev.png", "48": "icons/48-on-dev.png", "128": "icons/128.png" },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Smart Screen Assistant [DEV]"
+  },
+  "content_scripts": [{
+    "matches": [
+      "https://interview-wise.com/*",
+      "http://127.0.0.1:*/*",
+      "http://localhost:*/*"
+    ],
+    "js": ["content.js"]
+  }]
+}

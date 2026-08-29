@@ -800,11 +800,17 @@ async function handleCommand(command) {
 }
 chrome.commands.onCommand.addListener(handleCommand);
 
-// Seed the prod server URL on first install. For local dev, override via DevTools console:
-//   chrome.storage.local.set({ server_url: 'http://127.0.0.1:8000' })
+// Seed the server URL on first install.
+// Dev builds (manifest.dev.json sets "_dev": true) seed the local dev server.
+// Prod builds seed the production URL.
+// If you already have the dev extension installed with a stale URL, clear it once:
+//   chrome.storage.local.set({ server_url: 'http://127.0.0.1:8080' })
+const _IS_DEV = !!chrome.runtime.getManifest()._dev;
 function seedServerUrl({ server_url }) {
   if (!server_url) {
-    chrome.storage.local.set({ server_url: 'https://interview-wise.com' });
+    chrome.storage.local.set({
+      server_url: _IS_DEV ? 'http://127.0.0.1:8080' : 'https://interview-wise.com',
+    });
   }
 }
 chrome.storage.local.get(['server_url'], seedServerUrl);
