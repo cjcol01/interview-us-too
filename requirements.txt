@@ -18,4 +18,5 @@ requests
 jinja2
 redis>=5.0
 fakeredis>=2.20
+httpx
 posthog>=7,<8   # analytics.py calls the 7.x kwargs API (capture(event, distinct_id=...), set())
