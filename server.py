@@ -2652,6 +2652,17 @@ def partner_page(
     })
 
 
+@app.get("/links")
+def links_page(
+    request: Request,
+    user: Optional[User] = Depends(get_optional_user),
+):
+    return templates.TemplateResponse(request=request, name="links.html", context={
+        "show_navbar": True,
+        "cws_id": WEBSTORE_EXTENSION_ID,
+    })
+
+
 @app.get("/faq")
 def faq_page(
     request: Request,

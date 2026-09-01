@@ -1,0 +1,177 @@
+/* ── /links — linktree-style page ───────────────────────────────────────────── */
+
+.lk-page {
+  min-height: calc(100dvh - 56px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 52px 20px 80px;
+}
+
+.lk-wrap {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.lk-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.lk-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+}
+
+.lk-brand {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+}
+
+.lk-tagline {
+  font-size: 14px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* ── Shared button base ─────────────────────────────────────────────────────── */
+
+.lk-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 15px 20px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lk-btn:hover { transform: translateY(-2px); }
+
+.lk-btn svg { flex-shrink: 0; fill: currentColor; }
+
+/* ── Primary CTA ────────────────────────────────────────────────────────────── */
+
+.lk-cta {
+  padding: 18px 24px;
+  font-size: 16px;
+  border-radius: 16px;
+  margin-bottom: 2px;
+  /* dark: lime */
+  background: var(--accent);
+  color: #0A0A0C;
+  box-shadow: 0 0 0 1px rgba(198,242,78,.25), 0 6px 20px rgba(198,242,78,.12);
+}
+.lk-cta:hover {
+  box-shadow: 0 0 0 1px rgba(198,242,78,.45), 0 10px 30px rgba(198,242,78,.22);
+}
+
+/* light: dark button (lime is illegible on cream bg) */
+[data-theme="light"] .lk-cta {
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  box-shadow: 0 4px 12px rgba(0,0,0,.10);
+}
+[data-theme="light"] .lk-cta:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+
+/* ── Ghost buttons ──────────────────────────────────────────────────────────── */
+
+.lk-ghost {
+  background: var(--card);
+  border-color: var(--line-strong);
+  color: var(--text-1);
+}
+.lk-ghost:hover {
+  border-color: rgba(255,255,255,.38);
+  box-shadow: 0 6px 16px rgba(0,0,0,.22);
+}
+[data-theme="light"] .lk-ghost:hover {
+  border-color: rgba(28,24,14,.38);
+  box-shadow: 0 6px 16px rgba(0,0,0,.07);
+}
+
+/* ── 2-col product row ──────────────────────────────────────────────────────── */
+
+.lk-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* ── Divider ────────────────────────────────────────────────────────────────── */
+
+.lk-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0 2px;
+}
+.lk-divider::before,
+.lk-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--line-strong);
+}
+.lk-divider span {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+/* ── Social grid ────────────────────────────────────────────────────────────── */
+
+.lk-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.lk-social {
+  padding: 13px 14px;
+  font-size: 13px;
+  border-radius: 12px;
+  justify-content: flex-start;
+}
+
+/* ── Social icon brand colours ──────────────────────────────────────────────── */
+/* X is black/white — use a neutral so it reads on both themes                  */
+[data-link="twitter"]    svg { color: #9CA3AF; }
+[data-link="linkedin"]   svg { color: #0A66C2; }
+[data-link="tiktok"]     svg { color: #EE1D52; }
+[data-link="instagram"]  svg { color: #E1306C; }
+[data-link="youtube"]    svg { color: #FF0000; }
+[data-link="reddit"]     svg { color: #FF4500; }
+[data-link="facebook"]   svg { color: #1877F2; }
+[data-link="trustpilot"] svg { color: #00B67A; }
+
+/* Light mode: X icon darkens so it stays visible on white card bg */
+[data-theme="light"] [data-link="twitter"] svg { color: #374151; }

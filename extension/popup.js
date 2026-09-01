@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async function onDomContentLoaded(
         ? ''
         : 'Turning this on starts using a session as soon as you use any hotkey — toggle it off between uses to avoid wasting one.';
       confirmOk.textContent = is_unlimited ? 'Yes' : 'Got it, turn on';
-      confirmOverlay.classList.remove('hidden');
+      confirmOverlay.hidden = false;
     } else {
       isEnabled = false;
       chrome.storage.local.set({ enabled: false });
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async function onDomContentLoaded(
   enabledBtn.addEventListener('click', onToggleEnabledClick);
 
   const onConfirmOkClick = async () => {
-    confirmOverlay.classList.add('hidden');
+    confirmOverlay.hidden = true;
     isEnabled = true;
     await chrome.storage.local.set({ enabled: true });
     applyEnabledState();
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async function onDomContentLoaded(
   confirmOk.addEventListener('click', onConfirmOkClick);
 
   const onConfirmCancelClick = () => {
-    confirmOverlay.classList.add('hidden');
+    confirmOverlay.hidden = true;
   };
   confirmCancel.addEventListener('click', onConfirmCancelClick);
 
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async function onDomContentLoaded(
         ? 'Token invalid or expired — re-check your API token below'
         : storedError, true);
     } catch {
-      showStatus('Can't reach the server — check the URL below and your connection', true);
+      showStatus("Can't reach the server — check the URL below and your connection", true);
     }
   }
 

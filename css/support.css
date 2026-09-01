@@ -148,6 +148,24 @@
   margin-top: 2px;
 }
 
+#check-ext .check-status { display: inline; }
+.check-hint {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.check-hint kbd {
+  display: inline-block;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1;
+  padding: 1px 5px 2px;
+  border: 1px solid var(--border, #3a3a3a);
+  border-radius: 4px;
+  background: var(--surface-2, rgba(255,255,255,.06));
+  color: var(--text-2, #bbb);
+}
+
 .check-actions { flex: none; display: flex; align-items: center; }
 
 .check-fix-link {

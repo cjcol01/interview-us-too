@@ -1,10 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-X5WD455Y45"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-X5WD455Y45');
+  </script>
   <meta charset="UTF-8">
   {% block viewport %}<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">{% endblock %}
   <title>{% block title %}InterviewWise{% endblock %}</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
   <link rel="manifest" href="/static/manifest.webmanifest">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -24,6 +32,13 @@
     if(isApp&&localStorage.getItem('appLight')!=='1')return;
     document.documentElement.setAttribute('data-theme','light');
   }());</script>
+  <!-- Site identity — search engines (incl. DDG) use og:site_name + WebSite schema
+       to display the brand name instead of the bare domain in results. -->
+  <meta name="application-name" content="InterviewWise">
+  <meta property="og:site_name" content="InterviewWise">
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"WebSite","name":"InterviewWise","url":"https://interview-wise.com"}
+  </script>
   {% block head %}{% endblock %}
   <!-- Termly cookie consent manager -->
   <script src="https://app.termly.io/resource-blocker/40ba9e20-9116-48dc-8fbf-d385f0147b8c"></script>

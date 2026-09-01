@@ -4,10 +4,10 @@
 - [x] hotkey firing warning for session users doesnt actually stop them, and sends an ai request while consuming session
 - [x] change demo in dark mode to light colours
 - [ ] move onboarding to after users sign up from pricing. offer it subtly if theyre not sold yet, perhaps on pricing page. ensure everyone gets a 10 min free setup session on first use
-- [ ] change scroll bars on /welcome demo to smaller ones
+- [x] change scroll bars on /welcome demo to smaller ones
 - [ ] check sideloading windows, private repo issues with sideloading
 - [ ] add informational ai responses to trial (e.g. you sent a picture of interview wise. swap to a coding problem like leetcode/twosum and press the hotkey on that page.)
-- [ ] MIC status light a bit unreliable still
+- [x] MIC status light a bit unreliable still
 - [ ] lets users go back to onboarding from support/ settings
 - [ ] If skip onboarding, prompt users to go back to it after payment
 - [ ] check card details saved copy, os intercepted, undetectable language
@@ -20,9 +20,9 @@
 - [ ] fill in all demo pages
 - [ ] create a linktree equivalent on website for better analytics
 - [ ] ![alt text]({83D36E37-D96D-4FD8-978F-BA1C158C3DC9}.png) - DDG search shows interview-wise.com instead of Interview Wise
-- [ ] innacurrate microphone warning after a few seconds. 
-- [ ] add support card for typing being unset. 
-- [ ] add support for all states explaining fix, ctrl shift 1 to turn on etc
+- [x] innacurrate microphone warning after a few seconds. 
+- [x] add support card for typing being unset. 
+- [x] add support for all states explaining fix, ctrl shift 1 to turn on etc
 
 ## Now
 - [ ] add log file for errors on /admin to railway. check why they werent showing

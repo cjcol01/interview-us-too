@@ -39,6 +39,7 @@
         <div class="check-info">
           <div class="check-label">Browser extension</div>
           <div class="check-status" id="check-ext-status">Checking…</div>
+          <span class="check-hint" id="check-ext-hint" hidden></span>
         </div>
         <div class="check-actions">
           <a class="check-fix-link" id="check-ext-fix" href="#issue-4" onclick="openIssue(4); return false;">See fix →</a>
@@ -411,6 +412,20 @@
   // hides the button — wiping out its "✓ Connected!" text before anyone can read
   // it (see connectExtensionFromSupport).
   let _extConnectHold = false;
+  let _toggleShortcut = null;
+
+  function _refreshExtHint() {
+    const hint = document.getElementById('check-ext-hint');
+    if (!hint) return;
+    if (_extEnabled === false) {
+      const key = _toggleShortcut || 'Ctrl+Shift+1';
+      hint.innerHTML = ' · <kbd>' + key + '</kbd> to enable';
+      hint.hidden = false;
+    } else {
+      hint.hidden = true;
+    }
+  }
+
   function _setExtFixState(subState) {
     const fixLink = document.getElementById('check-ext-fix');
     const connectBtn = document.getElementById('check-ext-connect');
@@ -442,12 +457,14 @@
       _setCheck('ext', 'bad', 'Not connected');
       _setExtFixState('not-connected');
     } else if (_extEnabled === false) {
-      _setCheck('ext', 'warn', 'Connected · switched off');
+      _setCheck('ext', 'warn', 'Connected · off');
       _setExtFixState('ok');
+      _refreshExtHint();
     } else {
       const version = _extVersion;
       _setCheck('ext', 'ok', 'Connected' + (version ? ' · v' + version : ''));
       _setExtFixState('ok');
+      _refreshExtHint();
     }
   }
 
@@ -525,6 +542,7 @@
   document.addEventListener('scap:hotkeys', (e) => {
     const byName = {};
     e.detail.forEach(c => { byName[c.name] = c.shortcut; });
+    if (byName['arm']) { _toggleShortcut = byName['arm']; _refreshExtHint(); }
     if (byName['typing']) {
       _setCheck('typing', 'ok', 'Shortcut set — ' + byName['typing']);
     } else {
@@ -547,6 +565,7 @@
     label.textContent = 'Scanning…';
     document.getElementById('check-subline').textContent = 'Scanning…';
     IAExtProbe.probe();
+    document.dispatchEvent(new CustomEvent('scap:get-hotkeys'));
     setTimeout(() => {
       icon.classList.remove('spinning');
       label.textContent = 'Run diagnostics';

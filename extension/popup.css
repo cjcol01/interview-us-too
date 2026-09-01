@@ -385,7 +385,7 @@ select {
   justify-content: center;
   z-index: 100;
 }
-.confirm-overlay.hidden { display: none; }
+.confirm-overlay[hidden] { display: none !important; pointer-events: none; }
 
 .confirm-box {
   background: var(--card);
