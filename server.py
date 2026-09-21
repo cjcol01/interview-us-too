@@ -6021,7 +6021,8 @@ async def account_delete_confirm(
 def billing_checkout(user: User = Depends(get_current_user), db: Session = Depends(get_db), plan: str = "subscription"):
     apply_discount = False
     # £5 off the referee's first plan purchase. Applied to all three plans: the intro deal (£2→£0
-    # since £5 > £2), the sessions pack (£10→£5), and the subscription (£15→£10 first month).
+    # since £5 > £2 — and at £0 Stripe collects no card, see create_checkout_session), the
+    # sessions pack (£10→£5), and the subscription (£15→£10 first month).
     # The dedicated 100%-off intro coupon (STRIPE_INTRO_FREE_COUPON_ID) takes priority over this
     # on the intro deal — both result in £0, but the free coupon is more explicit.
     if user.referred_by_id:

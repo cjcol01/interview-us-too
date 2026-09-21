@@ -166,13 +166,17 @@ def create_checkout_session(user: User, db: Session, plan: str = "subscription",
             cancel_url=f"{BASE_URL}/pricing",
         )
         # A referred user's intro is free. Priority: (1) dedicated 100%-off intro coupon if
-        # configured — explicit and card-required; (2) referral coupon (£5) which exceeds the
-        # £2 price so Stripe floors it to £0, also card-required; (3) referral account credit.
+        # configured; (2) referral coupon (£5) which exceeds the £2 price so Stripe floors it
+        # to £0; (3) referral account credit.
+        # NOTE: a payment-mode Checkout whose total is £0 collects NO card and creates NO
+        # PaymentIntent (verified against the sandbox: amount_total=0, payment_intent=None).
+        # So on either free path the card-fingerprint dedup in _handle_sessions_purchase has
+        # nothing to key on and is skipped; the only abuse guard left is intro_redeemed per user.
         if user.referred_by_id and not user.intro_redeemed and STRIPE_INTRO_FREE_COUPON_ID:
             key = "promotion_code" if STRIPE_INTRO_FREE_COUPON_ID.startswith("promo_") else "coupon"
             kwargs["discounts"] = [{key: STRIPE_INTRO_FREE_COUPON_ID}]
         elif apply_referral_discount and STRIPE_REFERRAL_COUPON_ID and not user.intro_redeemed:
-            # £5 off a £2 purchase → Stripe clamps to £0. Card is still required (mode=payment).
+            # £5 off a £2 purchase → Stripe clamps to £0 → no card collected (see NOTE above).
             key = "promotion_code" if STRIPE_REFERRAL_COUPON_ID.startswith("promo_") else "coupon"
             kwargs["discounts"] = [{key: STRIPE_REFERRAL_COUPON_ID}]
         elif user.referral_credit_pence > 0:
@@ -354,6 +358,10 @@ def _handle_sessions_purchase(data: dict, db: Session):
 
     if plan == "sessions":
         if not STRIPE_SECRET_KEY.startswith("sk_test_"):
+            if not data.get("payment_intent"):
+                # £0 checkout (referral/free-intro coupon): Stripe collected no card, so there
+                # is no fingerprint to dedupe on. Surface it rather than fail silently.
+                logger.warning("[webhook] intro completed with no payment_intent (discounted to £0) — fingerprint dedup skipped user=%s", user.email)
             fingerprint = _get_card_fingerprint(data)
             if fingerprint:
                 already_used = db.query(IntroCardFingerprint).filter(
