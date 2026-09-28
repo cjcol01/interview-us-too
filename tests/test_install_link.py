@@ -781,6 +781,12 @@ def register(test, skip, client):
         assert r.status_code == 200
         assert 'id="lead-form"' in r.text
         assert 'name="hp_check"' in r.text
+        # Two-step flow: the date pills come first, the email row starts hidden and is
+        # revealed by a pill click (landing.html). The form must render in that order.
+        assert r.text.index('id="lead-pills"') < r.text.index('id="lead-step2"')
+        assert 'id="lead-step2" hidden' in r.text
+        # The lead block sits after the demo in the hero grid so mobile shows proof before the ask.
+        assert r.text.index('class="ia-hero-demo"') < r.text.index('class="ia-hero-lead"')
 
     def test_landing_sets_attribution_cookie_first_touch_only():
         r1 = client.get("/?utm_source=google&gclid=abc123")

@@ -28,12 +28,9 @@
 
     <!-- Left: copy -->
     <div class="ia-hero-copy" data-reveal>
-      <div class="ia-eyebrow">
-        <span class="ia-eyebrow-dot"></span>
-        Live interview answers, sent to your phone
-      </div>
+      <div class="ia-eyebrow">Live interview answers, sent to your phone</div>
       <h1 class="ia-h1">Stop blanking.<br>Start <span class="ia-h1-accent">acing</span>.</h1>
-      <p class="ia-hero-sub">InterviewWise watches your screen and listens to your interviewer, then streams a working solution to your phone in seconds. You know the material - you just need it back the moment your mind goes blank.</p>
+      <p class="ia-hero-sub">InterviewWise watches your screen and listens to your interviewer, then streams a working solution to your phone in seconds.</p>
       <div class="ia-hero-btns">
         {% if user %}
         <a data-attr="cta:landing:hero:go_to_app" class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
@@ -47,39 +44,6 @@
         <span><span class="ia-check">✓</span> Streams in 3 seconds</span>
         <span><span class="ia-check">✓</span> 3-click cancel</span>
       </div>
-
-      {% if not user %}
-      <!-- Small-screen CTA. Both CTAs are always rendered; CSS at 720px decides which shows
-           — this repo does device detection with media queries, never user-agent sniffing. -->
-      <form class="ia-lead" id="lead-form" novalidate>
-        <label class="ia-lead-label" for="lead-email">Setup needs a laptop - we'll email you the link</label>
-        <div class="ia-lead-row">
-          <input class="ia-lead-input" id="lead-email" name="email" type="email"
-                 inputmode="email" autocomplete="email" placeholder="you@email.com" required>
-          <button data-attr="cta:landing:lead_form:submit" class="ia-lead-btn" id="lead-submit" type="submit">Email me the link</button>
-        </div>
-
-        <div class="ia-lead-date">
-          <span class="ia-lead-date-label">When's the interview? <span class="ia-lead-optional">(optional)</span></span>
-          <div class="ia-lead-pills" id="lead-pills">
-            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
-            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="soon">This week</button>
-            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
-            <button type="button" class="ia-lead-pill ia-lead-pill-muted" data-choice="unknown">Not sure yet</button>
-          </div>
-        </div>
-
-        <!-- honeypot: off-canvas, tab-skipped, hidden from assistive tech. Bots fill it; humans can't. -->
-        <input class="ia-hp" type="text" name="hp_check" id="lead-hp-check" tabindex="-1" autocomplete="off" aria-hidden="true">
-
-        <p class="ia-lead-err" id="lead-error" role="alert"></p>
-        <a data-attr="cta:landing:lead_form:create_account" class="ia-lead-alt" href="/login?register=1">Already on a laptop? Create an account &rarr;</a>
-      </form>
-      <div class="ia-lead-done" id="lead-done" hidden>
-        <strong>Check your inbox.</strong>
-        <span>We've sent your link to <span id="lead-done-email"></span>. Open it on your laptop and you'll land already signed in.</span>
-      </div>
-      {% endif %}
     </div>
 
     <!-- Right: interactive cycling demo -->
@@ -320,6 +284,45 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       <p class="ia-demo-caption">Preview only &mdash; see the full demo <a data-attr="cta:landing:demo:full_demo" href="/welcome" style="text-decoration:underline;">here</a>.</p>
     </div>
 
+
+    {% if not user %}
+    <!-- Small-screen lead capture. Both CTAs are always rendered; CSS at 720px decides which shows
+         — this repo does device detection with media queries, never user-agent sniffing.
+         Its own grid column so mobile can order it *after* the demo: the ask comes after the proof.
+         Two steps: pick when the interview is (a small, free commitment), then the email row appears. -->
+    <div class="ia-hero-lead" data-reveal>
+      <form class="ia-lead" id="lead-form" novalidate>
+        <div class="ia-lead-date">
+          <span class="ia-lead-date-label" id="lead-date-label">When's the interview?</span>
+          <div class="ia-lead-pills" id="lead-pills" role="group" aria-labelledby="lead-date-label">
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="soon">This week</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill ia-lead-pill-muted" data-choice="unknown">Not sure yet</button>
+          </div>
+        </div>
+
+        <div class="ia-lead-step2" id="lead-step2" hidden>
+          <label class="ia-lead-label" for="lead-email">Setup needs a laptop - we'll email you the link</label>
+          <div class="ia-lead-row">
+            <input class="ia-lead-input" id="lead-email" name="email" type="email"
+                   inputmode="email" autocomplete="email" placeholder="you@email.com" required>
+            <button data-attr="cta:landing:lead_form:submit" class="ia-lead-btn" id="lead-submit" type="submit">Email me the link</button>
+          </div>
+        </div>
+
+        <!-- honeypot: off-canvas, tab-skipped, hidden from assistive tech. Bots fill it; humans can't. -->
+        <input class="ia-hp" type="text" name="hp_check" id="lead-hp-check" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+        <p class="ia-lead-err" id="lead-error" role="alert"></p>
+        <a data-attr="cta:landing:lead_form:create_account" class="ia-lead-alt" href="/login?register=1">Already on a laptop? Create an account &rarr;</a>
+      </form>
+      <div class="ia-lead-done" id="lead-done" hidden>
+        <strong>Check your inbox.</strong>
+        <span>We've sent your link to <span id="lead-done-email"></span>. Open it on your laptop and you'll land already signed in.</span>
+      </div>
+    </div>
+    {% endif %}
   </div>
 </section>
 
@@ -1082,15 +1085,24 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       return y + '-' + m + '-' + day;
     }
 
+    var leadStep2 = document.getElementById('lead-step2');
     leadPills.forEach(function (pill) {
       pill.addEventListener('click', function () {
-        leadPills.forEach(function (p) { p.classList.remove('active'); });
+        leadPills.forEach(function (p) { p.classList.remove('active'); p.setAttribute('aria-pressed', 'false'); });
         pill.classList.add('active');
+        pill.setAttribute('aria-pressed', 'true');
         var choice = pill.getAttribute('data-choice');
         if (choice === 'tomorrow') _leadDate = toISO(addDays(1));
         else if (choice === 'soon') _leadDate = toISO(addDays(2));
         else if (choice === 'next_week') _leadDate = toISO(addDays(7));
         else _leadDate = null; /* unknown — never guess a date for someone who told us they don't have one */
+        /* Step 2 unlocks on the first pick: answering a question is a small commitment,
+           and the email ask lands right after it instead of cold. */
+        if (leadStep2.hidden) {
+          leadStep2.hidden = false;
+          leadStep2.classList.add('is-shown');
+          leadEmail.focus({ preventScroll: true });
+        }
       });
     });
 
