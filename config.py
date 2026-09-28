@@ -114,6 +114,10 @@ REDIS_URL        = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # Postgres connection URLs. Railway injects DATABASE_URL automatically when a Postgres service
 # is attached. Normalise "postgres://" → "postgresql://" because SQLAlchemy 2.x rejects the
 # bare form. database.py raises with a helpful message if the relevant URL is unset at boot.
+# The URL is deliberately left driver-less (run_tests.py hands it straight to psycopg2, which
+# can't parse a "+psycopg2" suffix); the driver is fixed by pinning sqlalchemy<2.1 in
+# requirements.txt — 2.1 defaults a bare "postgresql://" to psycopg (v3), which isn't installed,
+# and that took production down at boot with "No module named 'psycopg'".
 DATABASE_URL      = os.getenv("DATABASE_URL",      "").replace("postgres://", "postgresql://", 1)
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "").replace("postgres://", "postgresql://", 1)
 

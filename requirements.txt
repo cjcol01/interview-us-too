@@ -1,7 +1,7 @@
 anthropic==1.2.0
 openai==3.6.0
 resend
-sqlalchemy>=2.0
+sqlalchemy>=2.0,<2.1   # 2.1 switched the default Postgres driver to psycopg (v3); we ship psycopg2-binary
 psycopg2-binary
 alembic
 stripe==15.3.1
