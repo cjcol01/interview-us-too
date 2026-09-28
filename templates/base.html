@@ -408,12 +408,57 @@
     }
   </style>
   {% if POSTHOG_KEY %}
-  <script>
+  <script data-categories="analytics">
     !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+" (stub)"},o="capture identify alias people.set people.set_once set_config register register_once unregister opt_out_capturing has_opted_out_capturing opt_in_capturing reset isFeatureFlagEnabled onFeatureFlags getFeatureFlag getFeatureFlagPayload reloadFeatureFlags group updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures getActiveMatchingSurveys getSurveys onSessionId".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
     posthog.init("{{ POSTHOG_KEY }}", {
       api_host: "{{ POSTHOG_HOST }}",
-      person_profiles: "identified_only"
+      person_profiles: "identified_only",
+      capture_pageview: true,
+      capture_pageleave: true,
+      capture_exceptions: true,
+      autocapture: true,
+      session_recording: {
+        // /app shows the user's live interview: the AI answer, what they said / typed (the
+        // transcription box doubles as the typing preview) and the screenshot itself. Mask
+        // the text and block the image so replays show navigation, never content. The
+        // /welcome demo is scripted marketing copy and stays visible on purpose.
+        maskAllInputs: true,
+        maskTextSelector: "#analysis, #transcription-box, #screenshot-wrap",
+        blockSelector: "img#screenshot"
+      },
+      loaded: function (ph) {
+        // Identity stitching. The server tracks every event against the numeric user id, so
+        // the browser identifies with the same id: PostHog then merges this browser's
+        // anonymous history (landing pageviews, $initial_utm_* / referrer / gclid) onto the
+        // account, which is what lets a funnel run from ad click to purchase. Runs in
+        // `loaded` (before the first $pageview) because the pre-load stub can't answer
+        // get_distinct_id / _isIdentified. Per-page identify is cheap: posthog-js only emits
+        // $identify when the id actually changes.
+        {% if user %}
+        ph.identify("{{ user.id }}", {
+          email: {{ user.email|tojson }},
+          name: {{ user.full_name|tojson }},
+          account_level: "{{ account_level }}",
+          is_internal: {{ 'true' if is_admin else 'false' }}
+        });
+        ph.register({ logged_in: true, account_level: "{{ account_level }}", is_internal: {{ 'true' if is_admin else 'false' }} });
+        {% else %}
+        // Logout is a server redirect, so this is its client-side half: any page rendered
+        // with no session while the SDK still holds an identified id means the user signed
+        // out (or the cookie expired, or the account was deleted) — start a fresh anonymous
+        // identity so the next person on this browser isn't merged into the old account.
+        var identified = (typeof ph._isIdentified === 'function') ? ph._isIdentified() : /^\d+$/.test(ph.get_distinct_id() || '');
+        if (identified) { ph.reset(); }
+        ph.register({ logged_in: false });
+        ph.unregister('account_level');
+        {% endif %}
+      }
     });
+    // Safe capture helper for the templates: no-op when the snippet isn't loaded (key unset
+    // locally, or blocked by the consent banner) so page logic never depends on analytics.
+    window.iwTrack = function (ev, props, opts) {
+      try { if (window.posthog) { posthog.capture(ev, props || {}, opts); } } catch (_) {}
+    };
   </script>
   {% endif %}
 </head>

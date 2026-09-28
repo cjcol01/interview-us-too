@@ -34,8 +34,8 @@
       <div class="modal-icon">&#9200;</div>
       <h2>Test run ended</h2>
       <p>Your 10-minute test run has ended. See tips for using the full product, then decide if you want to continue.</p>
-      <a href="/trial-end" class="upgrade-btn">What's next &rarr;</a>
-      <p class="modal-footer">or <a href="/auth/logout">sign out</a></p>
+      <a data-attr="cta:app:trial_overlay:whats_next" href="/trial-end" class="upgrade-btn">What's next &rarr;</a>
+      <p class="modal-footer">or <a data-attr="cta:app:trial_overlay:sign_out" href="/auth/logout">sign out</a></p>
     </div>
   </div>
 
@@ -217,7 +217,7 @@ The team actively read these and work on issues found."></textarea>
   </div>
 
   <div id="disabled-toast">
-    <p>Interview assistant not started. Press <span id="disabled-toast-toggle"></span> to start, then <span id="disabled-toast-capture"></span> to capture.</p>
+    <p>Smart Screen Assistant not started. Press <span id="disabled-toast-toggle"></span> to start, then <span id="disabled-toast-capture"></span> to capture.</p>
   </div>
 
   <div id="rate-limit-toast">
@@ -226,7 +226,7 @@ The team actively read these and work on issues found."></textarea>
 
   <div id="hint-toast">
     <button id="hint-dismiss" onclick="document.getElementById('hint-toast').classList.remove('visible')">&times;</button>
-    <p>Try it - press <kbd id="hint-kbd">Ctrl+Shift+7</kbd> and say <strong>"what's an API?"</strong></p>
+    <p>Try it - press <kbd id="hint-kbd">Ctrl+Shift+7</kbd>, say <strong>"what's an API?"</strong>, then press any key to send</p>
   </div>
 
   <header>
@@ -255,7 +255,7 @@ The team actively read these and work on issues found."></textarea>
   <!-- Trial countdown bar (shown for trial users only) -->
   <div id="trial-bar">
     <span>Test run - <strong id="trial-time"></strong> left</span>
-    <a href="/trial-end" class="trial-bar-link">End test run &rarr;</a>
+    <a data-attr="cta:app:trial_bar:end_test_run" href="/trial-end" class="trial-bar-link">End test run &rarr;</a>
   </div>
 
   <!-- Session expiring warning bar (paid users, 10 min before session ends) -->
@@ -267,7 +267,7 @@ The team actively read these and work on issues found."></textarea>
   <!-- No sessions remaining bar (paid users, 0 sessions left) -->
   <div id="no-sessions-bar"{% if account_level == 'paid' and sessions_remaining == 0 %} class="visible"{% endif %}>
     <span>No sessions remaining - top up to keep going</span>
-    <a href="/pricing" class="no-sessions-link">Top up &rarr;</a>
+    <a data-attr="cta:app:no_sessions_bar:top_up" href="/pricing" class="no-sessions-link">Top up &rarr;</a>
   </div>
 
   <main>
@@ -708,6 +708,11 @@ The team actively read these and work on issues found."></textarea>
     let _isTrial = false;
 
     function showTrialExpired() {
+      // Called from four places (SSE event, status polls, countdown) — track the moment once.
+      if (!window._iwTrialExpiredTracked) {
+        window._iwTrialExpiredTracked = true;
+        if (window.iwTrack) iwTrack('trial_expired_shown');
+      }
       clearInterval(_trialTick);
       _trialTick = null;
       document.getElementById('trial-overlay').classList.add('visible');

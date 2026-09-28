@@ -2,7 +2,7 @@ import stripe
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
-from analytics import logger, track
+from analytics import identify_user, logger, track
 from config import BASE_URL, INTRO_SESSIONS, PACK_SESSIONS, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_PRICE_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_RETENTION_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_WEBHOOK_SECRET
 from models import AccountLevel, CommissionStatus, IntroCardFingerprint, PartnerCommission, Referral, ReferralStatus, User
 
@@ -280,6 +280,8 @@ def handle_webhook_event(payload: bytes, sig_header: str, db: Session):
             user.account_level = AccountLevel.free
             user.stripe_sub_id = None
             db.commit()
+            track(user.id, "subscription_deleted")
+            identify_user(user)
 
     elif event["type"] == "checkout.session.completed":
         if data.get("mode") == "payment":
@@ -293,6 +295,10 @@ def _sync_subscription(sub: dict, db: Session):
     user = db.query(User).filter(User.stripe_customer_id == sub["customer"]).first()
     if not user:
         return
+    # Snapshot before mutating: `subscription_created` must mean a real activation. This
+    # handler also runs for every customer.subscription.updated (cancel-at-period-end toggles,
+    # renewals, plan edits), all of which report active — without this it fired each time.
+    was_unlimited = user.account_level == AccountLevel.unlimited
     user.stripe_sub_id = sub["id"]
     # pause_collection doesn't change status — a paused sub still reports active/trialing.
     # Treat it as free while paused, and skip the "just activated" side effects (referral
@@ -323,13 +329,18 @@ def _sync_subscription(sub: dict, db: Session):
                     ref.status = ReferralStatus.subscribed
                     ref.sub_at = datetime.utcnow()
                     _recompute_partner_tier(referrer, db)
-        track(user.id, "subscription_created", via_referral=bool(user.referred_by_id))
+        if not was_unlimited:
+            track(user.id, "subscription_created", status=sub["status"], via_referral=bool(user.referred_by_id))
+        else:
+            track(user.id, "subscription_updated", status=sub["status"],
+                  cancel_at_period_end=bool(sub.get("cancel_at_period_end")))
     elif sub["status"] in ("canceled", "unpaid", "incomplete_expired"):
         user.account_level = AccountLevel.free
         user.sub_cancel_at = None
         user.sub_lapsed_at = datetime.utcnow()
         track(user.id, "subscription_lapsed", status=sub["status"])
     db.commit()
+    identify_user(user)  # account_level / has_subscription may have changed
 
 
 def _get_card_fingerprint(checkout_data: dict) -> str | None:
@@ -435,6 +446,7 @@ def _handle_sessions_purchase(data: dict, db: Session):
     if user.account_level != AccountLevel.unlimited:
         user.account_level = AccountLevel.paid
     db.commit()
+    identify_user(user)
     logger.info("[webhook] granted sessions — user=%s sessions_remaining=%d", user.email, user.sessions_remaining)
 
 
@@ -446,8 +458,13 @@ def _handle_invoice_paid(inv: dict, db: Session):
     user = db.query(User).filter(User.stripe_customer_id == customer_id).first()
     if not user:
         return
-    if not user.sub_invoice_paid and (inv.get("amount_paid") or 0) > 0:
+    amount_paid = inv.get("amount_paid") or 0
+    if not user.sub_invoice_paid and amount_paid > 0:
         user.sub_invoice_paid = True
+        # Trial → paying conversion: the first invoice with real money on it.
+        track(user.id, "subscription_first_invoice_paid", amount_pence=amount_paid)
+    elif inv.get("billing_reason") == "subscription_cycle" and amount_paid > 0:
+        track(user.id, "subscription_renewed", amount_pence=amount_paid)
     starting = inv.get("starting_balance", 0) or 0
     ending = inv.get("ending_balance", 0) or 0
     consumed = ending - starting

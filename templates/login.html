@@ -218,6 +218,12 @@
       document.getElementById('auth-heading-register').style.display = isLogin ? 'none' : '';
       document.getElementById('login-error').textContent = '';
       document.getElementById('register-error').textContent = '';
+      // Top of the signup funnel on desktop. Once per page load; covers the ?register=1 deep
+      // link too since that also routes through here.
+      if (!isLogin && !window._iwSignupViewed) {
+        window._iwSignupViewed = true;
+        if (window.iwTrack) iwTrack('signup_form_viewed', { via: new URLSearchParams(location.search).get('register') ? 'query' : 'tab' });
+      }
     }
 
     // Mirrors USERNAME_RE / validate_username in auth.py — keep both in sync.
@@ -277,12 +283,14 @@
         const json = await res.json();
         if (!res.ok) {
           errEl.textContent = json.detail || 'Something went wrong.';
+          if (window.iwTrack) iwTrack(action === 'register' ? 'signup_failed' : 'login_failed_client', { reason: json.detail || 'unknown', status: res.status });
         } else {
           const next = new URLSearchParams(location.search).get('next');
           window.location.href = next || '/app';
         }
       } catch (err) {
         errEl.textContent = 'Network error: ' + err.message;
+        if (window.iwTrack) iwTrack(action === 'register' ? 'signup_failed' : 'login_failed_client', { reason: 'network' });
       } finally {
         btn.disabled = false;
       }

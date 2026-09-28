@@ -185,13 +185,16 @@ const initializeIcon = ({ enabled }) => updateIcon(enabled ?? false);
 chrome.storage.local.get(['enabled']).then(initializeIcon);
 
 // ---------------------------------------------------------------------------
-// Audio capture (hold the audio hotkey to record, release to send)
+// Audio capture (toggle: press the mic hotkey to record, press any key to send)
 // ---------------------------------------------------------------------------
 
 let _audioActive = false;
 let _stopPending = false;
 let _offscreenReadyResolve = null;
-let _micHoldTimer = null;  // timer ID for hold-to-talk release detection (see mic command handler)
+let _micLastCmdAt = 0;        // last mic onCommand fire — key-repeat suppression (see handleCommand)
+let _micKeyStopAt = 0;        // when a page keypress last ended a recording (see handleCommand)
+let _micKeyTabId = null;      // tab holding the stop-on-keypress listener, null when none
+const MIC_REPEAT_GAP_MS = 700; // onCommand fires again inside this gap ⇒ the key is being held, not re-pressed
 
 // Shared deferred-promise executor: stores the resolve fn so the 'offscreen-ready'
 // message handler can fulfill the promise once the document signals it is ready.
@@ -297,6 +300,13 @@ function routeMessage(msg, sender, sendResponse) {
     handleAudioStart();
   } else if (msg.type === 'audio-stop') {
     handleAudioStop();
+  } else if (msg.type === 'mic-key-stop') {
+    // From the injected keypress watch (startMicKeyWatch). Only honour it from the tab we
+    // put it in — any page can post messages, but only that tab has our listener.
+    if (sender.tab?.id === _micKeyTabId) {
+      _micKeyStopAt = Date.now();
+      stopMicRecording();
+    }
   } else if (msg.type === 'audio-data') {
     handleAudioData(msg.base64, msg.mimeType);
   } else if (msg.type === 'typing-start') {
@@ -311,6 +321,7 @@ function routeMessage(msg, sender, sendResponse) {
     _micState = 'error';
     _audioActive = false;
     _stopPending = false;
+    stopMicKeyWatch();
     chrome.action.setBadgeText({ text: 'ERR' });
     chrome.action.setBadgeBackgroundColor({ color: '#c0392b' });
     setTimeout(function clearErrorBadge() { chrome.action.setBadgeText({ text: '' }); }, 2000);
@@ -366,7 +377,73 @@ chrome.runtime.onMessage.addListener(routeMessage);
 // Mic recording handlers (unchanged logic, maybeCloseOffscreen replaces unconditional close)
 // ---------------------------------------------------------------------------
 
-async function handleAudioStart() {
+// ── Stop-on-keypress watch ────────────────────────────────────────────────────
+// The service worker can't see keyboard events, and the content script only runs on
+// interview-wise.com, so the "any key ends the recording" half of the toggle lives in a
+// tiny listener injected into whichever tab the hotkey was pressed in. The mic command
+// grants activeTab for that tab, which is what lets chrome.scripting reach it without
+// any host permission. Pages we can't inject into (chrome://, the Web Store, PDFs) just
+// fall back to the hotkey itself ending the recording.
+function _micKeyWatchInjected() {
+  if (window.__scapMicKeyCtrl) window.__scapMicKeyCtrl.abort();
+  const ctrl = new AbortController();
+  window.__scapMicKeyCtrl = ctrl;
+  // Modifier-only presses are ignored so letting go of / re-pressing Shift or Ctrl after
+  // the chord doesn't count. e.repeat skips the OS key-repeat stream of a still-held chord.
+  const MODS = new Set(['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'NumLock', 'ScrollLock', 'Fn', 'Dead', 'Unidentified']);
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat || MODS.has(e.key)) return;
+    ctrl.abort();
+    window.__scapMicKeyCtrl = null;
+    try { chrome.runtime.sendMessage({ type: 'mic-key-stop' }).catch(() => {}); } catch {}
+  }, { capture: true, signal: ctrl.signal });
+}
+function _micKeyWatchTeardownInjected() {
+  if (window.__scapMicKeyCtrl) { window.__scapMicKeyCtrl.abort(); window.__scapMicKeyCtrl = null; }
+}
+
+async function startMicKeyWatch(tabId) {
+  if (!tabId) return;
+  _micKeyTabId = tabId;
+  try {
+    await chrome.scripting.executeScript({ target: { tabId }, func: _micKeyWatchInjected });
+  } catch {
+    _micKeyTabId = null;   // not injectable — hotkey / tab switch still end the recording
+  }
+}
+
+function stopMicKeyWatch() {
+  const tabId = _micKeyTabId;
+  _micKeyTabId = null;
+  if (!tabId) return;
+  // Best effort: the listener also removes itself on first fire, and a stray fire after
+  // we've stopped is a no-op in routeMessage, so a failed teardown costs nothing.
+  try {
+    chrome.scripting.executeScript({ target: { tabId }, func: _micKeyWatchTeardownInjected }).catch(() => {});
+  } catch {}
+}
+
+// Ends the recording if one is running (and sends it). Every stop path funnels through
+// here so the keypress watch is always torn down with it.
+function stopMicRecording() {
+  stopMicKeyWatch();
+  if (!_audioActive) return;
+  handleAudioStop();
+}
+
+// The keypress listener only lives on the tab the hotkey was pressed in, so once the user
+// moves off it (Ctrl+Tab, Alt+Tab, clicking another window) there's nothing left that can
+// hear the end signal — treat leaving as the end.
+function handleMicTabActivated({ tabId }) {
+  if (_audioActive && tabId !== _micKeyTabId) stopMicRecording();
+}
+function handleMicWindowFocusChanged() {
+  if (_audioActive) stopMicRecording();
+}
+chrome.tabs.onActivated.addListener(handleMicTabActivated);
+chrome.windows.onFocusChanged.addListener(handleMicWindowFocusChanged);
+
+async function handleAudioStart(tabId) {
   if (_audioActive) return;
   _stopPending = false;
 
@@ -379,6 +456,9 @@ async function handleAudioStart() {
 
   if (_stopPending) { _stopPending = false; return; }
   _audioActive = true;
+  // Not awaited: the watch goes in while the offscreen doc spins up, so a key pressed
+  // during that window still ends the recording (handleAudioStop copes with the race).
+  startMicKeyWatch(tabId);
 
   const existing = await chrome.runtime.getContexts({
     contextTypes: ['OFFSCREEN_DOCUMENT'],
@@ -765,28 +845,37 @@ async function migrateHotkeys() {
 // _execute_action is handled by Chrome itself — it opens the popup (clicking the icon).
 // All hotkey commands are intercepted here; toggle now has its own named command so
 // Ctrl+Shift+1 toggles directly without opening the popup.
-function clearMicDebounce() { _micHoldTimer = null; handleAudioStop(); }
 async function handleCommand(command) {
+  // While a recording is running, the next key of any kind ends it — including the other
+  // hotkeys. They stop-and-send rather than stop-and-also-fire, so ending a recording
+  // with the capture key doesn't queue a second request on top of the transcript.
+  if (_audioActive && command !== 'mic') {
+    stopMicRecording();
+    return;
+  }
   if (command === 'arm') {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     handleToggle(tab?.id);
   } else if (command === 'capture') {
     handleCapture();
   } else if (command === 'mic') {
-    // Hold-to-talk: hold the key to record, release to send.
-    // chrome.commands has no keyup event, so release is inferred from the key-repeat
-    // stream: Chrome fires onCommand ~10×/sec while the key is held. Each fire resets
-    // a 300ms timer; when the fires stop (key released), the timer expires and stops
-    // recording. First fire starts recording and arms the timer.
+    // Toggle: press to start recording, press again (or any other key) to send.
+    // chrome.commands re-fires onCommand ~10×/sec while the chord is physically held, so
+    // fires inside MIC_REPEAT_GAP_MS of the last one are the same press, not a new one.
+    const now = Date.now();
+    const isRepeat = now - _micLastCmdAt < MIC_REPEAT_GAP_MS;
+    _micLastCmdAt = now;
+    if (isRepeat) return;
     if (_audioActive) {
-      // Key still held — push the release timer forward.
-      clearTimeout(_micHoldTimer);
-      _micHoldTimer = setTimeout(clearMicDebounce, 300);
-    } else {
-      // First press — arm the release timer then start recording.
-      _micHoldTimer = setTimeout(clearMicDebounce, 300);
-      handleAudioStart();
+      stopMicRecording();
+      return;
     }
+    // The page sees the chord's keydown too. If it reached the injected listener first,
+    // that keypress has just ended the recording and this fire is the same chord —
+    // don't immediately start a fresh one.
+    if (now - _micKeyStopAt < 500) return;
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    handleAudioStart(tab?.id);
   } else if (command === 'replay') {
     const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
     handleReplayTrigger(tab?.id);
@@ -806,12 +895,23 @@ chrome.commands.onCommand.addListener(handleCommand);
 // If you already have the dev extension installed with a stale URL, clear it once:
 //   chrome.storage.local.set({ server_url: 'http://127.0.0.1:8080' })
 const _IS_DEV = !!chrome.runtime.getManifest()._dev;
+const _DEFAULT_SERVER_URL = _IS_DEV ? 'http://127.0.0.1:8080' : 'https://interview-wise.com';
+
+// Chrome opens this page when the user removes the extension — the one churn signal an
+// extension can give. The server records it against the signed-in account (or the page's
+// own analytics does, anonymously). Re-registered on every worker boot: MV3 evicts the
+// worker, the URL is per-install state. Needs no permission — it's a navigation, not a fetch.
+function setUninstallUrl(server_url) {
+  const base = server_url || _DEFAULT_SERVER_URL;
+  const v = encodeURIComponent(chrome.runtime.getManifest().version || '');
+  try { chrome.runtime.setUninstallURL(`${base}/extension/uninstalled?v=${v}`); } catch (_) {}
+}
+
 function seedServerUrl({ server_url }) {
   if (!server_url) {
-    chrome.storage.local.set({
-      server_url: _IS_DEV ? 'http://127.0.0.1:8080' : 'https://interview-wise.com',
-    });
+    chrome.storage.local.set({ server_url: _DEFAULT_SERVER_URL });
   }
+  setUninstallUrl(server_url);
 }
 chrome.storage.local.get(['server_url'], seedServerUrl);
 
@@ -847,5 +947,6 @@ chrome.storage.local.get(['enabled', 'mic_status']).then(onInitialStateLoaded);
 // Also start the heartbeat when the token is saved for the first time after install
 function handleApiTokenStorageChange(changes) {
   if (changes.api_token) ensureHeartbeat();
+  if (changes.server_url) setUninstallUrl(changes.server_url.newValue);
 }
 chrome.storage.onChanged.addListener(handleApiTokenStorageChange);

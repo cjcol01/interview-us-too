@@ -55,7 +55,7 @@
       <form class="ref-form" action="/referral/apply" method="post">
         <input type="hidden" name="source" value="pricing">
         <input class="ref-input" type="text" name="code" placeholder="Code or full link" maxlength="200" autocomplete="off" required>
-        <button class="ref-submit" type="submit">Apply</button>
+        <button data-attr="cta:pricing:referral:apply" class="ref-submit" type="submit">Apply</button>
       </form>
       {% if ref_error_msg %}<p class="ref-error">{{ ref_error_msg }}</p>{% endif %}
     </div>
@@ -96,7 +96,7 @@
           <!-- Label and promise are gated on intro_free_active (the 100%-off coupon) being
                configured — without it, Stripe charges the full £2 even if the referral coupon
                is set (the referral coupon requires a Referral row via apply_referral_discount). -->
-          <a class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/welcome/next?next=/billing/checkout?plan=sessions' }}">
+          <a data-attr="cta:pricing:intro:claim" class="plan-cta cta-intro" href="{{ '/billing/checkout?plan=sessions' if logged_in else '/welcome/next?next=/billing/checkout?plan=sessions' }}">
             {% if is_referred and intro_free_active %}Claim free session{% else %}Claim deal - £2{% endif %}
           </a>
           {% if is_referred and intro_free_active %}
@@ -163,7 +163,7 @@
           </div>
         </div>
 
-        <a class="plan-cta cta-sessions" href="{{ '/billing/checkout?plan=sessions_pack' if logged_in else '/welcome/next?next=/billing/checkout?plan=sessions_pack' }}">
+        <a data-attr="cta:pricing:pack:buy" class="plan-cta cta-sessions" href="{{ '/billing/checkout?plan=sessions_pack' if logged_in else '/welcome/next?next=/billing/checkout?plan=sessions_pack' }}">
           Get 3 sessions - £{% if is_referred and referral_discount_active %}5{% else %}10{% endif %}
         </a>
         <p class="plan-fine">Single payment · No auto-renewal</p>
@@ -232,7 +232,7 @@
             </div>
           </div>
 
-          <a class="plan-cta cta-sub" href="{{ '/billing/checkout?plan=subscription' if logged_in else '/welcome/next?next=/billing/checkout?plan=subscription' }}">
+          <a data-attr="cta:pricing:subscription:start" class="plan-cta cta-sub" href="{{ '/billing/checkout?plan=subscription' if logged_in else '/welcome/next?next=/billing/checkout?plan=subscription' }}">
             {% if trial_eligible %}Start free week &rarr;{% else %}Subscribe now &rarr;{% endif %}
           </a>
           <!-- Nothing to strike in the headline price (it's "Free first week"), so the cut shows
@@ -262,7 +262,7 @@
     </div>
 
     <p class="footer-note">
-      Questions? <a href="/contact">Get in touch</a> &nbsp;&middot;&nbsp;
+      Questions? <a data-attr="cta:pricing:footer:contact" href="/contact">Get in touch</a> &nbsp;&middot;&nbsp;
       <a href="/trial-end">Back</a> &nbsp;&middot;&nbsp;
       <a href="/auth/logout">Sign out</a>
     </p>

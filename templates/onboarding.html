@@ -77,8 +77,8 @@
     <div class="ob-header-links">
       <!-- Escape hatch for users who are already sold — no navbar on this page, so this
            is the only route to pricing other than completing the trial. -->
-      <a href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
-      <a href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
+      <a data-attr="cta:onboarding:header:start_trial_now" href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
+      <a data-attr="cta:onboarding:header:skip_setup" href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
     </div>
   </header>
 
@@ -111,7 +111,7 @@
           <!-- Install panel — shown first unless the extension is already present -->
           <div id="ob-install-panel">
             <p>Adds a silent background listener to Chrome or Edge. It stays completely invisible during your interview.</p>
-            <a href="https://chrome.google.com/webstore/detail/interview-wise/placeholder" target="_blank"
+            <a data-attr="cta:onboarding:step1:install" href="{{ webstore_url }}" target="_blank" rel="noopener noreferrer"
                class="ob-install-btn" onclick="obInstallClicked()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <polyline points="8 17 12 21 16 17"/>
@@ -294,13 +294,13 @@
           </div>
 
           <!-- Primary trial CTA — the extension-presence warning is now here (was iMoved). -->
-          <button class="ob-moved-btn" onclick="startTrial()">Start 10-minute test run</button>
+          <button data-attr="cta:onboarding:step3:start_test_run" class="ob-moved-btn" onclick="startTrial()">Start 10-minute test run</button>
           <p class="ob-manual-hint" style="text-align:center;margin-top:6px;">Runs on this computer, or on the phone you just scanned to.</p>
         </div>
       </div>
     </div>
   <div class="ob-bottom-subscribe">
-    <a href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
+    <a data-attr="cta:onboarding:bottom:start_trial_now" href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
   </div>
   </main>
 
@@ -521,6 +521,7 @@
       if (_obCompleting.has(n)) return;
       _obCompleting.add(n);
       _obDone.add(n);
+      if (window.iwTrack) iwTrack('onboarding_step_completed', { step: n });
       // Render before the hold, not after: the card has to show its finished state *during* the
       // pause. Skipping this left it displaying whatever it looked like beforehand for the whole
       // hold, then snapping straight to collapsed.
@@ -607,6 +608,7 @@
     function obInstallConfirmed() {
       if (_installConfirmed) return;
       _installConfirmed = true;
+      if (window.iwTrack) iwTrack('onboarding_install_confirmed');
       obCard1Phase('connect');
       runConnectSequence();
     }
@@ -617,6 +619,7 @@
     let _awaitingInstallReturn = false;
 
     function obInstallClicked() {
+      if (window.iwTrack) iwTrack('onboarding_install_clicked');
       _awaitingInstallReturn = true;
       const msg = document.getElementById('ob-await-return');
       msg.textContent = 'Waiting for you to come back from the Web Store…';
@@ -1110,13 +1113,16 @@
     function startTrial() {
       if (!_extensionConnected) {
         // Warn, but give an escape — a no-extension run is worse UX, not invalid.
+        if (window.iwTrack) iwTrack('trial_start_blocked_no_extension');
         document.getElementById('ext-warning-overlay').classList.add('visible');
         return;
       }
+      if (window.iwTrack) iwTrack('trial_start_clicked', { without_extension: false });
       document.getElementById('warning-overlay').classList.add('visible');
     }
 
     function continueWithoutExtension() {
+      if (window.iwTrack) iwTrack('trial_start_clicked', { without_extension: true });
       closeExtWarning();
       // Fall through to the normal confirm flow.
       document.getElementById('warning-overlay').classList.add('visible');

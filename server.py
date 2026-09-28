@@ -52,10 +52,11 @@ from sqlalchemy.orm import Session, aliased
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from analytics import identify, logger, track
+from analytics import alias, attribution_set_once, bind_browser_context, browser_distinct_id, identify_user, logger, reset_browser_context, track
+from analytics import cookie_name as ph_cookie_name
 from auth import create_token, decode_user_id, generate_unique_referral_code, generate_unique_username, get_current_user, get_optional_user, get_user_by_token, hash_password, validate_password, validate_username, verify_password
 from billing import apply_retention_coupon, cancel_subscription, cancel_subscription_immediately, create_checkout_session, create_portal_session, handle_webhook_event, pause_subscription, resume_subscription, trial_eligible
-from config import ADMIN_USERNAME, AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID
+from config import ADMIN_USERNAME, AI_PROMPT, ANTHROPIC_API_KEY, APP_VERSION, AUTHOR_PASSWORD, BASE_URL, DEEPGRAM_API_KEY, DEV_BUILD, GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_OAUTH_ENABLED, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_ENABLED, LANDING_PROD, OPENAI_API_KEY, PARTNER_HOLD_DAYS, PARTNER_TIER1_FLAT_PENCE, PARTNER_TIER2_BPS, PARTNER_TIER2_MIN_PAID, PARTNER_TIER3_BPS, PARTNER_WITHDRAWAL_THRESHOLD_PENCE, POSTHOG_API_KEY, POSTHOG_HOST, RELOAD, REDIS_URL, RESEND_API_KEY, SERVER_HOST, SERVER_PORT, SIDELOAD_ENABLED, SIDELOAD_ZIP_URL, SKIP_EMAIL_VERIFICATION, STRIPE_INTRO_FREE_COUPON_ID, STRIPE_REFERRAL_COUPON_ID, STRIPE_SECRET_KEY, STRIPE_SESSIONS_PACK_PRICE_ID, STRIPE_SESSIONS_PRICE_ID, STRIPE_SUB_PRICE_ID, STRIPE_SUB_PRICE_PENCE, STRIPE_WEBHOOK_SECRET, WEBSTORE_EXTENSION_ID, WEBSTORE_URL
 from mailer import CONTACT_DEPT_ADDRESSES, CONTACT_DEPT_LABELS, send_account_banned_email, send_account_deletion_email, send_account_unbanned_email, send_announcement_email, send_cancel_feedback_email, send_contact_email, send_desktop_login_email, send_expiry_reminder_email, send_install_link_email, send_interview_reminder_email, send_lead_announcement_email, send_low_sessions_email, send_password_reset_email, send_password_set_email, send_subscription_paused_email, send_subscription_resumed_email, send_usage_warning_email, send_verification_email, send_webstore_alert_email
 from database import DATA_DIR, SessionLocal, get_db, init_db
 from metrics import EMAIL_FAIL_PREFIX, HTTP_5XX_PREFIX, METRIC_TTL_SECONDS, hourly_bucket_key
@@ -138,12 +139,13 @@ def _template_globals(request: Request) -> dict:
         "is_admin": bool(user and ADMIN_USERNAME and user.username == ADMIN_USERNAME),
         "unseen_account_flag": bool(user and user.account_flag and not user.account_flag_seen),
         "active_announcement": _active_announcement_for(user) if user else None,
+        "webstore_url": WEBSTORE_URL,
     }
 
 
 templates = Jinja2Templates(directory="templates", context_processors=[_template_globals])
 templates.env.globals["POSTHOG_KEY"] = POSTHOG_API_KEY
-templates.env.globals["POSTHOG_HOST"] = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
+templates.env.globals["POSTHOG_HOST"] = POSTHOG_HOST
 templates.env.globals["APP_VERSION"] = APP_VERSION
 templates.env.globals["DEV_BUILD"] = DEV_BUILD
 # Screenshots are keyed by user id, and the test DB mints ids from 1 just like the real one —
@@ -344,6 +346,12 @@ async def _request_logger(request: Request, call_next):
     token = request.cookies.get("session")
     if token:
         user_id = decode_user_id(token)
+    # posthog-js's cookie → per-request context, so server-side track() calls carry the
+    # browser's $session_id (jump-to-replay in PostHog) and pre-login events can land on the
+    # browser's anonymous distinct id. Bearer-token extension requests have no cookie and
+    # simply get no context. See analytics.bind_browser_context.
+    _ph_cookie = ph_cookie_name()
+    ph_token = bind_browser_context(request.cookies.get(_ph_cookie) if _ph_cookie else None)
     try:
         response = await call_next(request)
     except Exception:
@@ -354,6 +362,8 @@ async def _request_logger(request: Request, call_next):
         # 5xx here, then re-raise so ServerErrorMiddleware still builds the actual response.
         await _incr_hourly_metric(request.app.state.redis, HTTP_5XX_PREFIX)
         raise
+    finally:
+        reset_browser_context(ph_token)
     ms = int((time.time() - start) * 1000)
     logger.info("%s %s → %d (%dms) user=%s", request.method, request.url.path, response.status_code, ms, user_id)
     if response.status_code >= 500:
@@ -421,21 +431,29 @@ async def _stream_ai_response(r, user_id: int, prompt: str, img_b64: Optional[st
         return full_text
     except Exception as e:
         logger.error("[ai] Claude failed, failing over to OpenAI: %s", e)
+        track(user_id, "ai_failover", from_provider="anthropic", to_provider="openai",
+              error=type(e).__name__, has_image=bool(img_b64))
         openai_content = ([{"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_b64}"}}] if img_b64 else []) + [{"type": "text", "text": prompt}]
         full_text = ""
-        stream = await openai_async_client.chat.completions.create(
-            model=_OPENAI_VISION_MODEL,
-            max_completion_tokens=1024,
-            messages=(history or []) + [{"role": "user", "content": openai_content}],
-            stream=True,
-        )
-        async for chunk in stream:
-            delta = chunk.choices[0].delta.content if chunk.choices else None
-            if not delta:
-                continue
-            full_text += delta
-            payload = {"text": delta, **({"capture_id": capture_id} if capture_id is not None else {})}
-            await broadcast(r, user_id, "chunk", payload)
+        try:
+            stream = await openai_async_client.chat.completions.create(
+                model=_OPENAI_VISION_MODEL,
+                max_completion_tokens=1024,
+                messages=(history or []) + [{"role": "user", "content": openai_content}],
+                stream=True,
+            )
+            async for chunk in stream:
+                delta = chunk.choices[0].delta.content if chunk.choices else None
+                if not delta:
+                    continue
+                full_text += delta
+                payload = {"text": delta, **({"capture_id": capture_id} if capture_id is not None else {})}
+                await broadcast(r, user_id, "chunk", payload)
+        except Exception as e2:
+            # Both providers down: the capture is lost. Record it (the caller surfaces a 500)
+            # so an outage shows up as a spike in PostHog rather than only in app.log.
+            track(user_id, "capture_failed", stage="ai", error=type(e2).__name__, has_image=bool(img_b64))
+            raise
         return full_text
 
 
@@ -1168,6 +1186,7 @@ async def _gate_basic_access(r, user: User, db: Session):
         active = await run_in_threadpool(_check_trial)
         if not active:
             track(user.id, "trial_expired")
+            identify_user(user)  # account_level just became free — keep the person profile current
             await broadcast(r, user.id, "trial_expired", {})
             raise HTTPException(status_code=403, detail="trial_expired")
 
@@ -1293,10 +1312,19 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
     # and immediately retyped. The per-minute and per-15-minute ceilings are what actually
     # bound guessing, so the throttling lives entirely there.
     identity = body.username.strip().lower()
-    await _rate_limit(r, identity, "login_user", cooldown=0, limit=10,
-                      limit_msg="Too many attempts on this account — try again in a minute",
-                      window_limit=30, window_seconds=900,
-                      window_msg="Too many attempts on this account — try again later")
+    try:
+        await _rate_limit(r, identity, "login_user", cooldown=0, limit=10,
+                          limit_msg="Too many attempts on this account — try again in a minute",
+                          window_limit=30, window_seconds=900,
+                          window_msg="Too many attempts on this account — try again later")
+    except HTTPException:
+        # No user id at this point; track() falls back to the browser's anonymous PostHog
+        # id when the cookie is present, and drops the event for cookie-less (scripted) callers.
+        track(None, "login_failed", reason="rate_limited")
+        raise
+    # Filled in by _authenticate on a failed attempt so the analytics event can say why (and
+    # for whom, when the account exists) without changing the response the caller sees.
+    failure: dict = {}
     def _authenticate():
         # Case-insensitive: usernames are matched/uniqued without regard to case, so "John"
         # logs in as "john". func.lower (not ilike — usernames may contain '_', a LIKE wildcard).
@@ -1315,14 +1343,20 @@ async def auth_login(body: LoginRequest, request: Request, db: Session = Depends
         else:
             user = db.query(User).filter(func.lower(User.username) == identifier.lower()).first()
         if not user or not verify_password(body.password, user.password_hash):
+            failure.update(reason="invalid", user_id=user.id if user else None)
             raise HTTPException(status_code=401, detail="Invalid login or password.")
         if not user.is_active:
+            failure.update(reason="suspended", user_id=user.id)
             raise HTTPException(status_code=403, detail="This account has been suspended. Contact support if you think this is a mistake.")
         user.last_login = datetime.utcnow()
         db.commit()
         return user
 
-    user = await run_in_threadpool(_authenticate)
+    try:
+        user = await run_in_threadpool(_authenticate)
+    except HTTPException:
+        track(failure.get("user_id"), "login_failed", reason=failure.get("reason", "invalid"))
+        raise
     # Credentials checked out, so the attempts leading up to this were fumbles, not guesses —
     # release the identity's budget rather than leaving it spent for the rest of the window.
     await _rate_limit_clear(r, identity, "login_user")
@@ -1340,6 +1374,7 @@ async def auth_register(
     request: Request,
     db: Session = Depends(get_db),
     ref: Optional[str] = Cookie(default=None),
+    ia_attr: Optional[str] = Cookie(default=None),
 ):
     r = request.app.state.redis
     # No per-identity axis to split on for signup (that's what's being created), so this stays
@@ -1402,8 +1437,11 @@ async def auth_register(
         return user
 
     user = await run_in_threadpool(_register)
-    identify(user.id, user.email, user.full_name, user.account_level.value)
-    track(user.id, "signup", referred=bool(ref))
+    # First-touch ad attribution from the server-side ia_attr cookie (set by `/`), written as
+    # $set_once so it never overrides what posthog-js already recorded in this browser but
+    # fills the gap when the consent banner blocked the script on the landing visit.
+    identify_user(user, set_once=attribution_set_once(_attribution_dict(_attribution_json(ia_attr)), "password"))
+    track(user.id, "signup", referred=bool(ref), method="password")
 
     token = create_token(user.id)
     # When SKIP_EMAIL_VERIFICATION is active the user is already verified, so the client
@@ -1414,6 +1452,7 @@ async def auth_register(
     response = JSONResponse(body_data)
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     response.delete_cookie("ref")
+    response.delete_cookie("ia_attr")  # consumed above, same as /claim
     return response
 
 
@@ -1478,6 +1517,9 @@ async def auth_google_callback(
         raise HTTPException(status_code=404)
     if error or not code or not state:
         return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    # Same-site top-level navigation, so the httponly ad-attribution cookie set by `/` arrives
+    # here like any other request; read it for first-touch attribution on a new signup.
+    ia_attr = request.cookies.get("ia_attr")
 
     r = request.app.state.redis
     stashed = await r.get(f"oauth:google:{state}")
@@ -1544,7 +1586,7 @@ async def auth_google_callback(
         return RedirectResponse("/login?error=account_suspended", status_code=303)
 
     if is_new:
-        identify(user.id, user.email, user.full_name, user.account_level.value)
+        identify_user(user, set_once=attribution_set_once(_attribution_dict(_attribution_json(ia_attr)), "google"))
         track(user.id, "signup", referred=bool(ref), method="google")
     else:
         user.last_login = datetime.utcnow()
@@ -1559,6 +1601,8 @@ async def auth_google_callback(
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     if ref:
         response.delete_cookie("ref")
+    if is_new:
+        response.delete_cookie("ia_attr")  # consumed for attribution above
     return response
 
 
@@ -1637,6 +1681,7 @@ async def auth_github_callback(
         raise HTTPException(status_code=404)
     if error or not code or not state:
         return RedirectResponse("/login?error=oauth_failed", status_code=303)
+    ia_attr = request.cookies.get("ia_attr")  # see the Google callback
 
     r = request.app.state.redis
     stashed = await r.get(f"oauth:github:{state}")
@@ -1700,7 +1745,7 @@ async def auth_github_callback(
         return RedirectResponse("/login?error=account_suspended", status_code=303)
 
     if is_new:
-        identify(user.id, user.email, user.full_name, user.account_level.value)
+        identify_user(user, set_once=attribution_set_once(_attribution_dict(_attribution_json(ia_attr)), "github"))
         track(user.id, "signup", referred=bool(ref), method="github")
     else:
         user.last_login = datetime.utcnow()
@@ -1715,6 +1760,8 @@ async def auth_github_callback(
     response.set_cookie("session", token, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 7)
     if ref:
         response.delete_cookie("ref")
+    if is_new:
+        response.delete_cookie("ia_attr")  # consumed for attribution above
     return response
 
 
@@ -1734,6 +1781,7 @@ async def resend_verification(request: Request, user: User = Depends(get_current
         send_verification_email(user.email, user.verify_token)
 
     await run_in_threadpool(_resend)
+    track(user.id, "verification_resent")
     return {"status": "ok"}
 
 
@@ -1761,6 +1809,7 @@ def verify_email(token: str, next: Optional[str] = None,
     user.verify_token = None
     db.commit()
     track(user.id, "email_verified", account_level=user.account_level.value)
+    identify_user(user)
     # Accept a relative-path next param threaded through from the registration source
     # (e.g. "/pricing" for demo-CTA signups). Reject anything that isn't a clean relative
     # path to prevent the verification link from being used as an open redirect.
@@ -1895,6 +1944,10 @@ async def install_link(
 
     client_ip = _client_ip(request)
     attribution = _attribution_json(ia_attr)
+    # The phone browser's anonymous PostHog id. Stashed on the lead so /claim (on a different
+    # device) can alias it onto the new account — otherwise the ad click that produced this
+    # lead and the account it became are two unrelated persons in PostHog forever.
+    ph_id = browser_distinct_id()
 
     def _issue():
         now = datetime.utcnow()
@@ -1910,6 +1963,8 @@ async def install_link(
             lead.ref_code = ref              # first touch
         if attribution and not lead.attribution:
             lead.attribution = attribution   # first touch
+        if ph_id and not getattr(lead, "ph_distinct_id", None):
+            lead.ph_distinct_id = ph_id      # first touch
         if is_new_row:
             db.add(lead)
         db.commit()
@@ -1920,8 +1975,14 @@ async def install_link(
             send_desktop_login_email(email, raw)
         else:
             send_install_link_email(email, raw)
+        return lead.kind, bool(lead.attribution), lead.request_count
 
-    await run_in_threadpool(_issue)
+    kind, has_attribution, request_count = await run_in_threadpool(_issue)
+    # Anonymous (no account yet): lands on the phone browser's PostHog id via the cookie.
+    # Complements the client-side `install_link_requested` in landing.html with facts only
+    # the server knows; never includes the email.
+    track(None, "install_link_requested", kind=kind, has_attribution=has_attribution,
+          has_interview_date=parsed_date is not None, repeat=request_count > 1)
     # Always ok — never reveal whether the email is registered
     return {"status": "ok"}
 
@@ -2034,9 +2095,12 @@ async def claim_install_link(
         # properly on the laptop that evening".
         lead.expires_at  = min(lead.expires_at, now + LEAD_POST_CLAIM_TTL)
         db.commit()
-        return user, "created"
+        return user, "created", {"attr": _attribution_dict(lead.attribution),
+                                 "ph_id": getattr(lead, "ph_distinct_id", None)}
 
-    user, outcome = await run_in_threadpool(_claim)
+    result = await run_in_threadpool(_claim)
+    user, outcome = result[0], result[1]
+    stitch = result[2] if len(result) > 2 else {}
 
     if user is None:
         # Defence in depth: the token is in this URL regardless of outcome (a rejected
@@ -2047,7 +2111,12 @@ async def claim_install_link(
         return failure
 
     if outcome == "created":
-        identify(user.id, user.email, user.full_name, user.account_level.value)
+        # Device hop: the ad click happened on the phone, the signup on the laptop. Alias the
+        # phone browser's anonymous PostHog id onto this account first so its landing pageview
+        # and install_link_requested join the person, then write first-touch attribution from
+        # the lead snapshot (the laptop's posthog-js never saw the ad, so nothing to override).
+        alias(stitch.get("ph_id"), user.id)
+        identify_user(user, set_once=attribution_set_once(stitch.get("attr"), "install_link"))
         track(user.id, "signup", referred=bool(user.referred_by_id), method="install_link")
     elif outcome == "login":
         track(user.id, "login", method="install_link")
@@ -2386,6 +2455,7 @@ def onboarding_page(
 def verify_pending(request: Request, user: User = Depends(require_user)):
     if user.email_verified:
         return RedirectResponse("/app")
+    track(user.id, "verify_pending_viewed")
     return templates.TemplateResponse(request=request, name="verify_pending.html", context={
         "email": user.email,
     })
@@ -2409,6 +2479,8 @@ def trial_end(request: Request, user: User = Depends(require_user), db: Session 
         if session:
             trial_active = True
             seconds_left = int((session.expires_at - now).total_seconds())
+    track(user.id, "trial_end_viewed", trial_active=trial_active, minutes_left=-(-seconds_left // 60),
+          account_level=user.account_level.value)
     return templates.TemplateResponse(request=request, name="trial_end.html", context={
         "trial_active": trial_active,
         "trial_minutes_left": -(-seconds_left // 60),  # ceil, so 30s left reads "1 min"
@@ -2556,6 +2628,8 @@ def apply_referral_code(
 ):
     def redirect(param: str, value: str):
         base = {"settings": "/settings", "pricing": "/pricing"}.get(source, "/partner/dashboard")
+        if param == "ref_error":
+            track(user.id, "referral_apply_failed", reason=value, source=source)
         return RedirectResponse(f"{base}?{param}={value}", status_code=303)
 
     if user.referred_by_id or db.query(Referral).filter(Referral.referee_id == user.id).first():
@@ -2659,7 +2733,6 @@ def links_page(
 ):
     return templates.TemplateResponse(request=request, name="links.html", context={
         "show_navbar": True,
-        "cws_id": WEBSTORE_EXTENSION_ID,
     })
 
 
@@ -2700,6 +2773,22 @@ def support_page(
     return templates.TemplateResponse(request=request, name="support.html", context={
         "show_navbar": True,
         "api_token": api_token,
+    })
+
+
+@app.get("/extension/uninstalled")
+def extension_uninstalled(request: Request, user: Optional[User] = Depends(get_optional_user), v: str = ""):
+    """Chrome opens this when the extension is removed (chrome.runtime.setUninstallURL in
+    extension/background.js). Purely an analytics + soft-landing page: with a session cookie
+    the server records `extension_uninstalled` on the account; otherwise the template fires
+    the same event client-side against the anonymous browser id, never both."""
+    ext_version = v[:20]
+    if user:
+        track(user.id, "extension_uninstalled", ext_version=ext_version, account_level=user.account_level.value)
+    return templates.TemplateResponse(request=request, name="extension_uninstalled.html", context={
+        "show_navbar": True,
+        "ext_version": ext_version,
+        "tracked_server_side": user is not None,
     })
 
 
@@ -2749,6 +2838,8 @@ async def api_contact(body: ContactRequest, request: Request, user: Optional[Use
         raise HTTPException(status_code=400, detail="Message is too long.")
 
     send_contact_email(dept=dept, from_email=from_email, subject=subject, message=message)
+    # Anonymous senders land on the browser's PostHog id via the cookie; never the email/body.
+    track(user.id if user else None, "contact_submitted", dept=dept, logged_in=user is not None)
     return {"ok": True}
 
 
@@ -4508,6 +4599,7 @@ def admin_pause_subscription(
     db.commit()
     send_subscription_paused_email(target.email)
     track(target.id, "admin_subscription_paused")
+    identify_user(target)
     logger.warning("[admin] paused subscription for user=%s", target.email)
     return _admin_redirect(return_to, f"Paused subscription for {target.email}")
 
@@ -5253,6 +5345,8 @@ async def api_capture(body: CaptureRequest, request: Request, user: User = Depen
     created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
     if created:
         await _clear_history(r, user.id)
+        # Paid pack-session consumption only (trial → trial_started; unlimited has no sessions).
+        track(user.id, "session_started", source="screenshot", sessions_remaining=user.sessions_remaining)
         await broadcast(r, user.id, "session_started", {
             "expires_at": session_expires_at,
             "seconds_remaining": int(SESSION_DURATION.total_seconds()),
@@ -5326,6 +5420,8 @@ async def api_capture_confirm(request: Request, user: User = Depends(get_current
         created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
         if created:
             await _clear_history(r, user.id)
+            # Paid pack-session consumption only (trial → trial_started; unlimited has no sessions).
+            track(user.id, "session_started", source="confirm_screenshot", sessions_remaining=user.sessions_remaining)
             await broadcast(r, user.id, "session_started", {
                 "expires_at": session_expires_at,
                 "seconds_remaining": int(SESSION_DURATION.total_seconds()),
@@ -5361,6 +5457,8 @@ async def api_capture_confirm(request: Request, user: User = Depends(get_current
         created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
         if created:
             await _clear_history(r, user.id)
+            # Paid pack-session consumption only (trial → trial_started; unlimited has no sessions).
+            track(user.id, "session_started", source="confirm_text", sessions_remaining=user.sessions_remaining)
             await broadcast(r, user.id, "session_started", {
                 "expires_at": session_expires_at,
                 "seconds_remaining": int(SESSION_DURATION.total_seconds()),
@@ -5489,6 +5587,8 @@ async def api_text_capture(body: TextCaptureRequest, request: Request, user: Use
     created, session_expires_at = await run_in_threadpool(_account_bookkeeping)
     if created:
         await _clear_history(r, user.id)
+        # Paid pack-session consumption only (trial → trial_started; unlimited has no sessions).
+        track(user.id, "session_started", source="text", sessions_remaining=user.sessions_remaining)
         await broadcast(r, user.id, "session_started", {
             "expires_at": session_expires_at,
             "seconds_remaining": int(SESSION_DURATION.total_seconds()),
@@ -5570,6 +5670,8 @@ async def api_audio_capture(
             if not DEEPGRAM_API_KEY:
                 raise
             logger.error("[audio] OpenAI transcription failed, failing over to Deepgram: %s", transcribe_exc)
+            track(user.id, "transcription_failover", from_provider="openai", to_provider="deepgram",
+                  error=type(transcribe_exc).__name__, source=mode)
             transcription_text = await asyncio.to_thread(_deepgram_transcribe, audio_bytes, suffix)
 
         # Nothing was actually said. Stop here rather than spend a capture — and the user's
@@ -5624,6 +5726,7 @@ async def api_audio_capture(
         # Never forward the raw exception text (e.g. "400 Client Error: ... for url: ...") to
         # the dashboard — log the real detail server-side, show the user something actionable.
         logger.error("[audio] processing failed: %s", exc)
+        track(user.id, "audio_capture_failed", source=mode, error=type(exc).__name__)
         await broadcast(r, user.id, "audio-error", {"message": "Couldn't process that recording — try again."})
         raise HTTPException(status_code=500, detail="Audio processing failed")
     finally:
@@ -5881,7 +5984,7 @@ async def notify_enabled(request: Request, user: User = Depends(get_user_by_toke
 
 
 @app.post("/api/ext/status")
-async def post_ext_status(request: Request, user: User = Depends(get_user_by_token)):
+async def post_ext_status(request: Request, user: User = Depends(get_user_by_token), db: Session = Depends(get_db)):
     body = await request.json()
     r = request.app.state.redis
     status = {
@@ -5890,6 +5993,20 @@ async def post_ext_status(request: Request, user: User = Depends(get_user_by_tok
         "mic":         str(body.get("mic", "unknown")),
         "replay":      str(body.get("replay", "idle")),
     }
+    # First heartbeat ever from this account's extension = the activation moment the signup
+    # funnel is built around ("installed and linked", as opposed to merely registered). Exactly
+    # once per user, recorded on the row so it survives Redis restarts. The try/rollback covers a
+    # deploy where the migration hasn't landed yet: nothing breaks, the event fires next heartbeat.
+    if getattr(user, "ext_first_seen_at", None) is None:
+        try:
+            user.ext_first_seen_at = datetime.utcnow()
+            db.commit()
+            track(user.id, "extension_connected", ext_enabled=status["ext_enabled"], mic=status["mic"],
+                  account_level=user.account_level.value)
+            identify_user(user)
+        except Exception as e:
+            db.rollback()
+            logger.warning("[ext-status] could not record first check-in for user %s: %s", user.id, e)
     await r.set(_ext_status_key(user.id), json.dumps(status), ex=90)
     await broadcast(r, user.id, "ext_status", status)
     return {"status": "ok"}
@@ -5908,6 +6025,7 @@ async def get_ext_status(request: Request, user: User = Depends(get_current_user
 def regenerate_api_token(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     user.api_token = secrets.token_urlsafe(32)
     db.commit()
+    track(user.id, "token_regenerated")
     return {"token": user.api_token}
 
 
@@ -5988,6 +6106,7 @@ async def account_delete_confirm(
                 logger.error("[account-delete] failed to cancel stripe sub for %s: %s", user.email, e)
 
         track(user.id, "account_deleted", reason=reason)
+        identify_user(user, set_once={"deleted_at": datetime.utcnow().isoformat()})
         if reason:
             send_account_deletion_email(user.email, reason, detail)
 
@@ -6042,13 +6161,15 @@ def billing_cancel(request: Request, user: User = Depends(get_current_user)):
     if user.account_level != AccountLevel.unlimited and not user.stripe_sub_id:
         return RedirectResponse("/settings#billing", status_code=303)
     hk = _user_hotkeys(user)
+    offer_eligible = user.sub_invoice_paid and not user.retention_offer_claimed and bool(user.stripe_sub_id)
+    track(user.id, "billing_cancel_viewed", offer_eligible=bool(offer_eligible))
     return templates.TemplateResponse(request=request, name="cancel_confirm.html", context={
         "hotkey_capture": hk["capture"],
         "hotkey_audio":   hk["audio"],
         "hotkey_toggle":  hk["toggle"],
         "hotkey_replay":  hk["replay"],
         "hotkey_typing":  hk["typing"],
-        "offer_eligible": user.sub_invoice_paid and not user.retention_offer_claimed and bool(user.stripe_sub_id),
+        "offer_eligible": offer_eligible,
     })
 
 
@@ -6058,8 +6179,10 @@ def billing_offer(user: User = Depends(get_current_user), db: Session = Depends(
         apply_retention_coupon(user)
         user.retention_offer_claimed = True
         db.commit()
+        track(user.id, "billing_offer_accepted", success=True)
     except Exception as e:
         logger.error("[retention] failed to apply coupon for %s: %s", user.email, e)
+        track(user.id, "billing_offer_accepted", success=False, error=type(e).__name__)
     return RedirectResponse("/settings?offer=claimed", status_code=303)
 
 
@@ -6091,6 +6214,7 @@ def billing_portal(user: User = Depends(get_current_user)):
     if not user.stripe_customer_id:
         raise HTTPException(status_code=400, detail="No billing account found.")
     url = create_portal_session(user)
+    track(user.id, "billing_portal_opened", account_level=user.account_level.value)
     return RedirectResponse(url, status_code=303)
 
 
@@ -6110,6 +6234,8 @@ def billing_success(request: Request, user: User = Depends(get_optional_user), d
     if not user:
         return RedirectResponse("/login?next=/billing/success", status_code=302)
     db.refresh(user)
+    track(user.id, "billing_success_viewed", account_level=user.account_level.value,
+          sessions_remaining=user.sessions_remaining)
     return templates.TemplateResponse(request=request, name="billing_success.html", context={})
 
 

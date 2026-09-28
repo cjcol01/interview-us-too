@@ -121,7 +121,11 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "").replace("postgres://", "p
 # (server.py). Defaults outside the repo so a WSL2 dev machine (9p-mounted repo) can still
 # write logs reliably. On Railway/VPS, point this at a mounted volume so logs survive redeploys.
 DB_DATA_DIR      = os.getenv("DB_DATA_DIR", "~/.interview-us-too")
+# PostHog. Set the key on Railway only — locally leave it unset (analytics.py logs
+# "PostHog analytics disabled") so dev traffic never lands in the production project.
+# run_tests.py blanks it and TESTING=1 disables it regardless. The project lives on EU cloud.
 POSTHOG_API_KEY  = os.getenv("POSTHOG_API_KEY", "")
+POSTHOG_HOST     = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 LANDING_PROD     = os.getenv("LANDING_PROD", "1") == "1"
 
 # Manual-install fallback page (/install-manual), for if the Chrome Web Store listing is
@@ -143,6 +147,12 @@ SIDELOAD_ZIP_URL = os.getenv(
 # and flag a takedown/unpublish — see _check_webstore in server.py. Left unset, that check
 # reports "not configured" instead of guessing at an ID.
 WEBSTORE_EXTENSION_ID = os.getenv("WEBSTORE_EXTENSION_ID", "")
+
+# Public Chrome Web Store listing. Hardcoded rather than env-driven because the listing URL
+# is public and never differs per environment — every "Add to Chrome" / "get the extension"
+# link on the site reads this via _template_globals ({{ webstore_url }}), so a future
+# rename or re-listing is a one-line change here.
+WEBSTORE_URL = "https://chromewebstore.google.com/detail/smart-screen-assistant/hphiibadhgnneojlnkfbmkippbcdimfk"
 
 # --- Dev-only settings: review/change before deploying to production -------
 # SKIP_EMAIL_VERIFICATION: when "1", new accounts are marked verified on signup

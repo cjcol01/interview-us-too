@@ -94,6 +94,11 @@ class User(Base):
     # user and they haven't started a session yet this visit. Default on; can be disabled from
     # Settings → Hotkeys once the user is comfortable with the no-confirmation flow.
     session_start_warning  = Column(Boolean, default=True, nullable=False, server_default="1")
+    # First time the Chrome extension ever checked in for this account (/api/ext/status).
+    # Durable "activation" marker: fires the one-off `extension_connected` analytics event and
+    # lets admin pages tell "signed up" from "actually installed". Deliberately a DB column,
+    # not a Redis flag — a Redis flush would re-fire the event for every user.
+    ext_first_seen_at      = Column(DateTime, nullable=True)
 
 
 class InterviewContext(Base):
@@ -249,6 +254,7 @@ class Lead(Base):
     interview_date = Column(Date, nullable=True)   # transferred onto User at claim
     ref_code       = Column(String, nullable=True) # snapshot of the `ref` cookie at capture time — survives the device hop
     attribution    = Column(Text, nullable=True)   # JSON blob: utm_*, gclid, fbclid, referer, first-touch ts
+    ph_distinct_id = Column(String, nullable=True) # the phone browser's anonymous PostHog id at capture time — aliased onto the User at /claim so the ad-click session joins the account
     ip             = Column(String, nullable=True) # abuse triage only; scrubbed by the purge job
 
 

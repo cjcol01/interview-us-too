@@ -52,6 +52,9 @@
     // replay, so encouraging skipping is the right call for impatient users.
     window.MI_SHOW_SKIP_NUDGE = true;
     window.MI_ON_FIRST_RUN_FINISH = function () {
+      // Fires whether they watched to the end or skipped out; navigates straight after, so
+      // send immediately rather than batching.
+      if (window.iwTrack) iwTrack('demo_finished', { authenticated: _wIsAuthenticated }, { send_instantly: true });
       if (_wIsAuthenticated) {
         // Mark the tutorial seen so index.html's initTrial() doesn't replay the simulated
         // call on first visit to /app after onboarding. Server-side, not localStorage —

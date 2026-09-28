@@ -553,9 +553,9 @@
                 <span class="billing-level">Unlimited</span>
               </div>
               {% if not sub_cancel_at %}
-                <a class="action-link danger" href="/billing/cancel">Cancel subscription ›</a>
+                <a data-attr="cta:settings:billing:cancel" class="action-link danger" href="/billing/cancel">Cancel subscription ›</a>
               {% else %}
-                <a class="action-link" href="/billing/portal">Manage billing ›</a>
+                <a data-attr="cta:settings:billing:manage" class="action-link" href="/billing/portal">Manage billing ›</a>
               {% endif %}
             {% elif account_level == 'paid' %}
               <div class="billing-status-row">
@@ -576,13 +576,13 @@
               </div>
               {% endif %}
               <p class="card-row-desc">Nothing to cancel - session packs are one-off purchases, so you won't be charged again. Your sessions never expire.</p>
-              <a class="action-link" href="/pricing">Top up sessions ›</a>
-              <a class="action-link upgrade" href="/billing/checkout?plan=subscription">Upgrade to Unlimited ›</a>
+              <a data-attr="cta:settings:billing:top_up" class="action-link" href="/pricing">Top up sessions ›</a>
+              <a data-attr="cta:settings:billing:upgrade_unlimited" class="action-link upgrade" href="/billing/checkout?plan=subscription">Upgrade to Unlimited ›</a>
             {% else %}
               <div class="billing-status-row">
                 <span class="billing-level">{{ account_level|capitalize }}</span>
               </div>
-              <a class="action-link upgrade" href="/pricing">Upgrade plan ›</a>
+              <a data-attr="cta:settings:billing:upgrade_plan" class="action-link upgrade" href="/pricing">Upgrade plan ›</a>
             {% endif %}
           </div>
 

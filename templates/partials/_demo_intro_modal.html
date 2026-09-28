@@ -64,6 +64,9 @@
 
   function dismiss(action) {
     markSeen();
+    // send_instantly: the skip path navigates away immediately, so don't let the event sit
+    // in the batch queue.
+    if (window.iwTrack) iwTrack(action === 'skip' ? 'demo_intro_skipped' : 'demo_intro_started', { page: location.pathname }, { send_instantly: true });
     backdrop.remove();
     document.body.style.overflow = '';
 

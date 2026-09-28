@@ -39,6 +39,8 @@ Your on your own with this one!
 
 `SECRET_KEY` is required — the server will refuse to start without it.
 
+Leave `POSTHOG_API_KEY` unset locally: analytics are Railway-only, and the server logs `PostHog analytics disabled` when the key is missing (see the env table in `CLAUDE.md`).
+
 ### 3. Run the server
 
 ```bash
@@ -60,7 +62,7 @@ Open the popup, paste your API token from the settings page, and you're ready.
 | Shortcut | Action |
 |---|---|
 | `Ctrl+Shift+6` | Capture current tab and analyse |
-| `Ctrl+Shift+7` | Hold to record audio question |
+| `Ctrl+Shift+7` | Start recording an audio question - press any key to send |
 | `Ctrl+Shift+8` | Instant replay of the last few seconds of tab audio |
 | `Ctrl+Shift+9` | Typing mode |
 | `Ctrl+Shift+0` | Turn the assistant on/off |

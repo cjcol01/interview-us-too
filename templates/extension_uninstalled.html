@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Extension removed - InterviewWise{% endblock %}
+{% block head %}
+<meta name="robots" content="noindex">
+<style>
+  .xu-wrap { max-width: 560px; margin: 64px auto; padding: 0 20px; text-align: center; }
+  .xu-wrap h1 { font-size: 1.6rem; margin-bottom: 12px; }
+  .xu-wrap p { color: var(--muted, #888); line-height: 1.55; margin: 0 0 14px; }
+  .xu-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="xu-wrap">
+  <h1>The extension has been removed</h1>
+  <p>Sorry to see it go. Your account and any sessions you've bought are untouched — reinstall any time and you'll pick up exactly where you left off.</p>
+  <p>If something wasn't working, or it wasn't what you expected, we'd genuinely like to know.</p>
+  <div class="xu-actions">
+    <a href="/contact?dept=support" class="btn btn-primary" data-attr="cta:ext_uninstalled:main:contact">Tell us what went wrong</a>
+    {% if webstore_url %}<a href="{{ webstore_url }}" class="btn btn-outline" data-attr="cta:ext_uninstalled:main:reinstall" target="_blank" rel="noopener noreferrer">Reinstall</a>{% endif %}
+  </div>
+</div>
+{% if not tracked_server_side %}
+<script>
+  // No session cookie, so the server couldn't attribute this — record it on the browser's
+  // anonymous id instead (it merges onto the account if this browser ever signs in).
+  if (window.iwTrack) iwTrack('extension_uninstalled', { anonymous: true, ext_version: {{ ext_version|tojson }} });
+</script>
+{% endif %}
+{% endblock %}

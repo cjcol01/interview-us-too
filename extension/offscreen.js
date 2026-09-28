@@ -1,4 +1,4 @@
-// ── Mic state (hold-to-record) ───────────────────────────────────────────────
+// ── Mic state (toggle: hotkey starts, any key stops) ─────────────────────────
 const _mic = { stream: null, recorder: null, chunks: [] };
 
 // ── Replay state (rolling tab-audio buffer) ───────────────────────────────────

@@ -36,11 +36,11 @@
       <p class="ia-hero-sub">InterviewWise watches your screen and listens to your interviewer, then streams a working solution to your phone in seconds. You know the material - you just need it back the moment your mind goes blank.</p>
       <div class="ia-hero-btns">
         {% if user %}
-        <a class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
+        <a data-attr="cta:landing:hero:go_to_app" class="ia-btn-primary ia-btn-hero" href="/app">Go to app</a>
         {% else %}
-        <a class="ia-btn-primary ia-btn-hero ia-btn-lime ia-cta-desktop" href="/welcome">Try free - no card</a>
+        <a data-attr="cta:landing:hero:try_free" class="ia-btn-primary ia-btn-hero ia-btn-lime ia-cta-desktop" href="/welcome">Try free - no card</a>
         {% endif %}
-        <a class="ia-btn-ghost ia-btn-hero" href="/welcome">See how it works</a>
+        <a data-attr="cta:landing:hero:see_how" class="ia-btn-ghost ia-btn-hero" href="/welcome">See how it works</a>
       </div>
       <div class="ia-trust-row">
         <span><span class="ia-check">✓</span> free trial</span>
@@ -56,15 +56,15 @@
         <div class="ia-lead-row">
           <input class="ia-lead-input" id="lead-email" name="email" type="email"
                  inputmode="email" autocomplete="email" placeholder="you@email.com" required>
-          <button class="ia-lead-btn" id="lead-submit" type="submit">Email me the link</button>
+          <button data-attr="cta:landing:lead_form:submit" class="ia-lead-btn" id="lead-submit" type="submit">Email me the link</button>
         </div>
 
         <div class="ia-lead-date">
           <span class="ia-lead-date-label">When's the interview? <span class="ia-lead-optional">(optional)</span></span>
           <div class="ia-lead-pills" id="lead-pills">
-            <button type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
-            <button type="button" class="ia-lead-pill" data-choice="soon">This week</button>
-            <button type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="soon">This week</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
             <button type="button" class="ia-lead-pill ia-lead-pill-muted" data-choice="unknown">Not sure yet</button>
           </div>
         </div>
@@ -73,7 +73,7 @@
         <input class="ia-hp" type="text" name="hp_check" id="lead-hp-check" tabindex="-1" autocomplete="off" aria-hidden="true">
 
         <p class="ia-lead-err" id="lead-error" role="alert"></p>
-        <a class="ia-lead-alt" href="/login?register=1">Already on a laptop? Create an account &rarr;</a>
+        <a data-attr="cta:landing:lead_form:create_account" class="ia-lead-alt" href="/login?register=1">Already on a laptop? Create an account &rarr;</a>
       </form>
       <div class="ia-lead-done" id="lead-done" hidden>
         <strong>Check your inbox.</strong>
@@ -188,10 +188,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                   <div class="demo-voice-bar">
                     <div class="demo-voice-btn" id="s1VoiceBtn">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg>
-                      Hold to record
+                      Tap to record
                     </div>
                     <kbd class="demo-hotkey">&#8997; V</kbd>
-                    <span class="demo-voice-hint" id="s1Hint">Hold while interviewer speaks</span>
+                    <span class="demo-voice-hint" id="s1Hint">Tap when interviewer starts speaking</span>
                   </div>
                 </div>
               </div>
@@ -317,7 +317,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         </div>
       </div>
       </div>
-      <p class="ia-demo-caption">Preview only &mdash; see the full demo <a href="/welcome" style="text-decoration:underline;">here</a>.</p>
+      <p class="ia-demo-caption">Preview only &mdash; see the full demo <a data-attr="cta:landing:demo:full_demo" href="/welcome" style="text-decoration:underline;">here</a>.</p>
     </div>
 
   </div>
@@ -388,7 +388,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <div class="ia-step-rule"></div>
         </div>
         <h3>Tap a hidden hotkey</h3>
-        <p>Tap to capture your screen instantly - intercepted at the OS level, invisible to monitoring software. Hold while the interviewer speaks to send their words to AI. Or replay the last 15 seconds of conversation.</p>
+        <p>Tap to capture your screen instantly - intercepted at the OS level, invisible to monitoring software. Tap while the interviewer speaks, then any key when they finish, to send their words to AI. Or replay the last 15 seconds of conversation.</p>
         <div class="ia-step-note ia-step-note--accent">+ type your own question silently</div>
       </div>
       <div class="ia-step" data-reveal>
@@ -480,7 +480,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
         ("Theo B.",   "iOS Developer",            "Screen capture nailed the exact prompt and detected a weird language (zig) instantly.", 5),
         ("Rina A.",   "New Grad, EE",             "Switching from hardware to software interviews was tough. This helped me until I caught up.", 5),
         ("Marco S.",  "Systems Engineer",         "Wanted to scroll back to the answer before last on my phone mid-call and there was no way to do it.", 4),
-        ("Carlos V.", "Infrastructure Engineer",  "Hold-to-record for the interviewer's question is sick. Hands stay on the keyboard the whole time.", 5),
+        ("Carlos V.", "Infrastructure Engineer",  "Tap-to-record for the interviewer's question is sick. Hands stay on the keyboard the whole time.", 5),
         ("Freya F.",  "Data Engineer",            "Used it for like 13 interviews across 6 different companies this month. Two offers. I'm not saying it's the only reason, but it didn't hurt.", 5),
         ("Kenji M.",  "Staff Engineer",           "Even at a senior level, the nerves hit. Why not use it? it's fast, and it reads perfectly at a glance on a second monitor.", 5),
         ("Diego M.",  "Backend Engineer",         "Knowing replay was there if I blanked made me so much calmer. Ended up barely using it but just knowing I could made such a difference", 5)
@@ -555,9 +555,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li><span class="ia-check">✓</span> Sessions never expire</li>
           </ul>
           {% if user %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions">{% if is_referred %}Claim free session{% else %}Claim deal - £2{% endif %}</a>
+          <a data-attr="cta:landing:pricing:intro" class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions">{% if is_referred %}Claim free session{% else %}Claim deal - £2{% endif %}</a>
           {% else %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/welcome/next?next=/billing/checkout?plan=sessions">Claim £2 intro</a>
+          <a data-attr="cta:landing:pricing:intro" class="ia-plan-cta ia-plan-cta--ghost" href="/welcome/next?next=/billing/checkout?plan=sessions">Claim £2 intro</a>
           {% endif %}
         </div>
         {% else %}
@@ -577,9 +577,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li><span class="ia-check">✓</span> Sessions never expire</li>
           </ul>
           {% if user %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
+          <a data-attr="cta:landing:pricing:pack" class="ia-plan-cta ia-plan-cta--ghost" href="/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
           {% else %}
-          <a class="ia-plan-cta ia-plan-cta--ghost" href="/welcome/next?next=/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
+          <a data-attr="cta:landing:pricing:pack" class="ia-plan-cta ia-plan-cta--ghost" href="/welcome/next?next=/billing/checkout?plan=sessions_pack">Get 3 sessions - £10</a>
           {% endif %}
         </div>
         {% endif %}
@@ -601,14 +601,14 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           <li><span class="ia-check">✓</span> 3-Click cancel anytime</li>
         </ul>
         {% if user %}
-        <a class="ia-plan-cta ia-plan-cta--lime" href="/billing/checkout?plan=subscription">Start free week</a>
+        <a data-attr="cta:landing:pricing:subscription" class="ia-plan-cta ia-plan-cta--lime" href="/billing/checkout?plan=subscription">Start free week</a>
         {% else %}
-        <a class="ia-plan-cta ia-plan-cta--lime" href="/welcome/next?next=/billing/checkout?plan=subscription">Start free week</a>
+        <a data-attr="cta:landing:pricing:subscription" class="ia-plan-cta ia-plan-cta--lime" href="/welcome/next?next=/billing/checkout?plan=subscription">Start free week</a>
         {% endif %}
       </div>
 
     </div>
-    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a href="/faq">Read our FAQ</a><br>or<br>see our full <a href="/pricing">pricing page</a></p>
+    <p class="ia-pricing-faq-nudge" data-reveal>Want to know more? <a data-attr="cta:landing:pricing:faq" href="/faq">Read our FAQ</a><br>or<br>see our full <a data-attr="cta:landing:pricing:full_pricing" href="/pricing">pricing page</a></p>
   </div>
 </section>
 {% endif %}
@@ -619,9 +619,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     <h2 class="ia-cta-h2">Walk into your next interview without the freeze.</h2>
     <p class="ia-cta-sub">Join engineers who gave themselves a safety net.</p>
     {% if user %}
-    <a class="ia-btn-primary ia-btn-cta" href="/app">Go to app</a>
+    <a data-attr="cta:landing:final:go_to_app" class="ia-btn-primary ia-btn-cta" href="/app">Go to app</a>
     {% else %}
-    <a class="ia-btn-primary ia-btn-cta" href="/welcome">Try free - no card</a>
+    <a data-attr="cta:landing:final:try_free" class="ia-btn-primary ia-btn-cta" href="/welcome">Try free - no card</a>
     {% endif %}
   </div>
 </section>
@@ -635,11 +635,11 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     </a>
     <p class="ia-footer-copy">&copy; 2026 InterviewWise. All rights reserved. &middot; v{{ APP_VERSION }}</p>
     <div class="ia-footer-links">
-      <a href="/faq">FAQ</a>
-      <a href="/pricing" class="ia-footer-link--highlight">Pricing</a>
-      <a href="/faq">Support</a>
-      <a href="/privacy">Privacy</a>
-      <a href="/cookies">Cookies</a>
+      <a data-attr="cta:landing:footer:faq" href="/faq">FAQ</a>
+      <a data-attr="cta:landing:footer:pricing" href="/pricing" class="ia-footer-link--highlight">Pricing</a>
+      <a data-attr="cta:landing:footer:support" href="/faq">Support</a>
+      <a data-attr="cta:landing:footer:privacy" href="/privacy">Privacy</a>
+      <a data-attr="cta:landing:footer:cookies" href="/cookies">Cookies</a>
       <a href="#" class="termly-display-preferences">Consent Preferences</a>
     </div>
   </div>
@@ -925,11 +925,11 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     after(750, function() {
       var svg = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg>';
       if (voiceBtn) { voiceBtn.innerHTML = svg + ' Recording…'; voiceBtn.classList.add('recording'); }
-      if (hint) hint.textContent = 'Release to send…';
+      if (hint) hint.textContent = 'Any key to send…';
       phoneShow('phRecording');
       after(2200, function() {
-        if (voiceBtn) { voiceBtn.innerHTML = svg + ' Hold to record'; voiceBtn.classList.remove('recording'); }
-        if (hint) hint.textContent = 'Hold while interviewer speaks';
+        if (voiceBtn) { voiceBtn.innerHTML = svg + ' Tap to record'; voiceBtn.classList.remove('recording'); }
+        if (hint) hint.textContent = 'Tap when interviewer starts speaking';
         phoneShow('phAnalyzing');
         afterFixed(1000, function() {
           phoneShow('phAnswerProse');

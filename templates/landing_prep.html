@@ -37,10 +37,10 @@
       <a href="#pricing">Pricing</a>
       <a href="#referral">Refer &amp; earn</a>
       {% if user %}
-      <a class="btn btn-primary" href="/app">Go to app</a>
+      <a data-attr="cta:landing_prep:nav:go_to_app" class="btn btn-primary" href="/app">Go to app</a>
       {% else %}
-      <a class="btn btn-outline" href="/login">Sign in</a>
-      <a class="btn btn-primary" href="/login?register=1">Get started</a>
+      <a data-attr="cta:landing_prep:nav:sign_in" class="btn btn-outline" href="/login">Sign in</a>
+      <a data-attr="cta:landing_prep:nav:get_started" class="btn btn-primary" href="/login?register=1">Get started</a>
       {% endif %}
     </div>
   </nav>
@@ -59,9 +59,9 @@
       <p>You know the material. But practice sessions without structured feedback don&rsquo;t build interview-day confidence. InterviewWise captures your screen or listens to the question - and streams instant, structured coaching to your phone while you rehearse.</p>
       <div class="hero-cta">
         {% if user %}
-        <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
+        <a data-attr="cta:landing_prep:hero:go_to_app" class="btn btn-primary btn-lg" href="/app">Go to app</a>
         {% else %}
-        <a class="btn btn-primary btn-lg" href="/login?register=1">Start for free</a>
+        <a data-attr="cta:landing_prep:hero:start_free" class="btn btn-primary btn-lg" href="/login?register=1">Start for free</a>
         {% endif %}
         <a class="btn btn-outline btn-lg" href="#how-it-works">See how it works</a>
       </div>
@@ -180,8 +180,8 @@
         <div class="step reveal">
           <div class="step-num">1</div>
           <div>
-            <h3>Tap or hold a hotkey</h3>
-            <p><strong>Tap</strong> to capture your screen instantly - registered as a background OS shortcut, so your hands never leave the keyboard. <strong>Hold</strong> while your mock interviewer speaks and release to send their words straight to AI.</p>
+            <h3>Tap a hotkey</h3>
+            <p><strong>Tap</strong> to capture your screen instantly - registered as a background OS shortcut, so your hands never leave the keyboard. <strong>Tap</strong> the voice key while your mock interviewer speaks, then any key when they finish, to send their words straight to AI.</p>
           </div>
         </div>
         <div class="step reveal">
@@ -327,10 +327,10 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/>
                       </svg>
-                      Hold to record
+                      Tap to record
                     </div>
                     <kbd class="demo-hotkey">&#8997; V</kbd>
-                    <span class="demo-voice-hint" id="s1Hint">Hold while mock interviewer speaks</span>
+                    <span class="demo-voice-hint" id="s1Hint">Tap when mock interviewer starts speaking</span>
                   </div>
                 </div>
               </div>
@@ -587,13 +587,13 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       after(750, function() {
         voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg> Recording…';
         voiceBtn.classList.add('recording');
-        hint.textContent = 'Release to send…';
+        hint.textContent = 'Any key to send…';
         phoneShow('phRecording');
 
         after(2200, function() {
-          voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg> Hold to record';
+          voiceBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3m7-12v2a7 7 0 0 1-14 0v-2"/><rect width="6" height="13" x="9" y="2" rx="3"/></svg> Tap to record';
           voiceBtn.classList.remove('recording');
-          hint.textContent = 'Hold while mock interviewer speaks';
+          hint.textContent = 'Tap when mock interviewer starts speaking';
           phoneShow('phAnalyzing');
 
           after(1000, function() {
@@ -715,7 +715,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           </div>
           <h3>Screen capture or voice</h3>
           <h4>Audio transcription + Claude&rsquo;s most powerful model</h4>
-          <p>Tap to screenshot the question, or hold to record the mock interviewer speaking. Both paths stream the same Claude analysis.</p>
+          <p>Tap to screenshot the question, or tap to record the mock interviewer speaking and any key to send. Both paths stream the same Claude analysis.</p>
         </div>
 
         <!-- feat-d: Instant replay -->
@@ -814,11 +814,11 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
           </div>
 
           {% if user %}
-          <a class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:8px;">
+          <a data-attr="cta:landing_prep:referral:get_link" class="btn btn-primary" href="/referral" style="align-self:flex-start;margin-top:8px;">
             Get your referral link &rarr;
           </a>
           {% else %}
-          <a class="btn btn-primary" href="/login?register=1" style="align-self:flex-start;margin-top:8px;">
+          <a data-attr="cta:landing_prep:referral:sign_up" class="btn btn-primary" href="/login?register=1" style="align-self:flex-start;margin-top:8px;">
             Sign up to refer friends &rarr;
           </a>
           {% endif %}
@@ -863,7 +863,7 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li>Instant replay</li>
             <li>Sessions never expire</li>
           </ul>
-          <a class="btn btn-outline" href="/login?register=1" style="width:100%;justify-content:center;">Get started</a>
+          <a data-attr="cta:landing_prep:pricing:sessions" class="btn btn-outline" href="/login?register=1" style="width:100%;justify-content:center;">Get started</a>
         </div>
 
         <div class="plan featured reveal">
@@ -877,15 +877,15 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
             <li>Instant replay</li>
             <li>Cancel anytime</li>
           </ul>
-          <a class="btn btn-primary" href="/login?register=1" style="width:100%;justify-content:center;">Start unlimited</a>
+          <a data-attr="cta:landing_prep:pricing:subscription" class="btn btn-primary" href="/login?register=1" style="width:100%;justify-content:center;">Start unlimited</a>
         </div>
       </div>
 
       <p style="text-align:center;font-size:0.8rem;color:var(--muted);margin-top:28px;">
         {% if user %}
-        <a href="/app" style="color:var(--accent);text-decoration:none;">Go to your dashboard &rarr;</a>
+        <a data-attr="cta:landing_prep:pricing:dashboard" href="/app" style="color:var(--accent);text-decoration:none;">Go to your dashboard &rarr;</a>
         {% else %}
-        No card needed to try - <a href="/login?register=1" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
+        No card needed to try - <a data-attr="cta:landing_prep:pricing:free_session" href="/login?register=1" style="color:var(--accent);text-decoration:none;">start with a free 10-minute session &rarr;</a>
         {% endif %}
       </p>
     </div>
@@ -897,9 +897,9 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     <h2>Your next interview<br>doesn&rsquo;t have to catch you off guard.</h2>
     <p>Join developers building real interview confidence.</p>
     {% if user %}
-    <a class="btn btn-primary btn-lg" href="/app">Go to app</a>
+    <a data-attr="cta:landing_prep:final:go_to_app" class="btn btn-primary btn-lg" href="/app">Go to app</a>
     {% else %}
-    <a class="btn btn-primary btn-lg" href="/login?register=1">Create your free account</a>
+    <a data-attr="cta:landing_prep:final:create_account" class="btn btn-primary btn-lg" href="/login?register=1">Create your free account</a>
     {% endif %}
   </div>
 
@@ -977,12 +977,12 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
     <p>&copy; 2026 InterviewWise. All rights reserved.</p>
     <div style="display:flex;gap:20px;">
       {% if user %}
-      <a href="/app" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Dashboard</a>
-      <a href="/referral" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Refer &amp; earn</a>
+      <a data-attr="cta:landing_prep:footer:dashboard" href="/app" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Dashboard</a>
+      <a data-attr="cta:landing_prep:footer:referral" href="/referral" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Refer &amp; earn</a>
       <a href="/settings" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Settings</a>
       {% else %}
-      <a href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
-      <a href="/login?register=1" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
+      <a data-attr="cta:landing_prep:footer:sign_in" href="/login" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Sign in</a>
+      <a data-attr="cta:landing_prep:footer:register" href="/login?register=1" style="color:var(--muted);font-size:0.82rem;text-decoration:none;">Register</a>
       {% endif %}
     </div>
   </footer>

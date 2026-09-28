@@ -3,12 +3,12 @@
   "name": "Smart Screen Assistant",
   "version": "1.2",
   "description": "Capture your screen or audio on any browser tab and get instant AI analysis and feedback.",
-  "permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture"],
+  "permissions": ["activeTab", "storage", "tabs", "offscreen", "tabCapture", "scripting"],
   "host_permissions": ["https://interview-wise.com/*"],
   "commands": {
     "arm":     { "suggested_key": { "default": "Ctrl+Shift+1" }, "description": "Toggle on/off" },
     "capture": { "suggested_key": { "default": "Ctrl+Shift+6" }, "description": "Capture screen" },
-    "mic":     { "suggested_key": { "default": "Ctrl+Shift+7" }, "description": "Hold to record voice" },
+    "mic":     { "suggested_key": { "default": "Ctrl+Shift+7" }, "description": "Start voice recording (any key to send)" },
     "replay":  { "suggested_key": { "default": "Ctrl+Shift+8" }, "description": "Send instant replay" },
     "typing":  { "description": "Toggle typing mode" }
   },

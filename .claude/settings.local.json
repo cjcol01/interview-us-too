@@ -1,1 +1,8 @@
-{}
+{
+  "permissions": {
+    "allow": [
+      "mcp__railway__get_logs",
+      "mcp__plugin_posthog_posthog__exec"
+    ]
+  }
+}

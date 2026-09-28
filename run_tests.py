@@ -26,6 +26,10 @@ os.environ.setdefault("TESTING", "1")  # use fakeredis + isolated Postgres schem
 # .env so the suite doesn't depend on (or hardcode) the real ADMIN_USERNAME; load_dotenv()
 # in config.py doesn't override an already-set var, so this wins.
 os.environ.setdefault("ADMIN_USERNAME", "_test_admin")
+# Never send analytics from the suite — the real key lives on Railway only. Hard-set rather
+# than setdefault: an exported shell var would otherwise win and the suite would write test
+# events into the production PostHog project (analytics.py also bails on TESTING=1).
+os.environ["POSTHOG_API_KEY"] = ""
 
 # Start from a clean test database each run. Drop and recreate the public schema rather than
 # just calling drop_all() — the five native Postgres ENUM types (AccountLevel, ResponseStyle,
@@ -216,6 +220,10 @@ with TestClient(app) as client:
     section("Session Feedback")
     import tests.test_session_feedback
     tests.test_session_feedback.register(test, skip, client)
+
+    section("Analytics (PostHog)")
+    import tests.test_analytics
+    tests.test_analytics.register(test, skip, client)
 
     section("External APIs")
 
