@@ -292,14 +292,22 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
          Two steps: pick when the interview is (a small, free commitment), then the email row appears. -->
     <div class="ia-hero-lead" data-reveal>
       <form class="ia-lead" id="lead-form" novalidate>
+        <div class="ia-lead-head">
+          <strong class="ia-lead-title">Get your setup link</strong>
+          <span class="ia-lead-steps" id="lead-steps" aria-live="polite">Step 1 of 2</span>
+        </div>
         <div class="ia-lead-date">
           <span class="ia-lead-date-label" id="lead-date-label">When's the interview?</span>
+          <span class="ia-lead-hint">Pick one to continue</span>
           <div class="ia-lead-pills" id="lead-pills" role="group" aria-labelledby="lead-date-label">
             <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="tomorrow">Tomorrow</button>
             <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="soon">This week</button>
             <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="next_week">Next week</button>
+            <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill" data-choice="custom">Pick a date</button>
             <button data-attr="cta:landing:lead_form:date_pill" type="button" class="ia-lead-pill ia-lead-pill-muted" data-choice="unknown">Not sure yet</button>
           </div>
+          <!-- Native date picker, shown only after "Pick a date". Its change event is what unlocks step 2. -->
+          <input class="ia-lead-input ia-lead-date-input" id="lead-date" type="date" aria-label="Interview date" hidden>
         </div>
 
         <div class="ia-lead-step2" id="lead-step2" hidden>
@@ -1085,25 +1093,46 @@ Output: 5&#8594;4&#8594;3&#8594;2&#8594;1</pre>
       return y + '-' + m + '-' + day;
     }
 
-    var leadStep2 = document.getElementById('lead-step2');
+    var leadStep2   = document.getElementById('lead-step2');
+    var leadSteps   = document.getElementById('lead-steps');
+    var leadDateIn  = document.getElementById('lead-date');
+    leadDateIn.min = toISO(addDays(0)); /* no interviews in the past */
+
+    /* Step 2 unlocks on the first answer: answering a question is a small commitment,
+       and the email ask lands right after it instead of cold. */
+    function unlockStep2() {
+      if (!leadStep2.hidden) return;
+      leadStep2.hidden = false;
+      leadStep2.classList.add('is-shown');
+      leadSteps.textContent = 'Step 2 of 2';
+      leadEmail.focus({ preventScroll: true });
+    }
+
     leadPills.forEach(function (pill) {
       pill.addEventListener('click', function () {
         leadPills.forEach(function (p) { p.classList.remove('active'); p.setAttribute('aria-pressed', 'false'); });
         pill.classList.add('active');
         pill.setAttribute('aria-pressed', 'true');
         var choice = pill.getAttribute('data-choice');
+        if (choice === 'custom') {
+          /* Show the picker; the date they choose is what unlocks step 2 (see change handler). */
+          leadDateIn.hidden = false;
+          _leadDate = leadDateIn.value || null;
+          if (_leadDate) unlockStep2(); else leadDateIn.focus({ preventScroll: true });
+          return;
+        }
+        leadDateIn.hidden = true;
         if (choice === 'tomorrow') _leadDate = toISO(addDays(1));
         else if (choice === 'soon') _leadDate = toISO(addDays(2));
         else if (choice === 'next_week') _leadDate = toISO(addDays(7));
         else _leadDate = null; /* unknown — never guess a date for someone who told us they don't have one */
-        /* Step 2 unlocks on the first pick: answering a question is a small commitment,
-           and the email ask lands right after it instead of cold. */
-        if (leadStep2.hidden) {
-          leadStep2.hidden = false;
-          leadStep2.classList.add('is-shown');
-          leadEmail.focus({ preventScroll: true });
-        }
+        unlockStep2();
       });
+    });
+
+    leadDateIn.addEventListener('change', function () {
+      _leadDate = leadDateIn.value || null;
+      if (_leadDate) unlockStep2();
     });
 
     leadForm.addEventListener('submit', function (e) {

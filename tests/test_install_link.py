@@ -785,6 +785,9 @@ def register(test, skip, client):
         # revealed by a pill click (landing.html). The form must render in that order.
         assert r.text.index('id="lead-pills"') < r.text.index('id="lead-step2"')
         assert 'id="lead-step2" hidden' in r.text
+        # "Pick a date" reveals a native date input; it starts hidden.
+        assert 'data-choice="custom"' in r.text
+        assert 'id="lead-date" type="date"' in r.text
         # The lead block sits after the demo in the hero grid so mobile shows proof before the ask.
         assert r.text.index('class="ia-hero-demo"') < r.text.index('class="ia-hero-lead"')
 

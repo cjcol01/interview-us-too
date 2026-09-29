@@ -206,8 +206,26 @@ a { color: inherit; text-decoration: none; }
 /* Rendered on every viewport, shown only ≤720px — this repo does device detection with
    media queries / matchMedia, never user-agent sniffing. See @media (max-width: 720px) below. */
 .ia-hero-lead { display: none; }
-.ia-lead { max-width: 480px; }
+/* A bordered card so the pills read as the start of a form, not decoration — before the
+   email field appears there's otherwise nothing that says "you can act here". */
+.ia-lead {
+  max-width: 480px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  padding: 20px 18px 18px;
+}
 .ia-lead-done { display: none; }
+
+.ia-lead-head {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  margin-bottom: 16px;
+}
+.ia-lead-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; color: var(--text-1); }
+.ia-lead-steps { font-size: 12px; font-weight: 500; color: var(--accent); white-space: nowrap; }
+.ia-lead-hint { display: block; margin: -6px 0 10px; font-size: 13px; color: var(--text-3); }
+.ia-lead-date-input { margin-top: 12px; color-scheme: light dark; }
+.ia-lead-date-input[hidden] { display: none; }
 
 .ia-lead-label {
   display: block; margin-bottom: 10px;
@@ -215,7 +233,7 @@ a { color: inherit; text-decoration: none; }
 }
 /* Email row is step 2 — stays hidden until a date pill is picked (see landing.html). */
 .ia-lead-step2[hidden] { display: none; }
-.ia-lead-step2 { margin-top: 18px; }
+.ia-lead-step2 { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
 .ia-lead-step2.is-shown { animation: ia-lead-in .3s cubic-bezier(.2,.7,.2,1); }
 @keyframes ia-lead-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .ia-lead-row { display: flex; flex-direction: column; gap: 10px; }
@@ -240,20 +258,23 @@ a { color: inherit; text-decoration: none; }
 }
 .ia-lead-input[aria-invalid="true"] { border-color: #C0392B; }
 
+/* Brand lime, same as the desktop "Try free" button — not the neutral black/white primary. */
 .ia-lead-btn {
   font-family: 'Hanken Grotesk', sans-serif;
   font-size: 15px; font-weight: 600;
-  color: var(--btn-text); background: var(--btn-bg);
+  color: var(--accent-on); background: var(--accent-bg);
   border: none; border-radius: 10px; padding: 14px 26px; cursor: pointer;
   transition: transform .15s, box-shadow .15s, opacity .15s;
 }
-.ia-lead-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--btn-shadow); }
+.ia-lead-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px var(--lime-cta-shadow); }
 .ia-lead-btn:disabled { opacity: .55; cursor: default; transform: none; box-shadow: none; }
 
 .ia-lead-date-label {
   display: block; margin-bottom: 10px;
   font-size: 15px; font-weight: 500; color: var(--text-1);
 }
+/* The card supplies the border now — the wrapper's old 480px cap and the done-card share it. */
+.ia-lead-done { border-radius: 14px; }
 .ia-lead-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .ia-lead-pill {
   font-family: 'Hanken Grotesk', sans-serif;
