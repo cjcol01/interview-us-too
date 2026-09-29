@@ -444,8 +444,9 @@ function miDismissStyleToast() {
 // (it points across a gap the stacked layout doesn't have), so on a phone nothing otherwise
 // says that the real interaction is a keypress on your laptop and the phone is just where
 // the answer lands. Fires with the first phone pop-up; CSS keeps it hidden above 900px. No
-// timer and no dismiss on the phone dropping — it's the one explainer a phone visitor gets,
-// so it rides with the rail for the rest of the call and only clears on a replay.
+// timer — it stays up while the phone is raised so there's time to read it, and clears the
+// first time the phone drops back to a peek (see miPhoneFocus). Once per call: the shown flag
+// stops it re-appearing on later beats, and only a replay resets that.
 function miShowDemoToast() {
   if (_miDemoToastShown) return;
   _miDemoToastShown = true;
@@ -566,13 +567,11 @@ function miShowScreen(id) {
 function miShowScreenshot() {
   document.getElementById('mi-screenshot').classList.add('active');
   document.getElementById('mi-call-left').classList.add('sharing');
-  document.getElementById('mi-share-btn').classList.add('sharing');
 }
 
 function miHideScreenshot() {
   document.getElementById('mi-screenshot').classList.remove('active');
   document.getElementById('mi-call-left').classList.remove('sharing');
-  document.getElementById('mi-share-btn').classList.remove('sharing');
 }
 
 function miShowPhonePanel(id) {
@@ -588,6 +587,9 @@ function miShowPhonePanel(id) {
 function miPhoneFocus(on) {
   const right = document.querySelector('#mock-interview-overlay .mi-call-right');
   if (right) right.classList.toggle('mi-phone-focus', !!on);
+  // The mobile explainer has done its job once the phone has risen and fallen again — the
+  // viewer has seen an answer land there. Dismiss on the drop so it doesn't hang over the rail.
+  if (!on && _miDemoToastShown) miDismissDemoToast();
 }
 
 

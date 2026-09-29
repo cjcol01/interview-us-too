@@ -449,6 +449,40 @@ body { background: var(--bg); color: var(--fg); }
 .wna-date-input:focus { border-color: rgba(176,255,62,.4); outline: none; }
 [data-theme="light"] .wna-date-input { color-scheme: light; }
 
+/* ── Scroll cue (stacked layout only) ────────────────────────── */
+/* On a phone the form is below the fold with nothing hinting it's there. A small bouncing
+   chevron at the foot of the recap points down at it; it links straight to the form and
+   fades out as soon as the visitor scrolls (see JS). Desktop never shows it. */
+.wna-scroll-cue {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  margin-top: 28px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-muted);
+  text-decoration: none;
+  transition: opacity .25s ease;
+}
+.wna-scroll-cue:hover { color: var(--fg); }
+.wna-scroll-cue.hidden { opacity: 0; pointer-events: none; }
+.wna-scroll-cue-icon {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(176,255,62,.35);
+  color: var(--accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  animation: wna-bob 1.6s ease-in-out infinite;
+}
+@keyframes wna-bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wna-scroll-cue-icon { animation: none; }
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .wna-wrap {
@@ -458,6 +492,11 @@ body { background: var(--bg); color: var(--fg); }
   .wna-left {
     padding: 44px 28px 36px;
     justify-content: flex-start;
+    /* Stacked: the recap is just the top of one long page. Undo the desktop sticky/100vh
+       treatment, otherwise the form scrolls *over* a pinned recap and neither is readable. */
+    position: static;
+    height: auto;
+    overflow: visible;
   }
   .wna-right {
     border-left: none;
@@ -465,6 +504,7 @@ body { background: var(--bg); color: var(--fg); }
     padding: 36px 28px 48px;
   }
   .wna-headline { font-size: 2rem; }
+  .wna-scroll-cue { display: inline-flex; }
 }
 
 @media (max-width: 400px) {
@@ -534,10 +574,17 @@ body { background: var(--bg); color: var(--fg); }
       </div>
     </div>
 
+    <a class="wna-scroll-cue" id="wnaScrollCue" href="#wna-auth">
+      <span class="wna-scroll-cue-icon" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </span>
+      Scroll to create your account
+    </a>
+
   </div>
 
   <!-- ═══ RIGHT — auth form ════════════════════════════════════════ -->
-  <div class="wna-right">
+  <div class="wna-right" id="wna-auth">
 
     <a class="wna-logo" href="/">
       <span class="wna-logo-dot"></span>InterviewWise
@@ -954,6 +1001,20 @@ body { background: var(--bg); color: var(--fg); }
   // ── Open on sign-in tab if ?tab=login ───────────────────────────
   if (new URLSearchParams(location.search).get('tab') === 'login') {
     wnaSwitchTab('login');
+  }
+
+  // ── Scroll cue (stacked layout) ─────────────────────────────────
+  // Once the visitor has scrolled at all they've found the rest of the page; fade the cue
+  // and stop listening. Also fires when the cue itself is tapped, since that scrolls too.
+  var cue = document.getElementById('wnaScrollCue');
+  if (cue) {
+    var hideCue = function () {
+      cue.classList.add('hidden');
+      window.removeEventListener('scroll', onScroll);
+    };
+    var onScroll = function () { if (window.scrollY > 40) hideCue(); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
   }
 })();
 </script>

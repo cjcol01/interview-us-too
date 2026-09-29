@@ -39,6 +39,7 @@
         <!-- Identity card -->
         <div class="sidebar-identity">
           <div class="sidebar-avatar">{{ (full_name[0] if full_name else username[0])|upper }}</div>
+          <div class="sidebar-identity-text">
           <div class="sidebar-name">{{ full_name or username }}</div>
           <div class="sidebar-uname">@{{ username }}</div>
           <div class="sidebar-plan">
@@ -56,9 +57,12 @@
               <span class="plan-pill pill-free">{{ account_level|capitalize }}</span>
             {% endif %}
           </div>
+          </div>
         </div>
 
-        <!-- Nav -->
+        <!-- Nav. The wrapper exists for the stacked layout: it hosts the scroll thumb that
+             stands in for the hidden native scrollbar (see .sidebar-nav-thumb). -->
+        <div class="sidebar-nav-wrap">
         <nav class="sidebar-nav" id="sidebar-nav">
           <button class="sidebar-nav-btn active" data-section="response"    onclick="sidebarScroll('response')">How answers appear</button>
           <button class="sidebar-nav-btn"         data-section="context"    onclick="sidebarScroll('context')">Interview context</button>
@@ -69,9 +73,11 @@
           <button class="sidebar-nav-btn"         data-section="account"    onclick="sidebarScroll('account')">Account</button>
           <button class="sidebar-nav-btn"         data-section="billing"    onclick="sidebarScroll('billing')">Billing &amp; referral</button>
         </nav>
+        <span class="sidebar-nav-thumb" id="sidebar-nav-thumb" aria-hidden="true"></span>
+        </div>
 
         <!-- Sign out -->
-        <form action="/auth/logout" method="post" style="margin-top:auto;">
+        <form action="/auth/logout" method="post" class="sidebar-signout-form">
           <button type="submit" class="sidebar-signout">Sign out</button>
         </form>
 
@@ -1633,6 +1639,30 @@
     window.addEventListener('scroll', () => {
       if (_isAtBottom()) _setActiveNav(_sections[_sections.length - 1]);
     }, { passive: true });
+
+    // ── Tab strip scroll thumb (stacked layout) ────────────────────
+    // The native scrollbar is hidden (it drew over the active tab's underline), so this
+    // draws a thin grey thumb under the strip only while it's actually being scrolled.
+    (function () {
+      const nav = document.getElementById('sidebar-nav');
+      const thumb = document.getElementById('sidebar-nav-thumb');
+      if (!nav || !thumb) return;
+      let hideTimer = null;
+      function place() {
+        const track = nav.clientWidth, full = nav.scrollWidth;
+        if (full <= track + 1) { thumb.classList.remove('show'); return; }
+        thumb.style.width = (track / full * 100) + '%';
+        thumb.style.left  = (nav.scrollLeft / full * 100) + '%';
+      }
+      nav.addEventListener('scroll', () => {
+        place();
+        thumb.classList.add('show');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(() => thumb.classList.remove('show'), 700);
+      }, { passive: true });
+      window.addEventListener('resize', place, { passive: true });
+      place();
+    })();
   </script>
 
   <script>

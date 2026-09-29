@@ -523,16 +523,12 @@
 .mi-speed-bar.level-1 { background: #9C9CA6; transform: scaleX(0.5); }
 .mi-speed-bar.level-2 { background: #C6F24E; transform: scaleX(1); }
 @media (min-width: 560px) { .mi-ctrl-circle { width: 44px; height: 44px; } }
-.mi-ctrl-circle.sharing { color: #C6F24E; background: rgba(198,242,78,0.1); border-color: rgba(198,242,78,0.4); }
 
 /* Real buttons get a resting green outline so it's clear they're clickable without
-   needing to hover first; purely decorative status icons (mic/video/share) get dimmed
-   instead, so the contrast alone tells them apart. */
+   needing to hover first. */
 .mi-ctrl-btn { padding: 0; font: inherit; cursor: pointer; border-color: rgba(198,242,78,0.35); }
 .mi-ctrl-btn:hover:not(:disabled) { border-color: rgba(198,242,78,0.65); }
 .mi-ctrl-btn:disabled { opacity: .35; cursor: default; border-color: rgba(255,255,255,0.12); }
-.mi-decorative { opacity: .5; }
-.mi-decorative.sharing { opacity: 1; }
 .mi-dev-btn { color: #E0A96A; border-color: rgba(224,169,106,0.35); }
 .mi-dev-btn:hover { border-color: rgba(224,169,106,0.6); }
 .mi-leave-btn {

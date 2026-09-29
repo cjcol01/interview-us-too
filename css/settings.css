@@ -168,6 +168,7 @@
 
 /* Nav buttons */
 .sidebar-nav { display: flex; flex-direction: column; gap: 2px; }
+.sidebar-nav-thumb { display: none; }
 .sidebar-nav-btn {
   width: 100%;
   background: transparent;
@@ -192,6 +193,7 @@
 }
 
 /* Sign out */
+.sidebar-signout-form { margin-top: auto; }
 .sidebar-signout {
   width: 100%;
   background: transparent;
@@ -907,18 +909,80 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
 /* ── Responsive ── */
 @media (max-width: 780px) {
   .settings-grid { grid-template-columns: 1fr; }
-  .settings-sidebar { position: static; flex-direction: row; flex-wrap: wrap; gap: 0; min-width: 0; }
-  .sidebar-identity { display: none; }
+  /* Stacked: identity row (avatar + name on the left, Sign out on the right) above a
+     horizontally scrolling tab strip. Both stay visible — on desktop they're the only
+     place the signed-in user and the sign-out button appear, and that's no less true here. */
+  .settings-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 12px;
+    row-gap: 10px;
+    align-items: center;
+    min-width: 0;
+  }
+  /* No card chrome here — a bordered box with the button floating outside it looked
+     lopsided. Plain row, the tab strip's bottom rule closes the block. */
+  .sidebar-identity {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    padding: 4px 0;
+    margin: 0;
+    min-width: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+  .sidebar-avatar { width: 40px; height: 40px; font-size: 17px; margin: 0; flex: none; }
+  .sidebar-identity-text { min-width: 0; }
+  .sidebar-name { font-size: 14.5px; margin-bottom: 1px; }
+  .sidebar-uname { margin-bottom: 5px; }
+  .session-time-chip { margin-top: 0; }
+  .sidebar-signout-form { grid-column: 2; grid-row: 1; margin: 0; }
+  .sidebar-signout {
+    width: auto;
+    margin-top: 0;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .sidebar-nav-wrap { grid-column: 1 / -1; position: relative; min-width: 0; }
+  /* Custom thumb standing in for the hidden scrollbar: sits on the strip's bottom rule and
+     only fades in while the strip is being scrolled (JS toggles .show). */
+  .sidebar-nav-thumb {
+    display: block;
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 0;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--text-3);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .25s ease;
+  }
+  .sidebar-nav-thumb.show { opacity: .55; }
   .sidebar-nav {
     flex-direction: row;
     flex-wrap: nowrap;
     overflow-x: auto;
     gap: 0;
     border-bottom: 1px solid var(--line);
-    padding-bottom: 2px;
+    padding-bottom: 0;
     width: 100%;
     min-width: 0;
+    /* Swipeable, but no visible scrollbar: the grey track was drawn over the active tab's
+       green underline. Touch browsers already overlay theirs only while scrolling. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
   .sidebar-nav-btn {
     border-left: none;
     border-bottom: 2px solid transparent;
@@ -931,7 +995,6 @@ details[open] .fallback-toggle .arrow { transform: rotate(90deg); }
     border-bottom-color: var(--accent);
     border-left-color: transparent;
   }
-  .sidebar-signout { display: none; }
   .response-grid { grid-template-columns: 1fr; }
   .response-preview { position: static; }
   .referral-promo-card { flex-direction: column; align-items: flex-start; }
