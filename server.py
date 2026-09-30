@@ -2430,15 +2430,23 @@ def onboarding_page(
         return RedirectResponse("/verify-pending")
     if not user.password_set:
         return RedirectResponse("/finish-signup")
-    # Onboarding is also reachable from Settings for users who've already paid — e.g. to
-    # reconnect the extension or review the setup steps on a new machine. No trial gate here.
+    # Onboarding is also reachable from Settings, Support and the Monitor page for users
+    # who've already been through it — e.g. to reconnect the extension or set up a new
+    # machine. No trial gate here. Two renderings of one template, picked by `setup_mode`:
+    # a first-run trial user gets the "start your test run" flow; anyone who has already
+    # completed (or skipped) setup, or isn't on a trial at all, gets the same install →
+    # connect → audio cards framed as a setup guide, with a troubleshooting block instead
+    # of the trial CTA. Trial users who skipped land in setup mode too: /app's trial-start
+    # overlay owns starting the trial, so this page never needs to for them.
+    setup_mode = bool(user.setup_complete) or user.account_level != AccountLevel.trial
     if not user.welcome_seen:
         user.welcome_seen = True
         db.commit()
     _ensure_api_token(user, db)
-    track(user.id, "onboarding_viewed")
+    track(user.id, "onboarding_viewed", mode="setup" if setup_mode else "onboarding")
     hk = _user_hotkeys(user)
     return templates.TemplateResponse(request=request, name="onboarding.html", context={
+        "setup_mode": setup_mode,
         "api_token": user.api_token,
         "base_url": BASE_URL,
         "hotkey_capture": hk["capture"],
@@ -2463,7 +2471,6 @@ def verify_pending(request: Request, user: User = Depends(require_user)):
 
 @app.get("/trial-end")
 def trial_end(request: Request, user: User = Depends(require_user), db: Session = Depends(get_db)):
-    hk = _user_hotkeys(user)
     # Two ways in: the expiry overlay's "What's next", and the countdown bar's "End
     # trial" link — which is only a link, so the trial may well still be running. The
     # page adjusts rather than telling someone with time left that they're finished.
@@ -2484,11 +2491,6 @@ def trial_end(request: Request, user: User = Depends(require_user), db: Session 
     return templates.TemplateResponse(request=request, name="trial_end.html", context={
         "trial_active": trial_active,
         "trial_minutes_left": -(-seconds_left // 60),  # ceil, so 30s left reads "1 min"
-        "hotkey_capture": hk["capture"],
-        "hotkey_audio":   hk["audio"],
-        "hotkey_toggle":  hk["toggle"],
-        "hotkey_replay":  hk["replay"],
-        "hotkey_typing":  hk["typing"],
         "show_navbar": True,
     })
 

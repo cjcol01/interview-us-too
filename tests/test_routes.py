@@ -12,6 +12,30 @@ def register(test, skip, client):
     def test_landing_200():
         assert client.get("/").status_code == 200
 
+    def test_landing_prep_variant():
+        """LANDING_PROD=0 serves landing_prep.html: same skeleton and stylesheet as the
+        production page, prep copy, the "built for prep" callout, and no lead form."""
+        import server
+        server.LANDING_PROD = False
+        try:
+            r = client.get("/")
+        finally:
+            server.LANDING_PROD = True
+        assert r.status_code == 200
+        assert "/css/landing.css" in r.text and "landing_prep.css" not in r.text
+        assert "Built for prep, not for cheating." in r.text
+        assert 'class="ia-hero-demo"' in r.text          # shared interactive demo
+        assert "Alex (Mock Interviewer)" in r.text
+        assert 'id="lead-form"' not in r.text             # deliberately not on this variant
+        assert "ia-proof-track" not in r.text             # no testimonial marquee
+        assert 'data-attr="cta:landing:' not in r.text   # analytics stay separate
+        # Every section is opacity-0 until the reveal script adds ia-visible, so a script
+        # that fails to parse paints a blank page (a duplicated <script> opening did exactly
+        # that). Cheap structural checks: balanced script tags, one engine, reveal present.
+        assert r.text.count("<script") == r.text.count("</script>")
+        assert r.text.count("/* ── Demo Engine ── */") == 1
+        assert "ia-visible" in r.text
+
     def test_login_page_200():
         assert client.get("/login").status_code == 200
 
@@ -305,6 +329,9 @@ def register(test, skip, client):
             r = client.get("/onboarding", cookies={"session": token})
             assert r.status_code == 200
             assert u.api_token in r.text
+            # First-run mode: trial CTA present, setup-mode troubleshooting absent.
+            assert "Start 10-minute test run" in r.text
+            assert 'id="ob-trouble"' not in r.text
         finally:
             db.close()
             delete_by_name(uname)
@@ -338,6 +365,38 @@ def register(test, skip, client):
             db.commit()
             r = client.get("/onboarding", cookies={"session": token}, follow_redirects=False)
             assert r.status_code == 200
+            # Setup mode: no trial CTA or upsell, troubleshooting block and way back instead.
+            assert "Start 10-minute test run" not in r.text
+            assert "Already convinced?" not in r.text
+            assert 'id="ob-trouble"' in r.text
+            assert 'href="/app" class="ob-moved-btn"' in r.text
+            assert u.api_token in r.text   # connect step still needs it
+            # Hotkey recap: ascending by default key, typing starts as "not set" with a prompt
+            # (it has no manifest default) and the server default key is never printed for it.
+            body = r.text
+            order = [body.index(f'data-hk="{k}"') for k in ("arm", "capture", "mic", "replay", "typing")]
+            assert order == sorted(order)
+            assert 'id="ob-hk-typing-key" hidden></kbd>' in body
+            assert 'id="ob-hk-typing-notset"' in body and 'ob-hk-typing-prompt' in body
+        finally:
+            db.close()
+            delete_by_name(uname)
+
+    def test_onboarding_setup_mode_for_trial_after_setup_complete():
+        """A trial user who completed or skipped setup gets setup mode too — /app's
+        trial-start overlay owns starting the trial, not this page."""
+        from models import User
+        token, uname = make_cookie(AccountLevel.trial)
+        db = SessionLocal()
+        try:
+            u = db.query(User).filter(User.username == uname).first()
+            u.email_verified = True
+            u.setup_complete = True
+            db.commit()
+            r = client.get("/onboarding", cookies={"session": token})
+            assert r.status_code == 200
+            assert "Start 10-minute test run" not in r.text
+            assert 'id="ob-trouble"' in r.text
         finally:
             db.close()
             delete_by_name(uname)
@@ -616,6 +675,7 @@ def register(test, skip, client):
             delete_by_name(uname)
 
     test("Landing page returns 200",                           test_landing_200)
+    test("Landing prep variant (LANDING_PROD=0) renders",      test_landing_prep_variant)
     test("Login page returns 200",                             test_login_page_200)
     test("/pricing accessible without auth",                   test_pricing_accessible_without_auth)
     test("Unauthenticated /app redirects to login",            test_app_redirects_to_login)
@@ -652,6 +712,7 @@ def register(test, skip, client):
     test("/onboarding renders for trial user",                test_onboarding_renders_for_trial_user)
     test("/onboarding generates api_token if missing",        test_onboarding_generates_api_token_if_missing)
     test("/onboarding accessible for non-trial users",        test_onboarding_accessible_for_non_trial_users)
+    test("/onboarding setup mode for trial after setup",      test_onboarding_setup_mode_for_trial_after_setup_complete)
     test("/welcome renders for trial user",                   test_welcome_renders_for_trial_user)
     test("/welcome redirects non-trial to /app",               test_welcome_redirects_non_trial_to_app)
     test("/welcome redirects unverified to /verify-pending",   test_welcome_redirects_unverified_to_verify_pending)

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Get started - InterviewWise{% endblock %}
+{% block title %}{% if setup_mode %}Set up this computer{% else %}Get started{% endif %} - InterviewWise{% endblock %}
 {% block head %}
   <link rel="stylesheet" href="/css/onboarding.css">
   <link rel="stylesheet" href="/css/mock_interview.css">
@@ -28,6 +28,9 @@
     };
   </script>
 
+  {% if not setup_mode %}
+  <!-- Trial-only modals and the skip confirm — none of them are reachable in setup mode
+       (no trial CTA, no skip link), so they aren't rendered there either. -->
   <!-- Trial-only warning modal -->
   <div id="warning-overlay">
     <div class="warning-modal">
@@ -69,23 +72,35 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <header class="ob-header">
     <a class="ob-logo" href="/">
       <span class="ob-logo-dot"></span>InterviewWise
     </a>
     <div class="ob-header-links">
+      {% if setup_mode %}
+      <!-- Setup mode: nothing to skip and nothing to sell. Leaving is just leaving. -->
+      <a data-attr="cta:setup:header:back_to_monitor" href="/app" class="ob-skip">← Back to Monitor</a>
+      {% else %}
       <!-- Escape hatch for users who are already sold — no navbar on this page, so this
            is the only route to pricing other than completing the trial. -->
       <a data-attr="cta:onboarding:header:start_trial_now" href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
       <a data-attr="cta:onboarding:header:skip_setup" href="/app" class="ob-skip" onclick="return obSkipSetup(event)">Skip setup</a>
+      {% endif %}
     </div>
   </header>
 
   <main class="ob-main">
     <div class="ob-intro">
+      {% if setup_mode %}
+      <h1>Set up InterviewWise on this computer</h1>
+      <p>Installing on a new machine, reconnecting after a reinstall, or checking why nothing happens
+         when you press a hotkey - the steps below cover all three. Nothing here touches your plan or sessions.</p>
+      {% else %}
       <h1>You're in. Let's get set up.</h1>
       <p>A few quick steps, then your 10-minute test run begins. No card required.</p>
+      {% endif %}
       <!-- Skipping or leaving the demo on /welcome used to be one-way: there was no route back
            to it from here. Not a first run — that would fire MI_ON_FIRST_RUN_FINISH and navigate
            the user off this page. /app carries the same escape hatch in its header. -->
@@ -243,10 +258,39 @@
     <div class="ob-step-card is-locked" id="ob-step-3" data-step="3">
       <div class="ob-step-num">3</div>
       <div class="ob-step-body">
+        {% if setup_mode %}
+        <h2>You're set up on this computer</h2>
+        {% else %}
         <h2>Open a coding challenge and start your test run</h2>
+        {% endif %}
         <p class="ob-step-state" id="ob-state-3" hidden></p>
         <div class="ob-step-inner">
+          {% if setup_mode %}
+          <!-- Setup mode: the card is a landing, not a step. A quick hotkey recap (the Monitor
+               page has the full list with live status) plus the same optional phone QR. -->
+          <p>Extension connected, audio checked. During an interview, these are the keys:</p>
+          <!-- Server defaults first, then overwritten by the extension's real Chrome-assigned
+               shortcuts (scap:hotkeys, same feed the Monitor page uses). Ordered by default key.
+               Typing has no manifest default — Chrome only lets a manifest suggest four — so it
+               starts as "not set" and only shows a key once the extension reports one. -->
+          <ul class="ob-hotkey-recap" id="ob-hotkey-recap">
+            <li><kbd data-hk="arm">{{ hotkey_toggle }}</kbd><span>Turn every hotkey on or off</span></li>
+            <li><kbd data-hk="capture">{{ hotkey_capture }}</kbd><span>Capture the screen</span></li>
+            <li><kbd data-hk="mic">{{ hotkey_audio }}</kbd><span>Record a question with the mic</span></li>
+            <li><kbd data-hk="replay">{{ hotkey_replay }}</kbd><span>Send the last {{ replay_seconds }}s of tab audio (instant replay)</span></li>
+            <li id="ob-hk-typing-row" class="is-unset">
+              <kbd data-hk="typing" id="ob-hk-typing-key" hidden></kbd>
+              <span class="ob-hk-notset" id="ob-hk-typing-notset">Not set</span>
+              <span>Type a question instead<span id="ob-hk-typing-prompt"> - no key assigned yet. Open
+                <span class="ob-copy-chip" onclick="obCopyChromeUrl(this, 'chrome://extensions/shortcuts')" title="Click to copy - paste into a new tab">chrome://extensions/shortcuts<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar)
+                and set one for "Toggle typing mode".</span></span>
+            </li>
+          </ul>
+          <p class="ob-manual-hint">Change any of these at <span class="ob-copy-chip" onclick="obCopyChromeUrl(this, 'chrome://extensions/shortcuts')" title="Click to copy - paste into a new tab">chrome://extensions/shortcuts<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span> (click to copy, then paste into the address bar). The Monitor page shows the live status of each one.</p>
+          {% else %}
           <p>Visit any of these platforms and open a practice problem as if it's a real interview.</p>
+          {% endif %}
+          {% if not setup_mode %}
           <div class="ob-platform-links">
             <a href="https://leetcode.com/problemset/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">LeetCode</a>
             <a href="https://www.hackerrank.com/domains/algorithms" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">HackerRank</a>
@@ -254,6 +298,7 @@
             <a href="https://www.codewars.com/kata/search/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeWars</a>
             <a href="https://codesignal.com/" target="_blank" class="ob-platform-link" onclick="obPlatformClicked(this)">CodeSignal</a>
           </div>
+          {% endif %}
 
           <!-- QR nudge — an invitation, not a gate. The link is 5 min; initMobileLink() is
                called from obEnter(3) so the clock starts only when this card is on screen.
@@ -261,11 +306,16 @@
           <div class="ob-qr-nudge">
             <button type="button" class="ob-qr-nudge-toggle" id="ob-qr-toggle"
                     onclick="obToggleQr()" aria-expanded="false">
-              Want the full effect? <span class="ob-qr-chevron" aria-hidden="true">›</span>
+              {% if setup_mode %}Using your phone for answers?{% else %}Want the full effect?{% endif %} <span class="ob-qr-chevron" aria-hidden="true">›</span>
             </button>
             <div class="ob-qr-body" id="ob-qr-body" hidden>
+              {% if setup_mode %}
+              <p class="ob-qr-nudge-body">Scan this to sign in on your phone - that's where the AI answers appear.
+                 Optional; the Monitor page works on this computer too.</p>
+              {% else %}
               <p class="ob-qr-nudge-body">Scan this and continue on your phone — that's where the AI answers appear.
                  Optional; you can run the whole test on this computer.</p>
+              {% endif %}
 
               <div class="ob-qr-wrap" id="qr-wrap">
                 <div class="ob-qr-canvas-wrap">
@@ -293,15 +343,42 @@
             </div>
           </div>
 
+          {% if setup_mode %}
+          <a data-attr="cta:setup:step3:go_to_monitor" href="/app" class="ob-moved-btn">Go to Monitor →</a>
+          {% else %}
           <!-- Primary trial CTA — the extension-presence warning is now here (was iMoved). -->
           <button data-attr="cta:onboarding:step3:start_test_run" class="ob-moved-btn" onclick="startTrial()">Start 10-minute test run</button>
           <p class="ob-manual-hint" style="text-align:center;margin-top:6px;">Runs on this computer, or on the phone you just scanned to.</p>
+          {% endif %}
         </div>
       </div>
     </div>
+  {% if setup_mode %}
+  <!-- Setup mode replaces the trial upsell with the reasons people actually land here.
+       Each line points at the card or page that fixes it; anything deeper is /support's job. -->
+  <section class="ob-trouble" id="ob-trouble">
+    <h2 class="ob-trouble-title">Not working?</h2>
+    <ul class="ob-trouble-list">
+      <li><strong>Extension installed but the Ext light on Monitor is red.</strong> Reopen step 1 and click
+        Connect Extension. Reinstalling, updating, or switching Chrome profiles clears the link, so
+        reconnect after any of those.</li>
+      <li><strong>Hotkeys do nothing.</strong> Check the extension is switched on - press <kbd>{{ hotkey_toggle }}</kbd> or
+        open its popup. If it's on, another app may own the shortcut: open <span class="ob-copy-chip" onclick="obCopyChromeUrl(this, 'chrome://extensions/shortcuts')" title="Click to copy - paste into a new tab">chrome://extensions/shortcuts<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+        (click to copy, then paste into the address bar) and reassign it.</li>
+      <li><strong>The extension is greyed out or missing from the toolbar.</strong> Open <span class="ob-copy-chip" onclick="obCopyChromeUrl(this, 'chrome://extensions')" title="Click to copy - paste into a new tab">chrome://extensions<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+        (click to copy, then paste into the address bar), make sure InterviewWise is toggled on, then reload this page
+        and reconnect in step 1.</li>
+      <li><strong>Nothing shows up on your phone.</strong> The extension runs on this computer, not the phone. The phone
+        only needs to be signed in to the Monitor page - use the QR in step 3.</li>
+      <li><strong>Still stuck?</strong> The <a href="/support">Support page</a> runs a live system check and walks through
+        the common fixes, or <a href="/contact?dept=support">contact us</a> directly.</li>
+    </ul>
+  </section>
+  {% else %}
   <div class="ob-bottom-subscribe">
     <a data-attr="cta:onboarding:bottom:start_trial_now" href="/pricing" class="ob-subscribe-link">Already convinced? Start your 7-day free trial now →</a>
   </div>
+  {% endif %}
   </main>
 
   <div id="theme-switcher">
@@ -326,6 +403,9 @@
     // animated flow, not the instant-jump that obSyncFromExtension() would do. Defined at
     // the very top so every function below can read it.
     const _isFreshInstall = new URLSearchParams(location.search).get('fresh') === '1';
+    // 'setup' = returning user (new device / reconnect / troubleshooting), 'onboarding' = first
+    // run with the trial CTA. Rides along on every tracked step so the two audiences separate.
+    const OB_MODE = '{{ "setup" if setup_mode else "onboarding" }}';
 
     // Gated behind a confirmation rather than firing on the click: this is the one skip on
     // the page that costs the user the extension entirely.
@@ -400,7 +480,7 @@
     const OB_STATE_TEXT = {
       1: 'Extension connected',
       2: 'Audio ready',
-      3: 'Challenge open',
+      3: OB_MODE === 'setup' ? 'Ready' : 'Challenge open',
     };
     const OB_LAST_STEP = 3;
     // Bumped from 'ia_ob_progress' — the 6-step done-set is semantically un-mappable onto
@@ -443,7 +523,8 @@
         card.classList.toggle('is-done', done);
         card.classList.toggle('is-active', n === _obOpen);
         card.classList.toggle('is-locked', !reachable && n !== _obOpen);
-        // The last card is terminal — it holds the trial CTA and never collapses, so its
+        // The last card is terminal — it holds the trial CTA (or, in setup mode, the way back
+        // to Monitor) and never collapses, so its
         // ✓ line must be allowed to show while it is still open, or completing it via a
         // platform-link click produces no visible feedback at all.
         state.hidden = !done || (n === _obOpen && n !== OB_LAST_STEP);
@@ -473,6 +554,9 @@
       _obRan.add(n);
       if (n === 1) obCard1Boot();   // pick the starting panel; does NOT start the rail
       if (n === 2) obInitAudio();
+      // Setup mode's recap prints server defaults; ask the extension for the real ones, which
+      // may have changed since the load-time broadcast (e.g. typing assigned in another tab).
+      if (n === 3 && OB_MODE === 'setup') document.dispatchEvent(new CustomEvent('scap:get-hotkeys'));
       // Deliberately not on page load: the mobile link lives for 5 minutes, and starting that
       // clock while the user is still installing the extension guarantees they scan an expired
       // code. It starts when the QR is actually on screen.
@@ -521,7 +605,7 @@
       if (_obCompleting.has(n)) return;
       _obCompleting.add(n);
       _obDone.add(n);
-      if (window.iwTrack) iwTrack('onboarding_step_completed', { step: n });
+      if (window.iwTrack) iwTrack('onboarding_step_completed', { step: n, mode: OB_MODE });
       // Render before the hold, not after: the card has to show its finished state *during* the
       // pause. Skipping this left it displaying whatever it looked like beforehand for the whole
       // hold, then snapping straight to collapsed.
@@ -885,6 +969,54 @@
         obRetryDispatch('scap:mic-check', () => _micSeen);
       }
     });
+
+    // ── Card 3 (setup mode): live hotkeys ───────────────────────────────────
+    // content.js broadcasts scap:hotkeys on load and on request. Real values replace the server
+    // defaults printed in the recap; the typing row flips between "not set" and its key.
+    function obApplyHotkeys(cmds) {
+      const recap = document.getElementById('ob-hotkey-recap');
+      if (!recap || !Array.isArray(cmds)) return;
+      const isMac = /Mac/.test(navigator.platform);
+      const byName = {};
+      cmds.forEach((c) => { byName[c.name] = c.shortcut || ''; });
+      recap.querySelectorAll('kbd[data-hk]').forEach((kbd) => {
+        const key = byName[kbd.dataset.hk];
+        if (key) kbd.textContent = isMac ? key.replace('Ctrl', 'Cmd') : key;
+      });
+      const row = document.getElementById('ob-hk-typing-row');
+      const has = !!byName['typing'];
+      row.classList.toggle('is-unset', !has);
+      document.getElementById('ob-hk-typing-key').hidden = !has;
+      document.getElementById('ob-hk-typing-notset').hidden = has;
+      document.getElementById('ob-hk-typing-prompt').hidden = has;
+    }
+    document.addEventListener('scap:hotkeys', (e) => obApplyHotkeys(e.detail));
+
+    // chrome:// URLs can't be linked to from a page (Chrome blocks the navigation on every OS),
+    // so they're copy-and-paste. Same chip and fallback as /support's copyChromeUrl: the async
+    // clipboard API first, a hidden textarea + execCommand when that's unavailable or refused.
+    function obCopyChromeUrl(el, url) {
+      const label = el.childNodes[0];
+      const original = label.textContent;
+      const _show = () => {
+        label.textContent = 'Copied!';
+        el.classList.add('copied');
+        setTimeout(() => { label.textContent = original; el.classList.remove('copied'); }, 1500);
+      };
+      const _fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        try { if (document.execCommand('copy')) _show(); } finally { document.body.removeChild(ta); }
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(_show).catch(_fallback);
+      } else {
+        _fallback();
+      }
+    }
 
     function obCopyMicSettings(btn) {
       // chrome:// URLs can't be navigated to from a page, and the extension id isn't readable

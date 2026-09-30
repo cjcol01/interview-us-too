@@ -1115,3 +1115,97 @@ kbd {
   line-height: 1.55;
   margin-bottom: 0;
 }
+
+/* ── Setup mode (returning users: new device / reconnect / troubleshooting) ── */
+/* The final card's CTA is a link to /app rather than a button; match .ob-moved-btn. */
+a.ob-moved-btn { display: block; box-sizing: border-box; text-decoration: none; }
+
+.ob-hotkey-recap {
+  list-style: none;
+  margin: 10px 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-hotkey-recap li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+.ob-hotkey-recap kbd { flex-shrink: 0; min-width: 96px; text-align: center; }
+.ob-hotkey-recap kbd[hidden] { display: none; }
+.ob-hotkey-recap li.is-unset { align-items: flex-start; }
+.ob-hk-notset {
+  flex-shrink: 0;
+  min-width: 96px;
+  box-sizing: border-box;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #d8a13a;
+  border: 1px dashed var(--line-strong);
+  border-radius: 5px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.ob-hk-notset[hidden] { display: none; }
+/* chrome:// URL chip — same shape as /support's .copy-chip. Click copies; the URL itself is
+   the label so it's also readable (and selectable) if the clipboard is blocked. */
+.ob-copy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  padding: 1px 6px;
+  cursor: pointer;
+  vertical-align: baseline;
+  transition: border-color .15s;
+}
+.ob-copy-chip:hover { border-color: var(--accent); }
+.ob-copy-chip svg { flex: none; opacity: .7; }
+.ob-copy-chip.copied { border-color: var(--accent-line); color: var(--accent); }
+.ob-copy-chip.copied svg { opacity: 1; }
+
+.ob-trouble {
+  margin-top: 26px;
+  padding: 18px 20px;
+  background: var(--card-inset);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+}
+.ob-trouble-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  margin: 0 0 10px;
+}
+.ob-trouble-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ob-trouble-list li { font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
+.ob-trouble-list li strong { color: var(--text-1); }
+.ob-trouble-list a { color: var(--accent); text-decoration: none; }
+.ob-trouble-list a:hover { text-decoration: underline; }
+.ob-trouble-list code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-1);
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

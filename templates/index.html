@@ -354,6 +354,11 @@ The team actively read these and work on issues found."></textarea>
           </button>
         </div>
       </div>
+      <!-- Shown only while the Ext light is red (toggled from _setDot). The tooltip already
+           says what's wrong; this is the one-click way to the page that fixes it, instead of
+           sending people via Settings. Device-neutral wording: on the phone the red light is
+           relayed from the desktop, and the link is still the right destination. -->
+      <a id="hk-setup-link" class="hk-setup-link" href="/onboarding" data-attr="cta:monitor:ext_setup" hidden>Extension not connected? Open the setup guide →</a>
       <div class="hk-ref-list">
         <div class="hk-ref-row">
           <span class="hk-ref-label">Toggle on/off</span>
@@ -1060,6 +1065,9 @@ The team actively read these and work on issues found."></textarea>
       const dot = document.getElementById('hk-status-' + name);
       dot.querySelector('.hk-status-led').className = 'hk-status-led ' + state;
       document.getElementById('hk-status-tip-' + name).textContent = text;
+      // Every path that paints the Ext light goes through here, so this is the one place
+      // the setup-guide link needs to follow it.
+      if (name === 'ext') document.getElementById('hk-setup-link').hidden = state !== 'bad';
     }
 
     function _clampTip(dot) {

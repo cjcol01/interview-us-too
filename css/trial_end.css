@@ -155,41 +155,6 @@
   gap: 12px;
 }
 
-/* ── Key bindings ── */
-/* Rows mirror the Shortcuts rows in Settings (.hk-row) so the two pages read the same.
-   They live in their own wrapper so :last-child reliably picks the bottom row — with
-   the footnote as a sibling div, :last-of-type never matched and the last row kept a
-   divider that then doubled up with the footnote's border. */
-.te-keybind-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line);
-}
-.te-keybind-list .te-keybind-row:first-child { padding-top: 2px; }
-.te-keybind-list .te-keybind-row:last-child { padding-bottom: 2px; border-bottom: none; }
-.te-keybind-desc { font-size: 13.5px; color: var(--text-1); }
-.te-keybind-keys {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-.te-bindings-foot { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
-
-.te-main kbd {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11.5px;
-  color: var(--accent);
-  background: var(--card-inset);
-  border: 1px solid var(--line-strong);
-  border-radius: 7px;
-  padding: 5px 10px;
-}
-.te-sep { font-size: 11px; color: var(--text-3); }
-
 /* ── Upgrade ── */
 .te-upgrade {
   text-align: center;
@@ -267,5 +232,4 @@
 }
 @media (max-width: 480px) {
   .te-card { padding: 16px; }
-  .te-keybind-row { flex-direction: column; align-items: flex-start; gap: 8px; }
 }

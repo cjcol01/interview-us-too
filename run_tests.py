@@ -30,6 +30,10 @@ os.environ.setdefault("ADMIN_USERNAME", "_test_admin")
 # than setdefault: an exported shell var would otherwise win and the suite would write test
 # events into the production PostHog project (analytics.py also bails on TESTING=1).
 os.environ["POSTHOG_API_KEY"] = ""
+# The landing tests assert on the production page (lead form, demo order). Pin the flag so
+# a local .env set to LANDING_PROD=0 for previewing the prep variant doesn't fail the suite;
+# the prep page has its own test that flips server.LANDING_PROD for one request.
+os.environ["LANDING_PROD"] = "1"
 
 # Start from a clean test database each run. Drop and recreate the public schema rather than
 # just calling drop_all() — the five native Postgres ENUM types (AccountLevel, ResponseStyle,

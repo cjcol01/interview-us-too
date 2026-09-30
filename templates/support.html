@@ -9,6 +9,10 @@
     <p class="support-kicker">SOS · Support &amp; troubleshooting</p>
     <h1>Something not working?</h1>
     <p class="support-sub">Run a quick system check, or jump straight to a fix for one of the issues below.</p>
+    {% if user %}
+    <p class="support-sub">Setting up on a new computer, or reinstalled the extension?
+      <a href="/onboarding" data-attr="cta:support:setup_guide">Open the setup guide&nbsp;&rarr;</a></p>
+    {% endif %}
   </header>
 
   <!-- ══ System check panel ══════════════════════════════════════ -->
@@ -230,6 +234,7 @@
           <li>If that times out, expand "Not working? Try the manual token" on Settings and paste the token directly into the extension popup.</li>
           <li>Reinstalling the extension clears its stored token - always reconnect afterward.</li>
           <li>Make sure you're connecting from the same browser profile the extension is installed in.</li>
+          {% if user %}<li>On a new computer, the <a href="/onboarding">setup guide</a> walks through install, connect and the audio checks in one go.</li>{% endif %}
         </ol>
       </div>
     </div>
